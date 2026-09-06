@@ -392,6 +392,7 @@ function HoverVerdict({
 function YoyBlock({
   yoy,
   days,
+  monthBudget,
   base,
   approx,
   priorLabel,
@@ -399,6 +400,8 @@ function YoyBlock({
   yoy: CumulativeCompare
   /** Dải ngày của tháng ĐANG XEM — trục x phủ trọn tháng dù đường năm nay mới đi vài ngày. */
   days: DaySpend[]
+  /** Tổng hạn mức của kỳ; 0 = không vẽ đường hạn mức. Xem `yoyBudget` ở component cha. */
+  monthBudget: number
   base: CurrencyCode
   approx: boolean
   priorLabel: string
@@ -408,7 +411,18 @@ function YoyBlock({
   // bắt đầu tháng tùy chỉnh) thì trục lấy bên dài hơn, đường ngắn dừng sớm — không bịa thêm.
   const n = Math.max(days.length, prior.length)
   const nowTotal = current[current.length - 1]
-  const hi = Math.max(1, ...current, ...prior)
+  // Điểm ĐẦU của đường hạn mức, và cũng là cái quyết định có vẽ hay không. Dùng chung
+  // `budgetPerDay` với phần còn lại của app: đường này chính là LŨY KẾ của con số ¥/ngày
+  // đó, nên hai chỗ phải chia bằng cùng một mẫu số.
+  const perDay = budgetPerDay(monthBudget, n)
+  // Trần vào thang trục. Không cho vào thì đường hạn mức chạy ra ngoài mép trên và bị
+  // <svg> cắt — người đọc thấy một đoạn chéo đứt ở đâu đó mà không biết nó đi tới đâu,
+  // còn nhãn `hi` ở góc thì nói một con số không liên quan tới nó.
+  // Giá phải trả là hai đường chi bị nén lại khi trần lớn hơn cả hai năm; đo trên số thật
+  // (9/2026 trần ¥280.448 · 9/2025 chi ¥262.838) thì thang chỉ nới 6,7%. Và khi trần lớn
+  // gấp mấy lần thực chi thì hai đường DÍNH ĐÁY chính là câu trả lời đúng — "tiêu chưa
+  // tới đâu so với trần" — chứ không phải một lỗi vẽ.
+  const hi = Math.max(1, ...current, ...prior, perDay === null ? 0 : monthBudget)
   const lo = Math.min(0, ...current, ...prior)
   const x = (i: number) => (n > 1 ? (i / (n - 1)) * 100 : 0)
   const y = (v: number) => 100 - ((v - lo) / (hi - lo)) * 100
@@ -456,6 +470,15 @@ function YoyBlock({
           {' · '}cả tháng {priorLabel}{' '}
           <Money amount={priorTotal} currency={base} approx={approx} />
         </span>
+        {/* Trần cả tháng. Màu vàng cảnh báo TRÙNG màu đường chéo trên đồ thị, và đó là thứ
+            duy nhất nối chữ với hình: ba đường trong khung (xám = năm ngoái, đỏ = năm nay,
+            vàng nét đứt = hạn mức) thì không có mã màu là phải đoán. Nói TỔNG chứ không nói
+            ¥/ngày: đồ thị này lũy kế, và điểm đường vàng kết thúc đúng là con số này. */}
+        {perDay !== null && (
+          <span className="font-mono text-2xs text-fg-warn">
+            {' · '}hạn mức <Money amount={monthBudget} currency={base} approx={approx} />
+          </span>
+        )}
       </p>
 
       {/* onMouseMove ở KHUNG chứ không ở svg: svg là hình aria-hidden, còn khung mới là
@@ -494,6 +517,26 @@ function YoyBlock({
           className="h-44 w-full"
           aria-hidden
         >
+          {/* Hạn mức: đường CHÉO đi đều, từ ¥/ngày ở ngày đầu tới trọn trần ở ngày cuối —
+              tức "nếu mỗi ngày tiêu đúng phần được chia thì lũy kế sẽ đi thế này". Đường chi
+              nằm DƯỚI nó là còn trong trần, nằm trên là đã vượt nhịp.
+              Chéo chứ không NGANG ở mức trần: đường ngang chỉ trả lời được vào ngày cuối
+              tháng ("đã vượt chưa"), còn 29 ngày trước đó mọi lũy kế đều nằm dưới nó nên nó
+              không nói gì. Đường chéo trả lời được ở MỌI ngày.
+              Vẽ TRƯỚC hai đường chi: nó là nền đối chiếu, không phải dữ liệu — chỗ hai bên
+              cắt nhau thì đường chi phải nằm trên.
+              `strokeDasharray` chứ không class: recharts-style prop, và svg trong file này
+              vốn đã đặt màu/nét bằng prop (xem `stroke="var(--money-out)"` bên dưới). */}
+          {perDay !== null && (
+            <path
+              d={`M0,${y(perDay).toFixed(2)} L100,${y(monthBudget).toFixed(2)}`}
+              fill="none"
+              stroke="var(--fg-warn)"
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
           <path
             d={pathOf(prior)}
             fill="none"
@@ -616,6 +659,17 @@ function YoyBlock({
           <span className="h-0.5 w-4 rounded-full bg-fg-muted" aria-hidden /> {priorLabel}, trọn
           tháng
         </span>
+        {/* Mã màu ở dòng kết luận nói HẠN MỨC LÀ BAO NHIÊU, chú giải này nói ĐƯỜNG NÀO là
+            nó — hai việc khác nhau, không phải một điều nói hai lần. Không có dòng này thì
+            đường chéo vàng là nét thứ ba trong khung mà chú giải chỉ kể tên hai nét.
+            Vạch mẫu vẽ bằng `border-t border-dashed`, không phải `bg-*` như hai vạch trên:
+            nền đặc thì mẫu đọc ra một đường LIỀN, tức nói sai chính cái nó đang chỉ. */}
+        {perDay !== null && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 border-t border-dashed border-fg-warn" aria-hidden /> hạn mức,
+            chia đều
+          </span>
+        )}
       </p>
     </>
   )
@@ -672,18 +726,23 @@ export function DailySpendPanel({
   // dùng vừa tạo ra và đang đi tìm.
   const lastWithData = days.reduce((k, d, i) => (d.date <= cutoffISO && d.total !== 0 ? i : k), -1)
   const filtered = scope === 'flex'
-  // Đường hạn mức. CHỈ ở phạm vi "Tất cả", và đó là luật cùng họ với B46.2: `totalBudgeted`
-  // là tổng trần của MỌI danh mục, trong đó có tiền nhà. Bật "Bỏ cố định" là cột tụt đi cả
-  // trăm nghìn yên trong khi đường đứng yên — một đường nằm cao vượt mọi cột, đọc ra "tháng
-  // nào cũng dư dả". Trần của riêng phần linh hoạt thì phải cộng lại từ từng danh mục, tức
-  // dựng một con số hạn mức THỨ HAI cạnh con số mà trang Ngân sách đang nói — đúng thứ mà
-  // chú thích `useBudgetReport` ở BulletinPage cấm.
-  const perDay = filtered ? null : budgetPerDay(monthBudget, days.length)
-  // Vẽ được hay không là chuyện khác với NÓI được hay không: hạn mức nằm trên mức cắt của
-  // trục (tháng đều đều, trần rộng) thì đường sẽ dính vào mép trên và đè nhãn mức cắt —
-  // lúc đó bỏ HÌNH, giữ CHỮ. Cùng thứ tự ưu tiên đã ghi ở đầu file: kết luận nói bằng chữ,
-  // hình chỉ là phần thêm.
-  const perDayFits = perDay !== null && ceiling > 0 && perDay <= ceiling
+  // Hạn mức đi vào đồ thị LŨY KẾ ("So năm ngoái"), KHÔNG vào hàng cột — và đó là chuyện
+  // hai câu hỏi khác nhau, không phải chuyện chỗ nào trống hơn.
+  //   Hàng cột hỏi "ngày nào vọt lên". Một đường ngang ¥9.348 ở đó bị mọi ngày tiền nhà
+  //     vượt qua và mọi ngày trắng nằm dưới, tức nó gắn nhãn "vượt/không vượt" cho từng
+  //     NGÀY — trong khi hạn mức là trần của CẢ THÁNG. Ngày mua vé máy bay không phải là
+  //     một ngày sai; nó chỉ sai nếu cả tháng cộng lại vượt trần.
+  //   Đồ thị lũy kế hỏi đúng câu "cả tháng cộng lại có vượt không". Ở đó hạn mức là một
+  //     đường CHÉO đi đều từ ¥/ngày lên trọn trần, và đường chi của mình nằm trên hay dưới
+  //     nó chính là câu trả lời. Xem <YoyBlock>.
+  //
+  // CHỈ ở phạm vi "Tất cả", và đó là luật cùng họ với B46.2: `totalBudgeted` là tổng trần
+  // của MỌI danh mục, trong đó có tiền nhà. Bật "Bỏ cố định" thì `excludeIds` cắt cả HAI
+  // đường lũy kế (xem BulletinPage) trong khi trần đứng nguyên — đường hạn mức treo cao
+  // vượt cả hai năm, đọc ra "năm nào cũng dư dả". Trần của riêng phần linh hoạt thì phải
+  // cộng lại từ từng danh mục, tức dựng một con số hạn mức THỨ HAI cạnh con số mà trang
+  // Ngân sách đang nói — đúng thứ mà chú thích `useBudgetReport` ở BulletinPage cấm.
+  const yoyBudget = filtered ? 0 : monthBudget
 
   const pctOf = (v: number) => (ceiling > 0 ? Math.min(Math.abs(v) / ceiling, 1) : 0)
 
@@ -770,6 +829,7 @@ export function DailySpendPanel({
         <YoyBlock
           yoy={yoy}
           days={days}
+          monthBudget={yoyBudget}
           base={base}
           approx={approx || yoyApprox}
           priorLabel={priorLabel}
@@ -791,19 +851,6 @@ export function DailySpendPanel({
             {headline?.kind !== 'typical' && (
               <span className="font-mono text-2xs text-fg-muted">
                 {' · '}ngày thường <Money amount={typical} currency={base} approx={approx} />
-              </span>
-            )}
-            {/* Hạn mức mỗi ngày. Màu vàng cảnh báo TRÙNG với màu đường trên biểu đồ, và đó là
-                thứ duy nhất nối chữ với hình: hai đường nét đứt cạnh nhau (xám = ngày thường,
-                vàng = hạn mức) mà không có mã màu thì người đọc phải đoán đường nào là đường
-                nào. Không thêm nhãn số ở trục tung cho nó: trục đã có ba nhãn (mức cắt · ngày
-                thường · 0), và hạn mức thường rơi sát ngày thường — hai số mono chồng nhau
-                đọc ra như lỗi vẽ. Chữ ở đây không bao giờ chồng lên gì.
-                In cả khi đường không vẽ được (`perDayFits` sai): con số vẫn đúng và vẫn đáng
-                đọc, chỉ là trục không đủ chỗ cho nó. */}
-            {perDay !== null && (
-              <span className="font-mono text-2xs text-fg-warn">
-                {' · '}hạn mức <Money amount={perDay} currency={base} approx={approx} />/ngày
               </span>
             )}
             {future.length > 0 && typical > 0 && (
@@ -875,16 +922,6 @@ export function DailySpendPanel({
               </div>
 
               <div className="relative">
-                {/* Đứng TRƯỚC đường trung vị trong DOM: hai đường sát nhau thì đường sau vẽ
-                    lên trên, và cái phải thắng là trung vị — nó là số của chính người dùng,
-                    hạn mức chỉ là mốc đối chiếu. */}
-                {perDayFits && (
-                  <span
-                    className="absolute inset-x-0 border-t border-dashed border-fg-warn"
-                    style={{ bottom: `calc(${NEG_PCT}% + ${pctOf(perDay) * POS_PCT}%)` }}
-                    aria-hidden
-                  />
-                )}
                 {typical > 0 && (
                   <span
                     className="absolute inset-x-0 border-t border-dashed border-border-strong"

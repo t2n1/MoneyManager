@@ -213,7 +213,7 @@ describe('dailySpendSeries — mấy khoản lớn nhất trong ngày', () => {
 /** Chuỗi ngày trần cho ba hàm hình học — không cần dựng giao dịch để thử một phép clamp. */
 const day = (date: string, total: number): DaySpend => ({ date, total, top: [] })
 
-describe('budgetPerDay — đường hạn mức của biểu đồ ngày', () => {
+describe('budgetPerDay — điểm đầu đường hạn mức của đồ thị lũy kế', () => {
   it('chia đều tổng hạn mức cho số ngày trong kỳ', () => {
     // Số thật tháng 9/2026: tổng hạn mức ¥280.448 (đã gồm phần dồn từ tháng 8), kỳ 30 ngày.
     expect(budgetPerDay(280_448, 30)).toBe(9_348)

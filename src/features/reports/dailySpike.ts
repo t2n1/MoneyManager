@@ -191,15 +191,18 @@ export function axisCeiling(days: readonly DaySpend[], typical: number): number 
 /**
  * Hạn mức MỖI NGÀY: tổng hạn mức của kỳ chia đều cho số ngày trong kỳ.
  *
- * Đường thứ hai của biểu đồ chi từng ngày, đứng cạnh đường trung vị. Hai đường trả lời
- * hai câu khác nhau: trung vị nói "ngày thường của TÔI là bao nhiêu", hạn mức nói "mỗi
- * ngày được bao nhiêu thì cuối tháng vừa khít trần".
+ * Điểm ĐẦU của đường hạn mức trên đồ thị lũy kế "So năm ngoái" (`YoyBlock`): đường đó là
+ * lũy kế của chính con số này, chéo đều từ ¥/ngày ở ngày đầu tới trọn trần ở ngày cuối.
+ * Đường chi nằm dưới nó là còn trong nhịp trần, nằm trên là đã vượt.
+ *
+ * KHÔNG dùng cho hàng cột từng ngày, và đó là chuyện hai câu hỏi khác nhau: hàng cột hỏi
+ * "ngày nào vọt lên", mà hạn mức là trần của CẢ THÁNG — một đường ngang ở đó gắn nhãn
+ * vượt/không-vượt cho từng NGÀY, trong khi ngày mua vé máy bay không phải một ngày sai.
  *
  * PHẲNG, chia đều — cố ý không dùng "còn lại ÷ số ngày còn lại" (`toiNgayLuong.moiNgay`,
  * con số ¥/ngày ở thẻ HÔM NAY). Số đó là một mục tiêu ĐANG DI ĐỘNG: tiêu nhiều hôm nay
- * thì mai nó tụt. Vẽ nó thành một đường ngang phủ cả tháng là đem hạn mức của HÔM NAY ra
- * chấm điểm những ngày đã qua — ngày 3 bỗng "vượt" vì ngày 12 tiêu quá. Đường phẳng thì
- * mọi cột được so với cùng một mốc, và mốc đó không đổi khi người dùng ghi thêm khoản.
+ * thì mai nó tụt, nên đường vẽ ra sẽ đổi hình mỗi lần ghi thêm một khoản — kể cả đoạn
+ * của những ngày đã qua. Chia đều thì mốc đứng yên, và một mốc đứng yên mới so được.
  *
  * `null` là "đừng vẽ": chưa đặt hạn mức nào (0), hoặc không có ngày nào để chia.
  */

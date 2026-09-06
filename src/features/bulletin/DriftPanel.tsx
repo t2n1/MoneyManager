@@ -9,12 +9,12 @@ import {
   useAccounts,
   useCategories,
   useProfile,
-  useRangeTransactions,
   useRates,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import { addMonths, formatMonthLabel, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
+import { formatMonthLabel, toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
+import type { TransactionRow } from '../../types/database.types'
 import { detectRaise, lifestyleDrift } from './drift'
 import { detectRecurringFees } from './recurringFees'
 import { INFL_SPEAK_PCT, personalInflation } from './personalInflation'
@@ -22,7 +22,18 @@ import { INFL_SPEAK_PCT, personalInflation } from './personalInflation'
 /** Chỉ bày chừng này chuỗi phí to nhất — panel cột phụ, không phải trang kiểm kê. */
 const FEE_SHOW_MAX = 3
 
-export function DriftPanel({ className = '' }: { className?: string }) {
+interface Props {
+  /**
+   * Giao dịch phủ ÍT NHẤT 25 tháng gần đây (12 tháng hoàn tất + cùng kỳ năm ngoái) —
+   * BulletinPage đưa xuống từ truy vấn dùng chung của cả trang, panel không tự tải để
+   * khỏi kéo một dải chồng lấn lần thứ hai. Rộng hơn cũng được: mọi phép tính bên trong
+   * đều tự cắt cửa sổ theo tháng.
+   */
+  txs: TransactionRow[]
+  className?: string
+}
+
+export function DriftPanel({ txs, className = '' }: Props) {
   const { data: profile } = useProfile()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -30,16 +41,6 @@ export function DriftPanel({ className = '' }: { className?: string }) {
   const { base, rates } = useRates()
   const todayISO = toISODate(new Date())
   const monthStartDay = profile?.month_start_day ?? 1
-
-  // 25 tháng: lạm phát cá nhân cần cả CÙNG KỲ NĂM TRƯỚC của 12 tháng gần nhất.
-  const range = useMemo(() => {
-    const current = monthKeyForDate(todayISO, monthStartDay)
-    return {
-      start: getMonthRange(addMonths(current, -24), monthStartDay).start,
-      end: getMonthRange(current, monthStartDay).end,
-    }
-  }, [todayISO, monthStartDay])
-  const { data: txs = [] } = useRangeTransactions(range, !!profile)
 
   const { raise, drift, fees, infl } = useMemo(() => {
     if (txs.length === 0 || rates === undefined)

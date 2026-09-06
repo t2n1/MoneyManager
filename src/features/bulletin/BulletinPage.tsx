@@ -111,18 +111,42 @@ export function BulletinPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [anchor.year, anchor.month],
   )
-  const range = useMemo(
+  // MỘT truy vấn cho cả trang: hợp của dải 8 tháng (biểu đồ) và dải 25 tháng mà panel
+  // "Thu nhập & nếp chi" cần (12 tháng hoàn tất + cùng kỳ năm ngoái của chúng). Trước
+  // đây DriftPanel tự tải dải 25 tháng RIÊNG — phần 8 tháng bị kéo về hai lần, mà sổ
+  // lớn thì mỗi lượt là cả chục request phân trang.
+  const range = useMemo(() => {
+    const dau = getMonthRange(months[0], monthStartDay).start
+    const cuoi = getMonthRange(months[BULLETIN_MONTHS - 1], monthStartDay).end
+    const nepChiDau = getMonthRange(addMonths(currentMonthKey, -24), monthStartDay).start
+    const nepChiCuoi = getMonthRange(currentMonthKey, monthStartDay).end
+    return {
+      start: dau < nepChiDau ? dau : nepChiDau,
+      end: cuoi > nepChiCuoi ? cuoi : nepChiCuoi,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months, monthStartDay, currentMonthKey.year, currentMonthKey.month])
+  const { data: rangeTxs = [] } = useRangeTransactions(range)
+
+  // Các khối CŨ của trang chỉ được nhìn đúng cửa sổ 8 tháng như trước, không phải cả
+  // dải hợp: `reliability` đo "% đã phân loại" trên cửa sổ GẦN ĐÂY (giao dịch chưa gắn
+  // nhãn của 2 năm trước không được kéo tụt điểm hôm nay), còn cờ thiếu-tỷ-giá của
+  // `monthlySeries` bật theo MỌI dòng nó được đưa — đưa dải rộng là dấu ≈ nổi oan.
+  const seriesRange = useMemo(
     () => ({
       start: getMonthRange(months[0], monthStartDay).start,
       end: getMonthRange(months[BULLETIN_MONTHS - 1], monthStartDay).end,
     }),
     [months, monthStartDay],
   )
-  const { data: rangeTxs = [] } = useRangeTransactions(range)
+  const seriesTxs = useMemo(
+    () => rangeTxs.filter((t) => t.occurred_on >= seriesRange.start && t.occurred_on < seriesRange.end),
+    [rangeTxs, seriesRange],
+  )
   const series = useMemo(
-    () => monthlySeries(rangeTxs, months, monthStartDay, currencyOf, base, rates ?? {}, transferIds),
+    () => monthlySeries(seriesTxs, months, monthStartDay, currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangeTxs, months, monthStartDay, accounts, base, rates],
+    [seriesTxs, months, monthStartDay, accounts, base, rates],
   )
 
   // Ô KPI nói về THÁNG ĐANG XEM, mà dải có thể kết thúc ở một tháng khác (xem
@@ -144,7 +168,7 @@ export function BulletinPage() {
   const expenseCmp = useMemo(
     () =>
       monthExpenseCompare(
-        rangeTxs,
+        seriesTxs,
         activeMonthKey,
         monthStartDay,
         toISODate(new Date()),
@@ -155,7 +179,7 @@ export function BulletinPage() {
         vang,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangeTxs, activeMonthKey, monthStartDay, accounts, base, rates, transferIds, vang],
+    [seriesTxs, activeMonthKey, monthStartDay, accounts, base, rates, transferIds, vang],
   )
   const expenseRaw = kpiFromSeries(upTo.map((p) => p.expense))
   const expenseKpi =
@@ -379,7 +403,7 @@ export function BulletinPage() {
     () =>
       reliability({
         todayISO: toISODate(new Date()),
-        recentTxs: rangeTxs,
+        recentTxs: seriesTxs,
         categories,
         // ĐÚNG tập tài khoản mà `reconcileStaleRule` xét, không phải `purposeGroups`.
         // Đã dựng sai một lần và đo ra ngay: purposeGroups chỉ có TÀI SẢN nên thẻ tín
@@ -394,7 +418,7 @@ export function BulletinPage() {
         // còn lại (lợi suất, kịch bản) thuộc màn Tương lai — PR 10 nối vào đây.
         blankAssumptions: profile?.birth_year ? 0 : 1,
       }),
-    [rangeTxs, categories, accounts, series.points, profile?.birth_year],
+    [seriesTxs, categories, accounts, series.points, profile?.birth_year],
   )
 
   // Chấm "chưa đối chiếu" cạnh từng dòng ở panel Tài khoản. CÙNG nguồn và CÙNG tập tài
@@ -405,7 +429,7 @@ export function BulletinPage() {
     const cutoff = addDaysISO(todayISO, -RECONCILE_STALE_DAYS)
     const lanCuoi = lastReconciledMap(
       accounts.filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals),
-      rangeTxs,
+      seriesTxs,
       categories,
     )
     const out = new Set<string>()
@@ -415,7 +439,7 @@ export function BulletinPage() {
       if (!ngay || ngay < cutoff) out.add(a.id)
     }
     return out
-  }, [accounts, rangeTxs, categories, todayISO])
+  }, [accounts, seriesTxs, categories, todayISO])
 
   // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
   // Thoát sớm hẳn chứ không lồng điều kiện vào từng khối: mỗi khối tự lo trạng thái
@@ -583,10 +607,11 @@ export function BulletinPage() {
           <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
 
           {/* Thu nhập & nếp chi (drift.ts): tự ẩn khi không có gì đáng nói — đứng sau
-              Ngân sách vì cùng nói về NẾP, khác Ngân sách ở chỗ nhìn 12 tháng chứ không
-              phải tháng này. Bọc NotificationBoundary: đọc 12 tháng giao dịch. */}
+              Ngân sách vì cùng nói về NẾP, khác Ngân sách ở chỗ nhìn nhiều tháng chứ
+              không phải tháng này. Nhận `rangeTxs` (dải HỢP, đủ 25 tháng nó cần) thay vì
+              tự tải — xem chú thích ở `range`. Bọc NotificationBoundary như cũ. */}
           <NotificationBoundary>
-            <DriftPanel />
+            <DriftPanel txs={rangeTxs} />
           </NotificationBoundary>
 
           <AccountsPanel

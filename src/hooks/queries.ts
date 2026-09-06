@@ -211,6 +211,10 @@ export function useRangeTransactions(range: DateRange, enabled = true) {
     queryKey: ['transactions', range.start, range.end],
     queryFn: () => repo.listTransactions(range),
     enabled,
+    // Dải nhiều tháng của sổ lớn là hàng chục nghìn dòng = cả chục request phân trang.
+    // Hạn "tươi" mặc định 30 giây làm MỖI lần mở Bản tin kéo lại từ đầu. 5 phút là đủ:
+    // ghi/sửa/xóa giao dịch vẫn tươi NGAY vì mọi mutation đã invalidate ['transactions'].
+    staleTime: 5 * 60_000,
   })
 }
 

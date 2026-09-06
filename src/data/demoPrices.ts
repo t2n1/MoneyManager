@@ -42,20 +42,67 @@ export function demoSessions(from: string, to: string): string[] {
   return out
 }
 
+/** Một phiên mà đường giả BUỘC phải đi qua đúng con số đã biết. */
+export interface DemoAnchor {
+  /** Vị trí trong mảng phiên. */
+  index: number
+  value: number
+}
+
 /**
- * Bước ngẫu nhiên tất định, CHUẨN HOÁ để phiên cuối bằng đúng `endValue`.
+ * Bước ngẫu nhiên tất định, KÉO qua những điểm neo.
  *
- * Chuẩn hoá ở cuối chứ không ở đầu: phiên cuối là con số người dùng đang thấy trên màn
- * (giá hiện tại, hoặc điểm VN-Index). Để nó lệch thì hai chỗ trên cùng một trang nói hai
- * số khác nhau — đúng lỗi mà cả trang này sinh ra để tránh.
+ * Phiên cuối luôn bằng đúng `endValue` — đó là con số người dùng đang thấy trên màn (giá
+ * hiện tại, hoặc điểm VN-Index). Để nó lệch thì hai chỗ trên cùng một trang nói hai số
+ * khác nhau, đúng lỗi mà cả trang Đầu tư sinh ra để tránh.
+ *
+ * `anchors` là những phiên có LỆNH MUA trong sổ demo. Không neo vào đó thì ngày mua, tiền
+ * đổi thành cổ phiếu ở giá trong sổ lệnh còn danh mục được định giá theo đường giả — hai
+ * con số không liên quan gì nhau, và biểu đồ hiện một vách dựng đứng ngay hôm mua. Ở dữ
+ * liệu THẬT chuyện đó không xảy ra (giá phiên hôm mua chính là giá mua), nên một bản demo
+ * có vách là bản demo nói sai về tính năng.
+ *
+ * Cách kéo: hiệu chỉnh HÌNH HỌC theo từng đoạn giữa hai neo, nên đường vẫn giữ nguyên độ
+ * gồ ghề của bước ngẫu nhiên mà hai đầu đoạn khớp đúng.
  */
-export function demoWalk(seed: string, n: number, endValue: number, vol: number): number[] {
+export function demoWalk(
+  seed: string,
+  n: number,
+  endValue: number,
+  vol: number,
+  anchors: DemoAnchor[] = [],
+): number[] {
   if (n <= 0) return []
   const rng = bocNgauNhien(hatGiong(seed))
   const w: number[] = [1]
   for (let i = 1; i < n; i++) {
     w.push(w[i - 1] * (1 + (rng() - 0.5) * vol + 0.0004))
   }
-  const cuoi = w[n - 1]
-  return w.map((x) => Math.max(1, Math.round((endValue * x) / cuoi)))
+
+  const moc = [
+    ...anchors.filter((a) => a.index >= 0 && a.index < n - 1).sort((a, b) => a.index - b.index),
+    { index: n - 1, value: endValue },
+  ]
+
+  const out = new Array<number>(n)
+  // Trước neo đầu tiên: cùng một hệ số với chính neo đó. Nội suy về "không hệ số" ở phiên
+  // 0 sẽ bịa ra một cú lao vô nghĩa ở mép trái.
+  const dau = moc[0]
+  const heSoDau = dau.value / w[dau.index]
+  for (let i = 0; i < dau.index; i++) out[i] = Math.max(1, Math.round(w[i] * heSoDau))
+
+  let truoc = dau
+  out[dau.index] = Math.max(1, Math.round(w[dau.index] * heSoDau))
+  for (const sau of moc.slice(1)) {
+    const a = truoc.value / w[truoc.index]
+    const b = sau.value / w[sau.index]
+    const span = sau.index - truoc.index
+    for (let i = truoc.index + 1; i <= sau.index; i++) {
+      const t = (i - truoc.index) / span
+      out[i] = Math.max(1, Math.round(w[i] * a ** (1 - t) * b ** t))
+    }
+    truoc = sau
+  }
+
+  return out
 }

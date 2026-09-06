@@ -1481,13 +1481,23 @@ export const demoRepo: Repo = {
 
   async getStockPriceHistory(symbols: string[], from: string) {
     if (symbols.length === 0) return []
-    const bangGia = load().stockPrices ?? []
+    const db = load()
+    const bangGia = db.stockPrices ?? []
+    const soLenh = db.stockTrades ?? []
     const phien = demoSessions(from, daysAgo(0))
+    const viTri = new Map(phien.map((d, i) => [d, i]))
     const out: StockPriceHistoryRow[] = []
     for (const symbol of symbols) {
       const hienTai = bangGia.find((p) => p.symbol === symbol)?.price
       if (hienTai == null) continue // mã không có trong bảng giá demo → không có lịch sử
-      const gia = demoWalk(symbol, phien.length, hienTai, 0.03)
+      // Mỗi lệnh MUA là một điểm neo: ngày đó giá phiên phải bằng giá mua, không thì
+      // biểu đồ hiện một vách dựng đứng ngay hôm mua — xem lời giải thích ở demoWalk.
+      // Lệnh 'adjust' có price = 0 nên loại, neo vào 0 là chia cho 0.
+      const neo = soLenh
+        .filter((t) => t.symbol === symbol && t.kind === 'buy' && t.price > 0)
+        .map((t) => ({ index: viTri.get(t.traded_on) ?? -1, value: t.price }))
+        .filter((a) => a.index >= 0)
+      const gia = demoWalk(symbol, phien.length, hienTai, 0.03, neo)
       phien.forEach((trading_date, i) => out.push({ symbol, trading_date, close: gia[i] }))
     }
     return out

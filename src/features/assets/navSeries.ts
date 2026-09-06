@@ -11,6 +11,15 @@
 // trên từng tiền tố sổ lệnh. Chậm hơn một chút (2.500 phiên × vài chục lệnh) nhưng đổi lại
 // mép phải của chuỗi này KHÔNG THỂ lệch với con số khu Giá trị đang in — một bản phép tính
 // thứ hai là chuyện sớm muộn lệch nhau, đúng lý lẽ đã ghi ở `asTrade`.
+//
+// MỘT chỗ cố ý khác `buildPortfolio`, và nói ra để người sau khỏi tưởng là lỗi: file này
+// ĐỔ CHUNG sổ lệnh của mọi tài khoản vào một lượt `holdingsFromTrades`, còn `portfolio.ts`
+// tính riêng từng tài khoản rồi mới gộp (lý lẽ ở đầu file đó: bán ở tài khoản A phải trừ
+// theo giá vốn của A). Khác biệt CHỈ hiện ra ở `costBasis`, mà `costBasis` ở đây chỉ dùng
+// làm số tạm khi một mã thiếu giá — còn KHỐI LƯỢNG, thứ vẽ ra cả biểu đồ, thì hai cách cho
+// y hệt nhau. Nên `stockValue` khi có giá và `cash` luôn khớp `buildPortfolio` (có test đối
+// chiếu). Điều kiện để lệch: cùng một mã nằm ở hai tài khoản, ĐÃ bán một phần, VÀ phiên đó
+// thiếu giá — lúc đó con số đã là số tạm và đã có tên mã trong `missingPrices`.
 import { brokerCash, holdingsFromTrades, type Trade } from './holdings'
 
 /**

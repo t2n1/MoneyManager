@@ -18,6 +18,7 @@ import { convertToBase } from '../../lib/rates'
 import { concentrationVerdict } from './concentration'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { InvestAccountChips } from './InvestAccountChips'
+import { InvestPerformanceSection } from './InvestPerformanceSection'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
 import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
@@ -255,6 +256,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           </p>
         )}
       </Card>
+
+      {/* Hiệu quả: năm con số + đường danh mục so với VN-Index */}
+      <InvestPerformanceSection
+        accounts={shown}
+        trades={trades}
+        marketValue={p.marketValue}
+        cashNegative={p.cash < 0}
+      />
 
       {/* Từng mã */}
       <Card as="section">

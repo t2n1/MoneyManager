@@ -1,6 +1,26 @@
 # Trang Đầu tư — bảng điều khiển danh mục cổ phiếu VN
 
-Ngày: 2026-09-06 · Trạng thái: chờ duyệt
+Ngày: 2026-09-06 · Trạng thái: **đã làm xong cả bốn bước** (06/09/2026)
+
+> **Ba chỗ bản làm khác bản thiết kế** — đọc trước khi tin phần dưới:
+>
+> 1. **Không dựng dải chỉ số mới.** Khu "Giá trị danh mục" có sẵn đã hiện đúng năm con số
+>    của dải ở Simplize. Thêm một dải nữa là hai chỗ nói cùng một chuyện, tức hai chỗ để
+>    lệch nhau.
+> 2. **Chỗ gắn mã cho cổ tức nằm ở trang Đầu tư**, không ở form Nhập như §3 viết. Form Nhập
+>    đi qua `entryShape`/`roleFields`/`roleSave`; nhồi một ô chỉ có nghĩa với đúng một loại
+>    tài khoản vào đó là đem rủi ro cho cả đường ghi giao dịch. Đổi lại còn được thêm: cổ
+>    tức ghi từ TRƯỚC khi có cột `stock_symbol` cũng gắn lại được.
+> 3. **Cơ cấu rủi ro là một DẢI, không phải donut thứ ba.** Ba mức xếp theo một trục
+>    (thấp → cao); donut bỏ mất thứ tự đó, và trang đã có hai vòng tròn.
+> 4. **Tải TRỌN lịch sử một lần**, không "chỉ tải phần đang xem" như §3 viết. Lý do đổi:
+>    năm con số Hiệu quả phải là sự thật của CẢ danh mục — tính trong khung thì chọn 1 năm
+>    sẽ làm ô "1 năm" luôn trống, và "Tổng lợi nhuận" đổi nghĩa mỗi lần bấm chip. Cái giá
+>    (~300KB) trả bằng cách loại hai query đó khỏi persist localStorage (`src/main.tsx`),
+>    và đổi lại bấm chip thành tức thì.
+>
+> Thêm một thứ thiết kế không lường: bảng màu lát donut phải thành **token mới**
+> (`--chart-slice-1..5` trong `src/index.css`), mỗi chế độ một giá trị.
 
 Yêu cầu gốc: "ở trang đầu tư tôi muốn nó hiện graph đầu tư từng ngày tăng bao nhiêu so
 với VNINDEX", sau đó mở rộng thành "1 trang chi tiết như vầy" theo mẫu

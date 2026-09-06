@@ -247,6 +247,12 @@
      tách được. Chế độ Tối ĐẢO CHIỀU sang bậc sáng — xem khối .dark.
      Thứ tự: lát 1 là lát NỔI NHẤT (tương phản cao nhất với nền) vì nó dành cho mã có
      tỷ trọng lớn nhất, rồi nhạt dần. Cùng một luật ở cả hai chế độ, chỉ đổi chiều. */
+  /* BẪY: Tailwind v4 chỉ PHÁT RA biến `--color-<hue>-<bậc>` cho những bậc thật sự được
+     một tiện ích nào đó dùng tới. Lúc chạy, `--color-indigo-500`, `--color-teal-500`,
+     `--color-violet-500`, `--color-cyan-500`, `--color-slate-400` đều KHÔNG tồn tại (đo
+     bằng getComputedStyle 06/09/2026) — `var()` của chúng rơi về màu rỗng, và không có
+     lỗi nào. Nên bảng màu mới phải khai ở ĐÂY, đừng trỏ thẳng vào một bậc palette rồi
+     tin là nó có. */
   --chart-slice-1: var(--color-sky-950);
   --chart-slice-2: var(--color-sky-900);
   --chart-slice-3: var(--color-sky-800);

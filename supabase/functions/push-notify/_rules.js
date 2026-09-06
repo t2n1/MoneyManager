@@ -2126,16 +2126,30 @@ function buildLifetimeInput(args) {
 // src/data/paging.ts
 var PAGE_SIZE = 1e3;
 var DEFAULT_MAX_PAGES = 200;
+var BATCH = 4;
 async function fetchAllPages(page, opts = {}) {
   const maxPages = opts.maxPages ?? DEFAULT_MAX_PAGES;
-  const out = [];
-  for (let i = 0; i < maxPages; i++) {
-    const from = i * PAGE_SIZE;
+  const layTrang = async (i2) => {
+    const from = i2 * PAGE_SIZE;
     const { data, error } = await page(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(error.message);
-    const rows = data ?? [];
-    out.push(...rows);
-    if (rows.length < PAGE_SIZE) return out;
+    return data ?? [];
+  };
+  const out = [];
+  const trangDau = await layTrang(0);
+  out.push(...trangDau);
+  if (trangDau.length < PAGE_SIZE) return out;
+  let i = 1;
+  while (i < maxPages) {
+    const soTrang = Math.min(BATCH, maxPages - i);
+    const lo = await Promise.all(
+      Array.from({ length: soTrang }, (_, k) => layTrang(i + k))
+    );
+    for (const rows of lo) {
+      out.push(...rows);
+      if (rows.length < PAGE_SIZE) return out;
+    }
+    i += soTrang;
   }
   throw new Error(
     `\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> ${maxPages * PAGE_SIZE} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.`

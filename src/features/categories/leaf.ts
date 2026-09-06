@@ -1,5 +1,6 @@
 // Định nghĩa "danh mục lá" dùng chung — trước đây mỗi màn tự tính một kiểu.
 import type { CategoryRow } from '../../types/database.types'
+import { isFlowCategory } from './flowCategories'
 
 /**
  * Tập id các danh mục đang là CHA của ít nhất một danh mục CHƯA lưu trữ.
@@ -90,12 +91,29 @@ function groupSortOrder(group: LeafGroup): number {
  * đã là 46% thu nhập. Trước bản này không có đường nào sửa: màn Phân loại nhanh chỉ
  * hỏi lá, nên nút "Phân loại 3 danh mục này" mở ra một trang báo "(0)".
  *
- * Không lọc `kind`: danh mục 'transfer' vẫn hiện, đúng như trước — chúng không đặt
- * được hạn mức nhưng vẫn nhận được giao dịch.
+ * LOẠI hai nhóm không bao giờ được đọc (gộp Danh mục · Phân loại, 06/09/2026) — đòi gán
+ * nhãn cho chúng là dựng ra một việc cần làm không tồn tại, và ba danh mục dòng chảy Chi
+ * là do app tự tạo nên sổ nào cũng dính:
+ *
+ *   · DÒNG CHẢY (Cho vay, Trả nợ, Điều chỉnh số dư): giao dịch của chúng luôn mang
+ *     `is_debt_flow` hoặc `exclude_from_stats`, mà `categoryBreakdown` (aggregate.ts) bỏ
+ *     qua đúng hai cờ đó ngay dòng lọc đầu tiên → slice không bao giờ chứa chúng →
+ *     `classificationBreakdown` không bao giờ đọc `need_level` của chúng.
+ *   · `kind = 'transfer'`: aggregate.ts loại thẳng khỏi cơ cấu chi ("Gửi về VN" không
+ *     phải một lát bánh cạnh Ăn uống).
+ *
+ * Cùng luật với `costBadge` — hàm đó VỐN đã không vẽ nhãn cho danh mục dòng chảy, nên
+ * trước bản này cây danh mục và trang Phân loại nói hai con số khác nhau.
  */
 export function classifiableExpenses(categories: CategoryRow[]): CategoryRow[] {
   return categories
-    .filter((c) => c.type === 'expense' && !c.is_archived)
+    .filter(
+      (c) =>
+        c.type === 'expense' &&
+        !c.is_archived &&
+        c.kind !== 'transfer' &&
+        !isFlowCategory(c),
+    )
     .sort((a, b) => a.sort_order - b.sort_order)
 }
 

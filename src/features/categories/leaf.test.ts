@@ -152,6 +152,31 @@ describe('classifiableExpenses', () => {
     const cats = [cat({ id: 'b', sort_order: 5 }), cat({ id: 'a', sort_order: 1 })]
     expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['a', 'b'])
   })
+
+  // Ba danh mục dưới đây app TỰ TẠO nên sổ nào cũng có. Trước bản gộp 06/09/2026 chúng
+  // nằm vĩnh viễn trong "chưa phân loại" — ba việc cần làm không tồn tại.
+  it('bỏ danh mục dòng chảy — nhãn của chúng không bao giờ được đọc', () => {
+    const cats = [
+      cat({ id: 'cho-vay', name: 'Cho vay', sort_order: 0 }),
+      cat({ id: 'tra-no', name: 'Trả nợ', sort_order: 1 }),
+      cat({ id: 'dieu-chinh', name: 'Điều chỉnh số dư', sort_order: 2 }),
+      cat({ id: 'an-uong', name: 'Ăn uống', sort_order: 3 }),
+    ]
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['an-uong'])
+  })
+
+  it("bỏ danh mục kind = 'transfer' — categoryBreakdown đã loại chúng khỏi cơ cấu chi", () => {
+    const cats = [
+      cat({ id: 'nap-dau-tu', name: 'Nạp đầu tư', kind: 'transfer', sort_order: 0 }),
+      cat({ id: 'an-uong', name: 'Ăn uống', sort_order: 1 }),
+    ]
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['an-uong'])
+  })
+
+  it("'Gửi tiền về VN' VẪN phải phân loại — tiền đi thật, vẫn vào báo cáo", () => {
+    const cats = [cat({ id: 'gui-vn', name: 'Gửi tiền về VN', sort_order: 0 })]
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['gui-vn'])
+  })
 })
 
 describe('classifyGroups', () => {

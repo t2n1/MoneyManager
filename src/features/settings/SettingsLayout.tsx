@@ -19,7 +19,6 @@ import {
   Database,
   Landmark,
   Layers,
-  Scale,
   SlidersHorizontal,
   Tag as TagIcon,
   Tags,
@@ -54,8 +53,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     Icon: Layers,
     hint: 'Cách cắt lát Tổng tài sản · tính vào tổng, ẩn',
   },
-  { to: '/settings/categories', label: 'Danh mục', Icon: Tags },
-  { to: '/settings/categories/classify', label: 'Phân loại chi tiêu', Icon: Scale },
+  {
+    to: '/settings/categories',
+    label: 'Danh mục',
+    Icon: Tags,
+    hint: 'Cây cha/con · Phân loại chi tiêu',
+  },
   { to: '/settings/tags', label: 'Nhãn', Icon: TagIcon },
   { to: '/settings/notifications', label: 'Thông báo', Icon: Bell },
   {
@@ -66,9 +69,10 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   },
 ]
 
-// `end` cho MỌI mục, không riêng mục gốc: không có nó thì ở `/settings/categories/classify`
-// cả "Danh mục" lẫn "Phân loại chi tiêu" cùng sáng (NavLink khớp theo tiền tố), và cột trái
-// nói người dùng đang ở hai chỗ một lúc.
+// `end` cho MỌI mục, không riêng mục gốc: NavLink khớp theo TIỀN TỐ, nên thiếu nó thì một
+// đường con bất kỳ dưới `/settings/x` làm sáng cả mục cha lẫn mục con và cột trái nói
+// người dùng đang ở hai chỗ một lúc. (Ca cũ: `/settings/categories/classify` — mục đó nay
+// đã gộp vào chính trang Danh mục, nhưng luật thì vẫn đúng cho mọi mục sau này.)
 //
 // Viền trái 2px có ở CẢ hai trạng thái, chỉ đổi màu — cùng lý do với ô segmented (§1.3 và
 // chú thích trong SegmentedControl): tô viền cho riêng mục đang chọn thì mỗi lần đổi mục,

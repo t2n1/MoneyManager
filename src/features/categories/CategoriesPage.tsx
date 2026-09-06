@@ -1,4 +1,20 @@
-// Danh mục — cây cha/con, kéo–thả sắp thứ tự, thêm/sửa/lưu trữ.
+// Danh mục — cây cha/con, kéo–thả sắp thứ tự, thêm/sửa/lưu trữ, VÀ phân loại chi tiêu.
+//
+// ---- Vì sao gộp hai màn (06/09/2026) ------------------------------------------------
+//
+// Trước bản này, /settings/categories và /settings/categories/classify sửa CÙNG một bảng
+// `categories` bằng hai giao diện, và ba trục `kind`/`need_level`/`cost_type` gán được ở
+// cả hai chỗ. Trang này còn phải in một dòng cảnh báo dẫn sang trang kia — dấu hiệu hai
+// màn đáng lẽ là một.
+//
+// Cái KHÔNG được vứt khi gộp: trang kia là một DÂY CHUYỀN (lọc "chưa xong", "Lưu · mục kế
+// tiếp →", "Áp cho cả nhóm"). Nên trang này có hai thân:
+//   · CÂY (mặc định) — mỗi dòng hai vùng bấm: tên mở form danh tính, nhãn mở bảng chọn.
+//   · DÂY CHUYỀN (`?todo=1` hoặc `?ids=`) — cây duỗi phẳng, kéo–thả tắt, mạch bấm liền.
+//
+// Hai thân là hai nhánh JSX tách hẳn, không phải một cây có lọc: kéo–thả đo bằng trung
+// điểm của các hàng ĐANG HIỂN THỊ, nên thả trong một danh sách đã lọc là ghi sai thứ tự
+// vào DB. Form "Sửa danh mục" từ đây chỉ còn DANH TÍNH; ý nghĩa nằm trọn ở ClassifySheet.
 //
 // ---- Vì sao vẽ lại (redesign 2026-08-30) -------------------------------------------
 //
@@ -14,7 +30,13 @@
 //     của DragList sai ngay, mà để nó nở hết 1090px thì sinh ra đúng khoảng trống 800px
 //     ở trên. §Phần I cho phép bó với màn một-cột (Nhập đã bó `max-w-2xl lg:max-w-5xl`).
 //     Chỗ trống còn lại bên phải là ĐÁNH ĐỔI CÓ CHỦ Ý, không phải bỏ quên.
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import {
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import { Guide } from '../../components/Guide'
 import { Archive, ChevronDown, ChevronRight, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
@@ -23,12 +45,14 @@ import {
   ActionButton,
   Card,
   EmptyState,
+  FilterChip,
   IconButton,
   Num,
   PageHeader,
   SectionTitle,
   SegmentedControl,
   Select,
+  StatusChip,
   actionButtonClass,
   iconButtonClass,
 } from '../../components/ui'
@@ -41,17 +65,12 @@ import {
   useUpdateCategory,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import type { CategoryKind, CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
-import {
-  ClassificationToggle,
-  COST_OPTIONS,
-  KIND_OPTIONS,
-  NEED_OPTIONS,
-} from './ClassificationToggle'
-import { categoryCounts, costBadge, missingCostCount } from './costBadge'
-import { isFlowCategory } from './flowCategories'
-import { hasActiveChildren } from './leaf'
-import { Link } from 'react-router-dom'
+import type { CategoryRow, CategoryType } from '../../types/database.types'
+import { categoryCounts } from './categoryCounts'
+import { isClassified, nextTodo, summaryLabel } from './classifyFlow'
+import { ClassifySheet, type ClassifyTarget, type ClassifyValue } from './ClassifySheet'
+import { classifiableExpenses, classifyGroups, hasActiveChildren } from './leaf'
+import { Link, useSearchParams } from 'react-router-dom'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -75,9 +94,16 @@ export function CategoriesPage() {
   const reorder = useReorderCategories()
   const update = useUpdateCategory()
 
+  const [params, setParams] = useSearchParams()
   const [tab, setTab] = useState<CategoryType>('expense')
   const [form, setForm] = useState<FormState | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  /** Lựa chọn đã bấm, chờ máy chủ xác nhận — để nhãn đổi ngay chứ không chờ một vòng mạng. */
+  const [pending, setPending] = useState<Record<string, ClassifyValue>>({})
+  /** Bảng chọn đang mở cho ai. Giữ theo ID chứ không giữ cả hàng: hàng sẽ cũ sau mỗi lần lưu. */
+  const [sheetFor, setSheetFor] = useState<
+    { mode: 'one'; id: string } | { mode: 'group'; parentId: string } | null
+  >(null)
   // Cha ĐANG MỞ. Rỗng = thu gọn hết, và đó là mặc định: xem chú thích đầu file.
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
@@ -98,30 +124,209 @@ export function CategoriesPage() {
   // "14 chi · 3 thu" của 22e — đếm trên MỌI loại, không riêng tab đang xem: người dùng
   // cần biết cả hai để quyết định có sang tab kia hay không.
   const counts = categoryCounts(categories.filter((c) => !c.is_archived))
-  const missingCost = missingCostCount(
-    categories.filter((c) => !c.is_archived),
-    isFlowCategory,
+
+  // ---- Phân loại: trạng thái, bộ lọc, lưu ------------------------------------------
+  //
+  // `?todo=1` và `?ids=` là trạng thái của ĐỊA CHỈ, không phải của component: nút "Phân
+  // loại N danh mục này" ở mặt lập kế hoạch gửi sang đúng N id, và trang cũ
+  // /settings/categories/classify nay chuyển hướng về đây kèm nguyên query string. Đọc từ
+  // URL nên bấm Quay lại / mở lại link đều ra đúng cảnh cũ.
+  const onlyTodo = params.get('todo') === '1'
+  const pickedIds = useMemo(() => {
+    const raw = params.get('ids')
+    return raw ? new Set(raw.split(',').filter(Boolean)) : null
+  }, [params])
+  /** Bật bộ lọc = cây duỗi phẳng thành dây chuyền; kéo–thả tắt (thả trong danh sách đã
+      lọc là thả sai vị trí). */
+  const classifyMode = onlyTodo || pickedIds !== null
+
+  /** Giá trị đang hiển thị: ưu tiên lựa chọn đang chờ máy chủ xác nhận. */
+  const effective = (c: CategoryRow): ClassifyValue =>
+    pending[c.id] ?? { kind: c.kind, need_level: c.need_level, cost_type: c.cost_type }
+
+  const classifiable = classifiableExpenses(categories)
+  const classifiableIds = new Set(classifiable.map((c) => c.id))
+  /**
+   * Chưa xong = chưa đủ hai trục. Vừa chọn 'Chuyển tài sản' thì KHÔNG tính là chưa xong
+   * dù hai trục rỗng: `classifiableExpenses` sẽ loại nó ngay vòng dữ liệu kế tiếp, và cho
+   * tới lúc đó nó không nên nằm trong số việc phải làm.
+   */
+  const isTodo = (c: CategoryRow) => {
+    const e = effective(c)
+    return e.kind !== 'transfer' && !isClassified(e)
+  }
+  const todoCount = classifiable.filter(isTodo).length
+  const doneCount = classifiable.length - todoCount
+
+  /** Dòng của chế độ dây chuyền — lọc trước rồi mới gom, nên nhóm rỗng tự biến mất. */
+  const classifyRows = classifiable.filter(
+    (c) => (!pickedIds || pickedIds.has(c.id)) && (!onlyTodo || isTodo(c)),
   )
 
-  /** Nhãn CỐ ĐỊNH / BIẾN ĐỔI / CHƯA GẮN — quyết định ở costBadge.ts (có test). */
-  function CostTag({ cat }: { cat: CategoryRow }) {
-    const b = costBadge({ type: cat.type, costType: cat.cost_type, isFlow: isFlowCategory(cat) })
-    if (!b) return null
+  const setParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params)
+    if (value === null) next.delete(key)
+    else next.set(key, value)
+    setParams(next, { replace: true })
+  }
+
+  /**
+   * Nhãn phân loại — vừa là TRẠNG THÁI đọc bằng mắt, vừa là cửa vào bảng chọn.
+   *
+   * Chỉ vẽ cho danh mục `classifiableExpenses` trả về: danh mục Thu, danh mục đã lưu trữ,
+   * danh mục dòng chảy và `kind = 'transfer'` không có nhãn — hai cái sau vì báo cáo
+   * không bao giờ đọc hai trục của chúng, xem chú thích trong ./leaf.
+   *
+   * Nút bọc ngoài cao 44px (chip thì bé) — vùng chạm, không phải trang trí.
+   */
+  function ClassifyChip({ cat }: { cat: CategoryRow }) {
+    if (!classifiableIds.has(cat.id)) return null
+    const eff = effective(cat)
+    const done = isClassified(eff)
     return (
-      <span
-        // Nhãn THIẾU cố ý KHÔNG mang màu báo động: chạy thật ra 46 chỗ chưa gắn trên 60
-        // dòng, mà 46 ô vàng là một bức tường — và một nhãn báo động xuất hiện khắp nơi
-        // thì thành nhãn để bỏ qua. Phân biệt bằng HÌNH (viền gạch) chứ không bằng màu;
-        // phần báo động gom vào MỘT dòng có số và có đường đi sửa (xem missingCostCount).
-        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold tracking-label ${
-          b.missing
-            ? 'border border-dashed border-border-strong text-fg-muted'
-            : 'bg-surface-sunken text-fg-on-track'
-        }`}
+      <button
+        type="button"
+        onClick={() => openFor(cat)}
+        aria-label={`Phân loại ${cat.name} — hiện là ${summaryLabel(eff)}`}
+        className="inline-flex min-h-11 shrink-0 items-center rounded-full"
       >
-        {b.text}
-      </span>
+        <StatusChip tone={done ? 'good' : 'warn'}>{summaryLabel(eff)}</StatusChip>
+      </button>
     )
+  }
+
+  /**
+   * Một dòng của chế độ DÂY CHUYỀN — cả dòng là một nút mở bảng chọn (ở đây không có việc
+   * gì khác để làm, nên chia hai vùng bấm như trên cây là chia vô ích).
+   */
+  function classifyRow(c: CategoryRow, isParent: boolean) {
+    const eff = effective(c)
+    return (
+      <button
+        key={c.id}
+        type="button"
+        onClick={() => openFor(c)}
+        className="flex min-h-11 w-full items-center gap-2 border-b border-border-subtle px-3 py-1.5 text-left transition last:border-b-0 hover:bg-surface-sunken"
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span aria-hidden>{c.icon}</span>
+          <span className="min-w-0 truncate text-sm text-fg-primary">{c.name}</span>
+          {/* Chỉ "· cả nhóm", KHÔNG kèm số mục con: header nhóm ngay phía trên đã in
+              "N mục con", và ở cỡ chữ 1,25×/375px cái đuôi dài đó (shrink-0) ép tên danh
+              mục xuống 0 — dòng cha hiện ra chỉ còn mỗi icon. */}
+          {isParent && <span className="shrink-0 text-2xs text-fg-muted">· cả nhóm</span>}
+        </span>
+        <StatusChip tone={isClassified(eff) ? 'good' : 'warn'} className="shrink-0">
+          {summaryLabel(eff)}
+        </StatusChip>
+      </button>
+    )
+  }
+
+  const closeSheet = () => setSheetFor(null)
+  function openFor(c: CategoryRow) {
+    setSheetFor({ mode: 'one', id: c.id })
+  }
+  function openGroup(parentId: string) {
+    setSheetFor({ mode: 'group', parentId })
+  }
+
+  /** Mọi danh mục phân loại được của một nhóm — cha + con, KHÔNG theo bộ lọc đang bật. */
+  const membersOf = (parentId: string) =>
+    classifiable.filter((c) => c.id === parentId || c.parent_id === parentId)
+
+  /**
+   * Đếm con để in "N mục con" ở header nhóm của chế độ dây chuyền. Đếm trên `categories`
+   * chứ không qua `childrenOf`: hàm kia lọc theo tab Chi/Thu đang chọn, mà chế độ dây
+   * chuyền ẩn ô gạt đó đi — vào đây khi tab còn đang ở Thu là mọi nhóm hiện "0 mục con".
+   */
+  const childCount = (parentId: string) =>
+    categories.filter((c) => c.parent_id === parentId && !c.is_archived).length
+
+  /** Lưu CẢ BA trục một lượt: hiện ngay (optimistic), báo lỗi nếu hỏng. */
+  function saveOne(id: string, v: ClassifyValue) {
+    setPending((p) => ({ ...p, [id]: v }))
+    update.mutate(
+      { id, patch: v },
+      {
+        onError: (e) =>
+          showToast(e instanceof Error ? e.message : 'Không lưu được phân loại', 'error'),
+        onSettled: () =>
+          setPending((p) => {
+            // Đã có thao tác mới hơn trên danh mục này → để lần đó tự dọn.
+            if (p[id] !== v) return p
+            const next = { ...p }
+            delete next[id]
+            return next
+          }),
+      },
+    )
+  }
+
+  /**
+   * Mục CHƯA XONG kế tiếp sau `fromId` trong danh sách ĐANG THẤY — mạch bấm liền chỉ có ở
+   * chế độ dây chuyền. Ở cây thì người dùng đã bấm đúng một dòng họ muốn, tự nhảy sang
+   * dòng khác là mở ra một danh mục họ không hỏi tới.
+   *
+   * Bỏ dòng vừa chọn 'Chuyển tài sản' ra khỏi vòng: hai trục của nó rỗng nên `isClassified`
+   * đọc là "chưa xong", mà nó thì không còn gì để làm.
+   */
+  function nextAfter(fromId: string): CategoryRow | null {
+    if (!classifyMode) return null
+    const rows = classifyRows.filter((r) => effective(r).kind !== 'transfer')
+    const nxt = nextTodo(
+      rows.map((r) => ({ id: r.id, ...effective(r) })),
+      fromId,
+    )
+    return nxt ? (rows.find((r) => r.id === nxt.id) ?? null) : null
+  }
+
+  /** Lưu xong thì lật sang mục chưa xong kế tiếp; hết thì đóng bảng. */
+  function saveAndAdvance(id: string, v: ClassifyValue) {
+    saveOne(id, v)
+    const nxt = nextAfter(id)
+    if (nxt) openFor(nxt)
+    else closeSheet()
+  }
+
+  /**
+   * Gán một tổ hợp cho CẢ nhóm (cha + mọi con), kể cả mục đang bị bộ lọc giấu đi.
+   *
+   * Cố ý không giới hạn theo bộ lọc: nhãn nút nói "cả nhóm", mà "cả nhóm trừ những cái
+   * đang bị ẩn" là một lời hứa khác. Bù lại, câu xác nhận đếm đúng số mục ĐÃ phân loại
+   * sắp bị ghi đè — đó là thứ duy nhất không hoàn tác được bằng mắt.
+   */
+  async function applyToGroup(parent: CategoryRow, v: ClassifyValue, label: string) {
+    const members = membersOf(parent.id)
+    const overwrite = members.filter((c) => !isTodo(c)).length
+    const ok = await confirmDialog({
+      title: `Gán “${label}” cho nhóm ${parent.name}?`,
+      message:
+        `${members.length} danh mục (cả nhóm cha).` +
+        (overwrite > 0 ? ` ${overwrite} mục đã có phân loại sẽ bị ghi đè.` : ''),
+      confirmLabel: 'Gán',
+    })
+    if (!ok) return
+    closeSheet()
+    setPending((p) => {
+      const next = { ...p }
+      for (const c of members) next[c.id] = v
+      return next
+    })
+    try {
+      await Promise.all(members.map((c) => update.mutateAsync({ id: c.id, patch: v })))
+      showToast(`Đã gán “${label}” cho ${members.length} danh mục`)
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không lưu được phân loại', 'error')
+    } finally {
+      // Dọn TOÀN BỘ trạng thái chờ của nhóm một lượt: từng mục tự dọn như `saveOne` thì
+      // phải so lại từng trục, mà ở đây cả nhóm đi cùng một giá trị.
+      setPending((p) => {
+        const next = { ...p }
+        for (const c of members) delete next[c.id]
+        return next
+      })
+    }
   }
 
   const parents = activeCats.filter((c) => !c.parent_id)
@@ -290,6 +495,34 @@ export function CategoriesPage() {
     Promise.all(targets.map((t) => update.mutateAsync({ id: t.id, patch: { is_archived: false } })))
   }
 
+  // ---- Dữ liệu cho bảng chọn đang mở -----------------------------------------------
+  //
+  // Tra lại hàng từ `classifiable` mỗi lần vẽ chứ không giữ hàng trong state: sau mỗi lần
+  // lưu thì hàng cũ đã lạc hậu. Hàng truyền vào bảng chọn đã TRỘN pending — bấm "mục kế
+  // tiếp" tới một dòng vừa sửa dở trong phiên này thì chip phải mồi theo cái vừa chọn,
+  // không phải theo giá trị máy chủ còn đang trên đường về.
+  const sheetOne =
+    sheetFor?.mode === 'one' ? (classifiable.find((c) => c.id === sheetFor.id) ?? null) : null
+  const sheetGroupParent =
+    sheetFor?.mode === 'group'
+      ? (classifiable.find((c) => c.id === sheetFor.parentId) ?? null)
+      : null
+  const sheetTarget: ClassifyTarget | null = sheetOne
+    ? {
+        mode: 'one',
+        category: { ...sheetOne, ...effective(sheetOne) },
+        parent: sheetOne.parent_id
+          ? (categories.find((c) => c.id === sheetOne.parent_id) ?? null)
+          : null,
+      }
+    : sheetGroupParent
+      ? {
+          mode: 'group',
+          parent: sheetGroupParent,
+          memberCount: membersOf(sheetGroupParent.id).length,
+        }
+      : null
+
   // Vẽ một danh mục cha (thẻ). `handle` = tay nắm kéo để sắp thứ tự cha. Cả thẻ là
   // vùng thả cho danh mục con (kéo con sang cha khác).
   function renderParent(p: CategoryRow, handle: DragHandleProps, dragging: boolean): ReactNode {
@@ -307,7 +540,12 @@ export function CategoriesPage() {
         {/* Danh mục cha. Đệm dọc mỏng thôi: các nút bên trong đã cao 44px (chuẩn
             vùng chạm) tự quyết chiều cao hàng — đệm dày nữa chỉ thêm khí chết,
             danh sách ~60 hàng dài ra cả nghìn px. */}
-        <div className="flex items-center gap-2 px-3 py-1">
+        {/* `flex-wrap`: ở 375px cỡ chữ 1,25×, năm phần tử cố định của hàng (tay nắm,
+            mũi mở, biểu tượng, Thêm con, Lưu trữ) ăn 294 trên 343px — cụm tên còn 49px,
+            tức tên bị cắt còn ba chữ cái và dòng "8 danh mục con" xếp thành ba tầng. Cho
+            hàng xuống dòng thì hai nút hành động rơi xuống tầng dưới và cái tên được đọc.
+            Ở cỡ chữ thường mọi thứ vẫn vừa một dòng nên không đổi gì. */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-1">
           <button
             type="button"
             {...handle}
@@ -338,27 +576,37 @@ export function CategoriesPage() {
           <span className="shrink-0 text-xl" aria-hidden>
             {p.icon}
           </span>
-          <button
-            type="button"
-            onClick={() => setForm({ category: p, parent: null })}
-            className="-my-1 min-w-0 flex-1 py-1 text-left"
-          >
-            {/* Nhãn Cố định/Biến đổi đi LIỀN cái tên, không nằm trong cụm nút mép phải:
-                nó là TRẠNG THÁI của danh mục, mà bó trang còn 896px thì cụm phải vẫn cách
-                tên ~630px — đủ xa để mắt phải bắc cầu mỗi dòng. Nút thì cứ ở mép phải,
-                chúng là hành động và thẳng cột mới dễ nhắm. */}
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span className="min-w-0 truncate text-sm font-semibold text-fg-primary">
+          {/* Nhãn phân loại đi LIỀN cái tên, không nằm trong cụm nút mép phải: nó là
+              TRẠNG THÁI của danh mục, mà bó trang còn 896px thì cụm phải vẫn cách tên
+              ~630px — đủ xa để mắt phải bắc cầu mỗi dòng. Nút thì cứ ở mép phải, chúng là
+              hành động và thẳng cột mới dễ nhắm.
+
+              Nhãn là nút RIÊNG cạnh nút tên, không lồng bên trong: bấm tên mở form sửa
+              danh tính, bấm nhãn mở bảng chọn — hai việc khác nhau thì hai nút, và nút
+              lồng nút thì trình duyệt cũng không cho. Ô bọc `flex-1` giữ khoảng trống ở
+              BÊN PHẢI nhãn, nên tên và nhãn vẫn dính nhau.
+
+              `flex-wrap` + sàn `min-w-24` trên nút tên, KHÔNG phải `flex-1` trơn: `flex-1` là
+              basis 0, nên tên bị bóp về 0 TRƯỚC khi nhãn `shrink-0` chịu xuống dòng — đo ở
+              375px cỡ chữ 1,25× thì hàng hiện ra đúng MỘT chữ cái rồi nhãn đè lên hai nút
+              mép phải. 5rem là sàn để hàng thà xuống dòng còn hơn nuốt cái tên. */}
+          <div className="flex min-w-24 flex-1 flex-wrap items-center gap-x-1.5">
+            <button
+              type="button"
+              onClick={() => setForm({ category: p, parent: null })}
+              className="-my-1 min-w-0 py-1 text-left"
+            >
+              <span className="block truncate text-sm font-semibold text-fg-primary">
                 {p.name}
               </span>
-              <CostTag cat={p} />
-            </span>
-            {kids.length > 0 && (
-              <span className="text-2xs text-fg-muted">
-                <Num tone="muted">{kids.length}</Num> danh mục con
-              </span>
-            )}
-          </button>
+              {kids.length > 0 && (
+                <span className="text-2xs text-fg-muted">
+                  <Num tone="muted">{kids.length}</Num> danh mục con
+                </span>
+              )}
+            </button>
+            <ClassifyChip cat={p} />
+          </div>
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
@@ -390,7 +638,7 @@ export function CategoriesPage() {
                 <div
                   key={cid}
                   ref={(el) => setChildRow(cid, el)}
-                  className={`flex items-center gap-2 py-0.5 pr-3 pl-2 ${
+                  className={`flex flex-wrap items-center gap-2 py-0.5 pr-3 pl-2 ${
                     isDragging ? 'bg-accent-muted-bg shadow-md' : ''
                   }`}
                 >
@@ -404,14 +652,16 @@ export function CategoriesPage() {
                     <GripVertical className="h-4 w-4" />
                   </button>
                   <span className="text-lg">{ch.icon}</span>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ category: ch, parent: p })}
-                    className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 text-left"
-                  >
-                    <span className="min-w-0 truncate text-sm text-fg-secondary">{ch.name}</span>
-                    <CostTag cat={ch} />
-                  </button>
+                  <div className="flex min-w-24 flex-1 flex-wrap items-center gap-x-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ category: ch, parent: p })}
+                      className="flex min-h-11 min-w-0 items-center text-left"
+                    >
+                      <span className="min-w-0 truncate text-sm text-fg-secondary">{ch.name}</span>
+                    </button>
+                    <ClassifyChip cat={ch} />
+                  </div>
                   <IconButton
                     variant="ghost"
                     onClick={() => archive(ch)}
@@ -465,47 +715,158 @@ export function CategoriesPage() {
       </PageHeader>
 
       {/* Chi / Thu — <SegmentedControl> chứ hai nút viết tay: đây đúng câu hỏi "đổi CÁCH
-          XEM cùng một dữ liệu" mà họ control đó sinh ra để trả lời. */}
+          XEM cùng một dữ liệu" mà họ control đó sinh ra để trả lời.
+
+          Ở chế độ dây chuyền thì ẩn cả ô gạt lẫn "Mở hết": phân loại chỉ có ở phía CHI và
+          danh sách đã phẳng, nên hai control đó không còn gì để đổi. */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <SegmentedControl
-          items={TAB_ITEMS}
-          value={tab}
-          onChange={setTab}
-          label="Loại danh mục"
-          stretch="lg"
-          className="min-w-0 flex-1 lg:flex-none"
-        />
-        {parents.length > 0 && (
-          <ActionButton
+        {!classifyMode && (
+          <>
+            <SegmentedControl
+              items={TAB_ITEMS}
+              value={tab}
+              onChange={setTab}
+              label="Loại danh mục"
+              stretch="lg"
+              // `basis-40`, không để `flex-1` trơn: trong một hàng `flex-wrap`, basis 0
+              // nghĩa là ba control nào cũng "vừa" một dòng, rồi phần thừa chia lại làm ô
+              // gạt teo dưới cả bề rộng chữ của nó — đo ở 375px cỡ 1,25× thì "Chi Thu" đè
+              // lên "Mở hết". Có sàn 10rem thì hàng chịu xuống dòng, đúng việc của
+              // flex-wrap.
+              className="min-w-0 flex-1 basis-40 lg:flex-none lg:basis-auto"
+            />
+            {parents.length > 0 && (
+              <ActionButton
+                className="shrink-0"
+                onClick={() =>
+                  setExpanded((prev) =>
+                    prev.size === parents.length ? new Set() : new Set(parents.map((x) => x.id)),
+                  )
+                }
+              >
+                {expanded.size === parents.length ? 'Thu gọn hết' : 'Mở hết'}
+              </ActionButton>
+            )}
+          </>
+        )}
+        {classifiable.length > 0 && (
+          <FilterChip
             className="shrink-0"
-            onClick={() =>
-              setExpanded((prev) =>
-                prev.size === parents.length ? new Set() : new Set(parents.map((x) => x.id)),
-              )
-            }
+            on={onlyTodo}
+            onClick={() => setParam('todo', onlyTodo ? null : '1')}
           >
-            {expanded.size === parents.length ? 'Thu gọn hết' : 'Mở hết'}
-          </ActionButton>
+            Chưa phân loại · <Num tone={onlyTodo ? 'neutral' : 'muted'}>{todoCount}</Num>
+          </FilterChip>
+        )}
+        {classifyMode && (
+          <span className="shrink-0 text-2xs text-fg-muted">
+            <Num tone="muted">{doneCount}</Num>/<Num tone="muted">{classifiable.length}</Num> xong
+          </span>
         )}
       </div>
+
       {/* MỘT dòng báo động thay cho 46 nhãn vàng. Nói ra HẬU QUẢ ("ba chỉ số đang tính
           thiếu") chứ không chỉ nói "chưa gắn": không có mệnh đề đó thì việc này đọc như
-          một ô trống trong biểu mẫu, và ô trống thì để đó cũng được. */}
-      {missingCost > 0 && (
+          một ô trống trong biểu mẫu, và ô trống thì để đó cũng được.
+
+          Đường đi sửa nay là chính bộ lọc ngay phía trên, không phải một trang khác. */}
+      {!classifyMode && todoCount > 0 && (
         <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm text-state-warn-fg">
-          {missingCost} danh mục chi chưa gắn Cố định / Biến đổi — quỹ dự phòng, hai trục
-          Thiết yếu·Linh hoạt và kịch bản “cắt hết chi linh hoạt” đang tính thiếu chừng đó.{' '}
-          <Link to="/settings/categories/classify" className="font-medium underline">
+          <Num tone="warn">{todoCount}</Num> danh mục chi chưa phân loại đủ — quỹ dự phòng,
+          hai trục Thiết yếu·Linh hoạt và kịch bản “cắt hết chi linh hoạt” đang tính thiếu
+          chừng đó.{' '}
+          <button
+            type="button"
+            onClick={() => setParam('todo', '1')}
+            className="font-medium underline"
+          >
             Phân loại nhanh
+          </button>
+        </p>
+      )}
+
+      {pickedIds && (
+        <p className="mb-3 text-sm font-medium text-fg-muted">
+          Đang xem <Num tone="muted">{pickedIds.size}</Num> danh mục từ Ngân sách ·{' '}
+          <Link to="/settings/categories?todo=1" className="text-fg-accent underline">
+            Xem tất cả
           </Link>
         </p>
       )}
 
       <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
-        Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục
-        con trong một cha, hoặc kéo danh mục con thả sang cha khác.
+        {classifyMode ? (
+          <>
+            Gán mỗi danh mục Chi vào <b>Tính chất</b> (Thiết yếu, Linh hoạt…) và{' '}
+            <b>Loại chi</b> (Cố định/Biến đổi) để xem cơ cấu chi tiêu ở Báo cáo. Bấm vào
+            một dòng để chọn. Danh mục <b>cha</b> cũng cần gán: trần nhóm và giao dịch ghi
+            thẳng vào cha đều lấy nhãn của chính nó, không suy từ các mục con.
+          </>
+        ) : (
+          <>
+            Bấm <b>tên</b> để sửa danh mục, bấm <b>nhãn</b> bên cạnh để phân loại. Nhấn giữ
+            biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục con
+            trong một cha, hoặc kéo danh mục con thả sang cha khác.
+          </>
+        )}
       </Guide>
 
+      {/* ---- Chế độ DÂY CHUYỀN: cây duỗi phẳng, chỉ còn dòng đang lọc ----------------
+          Danh sách riêng chứ không lọc ngay trên cây: kéo–thả đo bằng trung điểm của các
+          hàng ĐANG HIỂN THỊ, nên thả trong một danh sách đã lọc là ghi sai thứ tự vào DB.
+          Tách hẳn hai thân trang thì không có đường nào lẫn. */}
+      {classifyMode ? (
+        classifyRows.length === 0 ? (
+          <Card padding="none">
+            <EmptyState compact>
+              {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
+            </EmptyState>
+          </Card>
+        ) : (
+          <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border-panel bg-surface-chrome px-3 py-2.5 text-2xs uppercase tracking-label text-fg-muted">
+              <span>Danh mục</span>
+              <span>Phân loại</span>
+            </div>
+
+            {classifyGroups(classifyRows, categories).map((g) => {
+              // Cha có dòng riêng thì KHÔNG in thêm tiêu đề xám cùng tên ngay trên nó —
+              // chính dòng đó đã mang tên và biểu tượng của nhóm.
+              const parentRow = g.parent && g.rows[0]?.id === g.parent.id ? g.rows[0] : null
+              const parent = g.parent
+              const todoInGroup = parent ? membersOf(parent.id).filter(isTodo).length : 0
+              return (
+                <div key={parent ? parent.id : `leaf:${g.rows[0].id}`}>
+                  {parent && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-panel bg-surface-chrome px-3 py-1.5 lg:py-0.5">
+                      {/* basis-24 chứ để flex-1 co tự do: `flex-1` là basis 0, nên tên
+                          nhóm bị bóp về 0 TRƯỚC khi nút shrink-0 chịu xuống dòng — ở cỡ
+                          chữ 1,25×/375px header hiện ra chỉ còn "🏠 N…". */}
+                      <SectionTitle role="micro" className="min-w-0 flex-1 basis-24 truncate">
+                        <span aria-hidden>{parent.icon}</span> {parent.name}
+                      </SectionTitle>
+                      <span className="shrink-0 text-2xs text-fg-muted">
+                        <Num tone="muted">{childCount(parent.id)}</Num> mục con
+                        {todoInGroup > 0 && (
+                          <>
+                            {' · '}
+                            <Num tone="warn">{todoInGroup}</Num> chưa xong
+                          </>
+                        )}
+                      </span>
+                      <ActionButton className="shrink-0" onClick={() => openGroup(parent.id)}>
+                        Áp cho cả nhóm
+                      </ActionButton>
+                    </div>
+                  )}
+                  {g.rows.map((c) => classifyRow(c, parentRow !== null && c.id === parentRow.id))}
+                </div>
+              )
+            })}
+          </Card>
+        )
+      ) : (
+        <>
       {/* Cây danh mục: cha → con */}
       <div className="flex flex-col gap-2">
         {parents.length > 0 && (
@@ -587,6 +948,44 @@ export function CategoriesPage() {
         </div>
       )}
 
+        </>
+      )}
+
+      {sheetTarget && (
+        <ClassifySheet
+          // `key` để mở danh mục khác là draft mới: ClassifySheet mồi state một lần từ
+          // props, không có state đó thì bấm "mục kế tiếp" sẽ mang theo lựa chọn cũ.
+          key={sheetTarget.mode === 'one' ? sheetTarget.category.id : sheetTarget.parent.id}
+          target={sheetTarget}
+          onClose={closeSheet}
+          saving={update.isPending}
+          onSave={(v) => saveAndAdvance(sheetOne!.id, v)}
+          onApplyGroup={(v, label) => applyToGroup(sheetGroupParent!, v, label)}
+          onClear={
+            sheetOne &&
+            (effective(sheetOne).need_level !== null || effective(sheetOne).cost_type !== null)
+              ? () => {
+                  saveOne(sheetOne.id, {
+                    kind: effective(sheetOne).kind,
+                    need_level: null,
+                    cost_type: null,
+                  })
+                  closeSheet()
+                }
+              : null
+          }
+          onSkip={
+            sheetOne && nextAfter(sheetOne.id)
+              ? () => {
+                  const nxt = nextAfter(sheetOne.id)
+                  if (nxt) openFor(nxt)
+                  else closeSheet()
+                }
+              : null
+          }
+        />
+      )}
+
       {form && (
         <CategoryForm
           category={form.category}
@@ -594,6 +993,7 @@ export function CategoriesPage() {
           defaultType={tab}
           parentOptions={parentOptions}
           hasChildren={form.category ? hasActiveChildren(form.category.id, categories) : false}
+          onCreatedExpense={openFor}
           onClose={() => setForm(null)}
         />
       )}
@@ -610,6 +1010,8 @@ interface FormProps {
   parentOptions: CategoryRow[]
   /** Danh mục đang sửa có con hay không → nếu có thì không thể biến thành con. */
   hasChildren: boolean
+  /** Vừa TẠO xong một danh mục Chi — nơi gọi mở bảng chọn phân loại cho nó. */
+  onCreatedExpense: (created: CategoryRow) => void
   onClose: () => void
 }
 
@@ -619,6 +1021,7 @@ function CategoryForm({
   defaultType,
   parentOptions,
   hasChildren,
+  onCreatedExpense,
   onClose,
 }: FormProps) {
   useEscClose(onClose)
@@ -655,12 +1058,6 @@ function CategoryForm({
   const [topType, setTopType] = useState<CategoryType>(
     category?.type ?? parentContext?.type ?? defaultType,
   )
-  const [needLevel, setNeedLevel] = useState<NeedLevel | null>(category?.need_level ?? null)
-  const [costType, setCostType] = useState<CostType | null>(category?.cost_type ?? null)
-  // `kind` mặc định 'expense' cho danh mục MỚI: trigger `default_category_kind` của
-  // migration 0046 chỉ điền khi NULL, mà form luôn truyền giá trị — nên mặc định phải nằm
-  // ở đây, và nó là 'expense' vì phần lớn danh mục là tiêu thật.
-  const [kind, setKind] = useState<CategoryKind>(category?.kind ?? 'expense')
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
@@ -672,16 +1069,6 @@ function CategoryForm({
       ? selectedParent.type
       : topType
   const listType = effectiveType
-  // Form cho phép gắn nhãn phân loại cho MỌI danh mục Chi, kể cả cha còn con đang
-  // hoạt động. `hasChildren` cố tình KHÔNG xét nữa: trần nhóm đặt ở CHA và giao dịch
-  // ghi thẳng vào cha đều lấy `need_level` của chính cha, nên chặn ở đây là để tiền
-  // rơi ra ngoài mọi trục mà không ai báo — ca thật tháng 9/2026 có ¥192.760 (67% kế
-  // hoạch) nằm ngoài cả Thiết yếu lẫn Linh hoạt vì đúng lý do này. Xem
-  // `classifiableExpenses` trong ./leaf.
-  //
-  // is_archived cũng KHÔNG xét: `category` có thể là null (đang tạo mới), và khi sửa
-  // một danh mục Chi đã lưu trữ thì form vẫn cho sửa nhãn để không mất dữ liệu.
-  const canClassify = effectiveType === 'expense'
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
   )
@@ -692,19 +1079,28 @@ function CategoryForm({
     if (!canSave) return
     setSaving(true)
     try {
+      // Form này chỉ còn DANH TÍNH — ba trục phân loại đi qua bảng chọn (xem
+      // ClassifySheet). Nên `input` KHÔNG mang `need_level`/`cost_type`/`kind`: patch
+      // thiếu khoá là không đụng tới cột đó, tức sửa tên một danh mục không âm thầm ghi
+      // đè nhãn người dùng vừa gán ở bảng chọn.
       const input: NewCategory = {
         name: name.trim(),
         type: effectiveType,
         icon,
         parent_id: hasChildren ? null : parentId,
-        need_level: canClassify ? needLevel : null,
-        cost_type: canClassify ? costType : null,
-        // Chỉ danh mục CHI có `kind`; danh mục Thu luôn là 'expense' (giá trị trung tính,
-        // không dùng tới) vì cột này chỉ được đọc ở phía chi.
-        kind: effectiveType === 'expense' ? kind : 'expense',
+        // Ngoại lệ: đổi Chi → Thu thì DỌN cả ba. Cột `kind` và hai trục chỉ được đọc ở
+        // phía chi, để nguyên là chôn một giá trị chết chờ ngày đổi ngược lại.
+        ...(effectiveType === 'income'
+          ? { need_level: null, cost_type: null, kind: 'expense' as const }
+          : {}),
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
-      else await create.mutateAsync(input)
+      else {
+        const created = await create.mutateAsync(input)
+        // Danh mục Chi mới luôn "chưa phân loại". Mở bảng chọn ngay thay vì để nó rơi vào
+        // đống việc tồn: đây đúng lúc người dùng còn nhớ mình vừa tạo cái gì.
+        if (created.type === 'expense') onCreatedExpense(created)
+      }
       onClose()
     } finally {
       setSaving(false)
@@ -781,44 +1177,6 @@ function CategoryForm({
                 {t === 'expense' ? 'Chi' : 'Thu'}
               </button>
             ))}
-          </div>
-        )}
-
-        {/* `kind` hỏi cho MỌI danh mục Chi, kể cả danh mục cha có con: cha là chỗ đặt
-            trần nhóm, nên một nhóm "chuyển tài sản" phải loại được cả nhóm khỏi tổng chi.
-            `need_level`/`cost_type` ngay dưới cũng vậy — xem `canClassify`. */}
-        {effectiveType === 'expense' && (
-          <div className="mb-3">
-            <ClassificationToggle
-              label="Khoản này là"
-              options={KIND_OPTIONS}
-              value={kind}
-              onChange={setKind}
-            />
-            {kind === 'transfer' && (
-              <p className="mt-1.5 rounded-lg bg-state-warn-bg px-3 py-2 text-2xs text-state-warn-fg">
-                Chuyển tài sản = tiền vẫn của bạn, chỉ đứng ở chỗ khác (gửi về VN, nạp đầu
-                tư, điều chỉnh số dư). Khoản này sẽ <b>không</b> vào tổng chi, không vào tỷ lệ
-                giữ lại, và <b>không đặt được hạn mức</b>.
-              </p>
-            )}
-          </div>
-        )}
-
-        {canClassify && kind === 'expense' && (
-          <div className="mb-3 space-y-2">
-            <ClassificationToggle
-              label="Tính chất"
-              options={NEED_OPTIONS}
-              value={needLevel}
-              onChange={setNeedLevel}
-            />
-            <ClassificationToggle
-              label="Loại chi"
-              options={COST_OPTIONS}
-              value={costType}
-              onChange={setCostType}
-            />
           </div>
         )}
 

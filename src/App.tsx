@@ -48,11 +48,6 @@ const AccountsPage = lazy(() =>
 const CategoriesPage = lazy(() =>
   import('./features/categories/CategoriesPage').then((m) => ({ default: m.CategoriesPage })),
 )
-const ClassifyCategoriesPage = lazy(() =>
-  import('./features/categories/ClassifyCategoriesPage').then((m) => ({
-    default: m.ClassifyCategoriesPage,
-  })),
-)
 const TagsPage = lazy(() =>
   import('./features/tags/TagsPage').then((m) => ({ default: m.TagsPage })),
 )
@@ -119,6 +114,23 @@ function LegacyDebtRedirect() {
   return <Navigate to={`/debts/${debtId}`} replace />
 }
 
+/**
+ * `/settings/categories/classify` → `/settings/categories`, GIỮ query string.
+ *
+ * `<Navigate to="/settings/categories">` trơn sẽ nuốt mất `?todo=1` và `?ids=a,b` — mà
+ * đúng hai tham số đó là thứ làm nút "Phân loại 3 danh mục này" ở mặt lập kế hoạch mở ra
+ * ba dòng chứ không phải cả sổ.
+ */
+function ClassifyRedirect() {
+  const { search } = useLocation()
+  // Đích viết thành hằng rồi ghép bằng OBJECT `{ pathname, search }`, không nội suy vào
+  // chuỗi: routeLinks.test.ts đọc đường dẫn viết cứng để canh mọi link trỏ vào route
+  // thật, mà một segment có `${...}` thì nó phải coi là không khớp (đó là cái bẫy
+  // /assets/${id} vs /assets/groups mà phép thử đó sinh ra để bắt).
+  const to = '/settings/categories'
+  return <Navigate to={{ pathname: to, search }} replace />
+}
+
 /** `/assets/:accountId` → `/assets/account/:accountId`. Chèn segment `account/` để
  *  `/assets/groups` không còn nằm CÙNG CẤP với một segment động — trước đây nó chạy đúng
  *  chỉ vì React Router xếp segment tĩnh trên segment động, một phụ thuộc không ai đọc
@@ -177,10 +189,12 @@ function AppRoutes() {
             <Route index element={<SettingsPage />} />
             <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />, 'table')} />
             <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />, 'table')} />
-            <Route
-              path="/settings/categories/classify"
-              element={lazyRoute(<ClassifyCategoriesPage />)}
-            />
+            {/* Trang "Phân loại chi tiêu" đã GỘP vào chính trang Danh mục (06/09/2026) —
+                cùng một bảng dữ liệu thì một màn. Route vẫn sống vì tám chỗ đang trỏ vào
+                đây (Ngân sách, Sức khoẻ, Báo cáo, Thông báo…) và cả bookmark của người
+                dùng; nó chuyển tiếp kèm NGUYÊN query string, nên `?todo=1` và `?ids=a,b`
+                từ mặt lập kế hoạch vẫn mở đúng cảnh cũ. */}
+            <Route path="/settings/categories/classify" element={<ClassifyRedirect />} />
             <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
             <Route path="/settings/asset-groups" element={lazyRoute(<AssetGroupsPage />)} />
             <Route path="/settings/data" element={lazyRoute(<DataPage />)} />

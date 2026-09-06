@@ -9,10 +9,13 @@
 // Chấm cạnh một dòng = tài khoản đó quá RECONCILE_STALE_DAYS chưa đối chiếu. KHÔNG tự
 // suy ở đây: BulletinPage tính từ `lastReconciledMap` — đúng nguồn mà chuông nhắc và
 // khối Độ tin cậy dùng, ba chỗ trên cùng một màn phải cùng một danh sách tài khoản cũ.
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Money, SectionTitle, StatusDot } from '../../components/ui'
+import { Card, Money, Num, SectionTitle, StatusDot } from '../../components/ui'
 import { AccountTypeIcon } from '../../components/icons'
 import type { AssetGroup } from '../assets/aggregate'
+import { rebalancePlan } from '../assets/rebalance'
+import { useAssetGroupSettings } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/money'
 
 /** Trần dòng — Bản tin là chỗ liếc; ai có 20 tài khoản thì mở tab Tài sản. */
@@ -37,6 +40,22 @@ export function AccountsPanel({ groups, netWorth, base, staleIds }: Props) {
   const accounts = groups.flatMap((g) => g.accounts)
   const shown = accounts.slice(0, MAX_ROWS)
 
+  // Tỷ trọng mục tiêu (rebalance.ts): người dùng khai ở tab Tài sản, Bản tin chỉ NHẮC
+  // khi lệch quá ngưỡng — một dòng, không lặp lại cả bảng.
+  const { data: groupSettings = [] } = useAssetGroupSettings()
+  const lech = useMemo(() => {
+    const targets = new Map<string, number>()
+    for (const s of groupSettings)
+      if (s.target_bps !== null && s.target_bps > 0) targets.set(s.name, s.target_bps)
+    const plan = rebalancePlan(
+      groups
+        .filter((g) => g.includeInTotals)
+        .map((g) => ({ name: g.name, total: g.total, includeInTotals: true })),
+      targets,
+    )
+    return plan !== null && plan.alert ? plan.worst : null
+  }, [groups, groupSettings])
+
   return (
     <Card elevation="panel" padding="panel" as="section" className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
@@ -52,6 +71,17 @@ export function AccountsPanel({ groups, netWorth, base, staleIds }: Props) {
             <Money amount={netWorth} currency={base} tone="neutral" />
           </span>
           <span className="text-2xs text-fg-muted">tài sản ròng · sau nợ và cho vay</span>
+        </p>
+      )}
+
+      {lech !== null && (
+        <p className="mt-1.5 text-sm text-fg-primary">
+          Cơ cấu lệch mục tiêu: «{lech.name}» đang{' '}
+          <Num tone="out">{lech.actualPct.toFixed(1).replace('.', ',')}%</Num> so mục tiêu{' '}
+          <Num tone="muted">{lech.targetPct.toFixed(0)}%</Num> —{' '}
+          <Link to="/assets" className="font-medium text-fg-accent hover:underline">
+            xem cách cân lại
+          </Link>
         </p>
       )}
 

@@ -752,6 +752,7 @@ function seed(): DemoDB {
     sort_order,
     include_in_totals: true,
     is_hidden: false,
+    target_bps: null,
     created_at: nowISO(),
   })
   const assetGroupSettings = [
@@ -2254,6 +2255,7 @@ export const demoRepo: Repo = {
       sort_order: nextSort,
       include_in_totals: true,
       is_hidden: false,
+      target_bps: null,
       created_at: nowISO(),
       ...patch,
     }
@@ -2302,6 +2304,7 @@ export const demoRepo: Repo = {
           sort_order: i,
           include_in_totals: true,
           is_hidden: false,
+          target_bps: null,
           created_at: nowISO(),
         })
     })

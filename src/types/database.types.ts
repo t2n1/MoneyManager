@@ -734,6 +734,8 @@ export type AssetGroupSettingRow = {
   include_in_totals: boolean
   /** true = ẩn hẳn khỏi trang Tài sản (chỉ thấy trong trang quản lý) */
   is_hidden: boolean
+  /** Tỷ trọng MỤC TIÊU trong tổng tài sản, bps (3000 = 30%); null = không đặt (migration 0060). */
+  target_bps: number | null
   created_at: string
 }
 
@@ -1051,10 +1053,13 @@ export type Database = {
         Insert: InsertOf<
           AssetGroupSettingRow,
           'user_id' | 'name',
-          'id' | 'sort_order' | 'include_in_totals' | 'is_hidden'
+          'id' | 'sort_order' | 'include_in_totals' | 'is_hidden' | 'target_bps'
         >
         Update: Partial<
-          Pick<AssetGroupSettingRow, 'name' | 'sort_order' | 'include_in_totals' | 'is_hidden'>
+          Pick<
+            AssetGroupSettingRow,
+            'name' | 'sort_order' | 'include_in_totals' | 'is_hidden' | 'target_bps'
+          >
         >
         Relationships: []
       }

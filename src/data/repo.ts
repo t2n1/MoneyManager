@@ -333,7 +333,7 @@ export interface NewPushSubscription {
 
 /** Thuộc tính nhóm tài sản có thể chỉnh (không đổi tên qua đây — dùng renameAssetGroup). */
 export type AssetGroupSettingPatch = Partial<
-  Pick<AssetGroupSettingRow, 'sort_order' | 'include_in_totals' | 'is_hidden'>
+  Pick<AssetGroupSettingRow, 'sort_order' | 'include_in_totals' | 'is_hidden' | 'target_bps'>
 >
 
 export interface NewDebt {

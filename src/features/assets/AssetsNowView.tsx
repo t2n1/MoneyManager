@@ -52,6 +52,7 @@ import { CardsSection } from './CardsSection'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { groupDeltas, investmentScope } from './groupInsight'
 import { makeMoneyView } from './moneyView'
+import { RebalanceSection } from './RebalanceSection'
 import { StructureBar } from './StructureBar'
 import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
@@ -827,6 +828,10 @@ export function AssetsNowView({ viewCur }: Props) {
           )
         })}
       </Card>
+
+      {/* Tỷ trọng mục tiêu (rebalance.ts): tính trên nhóm MỤC ĐÍCH bất kể lát đang cắt —
+          mục tiêu khai theo nhóm của người dùng, không theo loại tài khoản. */}
+      <RebalanceSection groups={purposeGroups} view={mv} />
 
       {(breakdown.hasForeign || mv.converted) && rates && (
         <p className="text-center text-2xs text-fg-muted">

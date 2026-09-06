@@ -1293,7 +1293,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
     // 33 (từ 32, 2026-09-04): BudgetMethodSheet — sheet mới tách từ Hồ sơ, dùng đúng khuôn
     // sheet chuẩn (rounded-t-2xl / lg:rounded-2xl) nên thuộc ngoại lệ 'sheet'.
-    { needle: 'rounded-2xl', max: 33, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    // 34 (từ 33, 2026-09-06): bảng chọn của Phân loại chi tiêu (redesign "nhãn tóm tắt
+    // + bảng chọn") — sheet mới, cùng khuôn chuẩn, ngoại lệ 'sheet' hợp lệ tiếp theo.
+    { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
     // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
     //

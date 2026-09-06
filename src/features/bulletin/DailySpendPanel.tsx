@@ -26,7 +26,7 @@
 import { useLayoutEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
-import { formatCompact, type CurrencyCode } from '../../lib/money'
+import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
@@ -393,6 +393,7 @@ function YoyBlock({
   yoy,
   days,
   monthBudget,
+  filtered,
   base,
   approx,
   priorLabel,
@@ -400,8 +401,10 @@ function YoyBlock({
   yoy: CumulativeCompare
   /** Dải ngày của tháng ĐANG XEM — trục x phủ trọn tháng dù đường năm nay mới đi vài ngày. */
   days: DaySpend[]
-  /** Tổng hạn mức của kỳ; 0 = không vẽ đường hạn mức. Xem `yoyBudget` ở component cha. */
+  /** Tổng hạn mức của kỳ. 0 = chưa đặt hạn mức nào. */
   monthBudget: number
+  /** Đang bật "Bỏ cố định" → không vẽ đường hạn mức, và NÓI RA vì sao. Xem component cha. */
+  filtered: boolean
   base: CurrencyCode
   approx: boolean
   priorLabel: string
@@ -414,7 +417,16 @@ function YoyBlock({
   // Điểm ĐẦU của đường hạn mức, và cũng là cái quyết định có vẽ hay không. Dùng chung
   // `budgetPerDay` với phần còn lại của app: đường này chính là LŨY KẾ của con số ¥/ngày
   // đó, nên hai chỗ phải chia bằng cùng một mẫu số.
-  const perDay = budgetPerDay(monthBudget, n)
+  const perDay = filtered ? null : budgetPerDay(monthBudget, n)
+  // Đã đặt hạn mức nhưng đang lọc → chỗ của con số nói vì sao nó không có. Chưa đặt hạn
+  // mức thì im: ở đó không có gì để giải thích cả.
+  const budgetHidden = filtered && monthBudget > 0
+  // Hạn mức LŨY KẾ tới ngày thứ (i+1) — đúng giá trị của đường chéo tại ngày đó, nên thẻ
+  // rê chuột và hình không bao giờ nói hai số khác nhau cho cùng một ngày.
+  // Chia lại từ `monthBudget` chứ không nhân `perDay × (i+1)`: hai cách chỉ khác nhau ở
+  // phần làm tròn, nhưng cách nhân dồn sai số nên tới ngày cuối nó ra `perDay × n`, lệch
+  // vài yên so với con số trần mà dòng kết luận vừa in.
+  const budgetAt = (i: number) => Math.round((monthBudget * (i + 1)) / n)
   // Trần vào thang trục. Không cho vào thì đường hạn mức chạy ra ngoài mép trên và bị
   // <svg> cắt — người đọc thấy một đoạn chéo đứt ở đâu đó mà không biết nó đi tới đâu,
   // còn nhãn `hi` ở góc thì nói một con số không liên quan tới nó.
@@ -477,6 +489,20 @@ function YoyBlock({
         {perDay !== null && (
           <span className="font-mono text-2xs text-fg-warn">
             {' · '}hạn mức <Money amount={monthBudget} currency={base} approx={approx} />
+          </span>
+        )}
+        {budgetHidden && (
+          // `title` mang CON SỐ + lý lẽ đầy đủ, dòng nhìn thấy chỉ mang kết luận và đường
+          // ra: một câu hai dòng về cấu trúc danh mục cha/lá không thuộc dòng kết luận của
+          // một biểu đồ. Con số đi qua `formatMoney` chứ không nội suy tay — hàm đó tự che
+          // thành ••• khi bật chế độ riêng tư, nên tooltip không làm thủng chế độ đó (title
+          // là attribute nên không dùng được <Money>; đây là ngoại lệ duy nhất của luật
+          // "mọi con số đi qua <Money>", và nó vẫn đi qua cùng một hàm định dạng).
+          <span
+            className="font-mono text-2xs text-fg-muted"
+            title={`Hạn mức cả tháng ${formatMoney(monthBudget, base)} — gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức.`}
+          >
+            {' · '}hạn mức chỉ so được ở “Tất cả”
           </span>
         )}
       </p>
@@ -631,6 +657,29 @@ function YoyBlock({
                   />
                 </p>
               )}
+              {/* Hạn mức tới ĐÚNG ngày đang trỏ. Đây là chỗ đường chéo trả được lời hứa của
+                  nó: hai con số trên/dưới nhau cho cùng một ngày thì "đang trong trần hay
+                  đã vượt" đọc ra ngay, không phải ước lượng bằng mắt khoảng cách hai nét.
+                  Vạch mẫu nét đứt + `tone="warn"` khớp đúng màu đường — cùng mã màu với
+                  chú giải và dòng kết luận. `tone` chứ không nhồi `text-fg-warn` vào
+                  className: <Money> đã có sẵn tone đó, và class chèn ngoài thì thứ tự thắng
+                  do stylesheet quyết, không do chỗ mình viết. */}
+              {perDay !== null && (
+                <p className="mt-0.5 flex items-center gap-1.5 text-2xs text-fg-secondary">
+                  <span
+                    className="w-4 shrink-0 border-t border-dashed border-fg-warn"
+                    aria-hidden
+                  />
+                  <span>hạn mức</span>
+                  <Money
+                    amount={budgetAt(hover)}
+                    currency={base}
+                    tone="warn"
+                    approx={approx}
+                    className="ml-auto pl-3"
+                  />
+                </p>
+              )}
               {hover < current.length && hover < prior.length && (
                 <HoverVerdict
                   nay={current[hover]}
@@ -736,13 +785,19 @@ export function DailySpendPanel({
   //     đường CHÉO đi đều từ ¥/ngày lên trọn trần, và đường chi của mình nằm trên hay dưới
   //     nó chính là câu trả lời. Xem <YoyBlock>.
   //
-  // CHỈ ở phạm vi "Tất cả", và đó là luật cùng họ với B46.2: `totalBudgeted` là tổng trần
-  // của MỌI danh mục, trong đó có tiền nhà. Bật "Bỏ cố định" thì `excludeIds` cắt cả HAI
-  // đường lũy kế (xem BulletinPage) trong khi trần đứng nguyên — đường hạn mức treo cao
-  // vượt cả hai năm, đọc ra "năm nào cũng dư dả". Trần của riêng phần linh hoạt thì phải
-  // cộng lại từ từng danh mục, tức dựng một con số hạn mức THỨ HAI cạnh con số mà trang
-  // Ngân sách đang nói — đúng thứ mà chú thích `useBudgetReport` ở BulletinPage cấm.
-  const yoyBudget = filtered ? 0 : monthBudget
+  // CHỈ ở phạm vi "Tất cả" — và lý do là con số đó KHÔNG TỒN TẠI, không phải nó khó tính.
+  // Trần đặt ở danh mục CHA, còn `cost_type` đánh ở LÁ. Số thật của sổ này: cha "Nhà ở"
+  // có trần ¥133.000 phủ cả lá tiền nhà (fixed) lẫn điện/nước/gas (variable) — không chỗ
+  // nào nói bao nhiêu trong ¥133.000 là phần tiền nhà. `fixedShareOf` (budgetSort.ts) chia
+  // theo ĐÃ CHI, nên nó động theo từng khoản ghi thêm, và đầu tháng khi chưa chi gì thì nó
+  // coi cả ¥133.000 là linh hoạt — sai hẳn ở đúng lúc người ta cần nhìn nhất.
+  // Bật "Bỏ cố định" mà vẫn vẽ trần nguyên thì `excludeIds` cắt cả HAI đường lũy kế (xem
+  // BulletinPage) trong khi đường hạn mức treo cao vượt cả hai năm, đọc ra "năm nào cũng
+  // dư dả".
+  // `filtered` đi xuống làm CỜ, không bị nén thành `monthBudget = 0`: YoyBlock phải phân
+  // biệt "chưa đặt hạn mức" (im lặng, đúng) với "đã đặt nhưng đang lọc" (phải NÓI ra là
+  // mình cố ý không vẽ). Một đường tự biến mất không nói gì thì người dùng phải đi hỏi —
+  // đã xảy ra thật.
 
   const pctOf = (v: number) => (ceiling > 0 ? Math.min(Math.abs(v) / ceiling, 1) : 0)
 
@@ -829,7 +884,8 @@ export function DailySpendPanel({
         <YoyBlock
           yoy={yoy}
           days={days}
-          monthBudget={yoyBudget}
+          monthBudget={monthBudget}
+          filtered={filtered}
           base={base}
           approx={approx || yoyApprox}
           priorLabel={priorLabel}

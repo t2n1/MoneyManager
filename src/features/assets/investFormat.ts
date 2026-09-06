@@ -24,3 +24,25 @@ export const KIND_CLASS: Record<TradeKind, string> = {
   sell: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
   adjust: 'bg-surface-sunken text-fg-secondary',
 }
+
+/**
+ * Màu các lát của khu Cơ cấu — donut VÀ thanh tỷ trọng ở từng dòng dùng CHUNG bảng này,
+ * nên mã nào cũng mang đúng một màu trên cả hai chỗ. Hai bảng riêng thì hai khu cạnh nhau
+ * nói cùng một chuyện bằng hai màu, và người đọc phải tự bắc cầu.
+ *
+ * Giá trị nằm ở `--chart-slice-1..5` (src/index.css): dải cùng tông, mỗi chế độ một chiều,
+ * đã đo ≥ 3:1 với nền thẻ. Xem lời giải thích ở đó trước khi đổi.
+ */
+export const SLICE_COLORS = [
+  'var(--chart-slice-1)',
+  'var(--chart-slice-2)',
+  'var(--chart-slice-3)',
+  'var(--chart-slice-4)',
+  'var(--chart-slice-5)',
+] as const
+
+/** "Khác" và "Tiền mặt" — không phải một mã cụ thể nên không lấy màu của dải. */
+export const SLICE_NEUTRAL = 'var(--fg-muted)'
+
+/** Màu của lát thứ `i` (0-based); quá dải thì về màu trung tính. */
+export const sliceColor = (i: number): string => SLICE_COLORS[i] ?? SLICE_NEUTRAL

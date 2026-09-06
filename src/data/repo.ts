@@ -174,6 +174,11 @@ export interface NewTransaction {
    */
   stock_trade_id?: string | null
   /**
+   * Mã cổ phiếu mà khoản thu/chi này thuộc về (migration 0061) — cổ tức tiền, phí lưu ký.
+   * null/vắng = chưa gán. Xem `dividendsBySymbol` ở features/assets/positionTable.ts.
+   */
+  stock_symbol?: string | null
+  /**
    * Quy tắc định kỳ mà bút toán này thuộc về (migration 0008 đã có cột + index, nhưng tới
    * giờ chưa có gì ghi vào).
    *

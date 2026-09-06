@@ -234,6 +234,24 @@
      từ --surface xuống đây). Ở light gradient gần như không thấy — đúng chủ ý, thẻ
      light vốn phẳng. Dùng qua tiện ích bg-panel-gradient bên dưới. */
   --surface-grad-to: #fbfbfc;
+
+  /* Lát biểu đồ CƠ CẤU (donut tỷ trọng danh mục) — một dải CÙNG TÔNG đổi dần độ sáng,
+     không phải một bộ màu nhiều sắc.
+     Vì sao dải chứ không nhiều sắc: các lát ở đây không mang nghĩa tốt/xấu, nên lấy đỏ
+     hay xanh lá gán cho một mã là mời người đọc tưởng mã đó đang có chuyện (đỏ/xanh
+     trong app này đã có nghĩa cố định). Một dải cùng tông thì tách được bằng ĐỘ SÁNG,
+     tức còn tách được khi in đen trắng và với người rối loạn sắc giác.
+     Đo thật (scratchpad/dai-sky.mjs, oklch → sRGB → WCAG) trên nền thẻ #ffffff:
+       sky-600 4,02 · sky-700 5,86 · sky-800 7,51 · sky-900 9,48 · sky-950 13,89
+     Tất cả vượt 3:1 của WCAG 1.4.11, và bước giữa hai bậc liền nhau ≥ 1,26 nên mắt
+     tách được. Chế độ Tối ĐẢO CHIỀU sang bậc sáng — xem khối .dark.
+     Thứ tự: lát 1 là lát NỔI NHẤT (tương phản cao nhất với nền) vì nó dành cho mã có
+     tỷ trọng lớn nhất, rồi nhạt dần. Cùng một luật ở cả hai chế độ, chỉ đổi chiều. */
+  --chart-slice-1: var(--color-sky-950);
+  --chart-slice-2: var(--color-sky-900);
+  --chart-slice-3: var(--color-sky-800);
+  --chart-slice-4: var(--color-sky-700);
+  --chart-slice-5: var(--color-sky-600);
 }
 
 /* Thang tối của redesign 2 (handoff "Sổ redesign mới", 2026-09-05). Đây là hex THẲNG
@@ -360,6 +378,19 @@
   --accent-soft-ring: rgba(92, 224, 138, 0.3);
 
   --surface-grad-to: #0f120f; /* gradient panel: --surface → đây, dốc xuống rất nhẹ */
+
+  /* Lát donut ở chế độ Tối — ĐẢO CHIỀU so với light (cùng lý lẽ với --fg-muted và
+     statusColors.ts: nền tối thì dải phải chạy về phía SÁNG).
+     Đo thật trên nền thẻ #121613:
+       sky-300 10,96 · sky-400 8,38 · sky-500 6,75 · sky-600 4,54 · sky-700 3,12
+     Bậc 400→500 chỉ cách nhau 1,24 (dưới ngưỡng 1,25 tôi tự đặt) — giữ nguyên vì mỗi
+     lát còn có ô màu kèm TÊN MÃ và phần trăm trong chú giải, nên màu không phải thứ
+     duy nhất chỉ ra lát nào là lát nào. */
+  --chart-slice-1: var(--color-sky-300);
+  --chart-slice-2: var(--color-sky-400);
+  --chart-slice-3: var(--color-sky-500);
+  --chart-slice-4: var(--color-sky-600);
+  --chart-slice-5: var(--color-sky-700);
 }
 
 /* Map var ngữ nghĩa thành tiện ích Tailwind. `inline` để Tailwind nhả ra

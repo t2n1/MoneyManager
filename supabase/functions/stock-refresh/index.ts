@@ -18,6 +18,7 @@ import { buildFetchOrder, fetchYahooPrices, type PriceUpsert } from './prices.ts
 import { brokerCash, holdingsFromTrades, HOSE_SYMBOLS, portfolioValue, sessionPrices } from './_holdings.js'
 import { loadPortfolioAccounts, loadTradedSymbols } from './loadInput.ts'
 import { refreshIndexHistory, refreshSymbolHistory } from './history.ts'
+import { refreshIndustries } from './industry.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -34,6 +35,8 @@ interface KetQua {
   boQua: Record<string, number>
   /** Số phiên lịch sử đã ghi ở lượt này (cổ phiếu + chỉ số) — việc 3. */
   phienLichSu: number
+  /** Số mã vừa tra được ngành — việc 4. */
+  maCoNganh: number
   loi: string[]
 }
 
@@ -59,7 +62,7 @@ Deno.serve(async (req) => {
   }
 
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-  const kq: KetQua = { soMaCoGia: 0, daGhi: 0, boQua: {}, phienLichSu: 0, loi: [] }
+  const kq: KetQua = { soMaCoGia: 0, daGhi: 0, boQua: {}, phienLichSu: 0, maCoNganh: 0, loi: [] }
   // Việc 2 (ghi account_valuations) throw trước cả vòng lặp tài khoản — tức KHÔNG
   // phải lỗi của riêng một tài khoản mà cả khối ghi giá trị bị gãy. Tách cờ riêng
   // với `kq.loi` vì lỗi của TỪNG tài khoản (bên trong vòng lặp) vẫn được gom vào
@@ -216,6 +219,15 @@ Deno.serve(async (req) => {
       kq.phienLichSu += await refreshIndexHistory(sb, 'VNINDEX')
     } catch (err) {
       kq.loi.push(`vnindex: ${err instanceof Error ? err.message : String(err)}`)
+    }
+
+    // --- Việc 4: ngành của mã (migration 0061) ---
+    // Nằm trong cùng khối vì nó dùng lại đúng `daGiao`. Tự bỏ qua khi không mã nào
+    // thiếu ngành, nên gần như mọi lượt chạy nó không gọi mạng lần nào.
+    try {
+      kq.maCoNganh = await refreshIndustries(sb, daGiao)
+    } catch (err) {
+      kq.loi.push(`nganh: ${err instanceof Error ? err.message : String(err)}`)
     }
   } catch (err) {
     kq.loi.push(`lich su: ${err instanceof Error ? err.message : String(err)}`)

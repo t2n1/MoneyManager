@@ -21,7 +21,9 @@ import { HOSE_SYMBOLS } from './hoseSymbols'
 import { InvestAccountChips } from './InvestAccountChips'
 import { InvestAllocationSection } from './InvestAllocationSection'
 import { InvestPerformanceSection } from './InvestPerformanceSection'
+import { InvestRiskSection } from './InvestRiskSection'
 import { InvestWeightDonut } from './InvestWeightDonut'
+import { useInvestChartData } from './useInvestChartData'
 import { dividendsBySymbol, positionTable, taggableCashflows } from './positionTable'
 import { investTxRange } from './investHistory'
 import { toISODate } from '../../lib/dates'
@@ -124,6 +126,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   const moiMa = useMemo(
     () => [...new Set(trades.map((t) => t.symbol))].sort(),
     [trades],
+  )
+
+  // MỘT lượt dựng chuỗi NAV cho cả khu Hiệu quả và khu Rủi ro — xem useInvestChartData.ts.
+  const chartData = useInvestChartData(shown, trades)
+
+  const nganhTheoMa = useMemo(
+    () => new Map(priceRows.filter((r) => r.industry).map((r) => [r.symbol, r.industry])),
+    [priceRows],
   )
   const shownTrades = useMemo(
     () => (symbolFilter ? trades.filter((t) => t.symbol === symbolFilter) : trades),
@@ -301,10 +311,11 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
 
       {/* Hiệu quả: năm con số + đường danh mục so với VN-Index */}
       <InvestPerformanceSection
-        accounts={shown}
-        trades={trades}
+        data={chartData}
+        hasAccounts={shown.length > 0}
         marketValue={p.marketValue}
         cashNegative={p.cash < 0}
+        hasTrades={trades.length > 0}
       />
 
       {/* Cơ cấu danh mục: bảng đủ cột (desktop) / thẻ từng mã (điện thoại) */}
@@ -321,7 +332,10 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
       <InvestWeightDonut
         positions={bangCoCau.rows}
         cash={p.cash + (p.walletCash ?? 0)}
+        industryBySymbol={nganhTheoMa}
       />
+
+      <InvestRiskSection data={chartData} positions={bangCoCau.rows} />
 
       {/* Sổ lệnh */}
       <Card as="section">

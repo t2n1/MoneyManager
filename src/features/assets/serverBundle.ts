@@ -20,6 +20,9 @@ export type { Holding, HoldingsResult, PortfolioValue, SessionPrices, Trade } fr
 export { DCHART_INDEX_SCALE, DCHART_STOCK_SCALE, parseDchart, unixDay } from './dchart'
 export type { DchartBar } from './dchart'
 
+// Lật "ngành → danh sách mã" của VNDirect thành "mã → ngành" (migration 0061).
+export { parseIndustries } from './sectors'
+
 // Ngày tháng: bắt buộc đi qua đây, không tự cộng trừ ngày ở edge function.
 export { toISODate } from '../../lib/dates'
 

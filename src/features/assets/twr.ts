@@ -105,3 +105,20 @@ export function periodReturns(points: NavFlow[]): PeriodReturns {
     cagr,
   }
 }
+
+/**
+ * Lợi suất TỪNG PHIÊN, đã bóc dòng tiền — nguyên liệu của biến động và Sharpe.
+ *
+ * Phiên mà danh mục còn rỗng KHÔNG góp một số 0 vào chuỗi: những ngày chưa mua gì sẽ pha
+ * loãng độ lệch chuẩn, và biến động đo ra sẽ thấp hơn thật đúng bằng phần thời gian mình
+ * chưa vào thị trường. Cùng lý lẽ với `twrSeries` (giữ chỉ số đứng yên ở những phiên đó),
+ * chỉ khác chỗ ở đây phải BỎ HẲN phần tử thay vì đẩy vào một số 0.
+ */
+export function dailyReturnsOf(points: NavFlow[]): number[] {
+  const out: number[] = []
+  for (let i = 1; i < points.length; i++) {
+    const truoc = points[i - 1].nav
+    if (truoc > 0) out.push((points[i].nav - points[i].flow) / truoc - 1)
+  }
+  return out
+}

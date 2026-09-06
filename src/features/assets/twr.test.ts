@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { periodReturns, twrSeries, type NavFlow } from './twr'
+import { dailyReturnsOf, periodReturns, twrSeries, type NavFlow } from './twr'
 
 /** Chuỗi phiên liền nhau từ 2026-01-05, mỗi phần tử là [nav, flow]. */
 const chuoi = (from: string, rows: [number, number][]): NavFlow[] => {
@@ -125,5 +125,31 @@ describe('periodReturns', () => {
 
   it('chuỗi rỗng thì mọi con số là null, không phải 0', () => {
     expect(periodReturns([])).toEqual({ total: null, week: null, ytd: null, year: null, cagr: null })
+  })
+})
+
+
+describe('dailyReturnsOf', () => {
+  it('trả lợi suất TỪNG PHIÊN, ít hơn số phiên đúng một', () => {
+    const r = dailyReturnsOf(chuoi('2026-01-05', [[1_000, 0], [1_100, 0], [1_210, 0]]))
+    expect(r).toHaveLength(2)
+    expect(r[0]).toBeCloseTo(0.1, 10)
+    expect(r[1]).toBeCloseTo(0.1, 10)
+  })
+
+  it('BÓC dòng tiền y như chuỗi tích luỹ — nạp tiền không phải một phiên tăng giá', () => {
+    const r = dailyReturnsOf(chuoi('2026-01-05', [[1_000, 0], [2_100, 1_000]]))
+    expect(r[0]).toBeCloseTo(0.1, 10)
+  })
+
+  it('phiên mà danh mục rỗng thì KHÔNG góp một số 0 vào chuỗi', () => {
+    // Góp 0 sẽ làm biến động bị pha loãng bởi những ngày chưa mua gì.
+    const r = dailyReturnsOf(chuoi('2026-01-05', [[0, 0], [0, 0], [1_000, 1_000], [1_100, 0]]))
+    expect(r).toEqual([expect.closeTo(0.1, 10)])
+  })
+
+  it('một phiên hoặc rỗng thì không có lợi suất nào', () => {
+    expect(dailyReturnsOf([{ date: '2026-01-05', nav: 1_000, flow: 0 }])).toEqual([])
+    expect(dailyReturnsOf([])).toEqual([])
   })
 })

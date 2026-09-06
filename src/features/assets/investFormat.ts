@@ -7,6 +7,25 @@
 export const pct = (v: number) =>
   `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 export const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
+/**
+ * Một HỆ SỐ (beta, Sharpe) — không phải tiền, không phải phần trăm.
+ *
+ * Hai chi tiết mà `toFixed()` trơn làm sai, và cả hai đã hiện ra trên màn thật:
+ *   · dấu ÂM THẬT (−, U+2212) chứ không phải hyphen của JS. Cùng lý do ghi ở
+ *     src/components/ui/Num.tsx: trong dãy mono hyphen ngắn hơn dấu cộng, nên nhãn
+ *     "−0,5" ở mép thang và giá trị "-0,02" ngay trên nó trông lệch nhau.
+ *   · dấu thập phân kiểu Việt (phẩy).
+ *
+ * `null` ra "—", không ra "0,00": beta chưa đo được không phải beta bằng 0.
+ */
+export const heSo = (v: number | null, soChuSo = 2): string => {
+  if (v === null) return '—'
+  const s = Math.abs(v).toFixed(soChuSo).replace('.', ',')
+  // So sau khi LÀM TRÒN, không so `v < 0`: −0,001 làm tròn hai chữ số ra "0,00", mà
+  // "−0,00" là một con số không tồn tại.
+  return Number(Math.abs(v).toFixed(soChuSo)) === 0 || v > 0 ? s : `−${s}`
+}
+
 /** ISO → yy/mm/dd theo quy ước tháng/ngày của app (lib/dates.ts). Sổ lệnh trải nhiều năm nên phải có năm. */
 export const ngay = (iso: string) => `${iso.slice(2, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`
 

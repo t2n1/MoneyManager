@@ -16,19 +16,10 @@ import { Line, LineChart, ResponsiveContainer, ReferenceLine, Tooltip, XAxis, YA
 import { ExplainBox } from '../../components/ExplainBox'
 import { Card, Num, SectionTitle, SegmentedControl, signedPct, pct1 } from '../../components/ui'
 import type { SegmentedItem } from '../../components/ui'
-import { useIndexPrices, useRangeTransactions, useStockPriceHistory } from '../../hooks/queries'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import { dayMonthLabel, toISODate } from '../../lib/dates'
-import type { AccountRow, StockTradeRow } from '../../types/database.types'
-import { asTrade } from './holdings'
-import { investTxRange } from './investHistory'
-import {
-  buildPriceMap,
-  investPerformance,
-  rangeFrom,
-  type ChartRange,
-} from './investChartData'
-import { navSeries, toLedger } from './navSeries'
+import { investPerformance, rangeFrom, type ChartRange } from './investChartData'
+import type { InvestChartData } from './useInvestChartData'
 
 // Cùng cặp màu với khu "vốn bỏ vào so với giá trị" ở tab Tài sản — một câu chuyện, một
 // bảng màu. Xanh lá là THỨ CỦA MÌNH, xanh dương là mốc để so.
@@ -45,63 +36,43 @@ const KHOANG: readonly SegmentedItem<ChartRange>[] = [
 ]
 
 interface Props {
-  /** Tài khoản đang được tính — cùng tập với khu Giá trị danh mục. */
-  accounts: AccountRow[]
-  /** Sổ lệnh của đúng những tài khoản đó. */
-  trades: StockTradeRow[]
+  data: InvestChartData
+  /** Có tài khoản chứng khoán nào không — không có thì khu này không hiện. */
+  hasAccounts: boolean
   /** null = sổ lệnh không đủ để ra giá trị đáng tin; hiện lý do thay vì vẽ. */
   marketValue: number | null
   /** true = tiền mặt âm (sổ lệnh thiếu lần nạp) — để nói đúng lý do. */
   cashNegative: boolean
+  /** Có lệnh nào chưa — để phân biệt "chưa ghi lệnh" với "khung quá hẹp". */
+  hasTrades: boolean
 }
 
-export function InvestPerformanceSection({ accounts, trades, marketValue, cashNegative }: Props) {
+export function InvestPerformanceSection({
+  data,
+  hasAccounts,
+  marketValue,
+  cashNegative,
+  hasTrades,
+}: Props) {
   const todayISO = toISODate(new Date())
   const [range, setRange] = useState<ChartRange>('1Y')
-  // Tải TRỌN lịch sử một lần, không tải theo chip. Hai lý do, và lý do thứ hai mới là
-  // lý do thật:
-  //   · bấm chip thành tức thì, không phải một lượt đi mạng cho mỗi lần bấm;
-  //   · năm con số bên dưới là SỰ THẬT CỦA CẢ DANH MỤC, không phải của khung đang xem —
-  //     đúng như Simplize. Tính chúng trong khung thì chọn khung 1 năm sẽ làm ô "1 năm"
-  //     luôn trống (chuỗi không lùi tới mốc một năm trước phiên cuối của chính nó), và
-  //     "Tổng lợi nhuận" đổi nghĩa mỗi lần bấm chip.
-  // Đổi lại là ~300KB; đã loại hai query này khỏi persist ở src/main.tsx.
-  const from = rangeFrom('all', todayISO)
   const chartFrom = rangeFrom(range, todayISO)
 
-  // MỌI mã từng giao dịch, không chỉ mã đang giữ: quá khứ của danh mục có cả mã đã bán,
-  // và bỏ chúng ra là vẽ một quá khứ mà mình chưa từng sống.
-  const symbols = useMemo(() => [...new Set(trades.map((t) => t.symbol))].sort(), [trades])
-  const accountIds = useMemo(() => new Set(accounts.map((a) => a.id)), [accounts])
+  // Năm con số lấy TRỌN chuỗi (sự thật của cả danh mục, không đổi khi bấm chip); biểu đồ
+  // tính LẠI trên khung đang xem để CẢ HAI đường cùng xuất phát từ 0% ở mép trái. Cắt sẵn
+  // `rows` của trọn chuỗi thì đường chỉ số không còn quy về mốc của khung, và khoảng cách
+  // giữa hai đường — thứ duy nhất người ta đọc ở biểu đồ này — hết nghĩa.
+  const loi = data.returns
+  const rows = useMemo(
+    () =>
+      investPerformance(
+        data.points.filter((p) => p.date >= chartFrom),
+        data.indexRows,
+      ).rows,
+    [data.points, data.indexRows, chartFrom],
+  )
 
-  const { data: history = [], isLoading: dangTaiGia } = useStockPriceHistory(symbols, from)
-  const { data: indexRows = [], isLoading: dangTaiChiSo } = useIndexPrices(from)
-  // Sổ giao dịch đọc TRỌN lịch sử, không cắt theo khung: số dư tại phiên đầu của khung phụ
-  // thuộc mọi lần nạp/rút TRƯỚC đó. Cắt theo khung là mất vốn gốc và cả đường sai thang.
-  // Dùng đúng `investTxRange` mà các khu đầu tư khác dùng → chung một lượt đọc.
-  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
-
-  const { rows, returns: loi } = useMemo(() => {
-    const { points } = navSeries({
-      sessions: indexRows.map((r) => r.trading_date),
-      trades: trades.map(asTrade),
-      prices: buildPriceMap(history),
-      ledger: toLedger(txs, accountIds),
-      openingBalance: accounts.reduce((s, a) => s + a.initial_balance, 0),
-    })
-    // Hai lượt gọi cùng một hàm, cố ý: năm con số tính trên TRỌN chuỗi, còn biểu đồ tính
-    // lại trên khung đang xem để CẢ HAI đường cùng xuất phát từ 0% ở mép trái. Cắt sẵn
-    // `rows` của trọn chuỗi thì đường chỉ số không còn quy về mốc của khung, và khoảng
-    // cách giữa hai đường — thứ duy nhất người ta đọc ở biểu đồ này — hết nghĩa.
-    const { returns } = investPerformance(points, indexRows)
-    const { rows } = investPerformance(
-      points.filter((p) => p.date >= chartFrom),
-      indexRows,
-    )
-    return { rows, returns }
-  }, [indexRows, trades, history, txs, accountIds, accounts, chartFrom])
-
-  if (accounts.length === 0) return null
+  if (!hasAccounts) return null
 
   if (marketValue === null) {
     return (
@@ -116,7 +87,7 @@ export function InvestPerformanceSection({ accounts, trades, marketValue, cashNe
     )
   }
 
-  const dangTai = dangTaiGia || dangTaiChiSo
+  const dangTai = data.isLoading
   const chiSoTrong = rows.length > 0 && rows.every((r) => r.index === null)
 
   return (
@@ -156,7 +127,7 @@ export function InvestPerformanceSection({ accounts, trades, marketValue, cashNe
         <p className="mt-3 text-sm text-fg-muted">
           {dangTai
             ? 'Đang tải lịch sử giá…'
-            : trades.length === 0
+            : !hasTrades
               ? 'Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.'
               : 'Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.'}
         </p>

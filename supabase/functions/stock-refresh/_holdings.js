@@ -106,6 +106,30 @@ function parseDchart(json, scale) {
   return [...theoNgay].map(([trading_date, close]) => ({ trading_date, close })).sort((a, b) => a.trading_date.localeCompare(b.trading_date));
 }
 
+// src/features/assets/sectors.ts
+var UU_TIEN_CAP = ["3", "4", "2", "1"];
+function parseIndustries(json) {
+  const out = /* @__PURE__ */ new Map();
+  if (typeof json !== "object" || json === null) return out;
+  const data = json.data;
+  if (!Array.isArray(data)) return out;
+  for (const cap of UU_TIEN_CAP) {
+    for (const row of data) {
+      if (typeof row !== "object" || row === null) continue;
+      const r = row;
+      if (String(r.industryLevel) !== cap) continue;
+      const ten = typeof r.vietnameseName === "string" ? r.vietnameseName.trim() : "";
+      const codes = typeof r.codeList === "string" ? r.codeList : "";
+      if (!ten || !codes) continue;
+      for (const raw of codes.split(",")) {
+        const ma = raw.trim().toUpperCase();
+        if (ma && !out.has(ma)) out.set(ma, ten);
+      }
+    }
+  }
+  return out;
+}
+
 // src/lib/dates.ts
 var pad = (n) => String(n).padStart(2, "0");
 function toISODate(d) {
@@ -525,6 +549,7 @@ export {
   brokerCash,
   holdingsFromTrades,
   parseDchart,
+  parseIndustries,
   portfolioValue,
   sessionPrices,
   toISODate,

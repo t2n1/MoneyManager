@@ -47,6 +47,8 @@ import type {
   RelativeRow,
   TripRow,
   SavingsGoalRow,
+  StockPriceHistoryRow,
+  IndexPriceRow,
   StockPriceRow,
   StockTradeRow,
   TagGroupRow,
@@ -55,6 +57,7 @@ import type {
   TransactionRow,
   TransactionTagRow,
 } from '../types/database.types'
+import { demoSessions, demoWalk } from './demoPrices'
 import {
   type NewLifetimeVerdictSnapshot,
   BACKUP_VERSION,
@@ -818,9 +821,9 @@ function seed(): DemoDB {
 
   // Bảng giá cứng cho chế độ demo — xem thử khu Danh mục không cần mạng.
   const stockPrices: StockPriceRow[] = [
-    { symbol: 'FPT', exchange: 'hose', name: 'Công ty Cổ phần FPT', price: 70_300, prior_close: 71_500, trading_date: '2026-08-05', updated_at: nowISO() },
-    { symbol: 'VNM', exchange: 'hose', name: 'Công ty Cổ phần Sữa Việt Nam', price: 58_600, prior_close: 59_500, trading_date: '2026-08-05', updated_at: nowISO() },
-    { symbol: 'HPG', exchange: 'hose', name: 'Công ty Cổ phần Tập đoàn Hòa Phát', price: 22_000, prior_close: 22_150, trading_date: '2026-08-05', updated_at: nowISO() },
+    { symbol: 'FPT', exchange: 'hose', name: 'Công ty Cổ phần FPT', price: 70_300, prior_close: 71_500, trading_date: '2026-08-05', industry: 'Phần mềm và Dịch vụ máy tính', updated_at: nowISO() },
+    { symbol: 'VNM', exchange: 'hose', name: 'Công ty Cổ phần Sữa Việt Nam', price: 58_600, prior_close: 59_500, trading_date: '2026-08-05', industry: 'Sản xuất thực phẩm', updated_at: nowISO() },
+    { symbol: 'HPG', exchange: 'hose', name: 'Công ty Cổ phần Tập đoàn Hòa Phát', price: 22_000, prior_close: 22_150, trading_date: '2026-08-05', industry: 'Thép', updated_at: nowISO() },
   ]
 
   // Sổ lệnh mẫu — tài khoản 'Chứng khoán VN' riêng (investment/VND) đã seed ở trên.
@@ -1474,6 +1477,33 @@ export const demoRepo: Repo = {
 
   async getStockPrices() {
     return (load().stockPrices ?? []).slice().sort((a, b) => a.symbol.localeCompare(b.symbol))
+  },
+
+  async getStockPriceHistory(symbols: string[], from: string) {
+    if (symbols.length === 0) return []
+    const bangGia = load().stockPrices ?? []
+    const phien = demoSessions(from, daysAgo(0))
+    const out: StockPriceHistoryRow[] = []
+    for (const symbol of symbols) {
+      const hienTai = bangGia.find((p) => p.symbol === symbol)?.price
+      if (hienTai == null) continue // mã không có trong bảng giá demo → không có lịch sử
+      const gia = demoWalk(symbol, phien.length, hienTai, 0.03)
+      phien.forEach((trading_date, i) => out.push({ symbol, trading_date, close: gia[i] }))
+    }
+    return out
+  },
+
+  async getIndexPrices(code: string, from: string) {
+    const phien = demoSessions(from, daysAgo(0))
+    // 1.853,08 điểm — phiên 04/09/2026 thật, để bản demo hiện đúng thang mà người dùng
+    // sẽ thấy. Biến động nhỏ hơn cổ phiếu lẻ, đúng như một chỉ số.
+    const diem = demoWalk(code, phien.length, 185_308, 0.012)
+    const out: IndexPriceRow[] = phien.map((trading_date, i) => ({
+      index_code: code,
+      trading_date,
+      close_x100: diem[i],
+    }))
+    return out
   },
 
   async getStockTrades() {

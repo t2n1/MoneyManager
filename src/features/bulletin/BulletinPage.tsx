@@ -555,6 +555,12 @@ export function BulletinPage() {
             onPickMonth={setMonthKey}
             series={dailySpend}
             fullTotal={fullSpendTotal}
+            monthBudget={
+              // Chờ `budgetLoading` xong mới đưa số xuống — cùng lý do đã ghi ở `luong`:
+              // `report` về trước budgets thì `totalBudgeted` là 0, và đường hạn mức nháy
+              // mất một nhịp ở mọi lần mở app của người ĐÃ đặt hạn mức.
+              report && !budgetLoading ? report.totalBudgeted : 0
+            }
             cells={dailyTagCells}
             tagLines={tagBudgets.lines}
             compare={expenseCmp}

@@ -375,8 +375,9 @@ chính là để KHỎI dựng hàng chục dòng con của 60 danh mục.
 
 ## Khung app
 
-`AppLayout` → `AppRail` (160px = `w-40`, trái, mỗi mục có nhãn chữ) · `AppTopBar` (56px,
-trên) · `BottomNav` (mobile).
+`AppLayout` → `AppRail` (trái, HAI dáng: `w-40` có nhãn chữ / `w-14` chỉ icon, nút đổi
+ở đáy thanh, lựa chọn nhớ ở localStorage `rail-collapsed`) · `AppTopBar` (56px, trên) ·
+`BottomNav` (mobile).
 Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
 
 Ba luật, đừng đạp lại:

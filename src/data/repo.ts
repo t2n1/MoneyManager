@@ -42,6 +42,8 @@ import type {
   Relationship,
   SavingsGoalRow,
   TripRow,
+  StockPriceHistoryRow,
+  IndexPriceRow,
   StockPriceRow,
   StockTradeKind,
   StockTradeRow,
@@ -644,6 +646,16 @@ export interface Repo {
   // --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
   /** Bảng giá công khai (mọi mã, mọi sàn). Chỉ đọc — edge function stock-refresh ghi. */
   getStockPrices(): Promise<StockPriceRow[]>
+  /**
+   * Lịch sử giá theo phiên của những mã đã nêu, từ `from` tới nay (migration 0061).
+   *
+   * NHẬN `symbols` và `from` chứ không đọc cả bảng như `getStockPrices`: bảng này dài
+   * gấp hàng nghìn lần (2.600 phiên mỗi mã). Khung 1 năm × 5 mã ≈ 1.250 dòng ≈ 40KB;
+   * đọc trọn lịch sử mọi mã là ~350KB nhét vào bộ nhớ đệm mỗi lần mở app.
+   */
+  getStockPriceHistory(symbols: string[], from: string): Promise<StockPriceHistoryRow[]>
+  /** Lịch sử chỉ số từ `from` tới nay. `code` là 'VNINDEX' (migration 0061). */
+  getIndexPrices(code: string, from: string): Promise<IndexPriceRow[]>
   /** Toàn bộ sổ lệnh của user (mọi tài khoản); UI tự lọc theo account_id. */
   getStockTrades(): Promise<StockTradeRow[]>
   createStockTrade(input: NewStockTrade): Promise<StockTradeRow>

@@ -188,6 +188,29 @@ export function axisCeiling(days: readonly DaySpend[], typical: number): number 
   return Math.min(pos[0], Math.max(Math.round((pos[1] ?? 0) * 1.05), typical * 4))
 }
 
+/**
+ * Hạn mức MỖI NGÀY: tổng hạn mức của kỳ chia đều cho số ngày trong kỳ.
+ *
+ * Đường thứ hai của biểu đồ chi từng ngày, đứng cạnh đường trung vị. Hai đường trả lời
+ * hai câu khác nhau: trung vị nói "ngày thường của TÔI là bao nhiêu", hạn mức nói "mỗi
+ * ngày được bao nhiêu thì cuối tháng vừa khít trần".
+ *
+ * PHẲNG, chia đều — cố ý không dùng "còn lại ÷ số ngày còn lại" (`toiNgayLuong.moiNgay`,
+ * con số ¥/ngày ở thẻ HÔM NAY). Số đó là một mục tiêu ĐANG DI ĐỘNG: tiêu nhiều hôm nay
+ * thì mai nó tụt. Vẽ nó thành một đường ngang phủ cả tháng là đem hạn mức của HÔM NAY ra
+ * chấm điểm những ngày đã qua — ngày 3 bỗng "vượt" vì ngày 12 tiêu quá. Đường phẳng thì
+ * mọi cột được so với cùng một mốc, và mốc đó không đổi khi người dùng ghi thêm khoản.
+ *
+ * `null` là "đừng vẽ": chưa đặt hạn mức nào (0), hoặc không có ngày nào để chia.
+ */
+export function budgetPerDay(totalBudgeted: number, dayCount: number): number | null {
+  if (totalBudgeted <= 0 || dayCount <= 0) return null
+  // Làm tròn để nó là một con số tiền in ra được — cùng lối `Math.round` của `nhipHienTai`
+  // trong bulletin.ts. Không làm tròn XUỐNG như `dailyAllowance`: đây không phải hạn mức
+  // để tiêu cho vừa, nó là một mốc để đối chiếu.
+  return Math.round(totalBudgeted / dayCount)
+}
+
 /** 'all' = mọi cột có nhãn số · 'big' = chỉ cột ≥ `min` (và cột cuối có dữ liệu) · 'none' = không nhãn. */
 export type DayLabelMode = 'all' | 'big' | 'none'
 

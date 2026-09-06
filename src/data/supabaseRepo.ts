@@ -35,6 +35,8 @@ import type {
   RelativeRow,
   TripRow,
   SavingsGoalRow,
+  StockPriceHistoryRow,
+  IndexPriceRow,
   StockPriceRow,
   StockTradeRow,
   TagGroupRow,
@@ -571,6 +573,34 @@ export const supabaseRepo: Repo = {
     // trang, không thì bảng giá bị cắt và mã ở cuối bảng chữ cái mất giá im lặng.
     return await fetchAllPages<StockPriceRow>(async (from, to) =>
       getSupabase().from('stock_prices').select('*').order('symbol').range(from, to),
+    )
+  },
+
+  async getStockPriceHistory(symbols: string[], from: string) {
+    // Không mã nào thì đừng gọi: `in()` với mảng rỗng ra `symbol in ()` — PostgREST trả
+    // lỗi cú pháp chứ không trả rỗng.
+    if (symbols.length === 0) return []
+    return await fetchAllPages<StockPriceHistoryRow>(async (a, b) =>
+      getSupabase()
+        .from('stock_price_history')
+        .select('*')
+        .in('symbol', symbols)
+        .gte('trading_date', from)
+        .order('trading_date')
+        .order('symbol')
+        .range(a, b),
+    )
+  },
+
+  async getIndexPrices(code: string, from: string) {
+    return await fetchAllPages<IndexPriceRow>(async (a, b) =>
+      getSupabase()
+        .from('index_prices')
+        .select('*')
+        .eq('index_code', code)
+        .gte('trading_date', from)
+        .order('trading_date')
+        .range(a, b),
     )
   },
 

@@ -22,6 +22,10 @@ export default defineConfig({
     // toàn phần, viết trần một mẫu ở đây là lẳng lặng bỏ mất node_modules/.git.
     exclude: [...defaultExclude, '**/.claude/worktrees/**'],
   },
+  // es2022 vì src/data/index.ts dùng top-level await (chọn repo thật/demo bằng import
+  // động — xem chú thích ở đó). Mặc định của Vite là es2020, esbuild sẽ từ chối TLA.
+  // TLA có từ Chrome 89 / Safari 15 / Firefox 89 (2021) — app vốn chỉ nhắm máy hiện đại.
+  build: { target: 'es2022' },
   plugins: [
     react(),
     tailwindcss(),

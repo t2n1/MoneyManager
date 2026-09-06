@@ -1,9 +1,15 @@
 import { isDemoMode } from '../lib/demo'
-import { demoRepo } from './demoRepo'
 import type { Repo } from './repo'
-import { supabaseRepo } from './supabaseRepo'
 
-export const repo: Repo = isDemoMode ? demoRepo : supabaseRepo
+// IMPORT ĐỘNG + top-level await, không phải import tĩnh cả hai bản: `isDemoMode` chỉ
+// biết lúc CHẠY (nó đọc env qua fallback thiếu-URL nên không gấp được lúc build), mà
+// import tĩnh nghĩa là người dùng thật tải luôn ~3.000 dòng demoRepo + dữ liệu mẫu
+// không bao giờ chạy — đã đo thấy khoá 'sct-demo-db' nằm trong bundle production.
+// Với import động, mỗi chế độ chỉ tải đúng bản repo của nó; phần còn lại của app vẫn
+// thấy một `repo` đồng bộ y như cũ nhờ top-level await (build target es2022).
+export const repo: Repo = isDemoMode
+  ? (await import('./demoRepo')).demoRepo
+  : (await import('./supabaseRepo')).supabaseRepo
 export { BACKUP_VERSION } from './repo'
 export type {
   BackupData,

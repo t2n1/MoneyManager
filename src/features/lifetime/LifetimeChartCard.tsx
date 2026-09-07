@@ -28,6 +28,7 @@ import {
 import { useDragPointer } from '../../hooks/useDragPointer'
 import { eventYears, shapeOf } from './eventAmount'
 import { EventIcon } from './eventIcons'
+import { TAG_CHIP_CLASS, TAG_HEX, tagColor } from '../tags/colors'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -1164,7 +1165,9 @@ export function LifetimeChartCard({
             const moMai = e.endYear === null
             const xEnd = moMai ? plotRight : Math.min(Math.max(xs(e.endYear!), plotLeft), plotRight)
             if (xEnd - xStart < 2) return null
-            const mau = isIncome ? COLOR_OPTIMISTIC : COLOR_PESSIMISTIC
+            // Màu riêng của mốc (migration 0067) thắng màu theo Thu/Chi. Icon vẫn ở
+            // đó để nói mốc là việc gì, nên đặt màu không làm mất hết dấu phân biệt.
+            const mau = e.color ? TAG_HEX[tagColor(e.color)] : isIncome ? COLOR_OPTIMISTIC : COLOR_PESSIMISTIC
             const mo = e.enabled === false
             // Dấu từng lần rơi, chỉ khi có nhịp lặp: "đổi xe mỗi 8 năm" là một chuỗi
             // điểm rời rạc, một thanh liền nói sai rằng nó tốn tiền suốt 40 năm.
@@ -1257,15 +1260,26 @@ export function LifetimeChartCard({
                       )
                     }}
                   >
+                    {/* Mốc có màu riêng thì tay nắm lấy đúng màu đó — không thì nó là
+                        vật duy nhất trên thanh còn mang màu Thu/Chi, đọc như một thứ
+                        khác gắn nhầm vào. `style` chứ không class: bảng màu lưu KHOÁ
+                        rồi tra ra biến CSS/hex, không có class Tailwind tương ứng. */}
                     <span
                       aria-hidden
                       className={`h-4 w-2.5 rounded-sm border transition ${
                         mo
                           ? 'border-border-strong bg-surface-sunken opacity-70'
-                          : isIncome
-                            ? 'border-state-good-fg bg-state-good-bg'
-                            : 'border-state-bad-fg bg-state-bad-bg'
+                          : e.color
+                            ? ''
+                            : isIncome
+                              ? 'border-state-good-fg bg-state-good-bg'
+                              : 'border-state-bad-fg bg-state-bad-bg'
                       }`}
+                      style={
+                        !mo && e.color
+                          ? { borderColor: mau, backgroundColor: mau, opacity: 0.55 }
+                          : undefined
+                      }
                     />
                   </button>
                 )}
@@ -1305,9 +1319,11 @@ export function LifetimeChartCard({
                 className={`z-10 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold shadow-sm transition ${
                   e.enabled === false
                     ? 'bg-surface-sunken text-fg-on-track line-through opacity-70'
-                    : isIncome
-                      ? 'bg-state-good-bg text-state-good-fg'
-                      : 'bg-state-bad-bg text-state-bad-fg'
+                    : e.color
+                      ? TAG_CHIP_CLASS[tagColor(e.color)]
+                      : isIncome
+                        ? 'bg-state-good-bg text-state-good-fg'
+                        : 'bg-state-bad-bg text-state-bad-fg'
                 } ${editing ? 'ring-2 ring-accent' : 'border border-border-strong'}`}
                 ref={(el) => {
                   if (el) chipRefs.current.set(e.id, el)

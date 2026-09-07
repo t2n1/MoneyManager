@@ -14,7 +14,7 @@
 import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
-import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DraftEvent } from './draft'
 import { Money, Num, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 import {
@@ -24,6 +24,7 @@ import {
   type EventShape,
 } from './eventAmount'
 import { EVENT_ICONS, EVENT_ICON_GROUPS, EventIcon } from './eventIcons'
+import { TAG_COLOR_KEYS, TAG_COLOR_LABELS, TAG_HEX, tagColor } from '../tags/colors'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
  *  and 2200)` của `life_events` (migration 0031). */
@@ -46,6 +47,13 @@ interface Props {
   event: DraftEvent
   /** Tiền của CHẶNG phủ năm bắt đầu — mốc tính bằng đơn vị này, không tự khai. */
   currency: CurrencyCode
+  /**
+   * Chi THẬT theo danh mục, đã quy năm hoá, theo `currency` — để ô "thay cho khoản
+   * nào" điền sẵn một con số CÓ THẬT thay vì bắt người dùng đoán.
+   *
+   * Rỗng/không truyền thì ô đó vẫn dùng được, chỉ là phải tự gõ số.
+   */
+  chiTheoDanhMuc?: { name: string; annualMinor: number }[]
   /** Ghi các trường đã sửa vào bản nháp. */
   onApply: (patch: Partial<Omit<DraftEvent, 'id'>>) => void
   /** Bỏ mốc này khỏi bản nháp. */
@@ -54,7 +62,14 @@ interface Props {
 }
 
 /** Sheet sửa một MỐC CUỘC ĐỜI — ghi vào bản nháp của bàn sửa kịch bản. */
-export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: Props) {
+export function EventFormSheet({
+  event,
+  currency,
+  chiTheoDanhMuc = [],
+  onApply,
+  onRemove,
+  onClose,
+}: Props) {
   const [label, setLabel] = useState(event.label)
   const [kind, setKind] = useState<'income' | 'expense'>(event.kind)
   const [startYear, setStartYear] = useState(String(event.startYear))
@@ -72,6 +87,9 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
   const [repeat, setRepeat] = useState(
     event.repeatEveryYears === null ? '' : String(event.repeatEveryYears),
   )
+  const [color, setColor] = useState(event.color)
+  const [replaces, setReplaces] = useState(event.replacesMinor)
+  const [replacesLabel, setReplacesLabel] = useState(event.replacesLabel)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -163,6 +181,11 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
       endAmountMinor: xemTruoc.endAmountMinor,
       growthBps: xemTruoc.growthBps,
       repeatEveryYears: xemTruoc.repeatEveryYears,
+      color,
+      // Bỏ nhãn khi số về 0: một nhãn "thay cho Nhà ở" còn treo lại trong khi không
+      // thay gì cả là câu giải thích nói dối.
+      replacesMinor: replaces,
+      replacesLabel: replaces > 0 ? replacesLabel.trim() : '',
     })
     onClose()
   }
@@ -274,6 +297,53 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
             ))}
           </div>
         )}
+
+        {/* Màu. Icon nói mốc này là VIỆC GÌ; màu nhóm các mốc LIÊN QUAN với nhau —
+            mọi thứ về con một màu, mọi thứ về nhà một màu. Dùng chung bảng khoá màu
+            của nhãn, không dựng bảng thứ hai.
+
+            Nút chấm tròn nên PHẢI có `aria-label`: màu là thứ duy nhất phân biệt
+            chúng, mà đó đúng là thứ người dùng screen reader không nhận được. */}
+        <span id={`${uid}-color`} className={label_}>
+          Màu <span className="font-normal text-fg-muted">(không chọn = tô theo Thu/Chi)</span>
+        </span>
+        <div
+          role="group"
+          aria-labelledby={`${uid}-color`}
+          className="mb-3 flex flex-wrap items-center gap-1.5"
+        >
+          <button
+            type="button"
+            aria-label="Không màu riêng"
+            aria-pressed={color === ''}
+            onClick={() => setColor('')}
+            className={`min-h-11 rounded-md px-3 text-sm transition active:scale-95 ${
+              color === ''
+                ? 'bg-accent text-fg-on-accent'
+                : 'border border-border-strong text-fg-secondary'
+            }`}
+          >
+            Theo Thu/Chi
+          </button>
+          {TAG_COLOR_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-label={`Màu ${TAG_COLOR_LABELS[k]}`}
+              aria-pressed={color === k}
+              onClick={() => setColor(k)}
+              className={`flex h-11 w-11 items-center justify-center rounded-md transition active:scale-95 ${
+                color === k ? 'ring-2 ring-accent' : ''
+              }`}
+            >
+              <span
+                aria-hidden
+                className="h-5 w-5 rounded-full border border-border-strong"
+                style={{ backgroundColor: TAG_HEX[tagColor(k)] }}
+              />
+            </button>
+          ))}
+        </div>
 
         {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form control,
             nên không có gì để `for` trỏ vào. Cách đúng là nhãn nhóm (`role="group"` +
@@ -479,6 +549,63 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           </p>
         )}
         {repeatValid && <div className="mb-2" />}
+
+        {/* CHỐNG ĐẾM HAI LẦN (migration 0067). Chi nền của chặng lấy từ CHI THẬT, nên
+            nó đã chứa tiền thuê nhà, tiền học, mọi thứ đang tiêu. Một mốc "Mua nhà"
+            cộng khoản trả nợ LÊN TRÊN tiền thuê vẫn còn nguyên trong chi nền — phần
+            nhà ở bị tính hai lần và không có gì nói ra. Ô này là chỗ nói ra. */}
+        <span className={label_}>
+          Khoản này THAY cho khoản đang tiêu nào?{' '}
+          <span className="font-normal text-fg-muted">(để 0 nếu là khoản hoàn toàn mới)</span>
+        </span>
+        {chiTheoDanhMuc.length > 0 && (
+          <Select
+            aria-label="Chọn danh mục để lấy số thật"
+            wrapClassName="mb-1.5 w-full"
+            value=""
+            onChange={(e) => {
+              const c = chiTheoDanhMuc.find((x) => x.name === e.target.value)
+              if (!c) return
+              setReplaces(c.annualMinor)
+              setReplacesLabel(c.name)
+            }}
+          >
+            <option value="">Lấy số thật từ một danh mục…</option>
+            {chiTheoDanhMuc.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} — {formatMoney(c.annualMinor, currency)}/năm
+              </option>
+            ))}
+          </Select>
+        )}
+        <div className="mb-1.5">
+          <MoneyField
+            value={replaces}
+            onChange={setReplaces}
+            currency={currency}
+            autoOpen={false}
+            ariaLabel="Số mỗi năm thôi không tiêu nữa"
+            className={`text-right font-semibold ${field}`}
+          />
+        </div>
+        {replaces > 0 && (
+          <>
+            <input
+              value={replacesLabel}
+              onChange={(e) => setReplacesLabel(e.target.value)}
+              placeholder="Tên khoản bị thay — ví dụ: Nhà ở"
+              aria-label="Tên khoản bị thay"
+              className={`mb-1 ${field}`}
+            />
+            <Guide className="mb-3 text-2xs text-fg-muted">
+              Từ năm {yearValid ? yearNum : '…'}
+              {forever ? ' trở đi' : ` tới ${endYearValid ? endYearNum : '…'}`}, chi nền
+              của chặng bớt đi đúng số này — nên bản chiếu không cộng chồng hai khoản
+              cho cùng một việc.
+            </Guide>
+          </>
+        )}
+        {replaces === 0 && <div className="mb-2" />}
 
         {/* XEM TRƯỚC. Bốn hình dạng làm cùng một con số mang bốn nghĩa khác nhau, nên
             người dùng phải đọc được nghĩa đang chọn TRƯỚC khi bấm Xong — không thì

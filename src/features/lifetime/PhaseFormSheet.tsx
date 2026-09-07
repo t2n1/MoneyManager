@@ -17,7 +17,9 @@ import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import type { DraftPhase } from './draft'
-import { SectionTitle, actionButtonClass } from '../../components/ui'
+import { Money, SectionTitle, actionButtonClass } from '../../components/ui'
+import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
+import type { CurrencyCode } from '../../lib/currencies'
 
 interface Props {
   /** Mọi chặng của BẢN NHÁP, để chặn `start_year` trùng (DB có
@@ -25,6 +27,8 @@ interface Props {
   phases: DraftPhase[]
   /** Chặng đang sửa. Không có ca "tạo mới": chặng mới thêm thẳng trên hàng inline. */
   phase: DraftPhase
+  /** Tiền HIỂN THỊ của kịch bản — để quy hai chặng về cùng đơn vị khi tính phần trăm. */
+  displayCurrency: CurrencyCode
   /** Ghi các trường đã sửa vào bản nháp. */
   onApply: (patch: Partial<Omit<DraftPhase, 'id'>>) => void
   /** Bỏ chặng này khỏi bản nháp. */
@@ -33,12 +37,26 @@ interface Props {
 }
 
 /** Sheet sửa một CHẶNG ĐỜI — ghi vào bản nháp của bàn sửa kịch bản. */
-export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Props) {
+export function PhaseFormSheet({
+  phases,
+  phase,
+  displayCurrency,
+  onApply,
+  onRemove,
+  onClose,
+}: Props) {
   const [label, setLabel] = useState(phase.label)
   const [startYear, setStartYear] = useState(String(phase.startYear))
   const [country, setCountry] = useState(phase.country ?? '')
   const [income, setIncome] = useState(phase.annualIncomeMinor)
   const [expense, setExpense] = useState(phase.annualExpenseMinor)
+  // Phần trăm chặng trước (migration 0067). Chuỗi rỗng = đang khai số tuyệt đối.
+  const [incomePct, setIncomePct] = useState(
+    phase.incomePctOfPrev == null ? '' : String(phase.incomePctOfPrev),
+  )
+  const [expensePct, setExpensePct] = useState(
+    phase.expensePctOfPrev == null ? '' : String(phase.expensePctOfPrev),
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -61,7 +79,57 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
   const incomeValid = income >= 0
   const expenseValid = expense >= 0
 
-  const canSave = labelValid && yearValid && !yearDuplicate && incomeValid && expenseValid
+  // Chặng LIỀN TRƯỚC, đã giải phần trăm của chính nó — "80% chặng trước" mà chặng
+  // trước lại là "50% chặng trước nữa" thì phải lấy số ĐÃ GIẢI, không lấy số thô.
+  // Sắp theo thứ tự ĐÃ LƯU chứ không theo `yearNum` đang gõ dở: nếu không, gõ dở một
+  // năm làm cả thứ tự chặng nhảy và ô xem trước đổi số giữa chừng.
+  const sorted = [...phases].sort((a, b) => a.startYear - b.startYear)
+  const idx = sorted.findIndex((p) => p.id === phase.id)
+  const prevPhase = idx > 0 ? resolvePhasePercents(sorted, displayCurrency)[idx - 1] : null
+
+  /**
+   * `null` = ô đang TRỐNG (tức đang khai số tuyệt đối), hoặc gõ dở/sai.
+   *
+   * Nhánh `trim() === ''` là BẮT BUỘC, không phải cho gọn: `Number('')` là **0**, và 0
+   * là một phần trăm hợp lệ. Thiếu nó thì mọi lần bấm Xong đều ghi "0% chặng trước"
+   * cho cái ô người dùng chưa hề chạm vào — tức xoá sạch thu (hoặc chi) của chặng, âm
+   * thầm, và thanh nháp báo "số tự khai → 0% chặng trước" cho một thứ không ai đổi.
+   * Bắt được khi mở app, 2026-09-08.
+   */
+  const pctNum = (raw: string) => {
+    if (raw.trim() === '') return null
+    const n = Number(raw)
+    return Number.isInteger(n) && n >= 0 && n <= MAX_PHASE_PCT ? n : null
+  }
+  const incomePctValid = incomePct.trim() === '' || pctNum(incomePct) !== null
+  const expensePctValid = expensePct.trim() === '' || pctNum(expensePct) !== null
+
+  /** Số mà phần trăm sẽ cho ra, theo tiền của CHẶNG NÀY. `null` = không tính được. */
+  function xemTruocPct(raw: string, field: 'income' | 'expense'): number | null {
+    const n = pctNum(raw)
+    if (n === null || prevPhase === null) return null
+    const [giai] = resolvePhasePercents(
+      [
+        prevPhase,
+        {
+          ...phase,
+          startYear: prevPhase.startYear + 1,
+          ...(field === 'income' ? { incomePctOfPrev: n } : { expensePctOfPrev: n }),
+        },
+      ],
+      displayCurrency,
+    ).slice(1)
+    return field === 'income' ? giai.annualIncomeMinor : giai.annualExpenseMinor
+  }
+
+  const canSave =
+    labelValid &&
+    yearValid &&
+    !yearDuplicate &&
+    incomeValid &&
+    expenseValid &&
+    incomePctValid &&
+    expensePctValid
 
   function handleSubmit() {
     if (!canSave) return
@@ -69,10 +137,21 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
       startYear: yearNum,
       label: label.trim(),
       country: country.trim() === '' ? null : country.trim(),
-      annualIncomeMinor: income,
-      annualExpenseMinor: expense,
+      // Ghi CẢ HAI: phần trăm nói cách khai, còn `annual_*_minor` giữ số đã tính để
+      // mọi chỗ chưa biết đến phần trăm (bảng theo năm, thanh nháp, bản sao lưu) vẫn
+      // đọc ra một con số đúng thay vì 0.
+      annualIncomeMinor: dungPct('income') ?? income,
+      annualExpenseMinor: dungPct('expense') ?? expense,
+      incomePctOfPrev: prevPhase === null ? null : pctNum(incomePct),
+      expensePctOfPrev: prevPhase === null ? null : pctNum(expensePct),
     })
     onClose()
+  }
+
+  /** Số cuối cùng của một trường nếu nó đang khai bằng phần trăm; `null` = không. */
+  function dungPct(field: 'income' | 'expense'): number | null {
+    if (prevPhase === null) return null
+    return xemTruocPct(field === 'income' ? incomePct : expensePct, field)
   }
 
   /** KHÔNG hỏi lại: mọi thứ ở đây chỉ là nháp, "Bỏ" ở thanh nháp là undo — cùng luật
@@ -85,6 +164,117 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
   const field =
     'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-sm font-medium text-fg-muted'
+
+  /**
+   * Một khối "Thu nền" hoặc "Chi nền": hai nút chọn CÁCH KHAI, rồi ô tương ứng.
+   *
+   * Hai NÚT CÓ NHÃN chứ không phải một công tắc: công tắc chỉ gọi tên một trạng thái,
+   * nên "đang tắt" là gì thì người dùng phải đoán — mà ở đây hai trạng thái là hai
+   * cách khai khác hẳn nhau, không phải bật/tắt một thứ.
+   */
+  function khoiTien(loai: 'income' | 'expense') {
+    const laThu = loai === 'income'
+    const ten = laThu ? 'Thu nền mỗi năm' : 'Chi nền mỗi năm'
+    const raw = laThu ? incomePct : expensePct
+    const setRaw = laThu ? setIncomePct : setExpensePct
+    const dangDungPct = raw.trim() !== ''
+    const soHopLe = laThu ? incomeValid : expenseValid
+    const pctHopLe = laThu ? incomePctValid : expensePctValid
+    const preview = dangDungPct ? xemTruocPct(raw, loai) : null
+    const gid = `${uid}-${loai}-cach`
+
+    return (
+      <div key={loai}>
+        <span id={gid} className={label_}>
+          {ten}
+        </span>
+        {prevPhase !== null && (
+          <div role="group" aria-labelledby={gid} className="mb-1.5 flex gap-2">
+            <button
+              type="button"
+              aria-pressed={!dangDungPct}
+              onClick={() => setRaw('')}
+              className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+                !dangDungPct
+                  ? 'bg-accent text-fg-on-accent'
+                  : 'border border-border-strong text-fg-secondary'
+              }`}
+            >
+              Gõ số
+            </button>
+            <button
+              type="button"
+              aria-pressed={dangDungPct}
+              onClick={() => setRaw(raw.trim() === '' ? '80' : raw)}
+              className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+                dangDungPct
+                  ? 'bg-accent text-fg-on-accent'
+                  : 'border border-border-strong text-fg-secondary'
+              }`}
+            >
+              % của "{prevPhase.label}"
+            </button>
+          </div>
+        )}
+
+        {dangDungPct && prevPhase !== null ? (
+          <>
+            <div className="mb-1 flex items-center gap-2">
+              <input
+                inputMode="decimal"
+                value={raw}
+                onChange={(e) => setRaw(e.target.value)}
+                aria-label={`${ten}, tính bằng phần trăm chặng trước`}
+                className={`text-right font-semibold ${field}`}
+              />
+              <span className="shrink-0 text-sm text-fg-muted">%</span>
+            </div>
+            {!pctHopLe && (
+              <p role="alert" className="mb-2 text-sm text-money-out">
+                Phần trăm phải là số nguyên từ 0 đến {MAX_PHASE_PCT}.
+              </p>
+            )}
+            {pctHopLe && (
+              <p className="mb-2 text-2xs text-fg-secondary">
+                {preview === null ? (
+                  'Chưa tính được — kiểm tra lại tỷ giá của chặng.'
+                ) : (
+                  <>
+                    ={' '}
+                    <Money
+                      amount={preview}
+                      currency={phase.currency}
+                      className="font-semibold"
+                    />
+                    /năm. Chặng trước đổi thì số này đi theo.
+                  </>
+                )}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="mb-1">
+              <MoneyField
+                value={laThu ? income : expense}
+                onChange={laThu ? setIncome : setExpense}
+                currency={phase.currency}
+                autoOpen={false}
+                ariaLabel={ten}
+                className={`text-right font-semibold ${field}`}
+              />
+            </div>
+            {!soHopLe && (
+              <p role="alert" className="mb-2 text-sm text-money-out">
+                {laThu ? 'Thu nền' : 'Chi nền'} không được âm.
+              </p>
+            )}
+            {soHopLe && <div className="mb-2" />}
+          </>
+        )}
+      </div>
+    )
+  }
 
   const title = 'Chi tiết chặng đời'
 
@@ -168,41 +358,8 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
             (`lg:hidden`) và input desktop (`hidden lg:block`) — nên luôn có hai đích khả
             dĩ, và `for` trỏ vào cái đang bị CSS ẩn thì bấm nhãn sẽ focus một ô vô hình.
             Tên đọc được đã do `ariaLabel` của MoneyField lo. */}
-        <span className={label_}>Thu nền mỗi năm</span>
-        <div className="mb-1">
-          <MoneyField
-            value={income}
-            onChange={setIncome}
-            currency={phase.currency}
-            autoOpen={false}
-            ariaLabel="Thu nền mỗi năm"
-            className={`text-right font-semibold ${field}`}
-          />
-        </div>
-        {!incomeValid && (
-          <p role="alert" className="mb-2 text-sm text-money-out">
-            Thu nền không được âm.
-          </p>
-        )}
-        {incomeValid && <div className="mb-2" />}
-
-        <span className={label_}>Chi nền mỗi năm</span>
-        <div className="mb-1">
-          <MoneyField
-            value={expense}
-            onChange={setExpense}
-            currency={phase.currency}
-            autoOpen={false}
-            ariaLabel="Chi nền mỗi năm"
-            className={`text-right font-semibold ${field}`}
-          />
-        </div>
-        {!expenseValid && (
-          <p role="alert" className="mb-2 text-sm text-money-out">
-            Chi nền không được âm.
-          </p>
-        )}
-        {expenseValid && <div className="mb-2" />}
+{khoiTien('income')}
+        {khoiTien('expense')}
 
         <div className="flex items-center justify-between gap-2">
           <button

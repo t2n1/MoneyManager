@@ -1512,6 +1512,7 @@ export function ScenarioWorkbench({
         <PhaseFormSheet
           phases={phases}
           phase={phaseSheet}
+          displayCurrency={currency}
           onApply={(patch) => onEdit((d) => patchDraftPhase(d, phaseSheet.id, patch))}
           onRemove={() => onEdit((d) => removeDraftPhase(d, phaseSheet.id))}
           onClose={() => setPhaseSheet(null)}
@@ -1521,6 +1522,16 @@ export function ScenarioWorkbench({
         <EventFormSheet
           event={eventSheet}
           currency={currencyAt(phases, eventSheet.startYear, currency)}
+          // Chỉ truyền khi mốc bắt đầu ở chặng ĐANG CHẠY: `baseline` tính theo tiền của
+          // chặng đó, nên với một mốc ở chặng khác (có thể khác đồng tiền) các con số
+          // này sẽ sai đơn vị — thà không gợi ý còn hơn gợi ý một số sai 165 lần.
+          chiTheoDanhMuc={
+            baseline && currencyAt(phases, eventSheet.startYear, currency) === currency
+              ? baseline.byCategory
+                  .filter((c) => c.annualMinor > 0)
+                  .map((c) => ({ name: c.name, annualMinor: c.annualMinor }))
+              : []
+          }
           onApply={(patch) => onEdit((d) => patchDraftEvent(d, eventSheet.id, patch))}
           onRemove={() => onEdit((d) => removeDraftEvent(d, eventSheet.id))}
           onClose={() => setEventSheet(null)}

@@ -586,3 +586,119 @@ describe('projectLifetime — chặng khai bằng PHẦN TRĂM (migration 0067)'
     expect(huu.incomeMinor).toBe(0)
   })
 })
+
+describe('projectLifetime — mốc MUA TÀI SẢN (migration 0068)', () => {
+  const nha = (over: Record<string, unknown> = {}) => ({
+    id: 'nha',
+    startYear: 2030,
+    endYear: null as number | null,
+    kind: 'expense' as const,
+    // Chi phí GIỮ mỗi năm (thuế + bảo hiểm + bảo trì) — không phải giá nhà.
+    amountMinor: 400_000,
+    currency: 'JPY' as const,
+    label: 'Mua nhà',
+    fxToDisplay: 1,
+    inflate: false,
+    assetValueMinor: 40_000_000,
+    assetChangeBps: 0,
+    loanMinor: 32_000_000,
+    loanRateBps: 0,
+    loanYears: 10,
+    ...over,
+  })
+
+  const chay = (over: Record<string, unknown> = {}) =>
+    projectLifetime(baseInput({ endAge: 50, events: [nha(over)] }))
+
+  it('kịch bản KHÔNG có mốc mua tài sản: ba trường mới bằng 0 và netWorth = tiền lỏng', () => {
+    // Bất biến quan trọng nhất của 0068 — mọi kịch bản có trước nó đọc y hệt như cũ.
+    for (const r of projectLifetime(baseInput())) {
+      expect(r.ownedAssetsMinor).toBe(0)
+      expect(r.loanBalanceMinor).toBe(0)
+      expect(r.netWorthMinor).toBe(r.assetsEndMinor)
+    }
+  })
+
+  it('căn nhà VÀO tài sản, và KHÔNG vào tiền lỏng', () => {
+    // Tiền lỏng là thứ ngưỡng FIRE và "năm cạn tiền" đọc — một căn nhà không tiêu được.
+    const rows = chay()
+    const truoc = rows.find((r) => r.year === 2029)!
+    const sau = rows.find((r) => r.year === 2030)!
+    expect(truoc.ownedAssetsMinor).toBe(0)
+    expect(sau.ownedAssetsMinor).toBe(40_000_000)
+    expect(sau.netWorthMinor).toBe(sau.assetsEndMinor + 40_000_000 - sau.loanBalanceMinor)
+    // Tiền lỏng tụt vì trả trước + trả nợ, không phải vì mất trắng ¥40 triệu.
+    expect(truoc.assetsEndMinor - sau.assetsEndMinor).toBeLessThan(40_000_000)
+  })
+
+  it('năm mua sinh ĐÚNG BA dòng có tên: giữ, trả trước, trả nợ', () => {
+    const sau = chay().find((r) => r.year === 2030)!
+    expect(sau.events.map((e) => e.label).sort()).toEqual([
+      'Mua nhà',
+      'Mua nhà — trả nợ',
+      'Mua nhà — trả trước',
+    ])
+    const tim = (l: string) => sau.events.find((e) => e.label === l)!.amountDisplayMinor
+    expect(tim('Mua nhà — trả trước')).toBe(8_000_000)
+    expect(tim('Mua nhà — trả nợ')).toBe(3_200_000)
+    expect(tim('Mua nhà')).toBe(400_000)
+  })
+
+  it('năm sau chỉ còn hai dòng — trả trước đúng một lần', () => {
+    const r = chay().find((y) => y.year === 2031)!
+    expect(r.events.map((e) => e.label).sort()).toEqual(['Mua nhà', 'Mua nhà — trả nợ'])
+  })
+
+  it('trả xong nợ thì hết dòng trả nợ, và dư nợ về 0', () => {
+    const r = chay().find((y) => y.year === 2040)!
+    expect(r.loanBalanceMinor).toBe(0)
+    expect(r.events.some((e) => e.label.includes('trả nợ'))).toBe(false)
+    // Căn nhà vẫn còn.
+    expect(r.ownedAssetsMinor).toBe(40_000_000)
+  })
+
+  it('chi phí giữ bằng 0 vẫn mua được nhà — KHÔNG bị vòng mốc bỏ qua', () => {
+    // `eventAmountInYear` trả 0 thì vòng mốc `continue`; nếu phần tài sản nằm chung
+    // vòng đó thì căn nhà biến mất đúng ở ca đơn giản nhất (mua, không tốn phí giữ).
+    const r = chay({ amountMinor: 0 }).find((y) => y.year === 2030)!
+    expect(r.ownedAssetsMinor).toBe(40_000_000)
+    expect(r.events.map((e) => e.label).sort()).toEqual([
+      'Mua nhà — trả nợ',
+      'Mua nhà — trả trước',
+    ])
+  })
+
+  it('trả thẳng: cả giá ra trong năm mua, không có dòng trả nợ và không có nợ', () => {
+    const r = chay({ loanMinor: 0, loanYears: 0 }).find((y) => y.year === 2030)!
+    expect(r.loanBalanceMinor).toBe(0)
+    expect(r.events.find((e) => e.label.includes('trả trước'))!.amountDisplayMinor).toBe(
+      40_000_000,
+    )
+    expect(r.events.some((e) => e.label.includes('trả nợ'))).toBe(false)
+  })
+
+  it('nhà lên giá thì tài sản đi lên theo từng năm', () => {
+    const rows = chay({ assetChangeBps: 100 })
+    expect(rows.find((r) => r.year === 2030)!.ownedAssetsMinor).toBe(40_000_000)
+    expect(rows.find((r) => r.year === 2035)!.ownedAssetsMinor).toBeGreaterThan(41_000_000)
+  })
+
+  it('mốc TẮT TẠM thì không mua gì cả', () => {
+    const r = chay({ enabled: false }).find((y) => y.year === 2035)!
+    expect(r.ownedAssetsMinor).toBe(0)
+    expect(r.loanBalanceMinor).toBe(0)
+    expect(r.events).toHaveLength(0)
+  })
+
+  it('tiền KHÁC: quy đổi cả tài sản lẫn dư nợ theo tỷ giá của mốc', () => {
+    const r = chay({
+      currency: 'VND',
+      fxToDisplay: 1 / 165,
+      amountMinor: 0,
+      assetValueMinor: 1_650_000_000,
+      loanMinor: 0,
+      loanYears: 0,
+    }).find((y) => y.year === 2030)!
+    expect(r.ownedAssetsMinor).toBe(10_000_000)
+  })
+})

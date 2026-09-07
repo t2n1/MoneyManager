@@ -590,6 +590,15 @@ export interface NewLifeEvent {
   replaces_label?: string
   /** Khoá màu (features/tags/colors.ts). Bỏ trống = tô theo `kind`. */
   color?: string
+  /** Giá trị tài sản mua được (migration 0068). Bỏ trống = 0, mốc thường. */
+  asset_value_minor?: number
+  /** Giá trị tài sản đổi bao nhiêu mỗi năm, bps. Bỏ trống = 0. */
+  asset_change_bps?: number
+  /** Phần đi vay. Bỏ trống = 0, trả thẳng. */
+  loan_minor?: number
+  loan_rate_bps?: number
+  /** Kỳ hạn vay tính bằng NĂM. Bỏ trống = 0. */
+  loan_years?: number
 }
 
 export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>

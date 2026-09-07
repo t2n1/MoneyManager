@@ -134,6 +134,10 @@ export interface EventEditorAnchor {
 const COLOR_ACTUAL = 'var(--color-sky-600)'
 const COLOR_PROJECTED = '#16a34a' // 3,30:1 trên trắng / 5,38:1 trên gray-900 — đạt 3:1 cả hai
 const COLOR_COMPARE = '#6b7280' // 4,83:1 / 3,67:1 — đạt
+// Đường tài sản ròng gồm cả nhà/xe (0068). Chọn indigo vì ba nét sẵn có đã dùng hết
+// xanh lá (trung tâm), xám (so sánh/nền) và hổ phách (stress) — thêm một sắc xanh lá
+// nữa là hai nét cùng họ màu chồng nhau đúng ở đoạn chúng tách ra, tức đoạn cần đọc.
+const COLOR_NET_WORTH = '#6366f1' // 4,71:1 trên trắng / 3,71:1 trên gray-900 — đạt 3:1 cả hai
 const COLOR_NEGATIVE = '#ef4444' // chỉ dùng làm nền vùng âm ở opacity 0,1
 // Vừa là NÉT (đường 0, vạch trục — cần 3:1) vừa là CHỮ nhãn trục 11px (cần 4,5:1).
 // Không sắc xám nào đạt 4,5:1 cả hai chế độ nên phải là token: --fg-muted = gray-500
@@ -561,6 +565,21 @@ export function LifetimeChartCard({
   )
 
   const centerPath = linePath(dRows.map((r) => pt(r, (x) => x.assetsEndMinor)))
+  /**
+   * Đường TÀI SẢN RÒNG — gồm cả nhà/xe mua bằng mốc, trừ dư nợ (migration 0068).
+   *
+   * Chỉ vẽ khi có mốc mua tài sản: không có thì nó nằm ĐÈ CHÍNH XÁC lên đường trung
+   * tâm (`netWorthMinor === assetsEndMinor`), tức thêm một nét và một dòng chú giải
+   * mà không thêm một mẩu thông tin nào.
+   *
+   * KHÔNG thay đường trung tâm: đường đó là TIỀN LỎNG, và nó là thứ trả lời "bao giờ
+   * cạn tiền" cùng ngưỡng FIRE. Một căn nhà không tiêu được, nên trộn nó vào là làm
+   * cả hai câu trả lời đó nói dối theo cùng một hướng.
+   */
+  const coTaiSan = dRows.some((r) => r.ownedAssetsMinor > 0 || r.loanBalanceMinor > 0)
+  const netWorthPath = coTaiSan
+    ? linePath(dRows.map((r) => pt(r, (x) => x.netWorthMinor)))
+    : null
   const highPts = dRows.map((r) => pt(r, (x) => x.assetsOptimisticMinor))
   const lowPts = dRows.map((r) => pt(r, (x) => x.assetsPessimisticMinor))
   const stressPath = dStress ? linePath(dStress.map((r) => pt(r, (x) => x.assetsEndMinor))) : null
@@ -1033,6 +1052,17 @@ export function LifetimeChartCard({
               </>
             )}
 
+            {/* Trước `baselinePath` và đường trung tâm: nét liền mảnh nằm DƯỚI để hai
+                nét kia vẫn là thứ mắt bắt trước. */}
+            {netWorthPath && (
+              <path
+                d={netWorthPath}
+                fill="none"
+                stroke={COLOR_NET_WORTH}
+                strokeWidth={1.5}
+                strokeDasharray="2 3"
+              />
+            )}
             {baselinePath && (
               <path d={baselinePath} fill="none" stroke={COLOR_BASELINE} strokeWidth={1.5} />
             )}
@@ -1415,15 +1445,38 @@ export function LifetimeChartCard({
                 ))}
               </div>
               <div className="flex flex-col gap-0.5 border-t border-border-subtle pt-1.5">
+                {/* Cùng chữ với chú giải: có mốc mua tài sản thì đường này là TIỀN
+                    LỎNG, không còn là "cả gia tài" — hai chỗ gọi nó hai tên là cách
+                    chắc chắn để người đọc tưởng đó là hai con số. */}
                 <TipRow
-                  label="Trung tâm"
+                  label={coTaiSan ? 'Tiền lỏng' : 'Trung tâm'}
                   value={formatMoney(hoverRow.assetsEndMinor, currency)}
-                  strong
+                  strong={!coTaiSan}
                 />
                 <TipRow
                   label="Bi quan → lạc quan"
                   value={`${formatCompact(hoverRow.assetsPessimisticMinor, currency)} → ${formatCompact(hoverRow.assetsOptimisticMinor, currency)}`}
                 />
+                {/* Ba dòng này chỉ hiện khi thật sự có tài sản mua bằng mốc — bình
+                    thường chúng bằng 0 / bằng dòng trên, tức là nhiễu. */}
+                {(hoverRow.ownedAssetsMinor > 0 || hoverRow.loanBalanceMinor > 0) && (
+                  <>
+                    <TipRow
+                      label="Nhà / xe / đất"
+                      value={`+${formatMoney(hoverRow.ownedAssetsMinor, currency)}`}
+                    />
+                    <TipRow
+                      label="Còn nợ"
+                      value={`−${formatMoney(hoverRow.loanBalanceMinor, currency)}`}
+                      tone="out"
+                    />
+                    <TipRow
+                      label="Tài sản ròng"
+                      value={formatMoney(hoverRow.netWorthMinor, currency)}
+                      strong
+                    />
+                  </>
+                )}
                 {stressHoverRow && (
                   <TipRow
                     label="Stress test"
@@ -1484,8 +1537,20 @@ export function LifetimeChartCard({
               cho ba nét, mà "nét xanh là nhánh trung tâm" thì nhìn đồ thị cũng đoán ra —
               thứ không đoán được là ba nhánh đó kết thúc ở đâu, và đó đúng là câu người
               ta hỏi khi nhìn một bản chiếu cả đời. */}
+          {netWorthPath && endRow && (
+            <span className="flex items-center gap-1">
+              <LegendSwatch color={COLOR_NET_WORTH} dash="2 3" /> Gồm cả nhà/xe, trừ nợ{' '}
+              <Money
+                amount={endRow.netWorthMinor}
+                currency={currency}
+                compact
+                className="text-2xs font-medium"
+              />
+            </span>
+          )}
           <span className="flex items-center gap-1">
-            <LegendSwatch color={COLOR_PROJECTED} dash="6 4" /> Trung tâm{' '}
+            <LegendSwatch color={COLOR_PROJECTED} dash="6 4" />{' '}
+            {netWorthPath ? 'Tiền lỏng' : 'Trung tâm'}{' '}
             {endRow && (
               <>
                 <Money

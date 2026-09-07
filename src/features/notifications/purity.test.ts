@@ -74,7 +74,13 @@ const ENTRY_POINTS = [
  * `phasePercent.ts` (migration 0067) là file thứ tư: chặng khai bằng phần trăm của
  * chặng liền trước. `project.ts` gọi nó ngay đầu `projectLifetime`.
  *
- * CỐ Ý liệt kê ĐÚNG BỐN FILE chứ không quét cả `features/lifetime/`: Task 7 sẽ tạo
+ * `homeAsset.ts` (migration 0068) là file thứ năm: mốc mua nhà/xe/đất. Nó CỐ Ý không
+ * import `features/debts/amortization.ts` dù hai bên tính cùng một công thức niên kim
+ * — file kia kéo theo `lib/dates`, tức kéo cả module ấy vào đồ thị import của bộ luật
+ * edge function. Chỉ FILE TEST của nó import sang để so hai bên không trôi khỏi nhau,
+ * và file test thì `walk()` không đi qua.
+ *
+ * CỐ Ý liệt kê ĐÚNG NĂM FILE chứ không quét cả `features/lifetime/`: Task 7 sẽ tạo
  * `useLifetime.ts` và file đó PHẢI gọi `new Date().getFullYear()` — đọc đồng hồ đúng
  * một lần ở tầng UI rồi truyền xuống engine là thiết kế đã chốt, không phải chỗ hở.
  * Quét cả thư mục là biến thiết kế đúng thành test đỏ, rồi người làm Task 7 sẽ chữa
@@ -91,7 +97,7 @@ const ENTRY_POINTS = [
  * bẫy — xem `ENGINE_FILES_SCANNED` ngay dưới.
  */
 const ENGINE_FILE_PATTERN =
-  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights|eventAmount|phasePercent)\.ts|mcp\/(format|basket)\.ts|mcp\/tools\/[^/]+\.ts)$/
+  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights|eventAmount|phasePercent|homeAsset)\.ts|mcp\/(format|basket)\.ts|mcp\/tools\/[^/]+\.ts)$/
 
 /** '…/accountRules.test.ts' → true. Cả .ts và .tsx. */
 const isTestFile = (file: string) => /\.test\.tsx?$/.test(file)

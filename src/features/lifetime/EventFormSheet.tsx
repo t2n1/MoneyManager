@@ -24,6 +24,7 @@ import {
   type EventShape,
 } from './eventAmount'
 import { EVENT_ICONS, EVENT_ICON_GROUPS, EventIcon } from './eventIcons'
+import { MAX_LOAN_YEARS, homeCashOutInYear, type HomeAsset } from './homeAsset'
 import { TAG_COLOR_KEYS, TAG_COLOR_LABELS, TAG_HEX, tagColor } from '../tags/colors'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
@@ -90,6 +91,14 @@ export function EventFormSheet({
   const [color, setColor] = useState(event.color)
   const [replaces, setReplaces] = useState(event.replacesMinor)
   const [replacesLabel, setReplacesLabel] = useState(event.replacesLabel)
+  // Mua tài sản (migration 0068). `assetValue === 0` = mốc thường.
+  const [assetValue, setAssetValue] = useState(event.assetValueMinor)
+  const [assetChangePct, setAssetChangePct] = useState(String(event.assetChangeBps / 100))
+  const [loan, setLoan] = useState(event.loanMinor)
+  const [loanRatePct, setLoanRatePct] = useState(String(event.loanRateBps / 100))
+  const [loanYears, setLoanYears] = useState(
+    event.loanYears === 0 ? '' : String(event.loanYears),
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -123,6 +132,36 @@ export function EventFormSheet({
     (Number.isInteger(repeatNum) && repeatNum >= 1 && repeatNum <= MAX_REPEAT_YEARS)
   const endAmountValid = endAmount >= 0
 
+  const muaTaiSan = assetValue > 0
+  const assetChangeNum = Number(assetChangePct)
+  const assetChangeValid =
+    assetChangePct.trim() !== '' &&
+    Number.isFinite(assetChangeNum) &&
+    assetChangeNum > -100 &&
+    assetChangeNum < 100
+  const loanRateNum = Number(loanRatePct)
+  const loanRateValid =
+    loanRatePct.trim() !== '' && Number.isFinite(loanRateNum) && loanRateNum >= 0 && loanRateNum <= 100
+  const loanYearsNum = Number(loanYears)
+  const loanYearsValid =
+    loanYears.trim() === '' ||
+    (Number.isInteger(loanYearsNum) && loanYearsNum >= 1 && loanYearsNum <= MAX_LOAN_YEARS)
+  // DB có `check (loan_minor <= asset_value_minor)` — bắt trước ở đây để hiện câu lỗi
+  // tử tế thay vì để lần Lưu nổ một lỗi Postgres thô, xa chỗ gõ sai.
+  const loanValid = loan >= 0 && loan <= assetValue
+  const dangVay = muaTaiSan && loanYears.trim() !== '' && loan > 0
+
+  /** Phần tài sản đã chuẩn hoá — đúng thứ sẽ ghi, và đúng thứ ô xem trước đọc. */
+  const taiSan: HomeAsset = {
+    startYear: yearValid ? yearNum : event.startYear,
+    assetValueMinor: muaTaiSan ? assetValue : 0,
+    assetChangeBps: assetChangeValid ? Math.round(assetChangeNum * 100) : 0,
+    loanMinor: dangVay ? loan : 0,
+    loanRateBps: loanRateValid ? Math.round(loanRateNum * 100) : 0,
+    loanYears: dangVay ? loanYearsNum : 0,
+  }
+  const tienMua = homeCashOutInYear(taiSan, taiSan.startYear)
+
   const canSave =
     labelValid &&
     yearValid &&
@@ -130,7 +169,8 @@ export function EventFormSheet({
     amountValid &&
     (amountShape !== 'growth' || growthValid) &&
     (amountShape !== 'ramp' || endAmountValid) &&
-    repeatValid
+    repeatValid &&
+    (!muaTaiSan || (assetChangeValid && loanValid && loanYearsValid && loanRateValid))
 
   // Chỉ 'per_year' còn nghĩa khi mốc chạy tới hết đời: không chia được một tổng cho vô
   // hạn năm, và không có "năm cuối" để đi dần tới. 'growth' thì vẫn được — nhân dồn mãi
@@ -152,8 +192,9 @@ export function EventFormSheet({
   const giaiThich = eventSpanNote(xemTruoc)
 
   /** Nhãn của ô số tiền, theo hình đang chọn — xem chú thích tại chỗ dùng. */
-  const amountLabel =
-    xemTruoc.amountShape === 'total'
+  const amountLabel = muaTaiSan
+    ? 'Chi phí GIỮ mỗi năm (thuế, bảo hiểm, bảo trì)'
+    : xemTruoc.amountShape === 'total'
       ? 'Tổng cả khoảng'
       : xemTruoc.amountShape === 'ramp' || xemTruoc.amountShape === 'growth'
         ? `Số tiền của năm ${yearValid ? yearNum : 'đầu'}`
@@ -186,6 +227,11 @@ export function EventFormSheet({
       // thay gì cả là câu giải thích nói dối.
       replacesMinor: replaces,
       replacesLabel: replaces > 0 ? replacesLabel.trim() : '',
+      assetValueMinor: taiSan.assetValueMinor,
+      assetChangeBps: taiSan.assetChangeBps,
+      loanMinor: taiSan.loanMinor,
+      loanRateBps: taiSan.loanRateBps,
+      loanYears: taiSan.loanYears,
     })
     onClose()
   }
@@ -549,6 +595,188 @@ export function EventFormSheet({
           </p>
         )}
         {repeatValid && <div className="mb-2" />}
+
+        {/* MUA TÀI SẢN (migration 0068). Trước bản này, "Mua nhà" là một mốc CHI thuần
+            tuý: tài sản ròng tụt bằng khoản trả trước rồi KHÔNG BAO GIỜ nhận lại căn
+            nhà — nên trên đồ thị mua nhà luôn trông tệ hơn thực tế. */}
+        <span id={`${uid}-ts`} className={label_}>
+          Khoản này có mua một tài sản không?
+        </span>
+        <div role="group" aria-labelledby={`${uid}-ts`} className="mb-2 flex gap-2">
+          <button
+            type="button"
+            aria-pressed={!muaTaiSan}
+            onClick={() => setAssetValue(0)}
+            className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+              !muaTaiSan
+                ? 'bg-accent text-fg-on-accent'
+                : 'border border-border-strong text-fg-secondary'
+            }`}
+          >
+            Không
+          </button>
+          <button
+            type="button"
+            aria-pressed={muaTaiSan}
+            onClick={() => setAssetValue(assetValue > 0 ? assetValue : 40_000_000)}
+            className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+              muaTaiSan
+                ? 'bg-accent text-fg-on-accent'
+                : 'border border-border-strong text-fg-secondary'
+            }`}
+          >
+            Có — nhà, xe, đất
+          </button>
+        </div>
+
+        {muaTaiSan && (
+          <div className="mb-3 rounded-md border border-border-panel p-2.5">
+            <span className={label_}>
+              Giá trị tài sản{' '}
+              <span className="font-normal text-fg-muted">
+                (tính bằng {CURRENCIES[currency].label})
+              </span>
+            </span>
+            <div className="mb-2">
+              <MoneyField
+                value={assetValue}
+                onChange={setAssetValue}
+                currency={currency}
+                autoOpen={false}
+                ariaLabel="Giá trị tài sản"
+                className={`text-right font-semibold ${field}`}
+              />
+            </div>
+
+            <label htmlFor={`${uid}-tsdoi`} className={label_}>
+              Mỗi năm giá trị đổi{' '}
+              <span className="font-normal text-fg-muted">(%/năm; nhà ~+1, xe ~−15)</span>
+            </label>
+            <input
+              id={`${uid}-tsdoi`}
+              inputMode="decimal"
+              value={assetChangePct}
+              onChange={(e) => setAssetChangePct(e.target.value)}
+              className={`mb-2 ${field}`}
+            />
+            {!assetChangeValid && (
+              <p role="alert" className="mb-2 text-sm text-money-out">
+                Phải là số trong khoảng −100 đến 100.
+              </p>
+            )}
+
+            <span id={`${uid}-vay`} className={label_}>
+              Trả thế nào
+            </span>
+            <div role="group" aria-labelledby={`${uid}-vay`} className="mb-2 flex gap-2">
+              <button
+                type="button"
+                aria-pressed={!dangVay}
+                onClick={() => {
+                  setLoan(0)
+                  setLoanYears('')
+                }}
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+                  !dangVay
+                    ? 'bg-accent text-fg-on-accent'
+                    : 'border border-border-strong text-fg-secondary'
+                }`}
+              >
+                Trả thẳng
+              </button>
+              <button
+                type="button"
+                aria-pressed={dangVay}
+                onClick={() => {
+                  // Mặc định 80% giá và 35 năm: đúng cách vay mua nhà phổ biến ở Nhật,
+                  // và 20% trả trước là mức tránh được bảo hiểm khoản vay ở nhiều nước.
+                  if (loan <= 0) setLoan(Math.round(assetValue * 0.8))
+                  if (loanYears.trim() === '') setLoanYears('35')
+                }}
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
+                  dangVay
+                    ? 'bg-accent text-fg-on-accent'
+                    : 'border border-border-strong text-fg-secondary'
+                }`}
+              >
+                Vay
+              </button>
+            </div>
+
+            {dangVay && (
+              <>
+                <span className={label_}>Phần đi vay</span>
+                <div className="mb-1">
+                  <MoneyField
+                    value={loan}
+                    onChange={setLoan}
+                    currency={currency}
+                    autoOpen={false}
+                    ariaLabel="Phần đi vay"
+                    className={`text-right font-semibold ${field}`}
+                  />
+                </div>
+                {!loanValid && (
+                  <p role="alert" className="mb-2 text-sm text-money-out">
+                    Phần vay không được lớn hơn giá trị tài sản.
+                  </p>
+                )}
+                <div className="mb-2 flex gap-2">
+                  <div className="flex-1">
+                    <label htmlFor={`${uid}-lai`} className={label_}>
+                      Lãi suất <span className="font-normal text-fg-muted">(%/năm)</span>
+                    </label>
+                    <input
+                      id={`${uid}-lai`}
+                      inputMode="decimal"
+                      value={loanRatePct}
+                      onChange={(e) => setLoanRatePct(e.target.value)}
+                      className={field}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor={`${uid}-kyhan`} className={label_}>
+                      Kỳ hạn <span className="font-normal text-fg-muted">(năm)</span>
+                    </label>
+                    <input
+                      id={`${uid}-kyhan`}
+                      inputMode="decimal"
+                      value={loanYears}
+                      onChange={(e) => setLoanYears(e.target.value)}
+                      className={field}
+                    />
+                  </div>
+                </div>
+                {(!loanRateValid || !loanYearsValid) && (
+                  <p role="alert" className="mb-2 text-sm text-money-out">
+                    Lãi suất 0–100%/năm; kỳ hạn là số nguyên 1–{MAX_LOAN_YEARS} năm.
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Ba con số này là toàn bộ điều người dùng muốn biết trước khi bấm Xong,
+                và chúng do đúng `homeAsset.ts` mà engine dùng tính ra. */}
+            <p className="rounded-md bg-surface-sunken px-2.5 py-1.5 text-2xs text-fg-secondary">
+              Năm {taiSan.startYear}: bỏ ra{' '}
+              <Money amount={tienMua.downMinor} currency={currency} className="font-semibold" />
+              {tienMua.loanMinor > 0 ? (
+                <>
+                  {' '}và trả nợ{' '}
+                  <Money
+                    amount={tienMua.loanMinor}
+                    currency={currency}
+                    className="font-semibold"
+                  />
+                  /năm trong <Num tone="muted">{taiSan.loanYears}</Num> năm.
+                </>
+              ) : (
+                '. Không vay.'
+              )}{' '}
+              Tài sản vào bản chiếu như một dòng riêng, không phải tiền tiêu được.
+            </p>
+          </div>
+        )}
 
         {/* CHỐNG ĐẾM HAI LẦN (migration 0067). Chi nền của chặng lấy từ CHI THẬT, nên
             nó đã chứa tiền thuê nhà, tiền học, mọi thứ đang tiêu. Một mốc "Mua nhà"

@@ -158,6 +158,11 @@ export function useLifetime() {
             replacesMinor: e.replaces_minor ?? 0,
             replacesLabel: e.replaces_label ?? '',
             color: e.color ?? '',
+            assetValueMinor: e.asset_value_minor ?? 0,
+            assetChangeBps: e.asset_change_bps ?? 0,
+            loanMinor: e.loan_minor ?? 0,
+            loanRateBps: e.loan_rate_bps ?? 0,
+            loanYears: e.loan_years ?? 0,
           }),
         )
       // Tiền nằm trên CHẶNG, mốc suy từ chặng, tỷ giá lấy hôm nay — xem `fxModel.ts`.

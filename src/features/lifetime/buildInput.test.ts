@@ -64,6 +64,11 @@ function event(over: Partial<LifeEventRow> = {}): LifeEventRow {
     replaces_minor: 0,
     replaces_label: '',
     color: '',
+    asset_value_minor: 0,
+    asset_change_bps: 0,
+    loan_minor: 0,
+    loan_rate_bps: 0,
+    loan_years: 0,
     created_at: '2026-01-01T00:00:00Z',
     ...over,
   }
@@ -304,6 +309,11 @@ describe('buildLifetimeInput — ánh xạ trường', () => {
           replacesMinor: 0,
           replacesLabel: '',
           color: '',
+          assetValueMinor: 0,
+          assetChangeBps: 0,
+          loanMinor: 0,
+          loanRateBps: 0,
+          loanYears: 0,
         },
       ],
     })

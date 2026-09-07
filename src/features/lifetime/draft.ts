@@ -75,6 +75,12 @@ export interface DraftEvent extends LifetimeEvent {
   replacesLabel: string
   /** Khoá màu (features/tags/colors.ts). '' = tô theo Thu/Chi. */
   color: string
+  /** Năm trường của 0068 — BẮT BUỘC, cùng lý do với `enabled`. 0 = mốc thường. */
+  assetValueMinor: number
+  assetChangeBps: number
+  loanMinor: number
+  loanRateBps: number
+  loanYears: number
 }
 
 /**
@@ -159,6 +165,11 @@ export function draftFromRows(
         replacesMinor: e.replaces_minor ?? 0,
         replacesLabel: e.replaces_label ?? '',
         color: e.color ?? '',
+        assetValueMinor: e.asset_value_minor ?? 0,
+        assetChangeBps: e.asset_change_bps ?? 0,
+        loanMinor: e.loan_minor ?? 0,
+        loanRateBps: e.loan_rate_bps ?? 0,
+        loanYears: e.loan_years ?? 0,
       }))
       .sort((a, b) => a.startYear - b.startYear),
   }
@@ -213,6 +224,11 @@ export function draftToInput(base: LifetimeInput, draft: ScenarioDraft): Lifetim
         replacesMinor: e.replacesMinor,
         replacesLabel: e.replacesLabel,
         color: e.color,
+        assetValueMinor: e.assetValueMinor,
+        assetChangeBps: e.assetChangeBps,
+        loanMinor: e.loanMinor,
+        loanRateBps: e.loanRateBps,
+        loanYears: e.loanYears,
       }),
     ),
   }
@@ -441,7 +457,14 @@ function sameEvent(a: DraftEvent, b: DraftEvent): boolean {
     a.icon === b.icon &&
     a.replacesMinor === b.replacesMinor &&
     a.replacesLabel === b.replacesLabel &&
-    a.color === b.color
+    a.color === b.color &&
+    // Năm trường của 0068. Cùng lý do lần nữa: đổi giá nhà hay lãi suất là đổi CẢ bản
+    // chiếu, mà bỏ ra ngoài phép so thì đồ thị đã vẽ số mới trong khi nút Lưu đã tắt.
+    a.assetValueMinor === b.assetValueMinor &&
+    a.assetChangeBps === b.assetChangeBps &&
+    a.loanMinor === b.loanMinor &&
+    a.loanRateBps === b.loanRateBps &&
+    a.loanYears === b.loanYears
   )
 }
 
@@ -562,6 +585,11 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         replaces_minor: d.replacesMinor,
         replaces_label: d.replacesLabel,
         color: d.color,
+        asset_value_minor: d.assetValueMinor,
+        asset_change_bps: d.assetChangeBps,
+        loan_minor: d.loanMinor,
+        loan_rate_bps: d.loanRateBps,
+        loan_years: d.loanYears,
       })
       continue
     }
@@ -670,6 +698,11 @@ export function applyPreset(
           replacesMinor: e.replaces_minor ?? 0,
           replacesLabel: e.replaces_label ?? '',
           color: e.color ?? '',
+          assetValueMinor: e.asset_value_minor ?? 0,
+          assetChangeBps: e.asset_change_bps ?? 0,
+          loanMinor: e.loan_minor ?? 0,
+          loanRateBps: e.loan_rate_bps ?? 0,
+          loanYears: e.loan_years ?? 0,
         }),
       ),
     ].sort((a, b) => a.startYear - b.startYear),
@@ -863,6 +896,11 @@ export function draftRowsFor(
       replaces_minor: e.replacesMinor,
       replaces_label: e.replacesLabel,
       color: e.color,
+      asset_value_minor: e.assetValueMinor,
+      asset_change_bps: e.assetChangeBps,
+      loan_minor: e.loanMinor,
+      loan_rate_bps: e.loanRateBps,
+      loan_years: e.loanYears,
     })),
   }
 }

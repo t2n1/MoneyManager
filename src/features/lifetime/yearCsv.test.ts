@@ -17,6 +17,9 @@ const row: YearRow = {
   assetsEndMinor: 21_000_000,
   assetsPessimisticMinor: 20_000_000,
   assetsOptimisticMinor: 22_000_000,
+  ownedAssetsMinor: 0,
+  loanBalanceMinor: 0,
+  netWorthMinor: 21_000_000,
 }
 
 describe('buildYearCsv', () => {

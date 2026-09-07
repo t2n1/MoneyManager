@@ -1969,6 +1969,11 @@ export const demoRepo: Repo = {
         replaces_minor: e.replaces_minor ?? 0,
         replaces_label: e.replaces_label ?? '',
         color: e.color ?? '',
+        asset_value_minor: e.asset_value_minor ?? 0,
+        asset_change_bps: e.asset_change_bps ?? 0,
+        loan_minor: e.loan_minor ?? 0,
+        loan_rate_bps: e.loan_rate_bps ?? 0,
+        loan_years: e.loan_years ?? 0,
       }))
       .sort((a, b) => a.start_year - b.start_year)
   },
@@ -2000,6 +2005,11 @@ export const demoRepo: Repo = {
       replaces_minor: input.replaces_minor ?? 0,
       replaces_label: input.replaces_label ?? '',
       color: input.color ?? '',
+      asset_value_minor: input.asset_value_minor ?? 0,
+      asset_change_bps: input.asset_change_bps ?? 0,
+      loan_minor: input.loan_minor ?? 0,
+      loan_rate_bps: input.loan_rate_bps ?? 0,
+      loan_years: input.loan_years ?? 0,
       created_at: nowISO(),
     }
     db.lifeEvents.push(row)

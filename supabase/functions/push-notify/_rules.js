@@ -1248,6 +1248,49 @@ function shapeOf(e) {
   };
 }
 
+// src/features/lifetime/homeAsset.ts
+function hasAsset(h) {
+  return h.assetValueMinor > 0;
+}
+function loanOf(h) {
+  if (h.loanYears <= 0) return 0;
+  return Math.min(Math.max(0, h.loanMinor), h.assetValueMinor);
+}
+function yearlyLoanPayment(h) {
+  const P = loanOf(h);
+  if (P <= 0) return 0;
+  const n = h.loanYears * 12;
+  if (h.loanRateBps <= 0) return Math.round(P / n * 12);
+  const r = h.loanRateBps / 1e4 / 12;
+  const f = (1 + r) ** n;
+  return Math.round(P * r * f / (f - 1) * 12);
+}
+function loanBalanceInYear(h, year) {
+  const P = loanOf(h);
+  if (P <= 0 || year < h.startYear) return 0;
+  const namDaTra = year - h.startYear + 1;
+  if (namDaTra >= h.loanYears) return 0;
+  const k = namDaTra * 12;
+  const M = yearlyLoanPayment(h) / 12;
+  if (h.loanRateBps <= 0) return Math.max(0, Math.round(P - M * k));
+  const r = h.loanRateBps / 1e4 / 12;
+  const f = (1 + r) ** k;
+  return Math.max(0, Math.round(P * f - M * (f - 1) / r));
+}
+function assetValueInYear(h, year) {
+  if (!hasAsset(h) || year < h.startYear) return 0;
+  if (h.assetChangeBps === 0) return h.assetValueMinor;
+  const g = h.assetChangeBps / 1e4;
+  return Math.max(0, Math.round(h.assetValueMinor * (1 + g) ** (year - h.startYear)));
+}
+function homeCashOutInYear(h, year) {
+  if (!hasAsset(h) || year < h.startYear) return { downMinor: 0, loanMinor: 0 };
+  const P = loanOf(h);
+  const down = year === h.startYear ? h.assetValueMinor - P : 0;
+  const dangTra = P > 0 && year - h.startYear < h.loanYears;
+  return { downMinor: down, loanMinor: dangTra ? yearlyLoanPayment(h) : 0 };
+}
+
 // src/features/lifetime/phasePercent.ts
 function resolvePhasePercents(phases, displayCurrency) {
   const out = [];
@@ -1311,6 +1354,16 @@ function phaseForYear(sorted, year) {
     else break;
   }
   return found;
+}
+function assetOf(e) {
+  return {
+    startYear: e.startYear,
+    assetValueMinor: e.assetValueMinor ?? 0,
+    assetChangeBps: e.assetChangeBps ?? 0,
+    loanMinor: e.loanMinor ?? 0,
+    loanRateBps: e.loanRateBps ?? 0,
+    loanYears: e.loanYears ?? 0
+  };
 }
 function projectLifetime(input) {
   const {
@@ -1401,6 +1454,33 @@ function projectLifetime(input) {
         amountDisplayMinor: Math.round(converted * (e.inflate ? infl : 1))
       });
     }
+    let ownedAssetsMinor = 0;
+    let loanBalanceMinor = 0;
+    for (const e of events) {
+      if (e.enabled === false) continue;
+      const ts = assetOf(e);
+      if (!hasAsset(ts) || year < ts.startYear) continue;
+      const doi = (m) => Math.round(convertLifetimeMinor(m, e.currency, displayCurrency, e.fxToDisplay) * infl);
+      ownedAssetsMinor += doi(assetValueInYear(ts, year));
+      loanBalanceMinor += doi(loanBalanceInYear(ts, year));
+      const tien = homeCashOutInYear(ts, year);
+      if (tien.downMinor > 0) {
+        yearEvents.push({
+          id: `${e.id}:tratruoc`,
+          label: `${e.label} \u2014 tr\u1EA3 tr\u01B0\u1EDBc`,
+          kind: "expense",
+          amountDisplayMinor: doi(tien.downMinor)
+        });
+      }
+      if (tien.loanMinor > 0) {
+        yearEvents.push({
+          id: `${e.id}:trano`,
+          label: `${e.label} \u2014 tr\u1EA3 n\u1EE3`,
+          kind: "expense",
+          amountDisplayMinor: doi(tien.loanMinor)
+        });
+      }
+    }
     if (stress?.illness.on && year === stress.illness.year) {
       yearEvents.push({
         id: STRESS_ILLNESS_EVENT_ID,
@@ -1437,7 +1517,13 @@ function projectLifetime(input) {
       // Trùm CẢ BA nhánh, kể cả nhánh trung tâm assets[0]: khi tài sản xuyên qua 0 thì
       // trung tâm có thể chạy ra ngoài hai nhánh biên. Xem JSDoc assetsPessimisticMinor.
       assetsPessimisticMinor: Math.min(assets[0], assets[1], assets[2]),
-      assetsOptimisticMinor: Math.max(assets[0], assets[1], assets[2])
+      assetsOptimisticMinor: Math.max(assets[0], assets[1], assets[2]),
+      ownedAssetsMinor,
+      loanBalanceMinor,
+      // Chỉ nhánh TRUNG TÂM: tài sản mua được và dư nợ không phụ thuộc lợi suất, nên
+      // dựng một dải cho `netWorth` sẽ là dải của riêng phần tiền lỏng cộng thêm một
+      // hằng số — không nói thêm được gì mà lại thành hai dải cạnh nhau.
+      netWorthMinor: assets[0] + ownedAssetsMinor - loanBalanceMinor
     });
   }
   return out;
@@ -2253,7 +2339,12 @@ function buildLifetimeInput(args) {
     icon: e.icon ?? "",
     replacesMinor: e.replaces_minor ?? 0,
     replacesLabel: e.replaces_label ?? "",
-    color: e.color ?? ""
+    color: e.color ?? "",
+    assetValueMinor: e.asset_value_minor ?? 0,
+    assetChangeBps: e.asset_change_bps ?? 0,
+    loanMinor: e.loan_minor ?? 0,
+    loanRateBps: e.loan_rate_bps ?? 0,
+    loanYears: e.loan_years ?? 0
   }));
   return {
     // Năm hiện tại suy từ `todayISO` chứ KHÔNG gọi `new Date()` ở đây: hook gọi hàm

@@ -65,6 +65,11 @@ const eventRow = (over: Partial<LifeEventRow> & Pick<LifeEventRow, 'id' | 'start
   replaces_minor: 0,
   replaces_label: '',
   color: '',
+  asset_value_minor: 0,
+  asset_change_bps: 0,
+  loan_minor: 0,
+  loan_rate_bps: 0,
+  loan_years: 0,
   amount_minor: 2_500_000,
   currency: 'JPY',
   label: 'Cưới',
@@ -306,6 +311,11 @@ describe('planDraftSave', () => {
         replacesMinor: 0,
         replacesLabel: '',
         color: '',
+        assetValueMinor: 0,
+        assetChangeBps: 0,
+        loanMinor: 0,
+        loanRateBps: 0,
+        loanYears: 0,
         amountMinor: 12_000_000,
         currency: 'JPY',
         label: 'Mua nhà',
@@ -336,6 +346,11 @@ describe('planDraftSave', () => {
         replaces_minor: 0,
         replaces_label: '',
         color: '',
+        asset_value_minor: 0,
+        asset_change_bps: 0,
+        loan_minor: 0,
+        loan_rate_bps: 0,
+        loan_years: 0,
       },
     ])
     expect(plan.eventDeletes).toEqual([])
@@ -355,6 +370,7 @@ describe('planDraftSave', () => {
         amountMinor: 1, currency: 'JPY', label: 'Tạm', note: '', fxToDisplay: 1, inflate: true,
         enabled: true, amountShape: 'per_year', endAmountMinor: null, growthBps: 0,
         repeatEveryYears: null, icon: '', replacesMinor: 0, replacesLabel: '', color: '',
+        assetValueMinor: 0, assetChangeBps: 0, loanMinor: 0, loanRateBps: 0, loanYears: 0,
       })
     })
     const d = edit(() => {})
@@ -446,6 +462,11 @@ describe('applyPreset', () => {
         replaces_minor: 0,
         replaces_label: '',
         color: '',
+        asset_value_minor: 0,
+        asset_change_bps: 0,
+        loan_minor: 0,
+        loan_rate_bps: 0,
+        loan_years: 0,
       },
     ])
   })

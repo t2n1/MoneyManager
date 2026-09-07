@@ -803,6 +803,19 @@ export type LifeEventRow = {
   replaces_label: string
   /** Khoá màu trong src/features/tags/colors.ts. '' = tô theo `kind` như trước. */
   color: string
+  /**
+   * Giá trị TÀI SẢN mốc này mua được (migration 0068), theo `currency` dòng này. 0 =
+   * mốc thường. Khác 0 thì `amount_minor` đổi nghĩa thành CHI PHÍ GIỮ mỗi năm —
+   * xem src/features/lifetime/homeAsset.ts.
+   */
+  asset_value_minor: number
+  /** Giá trị tài sản đổi bao nhiêu mỗi năm, bps. Nhà +100; xe −1500. */
+  asset_change_bps: number
+  /** Phần đi vay. 0 = trả thẳng. Trả trước = asset_value_minor − loan_minor. */
+  loan_minor: number
+  loan_rate_bps: number
+  /** Kỳ hạn vay, tính bằng NĂM. 0 = không vay. */
+  loan_years: number
   created_at: string
 }
 
@@ -1486,6 +1499,11 @@ export type Database = {
           | 'replaces_minor'
           | 'replaces_label'
           | 'color'
+          | 'asset_value_minor'
+          | 'asset_change_bps'
+          | 'loan_minor'
+          | 'loan_rate_bps'
+          | 'loan_years'
         >
         Update: Partial<
           Pick<
@@ -1508,6 +1526,11 @@ export type Database = {
             | 'replaces_minor'
             | 'replaces_label'
             | 'color'
+            | 'asset_value_minor'
+            | 'asset_change_bps'
+            | 'loan_minor'
+            | 'loan_rate_bps'
+            | 'loan_years'
           >
         >
         Relationships: []

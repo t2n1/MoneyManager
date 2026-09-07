@@ -16,6 +16,9 @@ function row(year: number, end: number): YearRow {
     assetsEndMinor: end,
     assetsPessimisticMinor: end - 1_000_000,
     assetsOptimisticMinor: end + 1_000_000,
+    ownedAssetsMinor: 0,
+    loanBalanceMinor: 0,
+    netWorthMinor: end,
   }
 }
 

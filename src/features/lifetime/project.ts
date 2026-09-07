@@ -5,6 +5,13 @@
 // phép thử đó đi theo ĐỒ THỊ import, nên mọi file thêm vào đây cũng bị soi cùng luật.
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { eventAmountInYear, shapeOf, type AmountShape } from './eventAmount'
+import {
+  assetValueInYear,
+  hasAsset,
+  homeCashOutInYear,
+  loanBalanceInYear,
+  type HomeAsset,
+} from './homeAsset'
 import { resolvePhasePercents } from './phasePercent'
 
 /**
@@ -79,6 +86,22 @@ export interface LifetimeEvent {
    * TRỪ SUỐT KHOẢNG, không theo nhịp lặp và không theo hình dạng: mua nhà là thôi trả
    * tiền thuê MỌI NĂM, không phải mỗi 8 năm.
    */
+  /**
+   * Giá trị TÀI SẢN mốc này mua được (migration 0068), minor units theo `currency` của
+   * mốc. Bỏ trống hoặc 0 = mốc thường, không mua gì.
+   *
+   * KHÁC 0 THÌ `amountMinor` ĐỔI NGHĨA: nó thành CHI PHÍ GIỮ tài sản mỗi năm (thuế,
+   * bảo hiểm, bảo trì), còn tiền trả trước và tiền trả nợ do năm trường này sinh ra.
+   * Luật đầy đủ ở `homeAsset.ts`.
+   */
+  assetValueMinor?: number
+  /** Giá trị tài sản đổi bao nhiêu mỗi năm, bps. Nhà +100; xe −1500. */
+  assetChangeBps?: number
+  /** Phần đi vay. 0 = trả thẳng. */
+  loanMinor?: number
+  loanRateBps?: number
+  /** Kỳ hạn vay, tính bằng NĂM. 0 = không vay. */
+  loanYears?: number
   replacesMinor?: number
   /** Tên khoản bị thay, để câu giải thích đọc được ("thay cho Nhà ở"). Chỉ là chữ. */
   replacesLabel?: string
@@ -218,6 +241,25 @@ export interface YearRow {
   assetsPessimisticMinor: number
   /** Biên TRÊN của dải: `Math.max` của CẢ BA nhánh. Xem `assetsPessimisticMinor`. */
   assetsOptimisticMinor: number
+  /**
+   * Tổng giá trị TÀI SẢN mua được bằng các mốc (nhà, xe, đất) — migration 0068. Đã quy
+   * về `displayCurrency`. 0 khi không mốc nào mua gì.
+   *
+   * CỐ Ý KHÔNG cộng vào `assetsEndMinor`: trường đó là tiền LỎNG, và mọi thứ đọc nó
+   * đều đang hỏi "có tiêu được không" — ngưỡng FIRE (25× chi, `insights.ts`), năm cạn
+   * tiền, mốc Coast. Một căn nhà không tiêu được, nên nhét nó vào là làm ba con số ấy
+   * nói dối theo cùng một hướng.
+   */
+  ownedAssetsMinor: number
+  /** Tổng DƯ NỢ còn lại của các khoản vay mua tài sản, đã quy đổi. 0 khi không vay. */
+  loanBalanceMinor: number
+  /**
+   * `assetsEndMinor + ownedAssetsMinor − loanBalanceMinor`.
+   *
+   * Bằng đúng `assetsEndMinor` khi không mốc nào mua tài sản — tức mọi kịch bản có
+   * trước 0068 đọc ra y hệt như cũ ở cả hai trường.
+   */
+  netWorthMinor: number
 }
 
 /**
@@ -263,6 +305,24 @@ export function phaseForYear<T extends { startYear: number }>(sorted: T[], year:
     else break
   }
   return found
+}
+
+/**
+ * Phần "mua tài sản" của một mốc, với mặc định cho mọi trường của migration 0068.
+ *
+ * Cùng vai trò với `shapeOf` ở `eventAmount.ts`: chỉ MỘT chỗ biết mặc định là gì, nên
+ * một mốc dựng ở nơi khác (bộ luật thông báo, dữ liệu demo cũ, test viết trước 0068)
+ * thiếu cả năm trường vẫn chiếu ra y hệt trước.
+ */
+function assetOf(e: LifetimeEvent): HomeAsset {
+  return {
+    startYear: e.startYear,
+    assetValueMinor: e.assetValueMinor ?? 0,
+    assetChangeBps: e.assetChangeBps ?? 0,
+    loanMinor: e.loanMinor ?? 0,
+    loanRateBps: e.loanRateBps ?? 0,
+    loanYears: e.loanYears ?? 0,
+  }
 }
 
 export function projectLifetime(input: LifetimeInput): YearRow[] {
@@ -400,6 +460,41 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       })
     }
 
+    // MUA TÀI SẢN (migration 0068). Vòng RIÊNG, không nhập vào vòng mốc ở trên: vòng
+    // đó `continue` khi chi phí giữ hằng năm bằng 0, mà một mốc "mua nhà trả thẳng,
+    // không tốn phí giữ" là hoàn toàn hợp lệ — gộp vào là căn nhà biến mất khỏi bản
+    // chiếu đúng ở ca đơn giản nhất.
+    let ownedAssetsMinor = 0
+    let loanBalanceMinor = 0
+    for (const e of events) {
+      if (e.enabled === false) continue
+      const ts = assetOf(e)
+      if (!hasAsset(ts) || year < ts.startYear) continue
+      const doi = (m: number) =>
+        Math.round(convertLifetimeMinor(m, e.currency, displayCurrency, e.fxToDisplay) * infl)
+      ownedAssetsMinor += doi(assetValueInYear(ts, year))
+      loanBalanceMinor += doi(loanBalanceInYear(ts, year))
+      const tien = homeCashOutInYear(ts, year)
+      // Hai DÒNG RIÊNG trong tooltip, không gộp: "trả trước ¥8.000.000" và "trả nợ
+      // ¥1.900.000/năm" là hai câu khác nhau, và năm mua tụt sâu vì cái thứ nhất.
+      if (tien.downMinor > 0) {
+        yearEvents.push({
+          id: `${e.id}:tratruoc`,
+          label: `${e.label} — trả trước`,
+          kind: 'expense',
+          amountDisplayMinor: doi(tien.downMinor),
+        })
+      }
+      if (tien.loanMinor > 0) {
+        yearEvents.push({
+          id: `${e.id}:trano`,
+          label: `${e.label} — trả nợ`,
+          kind: 'expense',
+          amountDisplayMinor: doi(tien.loanMinor),
+        })
+      }
+    }
+
     // "Bệnh nặng" đi vào danh sách SỰ KIỆN chứ không cộng lén vào `expenseMinor`:
     // `expenseMinor` được JSDoc hứa là "chi nền, không gồm sự kiện", và thứ đọc con số
     // đó (ngưỡng FIRE = 25× chi) sẽ nhảy vọt đúng một năm nếu nhét khoản này vào. Là
@@ -460,6 +555,12 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       // trung tâm có thể chạy ra ngoài hai nhánh biên. Xem JSDoc assetsPessimisticMinor.
       assetsPessimisticMinor: Math.min(assets[0], assets[1], assets[2]),
       assetsOptimisticMinor: Math.max(assets[0], assets[1], assets[2]),
+      ownedAssetsMinor,
+      loanBalanceMinor,
+      // Chỉ nhánh TRUNG TÂM: tài sản mua được và dư nợ không phụ thuộc lợi suất, nên
+      // dựng một dải cho `netWorth` sẽ là dải của riêng phần tiền lỏng cộng thêm một
+      // hằng số — không nói thêm được gì mà lại thành hai dải cạnh nhau.
+      netWorthMinor: assets[0] + ownedAssetsMinor - loanBalanceMinor,
     })
   }
 

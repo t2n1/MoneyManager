@@ -825,6 +825,16 @@ export function LifetimeView() {
                 })
               })
             }
+            onMoveEventEnd={(id, endYear) =>
+              editDraft((d) =>
+                patchDraftEvent(d, id, {
+                  // KHÔNG kéo theo năm bắt đầu: đây đúng là thao tác mà kéo chip không
+                  // làm được — chip dời cả cụm và giữ nguyên độ dài, còn cái này ĐỔI độ
+                  // dài. "Nuôi con tới khi nó 18 hay 22 tuổi" chỉ trả lời được bằng nó.
+                  endYear,
+                }),
+              )
+            }
             onSelectEvent={setEditingEventId}
             editingEventId={editingEventId}
             eventEditor={

@@ -16,12 +16,30 @@ import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { DraftEvent } from './draft'
-import { SectionTitle, actionButtonClass } from '../../components/ui'
+import { Money, Num, SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import {
+  MAX_REPEAT_YEARS,
+  eventSpanNote,
+  type AmountShape,
+  type EventShape,
+} from './eventAmount'
+import { EVENT_ICONS, EVENT_ICON_GROUPS, EventIcon } from './eventIcons'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
  *  and 2200)` của `life_events` (migration 0031). */
 const MIN_YEAR = 1900
 const MAX_YEAR = 2200
+
+/**
+ * Bốn hình dạng, mỗi cái một câu nói ra NGHĨA của con số. Thứ tự cố ý: 'per_year' đứng
+ * đầu vì nó là mặc định và là thứ mọi mốc đang có đều đang dùng.
+ */
+const SHAPE_LABELS: Record<AmountShape, string> = {
+  per_year: 'Số này MỖI NĂM',
+  total: 'Số này là TỔNG cả khoảng',
+  ramp: 'Đổi dần tới một số khác',
+  growth: 'Nhân dồn mỗi năm một tỷ lệ',
+}
 
 interface Props {
   /** Mốc đang sửa. Không có ca "tạo mới": mốc mới thêm từ dải chip mẫu. */
@@ -45,6 +63,15 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
   const [amount, setAmount] = useState(event.amountMinor)
   const [inflate, setInflate] = useState(event.inflate)
   const [note, setNote] = useState(event.note)
+  const [icon, setIcon] = useState(event.icon)
+  const [moBoIcon, setMoBoIcon] = useState(false)
+  const [amountShape, setAmountShape] = useState<AmountShape>(event.amountShape)
+  const [endAmount, setEndAmount] = useState(event.endAmountMinor ?? 0)
+  // Tỷ lệ nhập theo PHẦN TRĂM (người dùng gõ "3", không gõ "300"), lưu theo bps.
+  const [growthPct, setGrowthPct] = useState(String(event.growthBps / 100))
+  const [repeat, setRepeat] = useState(
+    event.repeatEveryYears === null ? '' : String(event.repeatEveryYears),
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -69,7 +96,50 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
   const labelValid = label.trim() !== ''
   const amountValid = amount >= 0
 
-  const canSave = labelValid && yearValid && endYearValid && amountValid
+  const growthNum = Number(growthPct)
+  const growthValid =
+    growthPct.trim() !== '' && Number.isFinite(growthNum) && growthNum > -100 && growthNum < 1000
+  const repeatNum = Number(repeat)
+  const repeatValid =
+    repeat.trim() === '' ||
+    (Number.isInteger(repeatNum) && repeatNum >= 1 && repeatNum <= MAX_REPEAT_YEARS)
+  const endAmountValid = endAmount >= 0
+
+  const canSave =
+    labelValid &&
+    yearValid &&
+    endYearValid &&
+    amountValid &&
+    (amountShape !== 'growth' || growthValid) &&
+    (amountShape !== 'ramp' || endAmountValid) &&
+    repeatValid
+
+  // Chỉ 'per_year' còn nghĩa khi mốc chạy tới hết đời: không chia được một tổng cho vô
+  // hạn năm, và không có "năm cuối" để đi dần tới. 'growth' thì vẫn được — nhân dồn mãi
+  // là một giả định hợp lý (lương hưu tăng theo giá).
+  const shapeKhaDung: AmountShape[] = forever
+    ? ['per_year', 'growth']
+    : ['per_year', 'total', 'ramp', 'growth']
+
+  /** Bản xem trước — cùng hàm mà bàn sửa và đồ thị dùng, nên không lệch nhau được. */
+  const xemTruoc: EventShape = {
+    startYear: yearValid ? yearNum : event.startYear,
+    endYear: forever ? null : endYearValid ? endYearNum : null,
+    amountMinor: amount,
+    amountShape: shapeKhaDung.includes(amountShape) ? amountShape : 'per_year',
+    endAmountMinor: amountShape === 'ramp' ? endAmount : null,
+    growthBps: amountShape === 'growth' && growthValid ? Math.round(growthNum * 100) : 0,
+    repeatEveryYears: repeatValid && repeat.trim() !== '' ? repeatNum : null,
+  }
+  const giaiThich = eventSpanNote(xemTruoc)
+
+  /** Nhãn của ô số tiền, theo hình đang chọn — xem chú thích tại chỗ dùng. */
+  const amountLabel =
+    xemTruoc.amountShape === 'total'
+      ? 'Tổng cả khoảng'
+      : xemTruoc.amountShape === 'ramp' || xemTruoc.amountShape === 'growth'
+        ? `Số tiền của năm ${yearValid ? yearNum : 'đầu'}`
+        : 'Số tiền mỗi năm'
 
   function handleSubmit() {
     if (!canSave) return
@@ -86,6 +156,13 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
       label: label.trim(),
       note: note.trim(),
       inflate,
+      icon,
+      // Đúng `xemTruoc` mà người dùng vừa đọc câu giải thích của nó — không dựng lại
+      // phép chuẩn hoá lần thứ hai ở đây, vì hai bản sẽ trôi khỏi nhau.
+      amountShape: xemTruoc.amountShape,
+      endAmountMinor: xemTruoc.endAmountMinor,
+      growthBps: xemTruoc.growthBps,
+      repeatEveryYears: xemTruoc.repeatEveryYears,
     })
     onClose()
   }
@@ -137,6 +214,66 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           </p>
         )}
         {labelValid && <div className="mb-2" />}
+
+        {/* Icon. Nút đóng/mở chứ không bung sẵn cả 34 ô: sheet này cao 92vh và bốn ô
+            hình dạng bên dưới quan trọng hơn — bung sẵn thì trên điện thoại phải cuộn
+            qua một tấm lưới icon mới tới được số tiền. */}
+        <span className={label_}>Icon</span>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border-strong text-fg-secondary">
+            <EventIcon icon={icon} kind={kind} className="h-5 w-5" />
+          </span>
+          <button
+            type="button"
+            aria-expanded={moBoIcon}
+            onClick={() => setMoBoIcon((v) => !v)}
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-secondary transition active:scale-95 hover:bg-surface-sunken"
+          >
+            {icon === '' ? 'Chọn icon' : EVENT_ICONS[icon]?.label ?? 'Chọn icon'}
+          </button>
+          {icon !== '' && (
+            <button
+              type="button"
+              onClick={() => setIcon('')}
+              className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted transition active:scale-95 hover:bg-surface-sunken"
+            >
+              Bỏ icon
+            </button>
+          )}
+        </div>
+        {moBoIcon && (
+          <div className="mb-3 max-h-60 overflow-y-auto overscroll-contain rounded-md border border-border-panel p-2">
+            {EVENT_ICON_GROUPS.map((g) => (
+              <div key={g.title} className="mb-2 last:mb-0">
+                <p className="mb-1 text-2xs uppercase tracking-label text-fg-muted">
+                  {g.title}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {g.keys.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      title={EVENT_ICONS[k].label}
+                      aria-label={EVENT_ICONS[k].label}
+                      aria-pressed={icon === k}
+                      onClick={() => {
+                        setIcon(k)
+                        setMoBoIcon(false)
+                      }}
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-md transition active:scale-95 ${
+                        icon === k
+                          ? 'bg-accent text-fg-on-accent'
+                          : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
+                      }`}
+                    >
+                      <EventIcon icon={k} kind={kind} className="h-5 w-5" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form control,
             nên không có gì để `for` trỏ vào. Cách đúng là nhãn nhóm (`role="group"` +
@@ -220,9 +357,13 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           </>
         )}
 
-        {/* <span> chứ không <label htmlFor> — lý do đầy đủ ở PhaseFormSheet. */}
+        {/* Nhãn phải ĐỔI THEO HÌNH: để cứng "Số tiền mỗi năm" thì với hình 'total' ô
+            này tự cãi ô ngay dưới nó ("Số này là TỔNG cả khoảng") — cùng lớp lỗi với
+            "Chi tiêu ¥0 · 6 danh mục" đã phải sửa ở Báo cáo (07/09/2026).
+
+            <span> chứ không <label htmlFor> — lý do đầy đủ ở PhaseFormSheet. */}
         <span className={label_}>
-          Số tiền mỗi năm{' '}
+          {amountLabel}{' '}
           <span className="font-normal text-fg-muted">
             (tính bằng {CURRENCIES[currency].label} — theo chặng của năm {yearValid ? yearNum : '…'})
           </span>
@@ -233,7 +374,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
             onChange={setAmount}
             currency={currency}
             autoOpen={false}
-            ariaLabel="Số tiền mỗi năm"
+            ariaLabel={amountLabel}
             className={`text-right font-semibold ${field}`}
           />
         </div>
@@ -243,6 +384,154 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           </p>
         )}
         {amountValid && <div className="mb-2" />}
+
+        {/* Con số ở trên KHÔNG tự nói được nó là gì (migration 0066). Ô này nói. */}
+        <label htmlFor={`${uid}-shape`} className={label_}>
+          Con số đó nghĩa là gì
+        </label>
+        <Select
+          id={`${uid}-shape`}
+          wrapClassName="mb-2 w-full"
+          value={xemTruoc.amountShape}
+          onChange={(e) => setAmountShape(e.target.value as AmountShape)}
+        >
+          {shapeKhaDung.map((s) => (
+            <option key={s} value={s}>
+              {SHAPE_LABELS[s]}
+            </option>
+          ))}
+        </Select>
+        {/* <Guide> chứ không <p>: đây là chữ để DẠY (giải thích vì sao ô trên ít lựa
+            chọn hơn), đúng loại mà tests/designSystem.test.ts đòi bọc cổng. */}
+        {forever && (
+          <Guide className="mb-2 text-2xs text-fg-muted">
+            Mốc chạy tới hết đời nên chỉ còn hai lựa chọn: không chia được một tổng cho vô
+            hạn năm, và không có năm cuối để đi dần tới.
+          </Guide>
+        )}
+
+        {amountShape === 'ramp' && !forever && (
+          <>
+            <span className={label_}>
+              Số của năm {endYearValid ? endYearNum : 'cuối'}{' '}
+              <span className="font-normal text-fg-muted">
+                (tính bằng {CURRENCIES[currency].label})
+              </span>
+            </span>
+            <div className="mb-1">
+              <MoneyField
+                value={endAmount}
+                onChange={setEndAmount}
+                currency={currency}
+                autoOpen={false}
+                ariaLabel="Số tiền của năm cuối"
+                className={`text-right font-semibold ${field}`}
+              />
+            </div>
+            {!endAmountValid && (
+              <p role="alert" className="mb-2 text-sm text-money-out">
+                Số tiền không được âm.
+              </p>
+            )}
+            {endAmountValid && <div className="mb-2" />}
+          </>
+        )}
+
+        {amountShape === 'growth' && (
+          <>
+            <label htmlFor={`${uid}-growth`} className={label_}>
+              Mỗi năm nhân thêm{' '}
+              <span className="font-normal text-fg-muted">
+                (%/năm; số âm = teo dần. Cộng RIÊNG, không thay lạm phát)
+              </span>
+            </label>
+            <input
+              id={`${uid}-growth`}
+              inputMode="decimal"
+              value={growthPct}
+              onChange={(e) => setGrowthPct(e.target.value)}
+              className={`mb-1 ${field}`}
+            />
+            {!growthValid && (
+              <p role="alert" className="mb-2 text-sm text-money-out">
+                Tỷ lệ phải là số trong khoảng −100 đến 1000.
+              </p>
+            )}
+            {growthValid && <div className="mb-2" />}
+          </>
+        )}
+
+        <label htmlFor={`${uid}-repeat`} className={label_}>
+          Lặp mỗi bao nhiêu năm{' '}
+          <span className="font-normal text-fg-muted">(để trống = mọi năm trong khoảng)</span>
+        </label>
+        <input
+          id={`${uid}-repeat`}
+          inputMode="decimal"
+          value={repeat}
+          onChange={(e) => setRepeat(e.target.value)}
+          placeholder="Ví dụ: 8 — đổi xe mỗi 8 năm"
+          className={`mb-1 ${field}`}
+        />
+        {!repeatValid && (
+          <p role="alert" className="mb-2 text-sm text-money-out">
+            Phải là số nguyên từ 1 đến {MAX_REPEAT_YEARS}, hoặc để trống.
+          </p>
+        )}
+        {repeatValid && <div className="mb-2" />}
+
+        {/* XEM TRƯỚC. Bốn hình dạng làm cùng một con số mang bốn nghĩa khác nhau, nên
+            người dùng phải đọc được nghĩa đang chọn TRƯỚC khi bấm Xong — không thì
+            phải lưu, xem đồ thị, rồi mở lại sheet để sửa. Dùng đúng hàm mà bàn sửa và
+            đồ thị dùng (`eventSpanNote`), nên không có đường nào lệch. */}
+        {giaiThich !== null && (
+          <p className="mb-3 rounded-md bg-surface-sunken px-3 py-2 text-2xs text-fg-secondary">
+            {giaiThich.years === null ? (
+              giaiThich.shape === 'growth' && giaiThich.growthBps !== 0 ? (
+                <>
+                  Bắt đầu <Money amount={giaiThich.firstMinor} currency={currency} />, nhân dồn{' '}
+                  <Num tone="muted">{giaiThich.growthBps / 100}</Num>%/năm tới hết đời.
+                </>
+              ) : (
+                <>
+                  <Money amount={giaiThich.firstMinor} currency={currency} /> mỗi năm, tới hết
+                  đời.
+                </>
+              )
+            ) : giaiThich.shape === 'total' ? (
+              <>
+                Tổng <Money amount={giaiThich.totalMinor ?? 0} currency={currency} /> chia đều{' '}
+                <Num tone="muted">{giaiThich.hits ?? 0}</Num> lần →{' '}
+                <Money amount={giaiThich.firstMinor} currency={currency} /> mỗi lần.
+              </>
+            ) : giaiThich.shape === 'ramp' ? (
+              <>
+                Đổi dần <Money amount={giaiThich.firstMinor} currency={currency} /> →{' '}
+                <Money amount={giaiThich.lastMinor ?? 0} currency={currency} /> qua{' '}
+                <Num tone="muted">{giaiThich.years}</Num> năm, tổng{' '}
+                <Money amount={giaiThich.totalMinor ?? 0} currency={currency} />.
+              </>
+            ) : giaiThich.shape === 'growth' ? (
+              <>
+                Từ <Money amount={giaiThich.firstMinor} currency={currency} /> tới{' '}
+                <Money amount={giaiThich.lastMinor ?? 0} currency={currency} />, tổng{' '}
+                <Money amount={giaiThich.totalMinor ?? 0} currency={currency} />.
+              </>
+            ) : (
+              <>
+                <Money amount={giaiThich.firstMinor} currency={currency} /> ×{' '}
+                <Num tone="muted">{giaiThich.hits ?? 0}</Num>{' '}
+                {giaiThich.repeatEveryYears === null ? 'năm' : 'lần'} ={' '}
+                <Money amount={giaiThich.totalMinor ?? 0} currency={currency} /> cả khoảng.
+              </>
+            )}
+            {giaiThich.repeatEveryYears !== null && (
+              <>
+                {' '}Lặp mỗi <Num tone="muted">{giaiThich.repeatEveryYears}</Num> năm.
+              </>
+            )}
+          </p>
+        )}
 
         <label className="mb-3 flex min-h-11 items-center gap-2 text-sm text-fg-secondary">
           <input

@@ -1164,16 +1164,12 @@ export function ScenarioWorkbench({
                           className="font-semibold"
                         />
                       )
+                      // KHÔNG nhắc lại số lần ở đây: câu chính đã nói ("× 5 lần",
+                      // "chia đều 5 lần"), nên thêm nữa thành "× 5 lần … 5 lần".
                       const nhip =
                         note.repeatEveryYears === null ? null : (
                           <>
-                            {' '}Lặp mỗi <Num tone="muted">{note.repeatEveryYears}</Num> năm
-                            {note.hits !== null && (
-                              <>
-                                , <Num tone="muted">{note.hits}</Num> lần
-                              </>
-                            )}
-                            .
+                            {' '}Lặp mỗi <Num tone="muted">{note.repeatEveryYears}</Num> năm.
                           </>
                         )
                       return (

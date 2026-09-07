@@ -87,7 +87,10 @@ export function BigExpenseMapSection({ events, displayCurrency, fxOf, todayISO, 
               <span className="block truncate text-sm text-fg-primary">{i.label}</span>
               <span className="block text-2xs text-fg-muted">
                 {i.recurring ? (
-                  <>mỗi năm · {SOURCE_LABEL[i.source]}</>
+                  <>
+                    {i.everyYears > 1 ? `mỗi ${i.everyYears} năm` : 'mỗi năm'} ·{' '}
+                    {SOURCE_LABEL[i.source]}
+                  </>
                 ) : (
                   <>
                     {i.dueMonth ?? `năm ${i.dueYear}`} ·{' '}

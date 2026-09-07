@@ -26,7 +26,9 @@ import {
   type ReactNode,
 } from 'react'
 import { useDragPointer } from '../../hooks/useDragPointer'
-import { Maximize2, Minimize2, TrendingDown, TrendingUp } from 'lucide-react'
+import { eventYears, shapeOf } from './eventAmount'
+import { EventIcon } from './eventIcons'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact, formatMoney } from '../../lib/money'
@@ -92,6 +94,15 @@ interface Props {
   events?: DraftEvent[]
   /** Thả chip ở năm khác. Không truyền thì chip chỉ để đọc, không kéo được. */
   onMoveEvent?: (id: string, startYear: number) => void
+  /**
+   * Kéo riêng ĐUÔI của một mốc — đổi năm kết thúc, giữ nguyên năm bắt đầu.
+   *
+   * Kéo chip (`onMoveEvent`) dời CẢ cụm và giữ nguyên độ dài, nên trước prop này
+   * không có cách nào trả lời "nuôi con tới khi nó 18 hay 22 tuổi" ngay trên đồ thị:
+   * phải mở trình sửa, gõ năm, lưu, đóng, rồi mới thấy đường đổi. Không truyền thì
+   * đuôi không vẽ tay nắm — thanh vẫn vẽ, vì độ dài là thông tin dù có sửa được hay không.
+   */
+  onMoveEventEnd?: (id: string, endYear: number) => void
   /** Bấm (không kéo) vào chip. */
   onSelectEvent?: (id: string) => void
   /** Mốc đang mở form sửa — chip của nó viền đậm. */
@@ -317,6 +328,7 @@ export function LifetimeChartCard({
   phases = EMPTY_PHASES,
   events = EMPTY_EVENTS,
   onMoveEvent,
+  onMoveEventEnd,
   onSelectEvent,
   editingEventId = null,
   eventEditor,
@@ -345,6 +357,15 @@ export function LifetimeChartCard({
   /** Điểm cầm: hoành độ con trỏ và `left` của chip, đều lúc vừa nhấc lên. */
   const grabChip = useRef<{ x: number; cx: number } | null>(null)
   const atX = useRef(0)
+  /**
+   * Bộ ba song song cho TAY NẮM ĐUÔI. Cố ý KHÔNG dùng chung refs với chip: hai thứ có
+   * thể cầm cùng lúc trên màn cảm ứng (hai ngón), và dùng chung `dragIdRef` thì ngón
+   * thứ hai ghi đè mốc mà ngón thứ nhất đang giữ — chip đứng im còn đuôi nhảy theo.
+   */
+  const endRefs = useRef(new Map<string, HTMLButtonElement>())
+  const endDragIdRef = useRef<string | null>(null)
+  const grabEnd = useRef<{ x: number; cx: number } | null>(null)
+  const atEndX = useRef(0)
   const titleId = useId()
 
   /**
@@ -682,6 +703,69 @@ export function LifetimeChartCard({
     },
   })
 
+  /** Y HỆT `followChip`, cho tay nắm đuôi. Lý do tách: xem JSDoc `endRefs`. */
+  const followEnd = useCallback(() => {
+    const id = endDragIdRef.current
+    if (id == null) return
+    const el = endRefs.current.get(id)
+    const g = grabEnd.current
+    if (!el || !g) return
+    const cx = Number.parseFloat(el.style.left) || 0
+    const raw = cx + (atEndX.current - g.x) - (cx - g.cx)
+    const clamped = Math.min(Math.max(raw, plotLeft), plotRight)
+    el.style.transition = 'none'
+    el.style.translate = `${clamped - cx}px`
+  }, [plotLeft, plotRight])
+
+  useLayoutEffect(followEnd)
+
+  const endDrag = useDragPointer<string>({
+    withinRef: plotRef,
+    onLift(id, x) {
+      const el = endRefs.current.get(id)
+      if (!el) return
+      atEndX.current = x
+      grabEnd.current = { x, cx: Number.parseFloat(el.style.left) || 0 }
+      endDragIdRef.current = id
+      el.style.cursor = 'grabbing'
+      // 30, trên cả z-20 tĩnh của chính nó và z-20 của một chip đang bị kéo.
+      el.style.zIndex = '30'
+      setHoverYear(null)
+    },
+    onMove(x) {
+      const id = endDragIdRef.current
+      if (id == null || !onMoveEventEnd) return
+      atEndX.current = x
+      followEnd()
+      const ev = events.find((e) => e.id === id)
+      if (!ev) return
+      const y = yearAt(x)
+      if (y === null || y === ev.endYear) return
+      // Kẹp ở NĂM BẮT ĐẦU + 1, không phải ở năm bắt đầu. Hai lý do, lý do thứ hai
+      // mới là lý do thật:
+      //   1. Kéo đuôi lùi qua đầu cho một khoảng âm, mà `eventYears` đọc ra "không
+      //      năm nào" — mốc biến mất khỏi bản chiếu ngay lúc thả tay.
+      //   2. Về ĐÚNG năm bắt đầu thì mốc thành một-năm, và tay nắm không còn được vẽ
+      //      (thanh độ dài chỉ vẽ khi có độ dài) — tức cái control vừa dùng thì tự
+      //      biến mất và không có đường nào kéo nó ra lại. Biến một mốc nhiều năm
+      //      thành mốc một năm vẫn làm được, nhưng ở form, nơi nó là một câu rõ ràng.
+      onMoveEventEnd(id, Math.max(ev.startYear + 1, Math.min(x1, y)))
+    },
+    onDrop(_lifted, id) {
+      endDragIdRef.current = null
+      grabEnd.current = null
+      const el = endRefs.current.get(id)
+      if (el) {
+        el.style.transition = ''
+        el.style.translate = '0px'
+        el.style.cursor = ''
+        el.style.zIndex = ''
+      }
+      // KHÔNG mở form sửa khi chỉ bấm hụt vào đuôi: tay nắm này bé, và một cú chạm
+      // hụt mở cả một form là thứ khó chịu hơn hẳn việc không có gì xảy ra.
+    },
+  })
+
   const shownYear = pinnedYear ?? hoverYear
   const hoverRow = shownYear !== null ? dRows.find((r) => r.year === shownYear) : undefined
   const stressHoverRow =
@@ -799,16 +883,28 @@ export function LifetimeChartCard({
             // nếu không cộng vào đây chúng sẽ đè lên chú giải bên dưới.
             paddingBottom: opts.lane && phases.length > 0 ? LANE_H : 0,
           }}
+          // HAI mặt bắt chuột, không phải một. `useDragPointer` chỉ nghe pointermove
+          // ở PHẦN TỬ BỌC, nên mỗi lượt kéo phải được nối tay vào đây. Nối chip mà quên
+          // nối đuôi thì tay nắm đuôi nhấn xuống được, nhả ra được, mà không bao giờ
+          // NHÍCH — đúng thứ đã xảy ra khi thử trên app: không lỗi, không cảnh báo,
+          // không gì cả.
           onPointerMove={(e) => {
             chipDrag.surface.onPointerMove(e)
+            endDrag.surface.onPointerMove(e)
             // `dragIdRef` chứ không `dragId`: state chưa kịp vào closure này nếu
             // pointerdown và pointermove rơi cùng một lượt xử lý.
-            if (dragIdRef.current !== null) return
+            if (dragIdRef.current !== null || endDragIdRef.current !== null) return
             const y = yearAt(e.clientX)
             if (y !== null && y !== hoverYear) setHoverYear(y)
           }}
-          onPointerUp={chipDrag.surface.onPointerUp}
-          onPointerCancel={chipDrag.surface.onPointerCancel}
+          onPointerUp={(e) => {
+            chipDrag.surface.onPointerUp(e)
+            endDrag.surface.onPointerUp(e)
+          }}
+          onPointerCancel={(e) => {
+            chipDrag.surface.onPointerCancel(e)
+            endDrag.surface.onPointerCancel(e)
+          }}
           onPointerLeave={() => setHoverYear(null)}
           onClick={(e) => {
             // Vừa kéo xong thì cú click tổng hợp sau đó không được hiểu là "ghim năm".
@@ -1048,6 +1144,135 @@ export function LifetimeChartCard({
             )}
           </svg>
 
+          {/* THANH ĐỘ DÀI của mốc. Trước bản này đồ thị KHÔNG vẽ độ dài ở đâu cả:
+              `endYear` chỉ xuất hiện trong tooltip, nên "Nuôi con 2027–2049" hiện lên
+              y hệt một mốc một-năm ở 2027. Chuyện đó đã gây đọc sai thật — người dùng
+              đọc "¥3.000.000" của một mốc kéo hai năm thành "cưới tốn 3M" trong khi bản
+              chiếu trừ 6M (2026-09-02).
+
+              Vẽ bằng <div> tuyệt đối chứ không bằng <rect> trong SVG, cùng lý do với
+              chip: tay nắm ở đuôi phải là <button> thật để kéo được bằng ngón tay và
+              nhích được bằng bàn phím. */}
+          {visibleEvents.map((e, i) => {
+            if (e.endYear !== null && e.endYear <= e.startYear) return null
+            const isIncome = e.kind === 'income'
+            const top = CHIP_TOP + chipRows[i] * CHIP_ROW_H + 20
+            const xStart = Math.min(Math.max(xs(e.startYear), plotLeft), plotRight)
+            // Đến hết đời: thanh chạy tới mép phải và KHÔNG có tay nắm — không có năm
+            // kết thúc nào để kéo, và tự đặt một năm khi người dùng chạm vào là lặng lẽ
+            // biến "đến hết đời" thành một khoảng có hạn.
+            const moMai = e.endYear === null
+            const xEnd = moMai ? plotRight : Math.min(Math.max(xs(e.endYear!), plotLeft), plotRight)
+            if (xEnd - xStart < 2) return null
+            const mau = isIncome ? COLOR_OPTIMISTIC : COLOR_PESSIMISTIC
+            const mo = e.enabled === false
+            // Dấu từng lần rơi, chỉ khi có nhịp lặp: "đổi xe mỗi 8 năm" là một chuỗi
+            // điểm rời rạc, một thanh liền nói sai rằng nó tốn tiền suốt 40 năm.
+            // Trần 40 dấu: dày hơn thế thì các dấu chồng nhau thành một thanh đặc, tức
+            // vẽ nhiều hơn mà nói được ít hơn.
+            const hits =
+              e.repeatEveryYears !== null && e.repeatEveryYears > 1
+                ? (eventYears(shapeOf(e)) ?? []).slice(0, 40)
+                : []
+            return (
+              <div key={`span${e.id}`}>
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top,
+                    left: xStart,
+                    width: xEnd - xStart,
+                    height: 3,
+                    background: mau,
+                    opacity: mo ? 0.22 : 0.5,
+                    borderRadius: 2,
+                    // Mờ dần ở mép phải khi mốc chạy tới hết đời: một đầu cắt vuông ở
+                    // đúng mép thẻ đọc như "kết thúc ở năm cuối đồ thị", mà không phải.
+                    ...(moMai && {
+                      maskImage: 'linear-gradient(to right, #000 55%, transparent)',
+                      WebkitMaskImage: 'linear-gradient(to right, #000 55%, transparent)',
+                    }),
+                  }}
+                />
+                {hits.map((y) => (
+                  <div
+                    key={y}
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      top: top - 1,
+                      left: Math.min(Math.max(xs(y), plotLeft), plotRight) - 2,
+                      width: 4,
+                      height: 5,
+                      background: mau,
+                      opacity: mo ? 0.3 : 0.85,
+                      borderRadius: 1,
+                    }}
+                  />
+                ))}
+                {!moMai && onMoveEventEnd && (
+                  <button
+                    type="button"
+                    title={`Đuôi mốc ${e.label} — đang ở ${e.endYear}. Kéo để đổi năm kết thúc.`}
+                    aria-label={`Năm kết thúc của mốc ${e.label}: ${e.endYear}. Mũi tên trái/phải để đổi.`}
+                    ref={(el) => {
+                      if (el) endRefs.current.set(e.id, el)
+                      else endRefs.current.delete(e.id)
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: top - 11,
+                      left: xEnd,
+                      transform: 'translateX(-50%)',
+                      touchAction: 'none',
+                      cursor: 'ew-resize',
+                    }}
+                    // VÙNG CHẠM 24×24 rỗng, hình vẽ chỉ 10×16 nằm giữa. Để cả nút bằng
+                    // đúng cái hình thì tay nắm là một ô 10px — bắt được bằng chuột thì
+                    // may, bằng ngón tay thì không. 24px chứ không 44px (sàn vùng chạm
+                    // của app) vì mỗi hàng chip chỉ cao 26px: một ô 44px sẽ trùm lên
+                    // chip của hàng trên và ăn mất cú bấm vào nó.
+                    // z-20, TRÊN chip (z-10). Đo trên app ở 375px: khoảng 1–5 năm chỉ
+                    // rộng vài pixel, nên tay nắm rơi đúng dưới chip của chính nó —
+                    // 2 trong 4 tay nắm không bấm được. Không có hàng riêng nào để dời
+                    // nó xuống (mỗi hàng chip cao 26px, hàng dưới đã có chip khác), nên
+                    // cách đúng là cho nó thắng cú chạm ở chỗ hai thứ trùng nhau: chip
+                    // vẫn còn ~80% bề ngang bên trái để bấm.
+                    className="z-20 flex h-6 w-6 items-center justify-center"
+                    onClick={(ev) => ev.stopPropagation()}
+                    onPointerDown={(ev) => {
+                      ev.stopPropagation()
+                      endDrag.start(e.id, ev)
+                      ev.currentTarget.focus()
+                    }}
+                    onKeyDown={(ev) => {
+                      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return
+                      ev.preventDefault()
+                      const b = ev.key === 'ArrowLeft' ? -1 : 1
+                      // Cùng sàn với lượt kéo — xem JSDoc ở `endDrag.onMove`.
+                      onMoveEventEnd(
+                        e.id,
+                        Math.max(e.startYear + 1, Math.min(x1, (e.endYear ?? e.startYear) + b)),
+                      )
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-4 w-2.5 rounded-sm border transition ${
+                        mo
+                          ? 'border-border-strong bg-surface-sunken opacity-70'
+                          : isIncome
+                            ? 'border-state-good-fg bg-state-good-bg'
+                            : 'border-state-bad-fg bg-state-bad-bg'
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+
           {/* Chip mốc — nằm NGOÀI <svg> vì chúng là <button> thật: kéo được bằng ngón
               tay, bấm được bằng bàn phím, và có `title` đọc được. Một <text> trong SVG
               thì không có thứ nào trong ba thứ đó. */}
@@ -1059,7 +1284,11 @@ export function LifetimeChartCard({
               <button
                 key={e.id}
                 type="button"
-                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${e.enabled === false ? ' — ĐANG TẮT, không tính vào phép chiếu' : ''}${onMoveEvent ? ' — kéo để dời năm, bấm để sửa' : ''}`}
+                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${e.enabled === false ? ' — ĐANG TẮT, không tính vào phép chiếu' : ''}${onMoveEvent ? ' — kéo để dời cả cụm, bấm để sửa' : ''}${
+                  onMoveEventEnd && e.endYear !== null && e.endYear > e.startYear
+                    ? '; kéo cái đuôi để đổi năm kết thúc'
+                    : ''
+                }`}
                 style={{
                   position: 'absolute',
                   top: CHIP_TOP + chipRows[i] * CHIP_ROW_H,
@@ -1105,11 +1334,7 @@ export function LifetimeChartCard({
                   }
                 }}
               >
-                {isIncome ? (
-                  <TrendingUp className="h-3 w-3 shrink-0" aria-hidden="true" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 shrink-0" aria-hidden="true" />
-                )}
+                <EventIcon icon={e.icon} kind={e.kind} />
                 {e.startYear} · {e.label}
               </button>
             )

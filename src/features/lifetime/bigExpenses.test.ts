@@ -212,3 +212,95 @@ describe('buildBigExpenseMap', () => {
     expect(map.items.map((i) => i.id)).toEqual(['nha', 'cuoi', 'eb3', 'bo-me'])
   })
 })
+
+// --- Hình dạng con số của migration 0066 --------------------------------------------
+//
+// Thẻ này là chỗ KẾT LUẬN "các mốc đang đòi nhiều hơn phần dư của bạn", nên đọc sai
+// `amountMinor` ở đây không chỉ hiện sai một dòng — nó ra một phán quyết sai.
+describe('buildBigExpenseMap — hình dạng con số (0066)', () => {
+  const goi = (events: LifetimeEvent[]) =>
+    buildBigExpenseMap({
+      todayISO: TODAY,
+      displayCurrency: 'JPY',
+      events,
+      planned: [],
+      goals: [],
+      fxOf: fxJpyOnly,
+    })
+
+  it("'total': dùng số CỦA MỘT NĂM, không dùng tổng cả khoảng", () => {
+    const map = goi([
+      ev({
+        id: 'cuoi',
+        startYear: 2029,
+        endYear: 2030,
+        amountMinor: 3_000_000,
+        amountShape: 'total',
+      }),
+    ])
+    // ¥3M cả khoảng, 2 năm → ¥1,5M mỗi năm, chia 12 tháng.
+    expect(map.items[0].remainingMinor).toBe(1_500_000)
+    expect(map.items[0].monthlyNeedMinor).toBe(125_000)
+  })
+
+  it('nhịp lặp: có 12×nhịp tháng để dành, không phải 12', () => {
+    // Bản trước chia cho 12 → ¥183.334/tháng cho một khoản 8 năm một lần: cao gấp 8
+    // lần, và thẻ này lấy đúng con số đó để so với phần dư mỗi tháng.
+    const map = goi([
+      ev({
+        id: 'xe',
+        label: 'Đổi xe',
+        startYear: 2031,
+        endYear: 2063,
+        amountMinor: 2_200_000,
+        repeatEveryYears: 8,
+      }),
+    ])
+    expect(map.items[0].everyYears).toBe(8)
+    expect(map.items[0].monthsLeft).toBe(96)
+    expect(map.items[0].monthlyNeedMinor).toBe(Math.ceil(2_200_000 / 96))
+  })
+
+  it('nhịp lặp: năm LỆCH NHỊP không có áp lực nào', () => {
+    const map = goi([
+      ev({ id: 'xe', startYear: 2027, endYear: 2060, amountMinor: 1_000_000, repeatEveryYears: 5 }),
+    ])
+    const nam = map.yearPressure.map((y) => y.year)
+    expect(nam).toContain(2027)
+    expect(nam).toContain(2032)
+    expect(nam).not.toContain(2028)
+    expect(nam).not.toContain(2031)
+  })
+
+  it("'ramp': áp lực từng năm đi lên theo đoạn dốc, không phẳng", () => {
+    const map = goi([
+      ev({
+        id: 'con',
+        startYear: 2027,
+        endYear: 2036,
+        amountMinor: 100_000,
+        amountShape: 'ramp',
+        endAmountMinor: 1_000_000,
+      }),
+    ])
+    const p = new Map(map.yearPressure.map((y) => [y.year, y.totalMinor]))
+    expect(p.get(2027)).toBe(100_000)
+    expect(p.get(2032)).toBeGreaterThan(p.get(2027)!)
+    expect(p.get(2035)).toBeGreaterThan(p.get(2032)!)
+  })
+
+  it('lần rơi SẮP TỚI tính từ năm nay, không phải từ năm bắt đầu', () => {
+    // Nhịp 8 từ 2020, nhìn từ 2026: lần tới là 2028, không phải 2026.
+    const map = goi([
+      ev({ id: 'xe', startYear: 2020, endYear: 2060, amountMinor: 500_000, repeatEveryYears: 8 }),
+    ])
+    expect(map.items[0].dueYear).toBe(2028)
+  })
+
+  it('mọi lần rơi đã qua thì KHÔNG sinh dòng nào', () => {
+    const map = goi([
+      ev({ id: 'cu', startYear: 2010, endYear: 2020, amountMinor: 500_000 }),
+    ])
+    expect(map.items).toHaveLength(0)
+  })
+})

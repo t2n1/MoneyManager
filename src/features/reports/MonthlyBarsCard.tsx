@@ -13,6 +13,7 @@ import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import { monthId, type MonthlySeries } from './aggregate'
+import { hasOpenPeriod, splitOpenSeries } from './openPeriod'
 import { savingsRate } from './insights'
 import { expenseTrend, savingsRateVerdict } from './verdicts'
 import { Card, SectionTitle } from '../../components/ui'
@@ -59,18 +60,30 @@ export function MonthlyBarsCard({
   currentKey = null,
   markedKeys,
 }: Props) {
-  const barData = series.points.map((p) => {
-    const r = savingsRate(p.income, p.expense)
-    return {
-      label: labelOf(p.key),
-      income: p.income,
-      expense: p.expense,
-      // Tháng chưa có thu → null, KHÔNG phải 0: `connectNulls={false}` để đường đứt đoạn
-      // ở đó thay vì cắm xuống 0% như thể tháng đó tiêu hết sạch thu nhập.
-      rate: r === null ? null : Math.round(r * 100),
-      marked: markedKeys?.has(monthId(p.key)) ?? false,
-    }
-  })
+  // Cột cuối có phải THÁNG ĐANG CHẠY DỞ không, và tách đường tỷ lệ để vẽ đoạn cuối
+  // bằng nét đứt. Cả hai ở openPeriod.ts (thuần, có phép thử) — ba chỗ dễ sai của phép
+  // tách nằm trong chú thích của `splitOpenSeries`.
+  const lastIdx = series.points.length - 1
+  const kyChuaTron = hasOpenPeriod(series.points, currentKey)
+  // Tháng chưa có thu → null, KHÔNG phải 0: `connectNulls={false}` để đường đứt đoạn ở
+  // đó thay vì cắm xuống 0% như thể tháng đó tiêu hết sạch thu nhập.
+  const rateSeries = splitOpenSeries(
+    series.points.map((p) => {
+      const r = savingsRate(p.income, p.expense)
+      return r === null ? null : Math.round(r * 100)
+    }),
+    kyChuaTron,
+  )
+
+  const barData = series.points.map((p, i) => ({
+    label: labelOf(p.key),
+    income: p.income,
+    expense: p.expense,
+    rate: rateSeries.solid[i],
+    rateOpen: rateSeries.open[i],
+    rateAll: rateSeries.all[i],
+    marked: markedKeys?.has(monthId(p.key)) ?? false,
+  }))
   const coThangChuyenDi = barData.some((d) => d.marked)
   const { data: profile } = useProfile()
   const savingsShare = savingsTargetShare(resolveMethod(profile))
@@ -130,7 +143,7 @@ export function MonthlyBarsCard({
             )}
             <Tooltip
               formatter={(v, name) =>
-                name === 'rate'
+                name === 'rate' || name === 'rateAll'
                   ? [`${Number(v)}%`, 'Giữ lại']
                   : [formatMoney(Number(v), base), name === 'income' ? 'Thu' : 'Chi']
               }
@@ -163,6 +176,73 @@ export function MonthlyBarsCard({
                 dot={{ r: 2.5, fill: RATE, stroke: RATE }}
                 connectNulls={false}
                 isAnimationActive={false}
+                // Khi có đoạn nét đứt thì hai chuỗi cùng có giá trị ở tháng giáp ranh,
+                // để mặc thì chú giải in "Giữ lại" hai lần cho một tháng. Việc chú giải
+                // giao hẳn cho chuỗi chuyên chở phía dưới.
+                tooltipType={kyChuaTron ? 'none' : undefined}
+              />
+            )}
+            {/* Đoạn của kỳ chưa trọn: cùng màu, NÉT ĐỨT + chấm rỗng. `tooltipType="none"`
+                vì ở điểm giáp ranh cả hai chuỗi đều có giá trị, để mặc thì bảng chú giải
+                in "Giữ lại" hai lần cho cùng một tháng. */}
+            {hasRate && kyChuaTron && (
+              <Line
+                yAxisId="rate"
+                type="monotone"
+                dataKey="rateOpen"
+                stroke={RATE}
+                strokeWidth={2}
+                strokeDasharray="4 3"
+                // Chấm RỖNG chỉ ở đúng tháng chưa trọn. Chuỗi này có giá trị ở CẢ tháng
+                // giáp ranh (cần hai đầu mới nối được đoạn), nên để `dot` là một object
+                // thì tháng đã trọn cũng bị đánh dấu rỗng — đọc ra "tháng 8 cũng chưa
+                // xong", sai hẳn. Vẽ <g/> rỗng thay vì null: Recharts đòi một phần tử.
+                dot={(props) => {
+                  const { cx, cy, index, key } = props as {
+                    cx?: number
+                    cy?: number
+                    index: number
+                    key?: string
+                  }
+                  const k = key ?? `d${index}`
+                  if (index !== lastIdx || cx == null || cy == null) return <g key={k} />
+                  return (
+                    <circle
+                      key={k}
+                      cx={cx}
+                      cy={cy}
+                      r={2.5}
+                      fill="var(--surface)"
+                      stroke={RATE}
+                      strokeWidth={2}
+                    />
+                  )
+                }}
+                connectNulls={false}
+                isAnimationActive={false}
+                tooltipType="none"
+                legendType="none"
+              />
+            )}
+            {/* Chuỗi CHUYÊN CHỞ chú giải: vô hình (strokeOpacity 0, không chấm), mang
+                bản ĐỦ của tỷ lệ. Vì sao cần: cắt `rate` ở tháng cuối để vẽ nét đứt cũng
+                cắt luôn dòng "Giữ lại" khỏi chú giải của đúng tháng người ta xem nhiều
+                nhất — đo được sau khi tách chuỗi, tooltip tháng 9 chỉ còn Chi và Thu.
+                Tô `stroke` thật (không phải "none") để ô màu trong chú giải vẫn đúng màu
+                đường nó gán nhãn. */}
+            {hasRate && kyChuaTron && (
+              <Line
+                yAxisId="rate"
+                type="monotone"
+                dataKey="rateAll"
+                stroke={RATE}
+                strokeOpacity={0}
+                strokeWidth={2}
+                dot={false}
+                activeDot={false}
+                connectNulls={false}
+                isAnimationActive={false}
+                legendType="none"
               />
             )}
           </ComposedChart>
@@ -170,9 +250,15 @@ export function MonthlyBarsCard({
       </div>
       {/* Chú giải cột mờ — KHÔNG bọc Guide: thiếu nó thì cột mờ đọc như lỗi vẽ, đây là
           nhãn dữ liệu chứ không phải chữ dạy. Chỉ hiện khi thật sự có tháng như vậy. */}
-      {coThangChuyenDi && (
+      {(coThangChuyenDi || kyChuaTron) && (
         <p className="mt-1 text-center text-2xs text-fg-muted">
-          Cột mờ = tháng có chuyến đi, không so được với tháng thường.
+          {coThangChuyenDi && 'Cột mờ = tháng có chuyến đi, không so được với tháng thường.'}
+          {coThangChuyenDi && kyChuaTron ? ' ' : null}
+          {kyChuaTron && (
+            <>
+              Cột cuối là <b>tháng chưa trọn</b> — số còn tăng tới cuối kỳ.
+            </>
+          )}
         </p>
       )}
       <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-fg-muted">

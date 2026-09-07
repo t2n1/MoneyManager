@@ -221,25 +221,56 @@ function UnbudgetedChip({
 function ProgressBar({
   ratio,
   status,
+  pace = null,
   className = '',
 }: {
   ratio: number
   status: BudgetStatus
+  /**
+   * Phần kỳ đã trôi (0–1) → vẽ vạch "đến hôm nay lẽ ra tới đây". `null` = không vẽ
+   * (kỳ đã xong hoặc chưa tới) — xem `periodPace`.
+   */
+  pace?: number | null
   className?: string
 }) {
   const pct = Math.round(ratio * 100)
+  const pacePct = pace === null ? null : Math.round(pace * 100)
   return (
-    <div
-      className={`h-2 overflow-hidden rounded-full bg-surface-sunken ${className}`.trim()}
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={pct}
-    >
+    // Bọc thêm một lớp KHÔNG cắt tràn: vạch cao hơn thanh và phải nhô ra hai đầu (xem
+    // ghi chú ở chính nó), mà `overflow-hidden` của thanh — thứ giữ cho phần tô bo tròn
+    // đúng — sẽ xén mất phần nhô ấy.
+    <div className={`relative ${className}`.trim()}>
       <div
-        className={`h-full rounded-full ${BAR_COLOR[status]}`}
-        style={{ width: `${Math.min(ratio * 100, 100)}%` }}
-      />
+        className="h-2 overflow-hidden rounded-full bg-surface-sunken"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-valuetext={
+          pacePct === null ? undefined : `${pct}% hạn mức, kỳ đã trôi ${pacePct}%`
+        }
+      >
+        <div
+          className={`h-full rounded-full ${BAR_COLOR[status]}`}
+          style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+        />
+      </div>
+      {pacePct !== null && (
+        // CAO HƠN thanh (12px so với 8px) và nhô ra hai đầu, thay vì một vạch nằm gọn
+        // bên trong: vạch nằm trong thì phải chọn một màu vừa nổi trên nền lún vừa nổi
+        // trên phần đã tô — mà phần đã tô đổi màu theo tình trạng (xanh/hổ phách/đỏ),
+        // nên không màu nào đạt 3:1 với cả bốn nền. Nhô ra ngoài thì nó luôn nằm trên
+        // nền thẻ, và chỉ cần đúng một màu.
+        //
+        // 1,5px và 12px là VẠCH/MỐC nên cố ý cứng bằng px: nó đo theo thanh (cũng cứng
+        // h-2), không đo theo chữ — phóng cỡ chữ mà vạch dày lên là mốc đổi hình.
+        <span
+          aria-hidden
+          title={`Đến hôm nay: ${pacePct}% kỳ đã trôi`}
+          className="pointer-events-none absolute top-1/2 h-[12px] w-[1.5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-primary"
+          style={{ left: `${Math.min(pacePct, 100)}%` }}
+        />
+      )}
     </div>
   )
 }
@@ -412,6 +443,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // Tháng đã qua thì paceDaysElapsed = cả tháng → bằng 1, nhịp rơi về đúng % đã dùng.
   const monthProgress =
     pace.paceDaysInMonth > 0 ? pace.paceDaysElapsed / pace.paceDaysInMonth : 1
+  // Cùng con số đó, nhưng CHỈ vẽ vạch ở kỳ đang chạy. Kỳ đã xong thì monthProgress = 1
+  // và vạch đứng ở mép phải mọi thanh: không nói thêm gì mà vẫn bắt mắt dừng lại ở từng
+  // dòng. Kỳ chưa tới thì nó ở mép trái, đọc như "hạn mức cạn từ đầu".
+  const paceMark = pace.isCurrentMonth ? monthProgress : null
   const sortedItems = sortBudgetItems(items, sortMode, monthProgress)
   const attention = pickAttention(items, monthProgress)
   // B38.1 · Dấu ở ĐẦU dòng cho mục thuộc `attention`, ở MỌI chế độ sắp xếp. Không thêm huy
@@ -722,7 +757,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 </span>
               )}
             </span>
-            <ProgressBar ratio={ratioOf(item)} status={status} className="w-12 shrink-0 sm:w-24" />
+            <ProgressBar
+              ratio={ratioOf(item)}
+              status={status}
+              pace={paceMark}
+              className="w-12 shrink-0 sm:w-24"
+            />
             <RestCell budgeted={budgeted} spent={spent} status={status} base={base} />
           </button>
         </div>
@@ -829,7 +869,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               Đã chi <b className="font-semibold text-fg-primary">{formatMoney(report.totalSpent, base)}</b>{' '}
               / {formatMoney(report.totalBudgeted, base)}
             </p>
-            <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
+            <ProgressBar
+              ratio={totalPct / 100}
+              status={report.totalStatus}
+              pace={paceMark}
+              className="mt-1"
+            />
             {/* Chia cho số ngày còn lại vì đó mới là thứ dùng được hôm nay; tháng đã qua
                 thì không chia (chẳng còn ngày nào để tiêu). Không nhắc lại con số "còn
                 lại" nữa — nó đã là số lớn nhất ngay trên đầu thẻ. */}
@@ -873,7 +918,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 / {formatMoney(report.totalBudgeted, base)}
               </span>
             </div>
-            <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
+            <ProgressBar
+              ratio={totalPct / 100}
+              status={report.totalStatus}
+              pace={paceMark}
+              className="mt-1"
+            />
           </>
         )}
         {/* Phán quyết đứng ngay đây, không ở thẻ biểu đồ. Con số lớn nhất màn ("còn ¥…")

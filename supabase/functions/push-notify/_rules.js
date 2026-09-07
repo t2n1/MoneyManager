@@ -1192,6 +1192,62 @@ function rhythmRules(input) {
   return out;
 }
 
+// src/features/lifetime/eventAmount.ts
+function eventHitsYear(e, year) {
+  if (year < e.startYear) return false;
+  if (e.endYear !== null && year > e.endYear) return false;
+  const n = e.repeatEveryYears;
+  if (n !== null && n > 1 && (year - e.startYear) % n !== 0) return false;
+  return true;
+}
+function eventYears(e) {
+  if (e.endYear === null) return null;
+  if (e.endYear < e.startYear) return [];
+  const n = e.repeatEveryYears !== null && e.repeatEveryYears > 1 ? e.repeatEveryYears : 1;
+  const out = [];
+  for (let y = e.startYear; y <= e.endYear; y += n) out.push(y);
+  return out;
+}
+function eventAmountInYear(e, year) {
+  if (!eventHitsYear(e, year)) return 0;
+  switch (e.amountShape) {
+    case "per_year":
+      return e.amountMinor;
+    case "growth": {
+      if (e.growthBps === 0) return e.amountMinor;
+      const g = e.growthBps / 1e4;
+      return Math.round(e.amountMinor * (1 + g) ** (year - e.startYear));
+    }
+    case "ramp": {
+      if (e.endAmountMinor === null || e.endYear === null || e.endYear <= e.startYear) {
+        return e.amountMinor;
+      }
+      const t = (year - e.startYear) / (e.endYear - e.startYear);
+      return Math.round(e.amountMinor + (e.endAmountMinor - e.amountMinor) * t);
+    }
+    case "total": {
+      const years = eventYears(e);
+      if (years === null || years.length === 0) return e.amountMinor;
+      const m = years.length;
+      if (m === 1) return e.amountMinor;
+      const k = years.indexOf(year);
+      if (k === -1) return 0;
+      return Math.floor((k + 1) * e.amountMinor / m) - Math.floor(k * e.amountMinor / m);
+    }
+  }
+}
+function shapeOf(e) {
+  return {
+    startYear: e.startYear,
+    endYear: e.endYear,
+    amountMinor: e.amountMinor,
+    amountShape: e.amountShape ?? "per_year",
+    endAmountMinor: e.endAmountMinor ?? null,
+    growthBps: e.growthBps ?? 0,
+    repeatEveryYears: e.repeatEveryYears ?? null
+  };
+}
+
 // src/features/lifetime/project.ts
 var STRESS_ILLNESS_EVENT_ID = "stress:illness";
 function hasStress(s) {
@@ -1270,8 +1326,10 @@ function projectLifetime(input) {
       if (e.enabled === false) continue;
       if (e.startYear > year) continue;
       if (e.endYear !== null && e.endYear < year) continue;
+      const rawMinor = eventAmountInYear(shapeOf(e), year);
+      if (rawMinor === 0) continue;
       const converted = convertLifetimeMinor(
-        e.amountMinor,
+        rawMinor,
         e.currency,
         displayCurrency,
         e.fxToDisplay
@@ -2125,7 +2183,12 @@ function buildLifetimeInput(args) {
     label: e.label,
     fxToDisplay: e.fx_to_display,
     inflate: e.inflate,
-    enabled: e.enabled ?? true
+    enabled: e.enabled ?? true,
+    amountShape: e.amount_shape ?? "per_year",
+    endAmountMinor: e.end_amount_minor ?? null,
+    growthBps: e.growth_bps ?? 0,
+    repeatEveryYears: e.repeat_every_years ?? null,
+    icon: e.icon ?? ""
   }));
   return {
     // Năm hiện tại suy từ `todayISO` chứ KHÔNG gọi `new Date()` ở đây: hook gọi hàm

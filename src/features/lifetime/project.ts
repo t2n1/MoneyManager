@@ -1,7 +1,10 @@
-// Engine Lifetime — THUẦN. MODULE LÁ: chỉ được import lib/currencies.
+// Engine Lifetime — THUẦN. Chỉ được import lib/currencies và các module engine THUẦN
+// khác của chính Lifetime (hiện: eventAmount.ts).
 // Không React, không localStorage, không Date.now(). Lý do: lifetimeRules.ts gọi
-// hàm này, và src/features/notifications/purity.test.ts canh điều kiện đó (mục J).
+// hàm này, và src/features/notifications/purity.test.ts canh điều kiện đó (mục J) —
+// phép thử đó đi theo ĐỒ THỊ import, nên mọi file thêm vào đây cũng bị soi cùng luật.
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
+import { eventAmountInYear, shapeOf, type AmountShape } from './eventAmount'
 
 /** Chặng đời: thu chi NỀN. Chặng sau bắt đầu thì chặng trước kết thúc. */
 export interface LifetimePhase {
@@ -15,7 +18,14 @@ export interface LifetimePhase {
   fxToDisplay: number
 }
 
-/** Sự kiện: số MỖI NĂM trong khoảng [startYear, endYear]. endYear null = hết đời. */
+/**
+ * Sự kiện: một khoản có năm bắt đầu và (tuỳ chọn) năm kết thúc.
+ *
+ * `amountMinor` KHÔNG còn tự nói được nó là gì — `amountShape` mới nói (migration 0066).
+ * Bốn trường hình dạng đều TUỲ CHỌN và mọi mặc định nằm ở `shapeOf()` trong
+ * `eventAmount.ts`, đúng một chỗ: mốc dựng ở nơi khác (bộ luật thông báo, dữ liệu demo
+ * cũ, test viết trước 0066) thiếu cả bốn vẫn phải chiếu ra y hệt trước.
+ */
 export interface LifetimeEvent {
   id: string
   startYear: number
@@ -33,6 +43,23 @@ export interface LifetimeEvent {
    */
   fxToDisplay: number
   inflate: boolean
+  /**
+   * Con số biến thiên thế nào dọc khoảng. Bỏ trống = 'per_year' (số này mỗi năm), là
+   * toàn bộ hành vi trước migration 0066. Xem `eventAmount.ts`.
+   */
+  amountShape?: AmountShape
+  /** Số của năm CUỐI — chỉ đọc khi `amountShape === 'ramp'`. */
+  endAmountMinor?: number | null
+  /** Mức nhân dồn mỗi năm, basis points — chỉ đọc khi `amountShape === 'growth'`. */
+  growthBps?: number
+  /** Mốc lặp mỗi bao nhiêu năm. Bỏ trống hoặc 1 = mọi năm trong khoảng. */
+  repeatEveryYears?: number | null
+  /**
+   * Tên icon trong bộ icon mốc (`eventIcons.tsx`). Chuỗi rỗng = dùng mũi tên lên/xuống
+   * theo Thu/Chi như trước. KHÔNG vào phép tính — engine mang nó theo để `fxModel` và
+   * bản nháp không làm mất nó.
+   */
+  icon?: string
   /**
    * false = TẮT TẠM (migration 0063): mốc vẫn còn nguyên số liệu nhưng không vào phép
    * chiếu. Bỏ trống = bật — mọi nơi dựng `LifetimeEvent` trước 0063 vẫn tính như cũ,
@@ -289,10 +316,16 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       if (e.enabled === false) continue
       if (e.startYear > year) continue
       if (e.endYear !== null && e.endYear < year) continue
+      // BAO NHIÊU trong đúng năm này — bốn hình dạng (mỗi năm / tổng cả khoảng / đổi
+      // dần / nhân dồn) và nhịp lặp đều nằm trong hàm thuần đó, không nằm ở đây.
+      // Trả 0 = năm này mốc không rơi vào (lệch nhịp lặp) → bỏ hẳn khỏi danh sách
+      // thay vì đẩy một dòng ¥0 vào tooltip.
+      const rawMinor = eventAmountInYear(shapeOf(e), year)
+      if (rawMinor === 0) continue
       // Mỗi khoản tiền tự mang tỷ giá của nó, nên ở đây KHÔNG còn ca đặc biệt nào:
       // cùng tiền hiển thị thì convertLifetimeMinor trả nguyên số và bỏ qua tỷ giá.
       const converted = convertLifetimeMinor(
-        e.amountMinor,
+        rawMinor,
         e.currency,
         displayCurrency,
         e.fxToDisplay,

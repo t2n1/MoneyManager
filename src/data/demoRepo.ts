@@ -1942,7 +1942,20 @@ export const demoRepo: Repo = {
       // `enabled ?? true` cùng lý do với `fx_to_display ?? 1` ngay trên: bản ghi cũ
       // trong localStorage không có cột này, mà `undefined` vào engine thì mốc bị coi
       // như đã tắt — tức là mọi mốc cũ lặng lẽ biến mất khỏi phép chiếu.
-      .map((e) => ({ ...e, fx_to_display: e.fx_to_display ?? 1, enabled: e.enabled ?? true }))
+      // Mặc định cho MỌI cột thêm sau: bản demo trong localStorage của người xem có
+      // thể cũ hơn migration mới nhất, và một `undefined` lọt vào engine sẽ đi qua
+      // `shapeOf()` (eventAmount.ts) — nhưng `amount_shape` undefined thì `switch`
+      // không khớp nhánh nào và mốc trả về undefined thay vì số. Vá ở cửa đọc.
+      .map((e) => ({
+        ...e,
+        fx_to_display: e.fx_to_display ?? 1,
+        enabled: e.enabled ?? true,
+        amount_shape: e.amount_shape ?? 'per_year',
+        end_amount_minor: e.end_amount_minor ?? null,
+        growth_bps: e.growth_bps ?? 0,
+        repeat_every_years: e.repeat_every_years ?? null,
+        icon: e.icon ?? '',
+      }))
       .sort((a, b) => a.start_year - b.start_year)
   },
 
@@ -1963,6 +1976,13 @@ export const demoRepo: Repo = {
       fx_to_display: input.fx_to_display,
       inflate: input.inflate,
       enabled: input.enabled ?? true,
+      // Mặc định KHỚP `default` của migration 0066 — bản demo phải cho ra cùng con số
+      // với bản thật khi người dùng không chạm vào bốn ô hình dạng.
+      amount_shape: input.amount_shape ?? 'per_year',
+      end_amount_minor: input.end_amount_minor ?? null,
+      growth_bps: input.growth_bps ?? 0,
+      repeat_every_years: input.repeat_every_years ?? null,
+      icon: input.icon ?? '',
       created_at: nowISO(),
     }
     db.lifeEvents.push(row)

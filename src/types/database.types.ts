@@ -771,6 +771,21 @@ export type LifeEventRow = {
    * true (migration 0063) — dữ liệu cũ không có cột này vẫn tính như trước.
    */
   enabled: boolean
+  /**
+   * Con số biến thiên thế nào dọc khoảng (migration 0066): 'per_year' = số này mỗi năm
+   * (mặc định, hành vi trước 0066) | 'total' = TỔNG cả khoảng, chia đều theo lần rơi |
+   * 'ramp' = đổi dần tới `end_amount_minor` | 'growth' = nhân dồn `growth_bps`/năm.
+   * Luật đầy đủ ở src/features/lifetime/eventAmount.ts.
+   */
+  amount_shape: 'per_year' | 'total' | 'ramp' | 'growth'
+  /** Số của năm CUỐI, minor units theo `currency`. Chỉ có nghĩa với 'ramp'. */
+  end_amount_minor: number | null
+  /** Nhân dồn mỗi năm, basis points. Âm được. Chỉ có nghĩa với 'growth'. */
+  growth_bps: number
+  /** Lặp mỗi bao nhiêu năm, tính từ `start_year`. null hoặc 1 = mọi năm. */
+  repeat_every_years: number | null
+  /** Khoá icon trong src/features/lifetime/eventIcons.tsx. '' = mũi tên theo `kind`. */
+  icon: string
   created_at: string
 }
 
@@ -1436,7 +1451,17 @@ export type Database = {
         Insert: InsertOf<
           LifeEventRow,
           'user_id' | 'scenario_id' | 'start_year' | 'kind' | 'amount_minor' | 'currency' | 'label',
-          'id' | 'end_year' | 'note' | 'fx_to_display' | 'inflate' | 'enabled'
+          | 'id'
+          | 'end_year'
+          | 'note'
+          | 'fx_to_display'
+          | 'inflate'
+          | 'enabled'
+          | 'amount_shape'
+          | 'end_amount_minor'
+          | 'growth_bps'
+          | 'repeat_every_years'
+          | 'icon'
         >
         Update: Partial<
           Pick<
@@ -1451,6 +1476,11 @@ export type Database = {
             | 'fx_to_display'
             | 'inflate'
             | 'enabled'
+            | 'amount_shape'
+            | 'end_amount_minor'
+            | 'growth_bps'
+            | 'repeat_every_years'
+            | 'icon'
           >
         >
         Relationships: []

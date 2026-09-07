@@ -103,6 +103,11 @@ export function buildLifetimeInput(args: BuildLifetimeInputArgs): LifetimeInput 
       fxToDisplay: e.fx_to_display,
       inflate: e.inflate,
       enabled: e.enabled ?? true,
+      amountShape: e.amount_shape ?? 'per_year',
+      endAmountMinor: e.end_amount_minor ?? null,
+      growthBps: e.growth_bps ?? 0,
+      repeatEveryYears: e.repeat_every_years ?? null,
+      icon: e.icon ?? '',
     }))
 
   return {

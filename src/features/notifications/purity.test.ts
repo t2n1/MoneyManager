@@ -66,7 +66,12 @@ const ENTRY_POINTS = [
  * đã chiếu. Cả hai phải cho ra cùng một kết quả với cùng input, dù chạy lúc nào — và
  * lifetimeRules.ts sẽ gọi chúng từ Edge Function, nơi không có "hôm nay" của trình duyệt.
  *
- * CỐ Ý liệt kê ĐÚNG HAI FILE chứ không quét cả `features/lifetime/`: Task 7 sẽ tạo
+ * `eventAmount.ts` (migration 0066) là file thứ ba: bốn hình dạng của một mốc — mỗi
+ * năm / tổng cả khoảng / đổi dần / nhân dồn — và nhịp lặp. `project.ts` import nó, nên
+ * `walk()` đã phủ; tên nó có ở đây để phép quét thẳng cũng soi, đúng như dòng cuối
+ * đoạn này yêu cầu.
+ *
+ * CỐ Ý liệt kê ĐÚNG BA FILE chứ không quét cả `features/lifetime/`: Task 7 sẽ tạo
  * `useLifetime.ts` và file đó PHẢI gọi `new Date().getFullYear()` — đọc đồng hồ đúng
  * một lần ở tầng UI rồi truyền xuống engine là thiết kế đã chốt, không phải chỗ hở.
  * Quét cả thư mục là biến thiết kế đúng thành test đỏ, rồi người làm Task 7 sẽ chữa
@@ -83,7 +88,7 @@ const ENTRY_POINTS = [
  * bẫy — xem `ENGINE_FILES_SCANNED` ngay dưới.
  */
 const ENGINE_FILE_PATTERN =
-  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights)\.ts|mcp\/(format|basket)\.ts|mcp\/tools\/[^/]+\.ts)$/
+  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights|eventAmount)\.ts|mcp\/(format|basket)\.ts|mcp\/tools\/[^/]+\.ts)$/
 
 /** '…/accountRules.test.ts' → true. Cả .ts và .tsx. */
 const isTestFile = (file: string) => /\.test\.tsx?$/.test(file)

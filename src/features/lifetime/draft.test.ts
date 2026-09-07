@@ -55,6 +55,11 @@ const eventRow = (over: Partial<LifeEventRow> & Pick<LifeEventRow, 'id' | 'start
   scenario_id: 'sc1',
   end_year: null,
   kind: 'expense',
+  amount_shape: 'per_year',
+  end_amount_minor: null,
+  growth_bps: 0,
+  repeat_every_years: null,
+  icon: '',
   amount_minor: 2_500_000,
   currency: 'JPY',
   label: 'Cưới',
@@ -288,6 +293,11 @@ describe('planDraftSave', () => {
         endYear: 2034,
         kind: 'expense',
         enabled: true,
+        amountShape: 'per_year',
+        endAmountMinor: null,
+        growthBps: 0,
+        repeatEveryYears: null,
+        icon: '',
         amountMinor: 12_000_000,
         currency: 'JPY',
         label: 'Mua nhà',
@@ -310,6 +320,11 @@ describe('planDraftSave', () => {
         fx_to_display: 1,
         inflate: true,
         enabled: true,
+        amount_shape: 'per_year',
+        end_amount_minor: null,
+        growth_bps: 0,
+        repeat_every_years: null,
+        icon: '',
       },
     ])
     expect(plan.eventDeletes).toEqual([])
@@ -327,7 +342,8 @@ describe('planDraftSave', () => {
       x.events.push({
         id: `${NEW_ID_PREFIX}9`, startYear: 2034, endYear: 2034, kind: 'expense',
         amountMinor: 1, currency: 'JPY', label: 'Tạm', note: '', fxToDisplay: 1, inflate: true,
-        enabled: true,
+        enabled: true, amountShape: 'per_year', endAmountMinor: null, growthBps: 0,
+        repeatEveryYears: null, icon: '',
       })
     })
     const d = edit(() => {})
@@ -400,9 +416,20 @@ describe('applyPreset', () => {
     const plan = planDraftSave(base(), applyPreset(base(), ketQuaMau, 1))
     expect(plan.phasePatches).toEqual([])
     expect(plan.phaseInserts).toEqual([ketQuaMau.phases[0]])
-    // `enabled: true` là của migration 0063: mốc lấy từ thư viện mẫu luôn ở trạng thái
-    // BẬT, không thừa hưởng cờ nào từ bản mẫu (bản mẫu không có khái niệm tắt).
-    expect(plan.eventInserts).toEqual([{ ...ketQuaMau.events[0], enabled: true }])
+    // `enabled: true` là của migration 0063, và năm trường hình dạng là của 0066: mốc
+    // lấy từ thư viện mẫu luôn ở trạng thái BẬT và ở hình 'per_year', không thừa hưởng
+    // cờ nào từ bản mẫu (bản mẫu không có khái niệm tắt, cũng không có hình dạng).
+    expect(plan.eventInserts).toEqual([
+      {
+        ...ketQuaMau.events[0],
+        enabled: true,
+        amount_shape: 'per_year',
+        end_amount_minor: null,
+        growth_bps: 0,
+        repeat_every_years: null,
+        icon: '',
+      },
+    ])
   })
 
   it('tóm tắt đếm được chặng vừa thêm', () => {

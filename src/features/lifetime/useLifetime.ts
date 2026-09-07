@@ -148,6 +148,11 @@ export function useLifetime() {
             label: e.label,
             fxToDisplay: e.fx_to_display,
             inflate: e.inflate,
+            amountShape: e.amount_shape ?? 'per_year',
+            endAmountMinor: e.end_amount_minor ?? null,
+            growthBps: e.growth_bps ?? 0,
+            repeatEveryYears: e.repeat_every_years ?? null,
+            icon: e.icon ?? '',
           }),
         )
       // Tiền nằm trên CHẶNG, mốc suy từ chặng, tỷ giá lấy hôm nay — xem `fxModel.ts`.

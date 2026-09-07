@@ -114,6 +114,14 @@ export function normalizeToPhaseCurrency(
     return {
       ...e,
       amountMinor: convertLifetimeMinor(e.amountMinor, e.currency, target, toTarget),
+      // `endAmountMinor` là MỘT SỐ TIỀN nữa của cùng dòng (hình 'ramp', migration
+      // 0066) — quên quy đổi nó thì đổi tiền hiển thị làm đoạn nội suy chạy từ số đã
+      // đổi tới số CHƯA đổi: một mốc "từ ¥1M tới ¥5M" thành "từ ₫165tr tới ₫5tr", và
+      // bản chiếu đi xuống trong khi lẽ ra đi lên.
+      endAmountMinor:
+        e.endAmountMinor == null
+          ? e.endAmountMinor
+          : convertLifetimeMinor(e.endAmountMinor, e.currency, target, toTarget),
       currency: target,
       fxToDisplay: targetFx,
     }

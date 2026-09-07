@@ -567,6 +567,19 @@ export interface NewLifeEvent {
   inflate: boolean
   /** false = tắt tạm, không vào phép chiếu (migration 0063). Bỏ trống = true. */
   enabled?: boolean
+  /**
+   * Hình dạng con số dọc khoảng (migration 0066). Bỏ trống = 'per_year', tức đúng
+   * hành vi trước 0066 — mọi chỗ dựng mốc cũ không phải sửa gì.
+   */
+  amount_shape?: 'per_year' | 'total' | 'ramp' | 'growth'
+  /** Số của năm CUỐI — chỉ có nghĩa với 'ramp'. Bỏ trống = null. */
+  end_amount_minor?: number | null
+  /** Nhân dồn mỗi năm, bps — chỉ có nghĩa với 'growth'. Bỏ trống = 0. */
+  growth_bps?: number
+  /** Lặp mỗi bao nhiêu năm. Bỏ trống hoặc 1 = mọi năm trong khoảng. */
+  repeat_every_years?: number | null
+  /** Khoá icon (eventIcons.tsx). Bỏ trống = mũi tên theo `kind`. */
+  icon?: string
 }
 
 export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>

@@ -54,6 +54,11 @@ function event(over: Partial<LifeEventRow> = {}): LifeEventRow {
     fx_to_display: 1,
     inflate: false,
     enabled: true,
+    amount_shape: 'per_year',
+    end_amount_minor: null,
+    growth_bps: 0,
+    repeat_every_years: null,
+    icon: '',
     created_at: '2026-01-01T00:00:00Z',
     ...over,
   }
@@ -284,6 +289,11 @@ describe('buildLifetimeInput — ánh xạ trường', () => {
           fxToDisplay: 0.0067,
           inflate: true,
           enabled: true,
+          amountShape: 'per_year',
+          endAmountMinor: null,
+          growthBps: 0,
+          repeatEveryYears: null,
+          icon: '',
         },
       ],
     })

@@ -25,6 +25,7 @@ import type {
 } from '../../data/repo'
 import type { CurrencyCode } from '../../lib/currencies'
 import type { LifeEventRow, LifePhaseRow, LifeScenarioRow } from '../../types/database.types'
+import type { AmountShape } from './eventAmount'
 import type { PresetResult } from './presets'
 import type { LifetimeEvent, LifetimeInput, LifetimePhase } from './project'
 
@@ -60,6 +61,15 @@ export interface DraftEvent extends LifetimeEvent {
    * dịch chỉ ra mọi chỗ dựng, không phải đi dò lúc chạy.
    */
   enabled: boolean
+  /**
+   * Năm trường của migration 0066 — BẮT BUỘC ở đây, cùng lý do với `enabled` ngay trên
+   * (`sameEvent` so bằng `===`, một chỗ dựng mà quên thì nút Lưu không bao giờ tắt).
+   */
+  amountShape: AmountShape
+  endAmountMinor: number | null
+  growthBps: number
+  repeatEveryYears: number | null
+  icon: string
 }
 
 /**
@@ -134,6 +144,11 @@ export function draftFromRows(
         fxToDisplay: e.fx_to_display,
         inflate: e.inflate,
         enabled: e.enabled ?? true,
+        amountShape: e.amount_shape ?? 'per_year',
+        endAmountMinor: e.end_amount_minor ?? null,
+        growthBps: e.growth_bps ?? 0,
+        repeatEveryYears: e.repeat_every_years ?? null,
+        icon: e.icon ?? '',
       }))
       .sort((a, b) => a.startYear - b.startYear),
   }
@@ -178,6 +193,11 @@ export function draftToInput(base: LifetimeInput, draft: ScenarioDraft): Lifetim
         fxToDisplay: e.fxToDisplay,
         inflate: e.inflate,
         enabled: e.enabled,
+        amountShape: e.amountShape,
+        endAmountMinor: e.endAmountMinor,
+        growthBps: e.growthBps,
+        repeatEveryYears: e.repeatEveryYears,
+        icon: e.icon,
       }),
     ),
   }
@@ -361,7 +381,14 @@ function sameEvent(a: DraftEvent, b: DraftEvent): boolean {
     a.inflate === b.inflate &&
     // Cùng lớp lỗi với `note` ở trên: tắt một mốc là một thay đổi CÓ THẬT, bỏ ra ngoài
     // phép so thì `dirty` false và nút "Lưu thay đổi" tắt ngóm.
-    a.enabled === b.enabled
+    a.enabled === b.enabled &&
+    // Năm trường của 0066, cùng một lý do lần nữa: đổi hình dạng con số là đổi CẢ bản
+    // chiếu, mà bỏ ra ngoài phép so thì đồ thị đã vẽ số mới trong khi nút Lưu đã tắt.
+    a.amountShape === b.amountShape &&
+    a.endAmountMinor === b.endAmountMinor &&
+    a.growthBps === b.growthBps &&
+    a.repeatEveryYears === b.repeatEveryYears &&
+    a.icon === b.icon
   )
 }
 
@@ -468,6 +495,11 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         fx_to_display: d.fxToDisplay,
         inflate: d.inflate,
         enabled: d.enabled,
+        amount_shape: d.amountShape,
+        end_amount_minor: d.endAmountMinor,
+        growth_bps: d.growthBps,
+        repeat_every_years: d.repeatEveryYears,
+        icon: d.icon,
       })
       continue
     }
@@ -566,6 +598,11 @@ export function applyPreset(
           fxToDisplay: e.fx_to_display,
           inflate: e.inflate,
           enabled: true,
+          amountShape: e.amount_shape ?? 'per_year',
+          endAmountMinor: e.end_amount_minor ?? null,
+          growthBps: e.growth_bps ?? 0,
+          repeatEveryYears: e.repeat_every_years ?? null,
+          icon: e.icon ?? '',
         }),
       ),
     ].sort((a, b) => a.startYear - b.startYear),
@@ -749,6 +786,11 @@ export function draftRowsFor(
       fx_to_display: e.fxToDisplay,
       inflate: e.inflate,
       enabled: e.enabled,
+      amount_shape: e.amountShape,
+      end_amount_minor: e.endAmountMinor,
+      growth_bps: e.growthBps,
+      repeat_every_years: e.repeatEveryYears,
+      icon: e.icon,
     })),
   }
 }

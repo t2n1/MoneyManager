@@ -43,7 +43,7 @@ import {
   type ScenarioDraft,
 } from './draft'
 import { changeParts } from './draftText'
-import { eventSpan } from './eventSpan'
+import { eventSpanNote, shapeOf } from './eventAmount'
 import { duplicateScenario } from './duplicate'
 import { EventFormSheet } from './EventFormSheet'
 import { convertMinorToday, currencyAt, type FxOf } from './fxModel'
@@ -1146,28 +1146,74 @@ export function ScenarioWorkbench({
                       </div>
                     </div>
                   </div>
-                    {/* Số tiền của mốc là số MỖI NĂM. Kéo hai năm là trừ hai lần — hàng
-                        trên không nói ra nên "Chi phí cưới 2029 → 2030 · ¥3,000,000" đọc
-                        như cưới tốn 3M trong khi bản chiếu trừ 6M (2026-09-02). */}
+                    {/* "¥3.000.000" một mình KHÔNG nói được nó là số mỗi năm, tổng cả
+                        khoảng, hay điểm đầu của một đoạn dốc — mà bốn hình dạng của
+                        migration 0066 làm cả bốn nghĩa đó đều có thật. Câu dưới đây đọc
+                        ra nghĩa đang dùng. Hồi chỉ có một hình, đúng chỗ này đã để người
+                        dùng đọc "cưới 2029→2030 · ¥3.000.000" thành 3M trong khi bản
+                        chiếu trừ 6M (bắt được 2026-09-02). */}
                     {(() => {
-                      const span = eventSpan(ev.startYear, ev.endYear, ev.amountMinor)
-                      if (span === null) return null
+                      const note = eventSpanNote(shapeOf(ev))
+                      if (note === null) return null
+                      const tone = ev.kind === 'income' ? 'in' : 'out'
+                      const tien = (amount: number) => (
+                        <Money
+                          amount={amount}
+                          currency={evCur}
+                          tone={tone}
+                          className="font-semibold"
+                        />
+                      )
+                      const nhip =
+                        note.repeatEveryYears === null ? null : (
+                          <>
+                            {' '}Lặp mỗi <Num tone="muted">{note.repeatEveryYears}</Num> năm
+                            {note.hits !== null && (
+                              <>
+                                , <Num tone="muted">{note.hits}</Num> lần
+                              </>
+                            )}
+                            .
+                          </>
+                        )
                       return (
                         <p className="text-2xs text-fg-muted">
-                          {span.kind === 'open' ? (
-                            'Số mỗi năm, chạy tới hết đời.'
+                          {note.years === null ? (
+                            note.shape === 'growth' && note.growthBps !== 0 ? (
+                              <>
+                                Bắt đầu {tien(note.firstMinor)}, nhân dồn{' '}
+                                <Num tone="muted">{note.growthBps / 100}</Num>%/năm tới hết đời.
+                              </>
+                            ) : (
+                              'Số mỗi năm, chạy tới hết đời.'
+                            )
+                          ) : note.shape === 'total' ? (
+                            <>
+                              Tổng cả khoảng {tien(note.totalMinor ?? 0)}, chia đều{' '}
+                              <Num tone="muted">{note.hits ?? 0}</Num> lần →{' '}
+                              {tien(note.firstMinor)} mỗi lần.
+                            </>
+                          ) : note.shape === 'ramp' ? (
+                            <>
+                              Đổi dần {tien(note.firstMinor)} → {tien(note.lastMinor ?? 0)} qua{' '}
+                              <Num tone="muted">{note.years}</Num> năm ={' '}
+                              {tien(note.totalMinor ?? 0)} cả khoảng.
+                            </>
+                          ) : note.shape === 'growth' ? (
+                            <>
+                              Từ {tien(note.firstMinor)}, nhân dồn{' '}
+                              <Num tone="muted">{note.growthBps / 100}</Num>%/năm tới{' '}
+                              {tien(note.lastMinor ?? 0)} ={' '}
+                              {tien(note.totalMinor ?? 0)} cả khoảng.
+                            </>
                           ) : (
                             <>
-                              Số mỗi năm × <Num tone="muted">{span.years}</Num> năm ={' '}
-                              <Money
-                                amount={span.totalMinor}
-                                currency={evCur}
-                                tone={ev.kind === 'income' ? 'in' : 'out'}
-                                className="font-semibold"
-                              />{' '}
-                              cả khoảng.
+                              Số mỗi năm × <Num tone="muted">{note.hits ?? 0}</Num>{' '}
+                              {note.repeatEveryYears === null ? 'năm' : 'lần'} ={' '}
+                              {tien(note.totalMinor ?? 0)} cả khoảng.
                             </>
                           )}
+                          {nhip}
                         </p>
                       )
                     })()}

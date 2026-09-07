@@ -219,7 +219,14 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
   // ---------------------------------------------------------------- khối 01
   const tiers = useMemo(
-    () => outflowTiers(sums.income, chiCoPhanChuaGhi, sums.transfer, breakdown.slices.length),
+    () =>
+      outflowTiers(
+        sums.income,
+        chiCoPhanChuaGhi,
+        sums.transfer,
+        breakdown.slices.length,
+        sums.expense,
+      ),
     [sums, chiCoPhanChuaGhi, breakdown.slices.length],
   )
   const income = useMemo(

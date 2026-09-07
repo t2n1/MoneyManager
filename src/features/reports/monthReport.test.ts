@@ -59,6 +59,21 @@ describe('outflowTiers', () => {
   it('tầng chuyển tài sản luôn nói ra nó không phải chi tiêu', () => {
     expect(outflowTiers(100, 50, 10, 1)[1].note).toContain('không phải chi tiêu')
   })
+
+  it('CHI 0 mà vẫn có danh mục thì nói vì sao, không đọc "¥0 · 6 danh mục"', () => {
+    // Ca thật 07/09/2026: tongChiCoPhanChuaGhi kẹp ở 0 vì sổ ghi thừa nhiều hơn phần chi
+    // đã ghi. Sáu danh mục có thật, số 0 có thật — đặt cạnh nhau mà không giải thích mới sai.
+    expect(outflowTiers(289_181, 0, 0, 6, 89_730)[0].note).toBe('đã trừ hết vì ghi thừa')
+  })
+
+  it('CHI 0 vì thật sự không tiêu gì thì IM — không có gì để giải thích', () => {
+    expect(outflowTiers(289_181, 0, 0, 0, 0)[0].note).toBe('')
+  })
+
+  it('bỏ trống chiDaGhi thì giữ nguyên nếp cũ', () => {
+    expect(outflowTiers(100_000, 50_000, 0, 4)[0].note).toBe('4 danh mục')
+    expect(outflowTiers(100_000, 0, 0, 0)[0].note).toBe('')
+  })
 })
 
 describe('spendShape', () => {

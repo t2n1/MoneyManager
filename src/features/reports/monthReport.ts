@@ -35,12 +35,20 @@ export interface OutflowTier {
  *
  * `kept` có thể ÂM (chi vượt thu) — không kẹp về 0, vì đó là chuyện thật và kẹp lại là
  * xoá đúng cái tin cần biết.
+ *
+ * `chiDaGhi` là tổng chi TRƯỚC khi cộng phần đối chiếu. Bỏ trống = bằng `expense`, tức
+ * "không có thông tin nào khác". Nó chỉ dùng cho một việc: giữ cho ghi chú sau nhãn khỏi
+ * tự mâu thuẫn. `expense` đưa vào đây là `tongChiCoPhanChuaGhi`, mà hàm đó kẹp ở 0 khi sổ
+ * ghi thừa nhiều hơn cả phần chi đã ghi — lúc ấy thẻ đọc ra "Chi tiêu ¥0 · 6 danh mục",
+ * một câu tự cãi chính nó (đo trên sổ thật 07/09/2026). Sáu danh mục kia có thật, và số 0
+ * cũng có thật; thứ sai là đặt chúng cạnh nhau mà không nói vì sao.
  */
 export function outflowTiers(
   income: number,
   expense: number,
   transfer: number,
   categoryCount: number,
+  chiDaGhi: number = expense,
 ): OutflowTier[] {
   const kept = income - expense - transfer
   const pct = (v: number) => (income > 0 ? Math.round((v / income) * 100) : null)
@@ -48,7 +56,16 @@ export function outflowTiers(
     {
       key: 'expense',
       label: 'Chi tiêu',
-      note: categoryCount > 0 ? `${categoryCount} danh mục` : '',
+      // Ba trạng thái, không phải hai. Số 0 do bị trừ hết KHÁC số 0 do không tiêu gì —
+      // và chỉ ca thứ nhất mới cần một lời giải thích.
+      note:
+        expense > 0
+          ? categoryCount > 0
+            ? `${categoryCount} danh mục`
+            : ''
+          : chiDaGhi > 0
+            ? 'đã trừ hết vì ghi thừa'
+            : '',
       amount: expense,
       pct: pct(expense),
     },

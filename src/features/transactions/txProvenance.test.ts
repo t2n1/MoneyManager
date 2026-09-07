@@ -89,8 +89,8 @@ describe('txProvenance — từ đâu ra', () => {
   })
 })
 
-describe('txProvenance — ghi muộn bao lâu', () => {
-  it('ghi trong ngày = 0', () => {
+describe('txProvenance — vào sổ muộn bao lâu', () => {
+  it('vào sổ trong ngày = 0', () => {
     expect(txProvenance(tx()).lateDays).toBe(0)
   })
 
@@ -122,14 +122,22 @@ describe('provenanceLine', () => {
     )
   })
 
-  it('ghi muộn thì chèn thêm khoảng cách', () => {
+  it('vào sổ muộn thì chèn thêm khoảng cách', () => {
     const t = tx({ occurred_on: '2026-08-29' })
     expect(provenanceLine(txProvenance(t))).toBe(
-      'Ghi lúc 2026/09/07 14:32 · sau 9 ngày · chưa sửa lần nào',
+      'Ghi lúc 2026/09/07 14:32 · vào sổ sau 9 ngày · chưa sửa lần nào',
     )
   })
 
-  it('muộn ĐÚNG MỘT ngày thì im — ghi hôm sau là chuyện thường', () => {
+  it('nói "VÀO SỔ sau", không nói "ghi muộn" — nhập từ sao kê không để lại dấu nào', () => {
+    // Sổ thật 09/2026: tháng 6 trễ trung bình 54 ngày vì nhập sao kê thẻ, không phải quên.
+    const t = tx({ occurred_on: '2026-07-15' })
+    const line = provenanceLine(txProvenance(t))
+    expect(line).toContain('vào sổ sau 54 ngày')
+    expect(line).not.toContain('muộn')
+  })
+
+  it('muộn ĐÚNG MỘT ngày thì im — vào sổ hôm sau là chuyện thường', () => {
     const t = tx({ occurred_on: '2026-09-06' })
     expect(provenanceLine(txProvenance(t))).not.toContain('ngày')
   })
@@ -141,11 +149,11 @@ describe('provenanceLine', () => {
     )
   })
 
-  it('dòng MÁY SINH không bao giờ nói "sau N ngày" — đó là lúc bù kỳ, không phải quên ghi', () => {
+  it('dòng MÁY SINH không bao giờ nói "vào sổ sau N ngày" — đó là lúc bù kỳ', () => {
     // Ca thật trong dữ liệu demo: lượt bù kỳ sinh một kỳ lương của 2024 vào hôm nay.
     const t = tx({ recurring_rule_id: 'r1', occurred_on: '2024-09-25' })
     expect(txProvenance(t).lateDays).toBeGreaterThan(700)
-    expect(provenanceLine(txProvenance(t))).not.toContain('sau')
+    expect(provenanceLine(txProvenance(t))).not.toContain('vào sổ sau')
   })
 
   it('khoản từ lệnh cổ phiếu', () => {

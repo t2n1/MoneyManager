@@ -12,9 +12,10 @@
 // trả được trọn bằng ba thứ DB đã có từ migration 0001: `created_at`, `updated_at`
 // (trigger moddatetime), và `recurring_rule_id` / `stock_trade_id`.
 //
-// THÊM MỘT SỐ KHÔNG CÓ Ở ĐÂU KHÁC: khoảng cách giữa NGÀY XẢY RA và LÚC GHI. Một khoản
-// ghi lại sau chín ngày là ghi theo trí nhớ — nó vẫn vào tổng như mọi khoản khác, nhưng
-// người đối chiếu nên biết để mà nghi nó trước.
+// THÊM MỘT SỐ KHÔNG CÓ Ở ĐÂU KHÁC: khoảng cách giữa NGÀY XẢY RA và LÚC VÀO SỔ. Một khoản
+// vào sổ sau chín ngày thì không được chụp lại lúc nó xảy ra — nó vẫn vào tổng như mọi
+// khoản khác, nhưng người đối chiếu nên biết. Cố ý KHÔNG gọi là "ghi muộn": xem lý do ở
+// provenanceLine.
 
 import { daysBetween, toISODate } from '../../lib/dates'
 import type { TransactionRow } from '../../types/database.types'
@@ -42,7 +43,7 @@ export interface TxProvenance {
  */
 export const EDIT_TOLERANCE_MS = 2_000
 
-/** Ngưỡng gọi là "ghi muộn". Ghi hôm sau là chuyện thường; từ hai ngày mới đáng nói. */
+/** Ngưỡng đáng nói. Vào sổ hôm sau là chuyện thường; từ hai ngày mới đáng nhắc. */
 export const LATE_DAY_THRESHOLD = 2
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -92,11 +93,19 @@ export function provenanceLine(p: TxProvenance): string {
         ? `Lệnh cổ phiếu sinh lúc ${p.createdStamp}`
         : `Ghi lúc ${p.createdStamp}`,
   )
-  // "Ghi muộn" CHỈ có nghĩa với dòng nhập tay. Máy sinh ra dòng thì khoảng cách này là
-  // lúc engine bù kỳ chạy, không phải lúc người dùng nhớ ra — một khoản lương của 2024
-  // do lượt bù kỳ sinh hôm nay sẽ đọc ra "sau 710 ngày", đúng kiểu số thật mà vô nghĩa.
+  // Khoảng cách này CHỈ nói với dòng do người ghi. Máy sinh ra dòng thì nó là lúc engine
+  // bù kỳ chạy, không phải lúc người dùng nhớ ra — một khoản lương của 2024 do lượt bù kỳ
+  // sinh hôm nay sẽ đọc ra "sau 710 ngày", đúng kiểu số thật mà vô nghĩa.
+  //
+  // CHỮ "VÀO SỔ", KHÔNG PHẢI "GHI MUỘN". Nhập từ sao kê CSV đi qua đúng đường
+  // `createTransaction` như nhập tay và KHÔNG để lại dấu nào (ImportCsvPage không gắn cờ
+  // nguồn), nên hai thứ không phân biệt được từ một dòng lẻ. Đo trên sổ thật 09/2026:
+  // trễ trung bình 54 ngày ở tháng 6 và 32 ngày ở tháng 7 — đó là lượt nhập sao kê thẻ,
+  // không phải quên ghi. Nói "ghi muộn" ở đó là vu cho người dùng một tội họ không có;
+  // nói "vào sổ sau N ngày" là đúng sự thật với cả hai đường, và người ghi tự biết tháng
+  // nào mình nhập từ file.
   if (p.origin === 'nhap-tay' && p.lateDays >= LATE_DAY_THRESHOLD)
-    phan.push(`sau ${p.lateDays} ngày`)
+    phan.push(`vào sổ sau ${p.lateDays} ngày`)
   phan.push(p.editedStamp === null ? 'chưa sửa lần nào' : `sửa lúc ${p.editedStamp}`)
   return phan.join(' · ')
 }

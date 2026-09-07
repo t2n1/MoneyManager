@@ -554,6 +554,8 @@ export interface NewLifeEvent {
   /** 1 đơn vị `currency` của sự kiện = bao nhiêu đơn vị display, theo MAJOR units. */
   fx_to_display: number
   inflate: boolean
+  /** false = tắt tạm, không vào phép chiếu (migration 0063). Bỏ trống = true. */
+  enabled?: boolean
 }
 
 export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>

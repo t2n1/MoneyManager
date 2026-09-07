@@ -739,6 +739,11 @@ export type LifeEventRow = {
    */
   fx_to_display: number
   inflate: boolean
+  /**
+   * false = TẮT TẠM: mốc vẫn giữ nguyên số liệu nhưng không vào phép chiếu. Mặc định
+   * true (migration 0063) — dữ liệu cũ không có cột này vẫn tính như trước.
+   */
+  enabled: boolean
   created_at: string
 }
 
@@ -1398,7 +1403,7 @@ export type Database = {
         Insert: InsertOf<
           LifeEventRow,
           'user_id' | 'scenario_id' | 'start_year' | 'kind' | 'amount_minor' | 'currency' | 'label',
-          'id' | 'end_year' | 'note' | 'fx_to_display' | 'inflate'
+          'id' | 'end_year' | 'note' | 'fx_to_display' | 'inflate' | 'enabled'
         >
         Update: Partial<
           Pick<
@@ -1412,6 +1417,7 @@ export type Database = {
             | 'note'
             | 'fx_to_display'
             | 'inflate'
+            | 'enabled'
           >
         >
         Relationships: []

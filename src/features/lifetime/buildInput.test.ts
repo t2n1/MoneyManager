@@ -53,6 +53,7 @@ function event(over: Partial<LifeEventRow> = {}): LifeEventRow {
     note: '',
     fx_to_display: 1,
     inflate: false,
+    enabled: true,
     created_at: '2026-01-01T00:00:00Z',
     ...over,
   }
@@ -282,6 +283,7 @@ describe('buildLifetimeInput — ánh xạ trường', () => {
           label: '年金',
           fxToDisplay: 0.0067,
           inflate: true,
+          enabled: true,
         },
       ],
     })

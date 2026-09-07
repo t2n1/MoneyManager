@@ -102,6 +102,7 @@ export function buildLifetimeInput(args: BuildLifetimeInputArgs): LifetimeInput 
       label: e.label,
       fxToDisplay: e.fx_to_display,
       inflate: e.inflate,
+      enabled: e.enabled ?? true,
     }))
 
   return {

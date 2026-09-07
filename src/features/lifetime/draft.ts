@@ -53,6 +53,13 @@ export interface DraftPhase extends LifetimePhase {
 export interface DraftEvent extends LifetimeEvent {
   /** Ghi chú của dòng DB — nháp không sửa nó nhưng phải mang theo để không ghi đè mất. */
   note: string
+  /**
+   * BẮT BUỘC ở đây dù `LifetimeEvent.enabled` là tuỳ chọn: `sameEvent` so bằng `===`,
+   * nên một chỗ dựng mốc mà quên cờ này sẽ cho `undefined === true` — nháp đọc ra
+   * "khác bản đã lưu" mãi mãi và nút Lưu không bao giờ tắt. Bắt buộc thì trình biên
+   * dịch chỉ ra mọi chỗ dựng, không phải đi dò lúc chạy.
+   */
+  enabled: boolean
 }
 
 /**
@@ -126,6 +133,7 @@ export function draftFromRows(
         note: e.note,
         fxToDisplay: e.fx_to_display,
         inflate: e.inflate,
+        enabled: e.enabled ?? true,
       }))
       .sort((a, b) => a.startYear - b.startYear),
   }
@@ -169,6 +177,7 @@ export function draftToInput(base: LifetimeInput, draft: ScenarioDraft): Lifetim
         label: e.label,
         fxToDisplay: e.fxToDisplay,
         inflate: e.inflate,
+        enabled: e.enabled,
       }),
     ),
   }
@@ -349,7 +358,10 @@ function sameEvent(a: DraftEvent, b: DraftEvent): boolean {
     a.label === b.label &&
     a.note === b.note &&
     a.fxToDisplay === b.fxToDisplay &&
-    a.inflate === b.inflate
+    a.inflate === b.inflate &&
+    // Cùng lớp lỗi với `note` ở trên: tắt một mốc là một thay đổi CÓ THẬT, bỏ ra ngoài
+    // phép so thì `dirty` false và nút "Lưu thay đổi" tắt ngóm.
+    a.enabled === b.enabled
   )
 }
 
@@ -455,6 +467,7 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         note: d.note,
         fx_to_display: d.fxToDisplay,
         inflate: d.inflate,
+        enabled: d.enabled,
       })
       continue
     }
@@ -470,6 +483,7 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
     if (s.note !== d.note) patch.note = d.note
     if (s.fxToDisplay !== d.fxToDisplay) patch.fx_to_display = d.fxToDisplay
     if (s.inflate !== d.inflate) patch.inflate = d.inflate
+    if (s.enabled !== d.enabled) patch.enabled = d.enabled
     eventPatches.push({ id: d.id, patch })
   }
 
@@ -551,6 +565,7 @@ export function applyPreset(
           note: e.note,
           fxToDisplay: e.fx_to_display,
           inflate: e.inflate,
+          enabled: true,
         }),
       ),
     ].sort((a, b) => a.startYear - b.startYear),
@@ -733,6 +748,7 @@ export function draftRowsFor(
       note: e.note,
       fx_to_display: e.fxToDisplay,
       inflate: e.inflate,
+      enabled: e.enabled,
     })),
   }
 }

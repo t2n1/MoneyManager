@@ -1059,7 +1059,7 @@ export function LifetimeChartCard({
               <button
                 key={e.id}
                 type="button"
-                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${onMoveEvent ? ' — kéo để dời năm, bấm để sửa' : ''}`}
+                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${e.enabled === false ? ' — ĐANG TẮT, không tính vào phép chiếu' : ''}${onMoveEvent ? ' — kéo để dời năm, bấm để sửa' : ''}`}
                 style={{
                   position: 'absolute',
                   top: CHIP_TOP + chipRows[i] * CHIP_ROW_H,
@@ -1070,10 +1070,15 @@ export function LifetimeChartCard({
                   touchAction: 'none',
                   cursor: onMoveEvent ? 'grab' : 'pointer',
                 }}
+                // Mốc ĐANG TẮT vẫn vẽ chip, chỉ mờ đi và gạch ngang nhãn: giấu hẳn thì
+                // "bật lại" thành thao tác không có chỗ bấm, và người dùng mất luôn dấu
+                // hiệu rằng kế hoạch này còn một mốc đang để ngoài.
                 className={`z-10 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-semibold shadow-sm transition ${
-                  isIncome
-                    ? 'bg-state-good-bg text-state-good-fg'
-                    : 'bg-state-bad-bg text-state-bad-fg'
+                  e.enabled === false
+                    ? 'bg-surface-sunken text-fg-on-track line-through opacity-70'
+                    : isIncome
+                      ? 'bg-state-good-bg text-state-good-fg'
+                      : 'bg-state-bad-bg text-state-bad-fg'
                 } ${editing ? 'ring-2 ring-accent' : 'border border-border-strong'}`}
                 ref={(el) => {
                   if (el) chipRefs.current.set(e.id, el)

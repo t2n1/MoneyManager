@@ -419,3 +419,50 @@ describe('projectLifetime', () => {
     expect(rows[0].phaseLabel).toBe('Muộn')
   })
 })
+
+describe('projectLifetime — mốc TẮT TẠM (migration 0063)', () => {
+  const moc = (over: Partial<LifetimeInput['events'][number]> = {}) => ({
+    id: 'e1',
+    startYear: 2028,
+    endYear: 2028,
+    kind: 'expense' as const,
+    amountMinor: 3_000_000,
+    currency: 'JPY' as const,
+    label: 'Cưới',
+    fxToDisplay: 1,
+    inflate: false,
+    ...over,
+  })
+  const nam2028 = (input: LifetimeInput) =>
+    projectLifetime(input).find((r) => r.year === 2028)!
+
+  it('mốc bật vào phép chiếu như thường', () => {
+    const r = nam2028(baseInput({ events: [moc({ enabled: true })] }))
+    expect(r.events).toHaveLength(1)
+  })
+
+  it('mốc TẮT không vào phép chiếu — không dòng sự kiện nào của năm đó', () => {
+    const r = nam2028(baseInput({ events: [moc({ enabled: false })] }))
+    expect(r.events).toHaveLength(0)
+  })
+
+  it('tắt mốc chi thì tài sản cuối năm CAO HƠN đúng phần đã tắt', () => {
+    const bat = nam2028(baseInput({ events: [moc({ enabled: true })] }))
+    const tat = nam2028(baseInput({ events: [moc({ enabled: false })] }))
+    expect(tat.assetsEndMinor - bat.assetsEndMinor).toBe(3_000_000)
+  })
+
+  it('THIẾU cờ = BẬT: mốc dựng ở chỗ chưa biết tới 0063 không được lặng lẽ biến mất', () => {
+    const r = nam2028(baseInput({ events: [moc()] }))
+    expect(r.events).toHaveLength(1)
+  })
+
+  it('tắt một mốc không đụng tới mốc còn lại', () => {
+    const r = nam2028(
+      baseInput({
+        events: [moc({ id: 'a', enabled: false }), moc({ id: 'b', label: 'Xe', enabled: true })],
+      }),
+    )
+    expect(r.events.map((e) => e.id)).toEqual(['b'])
+  })
+})

@@ -33,6 +33,12 @@ export interface LifetimeEvent {
    */
   fxToDisplay: number
   inflate: boolean
+  /**
+   * false = TẮT TẠM (migration 0063): mốc vẫn còn nguyên số liệu nhưng không vào phép
+   * chiếu. Bỏ trống = bật — mọi nơi dựng `LifetimeEvent` trước 0063 vẫn tính như cũ,
+   * và một mốc thiếu cờ này KHÔNG được lặng lẽ biến mất khỏi đồ thị.
+   */
+  enabled?: boolean
 }
 
 export interface LifetimeInput {
@@ -280,6 +286,7 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
 
     const yearEvents: YearEvent[] = []
     for (const e of events) {
+      if (e.enabled === false) continue
       if (e.startYear > year) continue
       if (e.endYear !== null && e.endYear < year) continue
       // Mỗi khoản tiền tự mang tỷ giá của nó, nên ở đây KHÔNG còn ca đặc biệt nào:

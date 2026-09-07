@@ -1266,6 +1266,7 @@ function projectLifetime(input) {
     }
     const yearEvents = [];
     for (const e of events) {
+      if (e.enabled === false) continue;
       if (e.startYear > year) continue;
       if (e.endYear !== null && e.endYear < year) continue;
       const converted = convertLifetimeMinor(
@@ -2122,7 +2123,8 @@ function buildLifetimeInput(args) {
     currency: e.currency,
     label: e.label,
     fxToDisplay: e.fx_to_display,
-    inflate: e.inflate
+    inflate: e.inflate,
+    enabled: e.enabled ?? true
   }));
   return {
     // Năm hiện tại suy từ `todayISO` chứ KHÔNG gọi `new Date()` ở đây: hook gọi hàm

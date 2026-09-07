@@ -60,6 +60,7 @@ const eventRow = (over: Partial<LifeEventRow> & Pick<LifeEventRow, 'id' | 'start
   label: 'Cưới',
   note: '',
   fx_to_display: 1,
+  enabled: true,
   inflate: true,
   created_at: '2026-01-01',
   ...over,
@@ -286,6 +287,7 @@ describe('planDraftSave', () => {
         startYear: 2034,
         endYear: 2034,
         kind: 'expense',
+        enabled: true,
         amountMinor: 12_000_000,
         currency: 'JPY',
         label: 'Mua nhà',
@@ -307,6 +309,7 @@ describe('planDraftSave', () => {
         note: '',
         fx_to_display: 1,
         inflate: true,
+        enabled: true,
       },
     ])
     expect(plan.eventDeletes).toEqual([])
@@ -324,6 +327,7 @@ describe('planDraftSave', () => {
       x.events.push({
         id: `${NEW_ID_PREFIX}9`, startYear: 2034, endYear: 2034, kind: 'expense',
         amountMinor: 1, currency: 'JPY', label: 'Tạm', note: '', fxToDisplay: 1, inflate: true,
+        enabled: true,
       })
     })
     const d = edit(() => {})
@@ -396,7 +400,9 @@ describe('applyPreset', () => {
     const plan = planDraftSave(base(), applyPreset(base(), ketQuaMau, 1))
     expect(plan.phasePatches).toEqual([])
     expect(plan.phaseInserts).toEqual([ketQuaMau.phases[0]])
-    expect(plan.eventInserts).toEqual([ketQuaMau.events[0]])
+    // `enabled: true` là của migration 0063: mốc lấy từ thư viện mẫu luôn ở trạng thái
+    // BẬT, không thừa hưởng cờ nào từ bản mẫu (bản mẫu không có khái niệm tắt).
+    expect(plan.eventInserts).toEqual([{ ...ketQuaMau.events[0], enabled: true }])
   })
 
   it('tóm tắt đếm được chặng vừa thêm', () => {

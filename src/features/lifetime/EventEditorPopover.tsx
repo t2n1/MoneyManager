@@ -11,7 +11,7 @@
 // Ngoại lệ: nhận số từ "Tra hộ" thì ghi kèm `currency`/`fxToDisplay` (số phải đi cùng
 // đồng tiền của nó) và NỐI thêm nguồn vào `note`. Không ô nào ở đây sửa ba trường đó.
 import { useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Eye, EyeOff, X } from 'lucide-react'
 import { ActionButton, IconButton, actionButtonClass } from '../../components/ui'
 import { useTraSo } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -172,15 +172,47 @@ export function EventEditorPopover({
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-2xs uppercase tracking-label text-fg-muted">Sửa mốc</p>
-          <IconButton
-            variant="ghost"
-            onClick={onClose}
-            aria-label="Đóng form sửa mốc"
-            className="px-2"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-          </IconButton>
+          <div className="flex items-center">
+            {/* TẮT TẠM, không xoá: câu "kế hoạch ra sao nếu bỏ mốc mua nhà" trước đây chỉ
+                trả lời được bằng cách xoá mốc rồi nhập lại — mất số đã khai, và không so
+                được hai bên cạnh nhau. Một nút, đồ thị đổi ngay, số liệu còn nguyên. */}
+            <IconButton
+              variant="ghost"
+              onClick={() => onPatch({ enabled: !event.enabled })}
+              aria-label={event.enabled ? 'Tắt tạm mốc này' : 'Bật lại mốc này'}
+              aria-pressed={!event.enabled}
+              title={
+                event.enabled
+                  ? 'Tắt tạm — mốc không tính vào phép chiếu, số liệu vẫn giữ'
+                  : 'Bật lại mốc này'
+              }
+              className="px-2"
+            >
+              {event.enabled ? (
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <EyeOff className="h-3.5 w-3.5 text-fg-warn" aria-hidden="true" />
+              )}
+            </IconButton>
+            <IconButton
+              variant="ghost"
+              onClick={onClose}
+              aria-label="Đóng form sửa mốc"
+              className="px-2"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </IconButton>
+          </div>
         </div>
+
+        {/* Nói ra trạng thái, không bắt suy từ một icon: mốc đang tắt mà đồ thị vẫn vẽ
+            chip của nó, nên thiếu dòng này thì "vì sao đường không đổi" không có lời đáp
+            nào trên màn hình. KHÔNG bọc <Guide> — đây là trạng thái dữ liệu. */}
+        {!event.enabled && (
+          <p className="mt-1.5 rounded-md bg-state-warn-bg px-2 py-1 text-2xs text-state-warn-fg">
+            Đang tắt — mốc này không tính vào phép chiếu.
+          </p>
+        )}
 
         <label className="mt-1.5 block text-2xs text-fg-muted">
           Tên

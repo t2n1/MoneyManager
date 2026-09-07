@@ -1939,7 +1939,10 @@ export const demoRepo: Repo = {
       // (`LifeEventRow.fx_to_display` không nullable), nhưng theo RUNTIME thì nó sống —
       // localStorage giữ JSON ghi từ bản cũ, và ở đó trường này thiếu hẳn. Bỏ đi là
       // `undefined` chảy thẳng vào engine rồi thành NaN.
-      .map((e) => ({ ...e, fx_to_display: e.fx_to_display ?? 1 }))
+      // `enabled ?? true` cùng lý do với `fx_to_display ?? 1` ngay trên: bản ghi cũ
+      // trong localStorage không có cột này, mà `undefined` vào engine thì mốc bị coi
+      // như đã tắt — tức là mọi mốc cũ lặng lẽ biến mất khỏi phép chiếu.
+      .map((e) => ({ ...e, fx_to_display: e.fx_to_display ?? 1, enabled: e.enabled ?? true }))
       .sort((a, b) => a.start_year - b.start_year)
   },
 
@@ -1959,6 +1962,7 @@ export const demoRepo: Repo = {
       note: input.note,
       fx_to_display: input.fx_to_display,
       inflate: input.inflate,
+      enabled: input.enabled ?? true,
       created_at: nowISO(),
     }
     db.lifeEvents.push(row)

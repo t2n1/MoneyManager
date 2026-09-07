@@ -20,6 +20,7 @@ import { usePrivacyMode } from '../../lib/privacy'
 import {
   buildSankey,
   labelPlan,
+  sankeyBlocker,
   type LabelLines,
   type SankeyInput,
   type SankeyNode,
@@ -61,11 +62,13 @@ const HALO = {
 
 interface Props extends SankeyInput {
   base: CurrencyCode
+  /** Chi ĐÃ GHI trong sổ, chưa cộng phần đối chiếu — chỉ dùng để phân biệt kỳ rỗng. */
+  chiDaGhi: number
   /** Tổng có ngoại tệ quy đổi → tiền tố ≈ (cùng quy ước với <Money approx>). */
   approx?: boolean
 }
 
-export function SankeyCard({ base, approx = false, ...input }: Props) {
+export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) {
   // Đăng ký chế độ riêng tư — xem ghi chú đầu file. Giá trị không dùng tới, việc của nó
   // là buộc component vẽ lại khi người dùng bấm nút che số.
   usePrivacyMode()
@@ -73,6 +76,27 @@ export function SankeyCard({ base, approx = false, ...input }: Props) {
   const titleId = useId()
   const model = buildSankey(input)
 
+  // MỘT KỲ CÓ CHI THÌ KHÔNG BAO GIỜ ĐƯỢC HIỆN RỖNG. `buildSankey` trả null cả khi tháng
+  // chưa có đồng nào (đúng — im lặng) lẫn khi tổng chi đã gồm phần đối chiếu bị kéo về ≤ 0
+  // vì ghi thừa (sai — người đọc kết luận tính năng hỏng). Xem `sankeyBlocker`.
+  if (sankeyBlocker({ ...input, chiDaGhi }) === 'ghi-thua') {
+    return (
+      <Card as="section" elevation="panel" padding="panel">
+        <SectionTitle as="h3" className="mb-1">
+          Đường đi của tiền
+        </SectionTitle>
+        {/* KHÔNG bọc <Guide>: đây là lý do thẻ đang trống, chế độ Gọn vẫn phải thấy. Và
+            gộp MỘT đoạn thay vì hai — câu chỉ đường là thứ cần bấm theo, để nó xuống cỡ
+            chữ phụ thì đúng cái người ta cần lại mờ nhất. */}
+        <p className="text-sm text-fg-secondary">
+          Chưa vẽ được: lần đối chiếu gần nhất nói sổ <b>ghi thừa</b> nhiều hơn cả phần chi
+          đã ghi trong kỳ, nên tổng chi của kỳ về 0 — số liệu đang tự mâu thuẫn, không phải
+          kỳ này không tiêu gì. Mở <b>Tài sản → Điều chỉnh số dư</b> xem lại lần gần nhất:
+          thường là một tài khoản đặt sai loại tiền, hoặc một số dư gõ thiếu/thừa chữ số.
+        </p>
+      </Card>
+    )
+  }
   if (model === null) return null
   const { nodes, links, width, height, total, hasDeficit } = model
 

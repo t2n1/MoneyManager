@@ -592,6 +592,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               income={sums.income}
               incomeSlices={sankeyIncome}
               expense={chiCoPhanChuaGhi}
+              chiDaGhi={sums.expense}
               expenseGroups={sankeyGroups}
               chuaGhi={Math.max(0, chuaGhi.net)}
               transfer={sums.transfer}

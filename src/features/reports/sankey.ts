@@ -240,6 +240,36 @@ export function labelPlan(nodes: readonly SankeyNode[]): Map<string, LabelLines>
   return out
 }
 
+/**
+ * Vì sao KHÔNG vẽ được, tách khỏi "tháng rỗng nên không có gì để vẽ".
+ *
+ * VÌ SAO CÓ HÀM NÀY. `buildSankey` trả `null` khi `income + deficit <= 0`, và nơi gọi thì
+ * không vẽ gì cả. Đúng với tháng chưa có đồng nào, nhưng SAI trong một ca có thật: tổng
+ * chi đưa vào đây là `tongChiCoPhanChuaGhi`, tức chi đã ghi CỘNG phần đối chiếu. Lần đối
+ * chiếu nói "ghi thừa" thì phần đó ÂM, và ghi thừa nhiều hơn cả phần chi đã ghi trong kỳ
+ * là tổng về 0 hoặc âm → `Math.max(0, …)` kẹp về 0 → cả thẻ biến mất không một lời nào.
+ *
+ * Đo trên sổ thật 09/2026: tháng 9 có ¥144.294 chi đã ghi, nên chỉ cần một lần đối chiếu
+ * ghi thừa từ ¥144.294 trở lên là mất thẻ. Một kỳ CÓ chi mà không hiện gì thì người đọc
+ * kết luận "tính năng hỏng", chứ không đoán được là số liệu đang tự mâu thuẫn.
+ */
+export function sankeyBlocker(p: {
+  income: number
+  /** Tổng chi ĐÃ GỒM phần đối chiếu — chính giá trị truyền vào `buildSankey`. */
+  expense: number
+  transfer: number
+  /** Chi đã ghi trong sổ, CHƯA cộng phần đối chiếu. */
+  chiDaGhi: number
+}): 'ghi-thua' | null {
+  // Không có gì trong kỳ → không phải "không vẽ được", mà là "không có gì để vẽ".
+  if (p.chiDaGhi <= 0) return null
+  // Sổ CÓ ghi chi mà tổng đã gồm phần đối chiếu lại ≤ 0. Chặn kể cả khi kỳ có thu: lúc đó
+  // `buildSankey` kẹp chi về 0 rồi vẽ "Phần để lại = 100%", tức là hình nói "kỳ này không
+  // tiêu đồng nào" ngay bên dưới thẻ ba đường đang ghi "Chi tiêu −¥110.270". Đo trong chế
+  // độ demo 09/2026: đúng hai thẻ cạnh nhau nói hai điều trái ngược.
+  return p.expense <= 0 ? 'ghi-thua' : null
+}
+
 /** Dựng mô hình đã có toạ độ. Trả `null` khi không có gì để vẽ. */
 export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): SankeyModel | null {
   const maxNodes = opts.maxNodes ?? DEFAULT_MAX_NODES

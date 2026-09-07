@@ -8,7 +8,7 @@ import {
   SANKEY_HUB_ID,
   type SankeyInput,
   type SankeyModel,
-} from './sankey'
+  sankeyBlocker,} from './sankey'
 
 const CATS = [
   { id: 'nha', name: 'Nhà ở', icon: '🏠', parent_id: null },
@@ -345,5 +345,44 @@ describe('labelPlan', () => {
     const m = buildSankey(BINH_THUONG)!
     const plan = labelPlan(m.nodes)
     for (const n of m.nodes) expect(plan.has(n.id)).toBe(true)
+  })
+})
+
+describe('sankeyBlocker — phân biệt "tháng rỗng" với "số liệu tự mâu thuẫn"', () => {
+  const p = (over: Partial<Parameters<typeof sankeyBlocker>[0]> = {}) => ({
+    income: 0,
+    expense: 144_294,
+    transfer: 0,
+    chiDaGhi: 144_294,
+    ...over,
+  })
+
+  it('tháng rỗng thật thì KHÔNG chặn — không có gì để vẽ, cũng không có gì để giải thích', () => {
+    expect(sankeyBlocker(p({ expense: 0, chiDaGhi: 0 }))).toBeNull()
+  })
+
+  it('có chi bình thường thì không chặn', () => {
+    expect(sankeyBlocker(p())).toBeNull()
+  })
+
+  it('CÓ chi đã ghi mà tổng về 0 vì ghi thừa → chặn, để thẻ nói ra thay vì biến mất', () => {
+    expect(sankeyBlocker(p({ expense: 0 }))).toBe('ghi-thua')
+  })
+
+  it('tổng ÂM cũng vậy', () => {
+    expect(sankeyBlocker(p({ expense: -1_855_706 }))).toBe('ghi-thua')
+  })
+
+  it('CÓ THU vẫn chặn — nếu không thì hình vẽ "Phần để lại 100%", tức là nói kỳ này không tiêu gì', () => {
+    // Đo trong demo 09/2026: thẻ ba đường ghi "Chi tiêu −¥110.270" mà sơ đồ ngay dưới vẽ
+    // "Phần để lại ¥289.181 · 100%". Hai thẻ cạnh nhau nói hai điều trái ngược.
+    expect(sankeyBlocker(p({ expense: -110_270, income: 289_181, chiDaGhi: 89_730 }))).toBe(
+      'ghi-thua',
+    )
+    expect(sankeyBlocker(p({ expense: 0, transfer: 300_000 }))).toBe('ghi-thua')
+  })
+
+  it('kỳ chưa ghi chi nào thì im, dù có thu — đó là kỳ rỗng, không phải mâu thuẫn', () => {
+    expect(sankeyBlocker(p({ expense: 0, chiDaGhi: 0, income: 300_000 }))).toBeNull()
   })
 })

@@ -128,3 +128,33 @@ describe('filterTransactions', () => {
     expect(r.map((t) => t.note)).toEqual(['b', 'a'])
   })
 })
+
+describe('matchesFilter — người chi (migration 0064)', () => {
+  const t = (owner?: 'mine' | 'partner' | 'shared') =>
+    tx({ type: 'expense', ...(owner ? { owner } : {}) })
+
+  it('không lọc người thì mọi giao dịch đều qua', () => {
+    expect(matchesFilter(t('partner'), { start: '2020-01-01', end: '2030-01-01' })).toBe(true)
+  })
+
+  it('lọc đúng người chi', () => {
+    const f = { start: '2020-01-01', end: '2030-01-01', owners: ['partner' as const] }
+    expect(matchesFilter(t('partner'), f)).toBe(true)
+    expect(matchesFilter(t('mine'), f)).toBe(false)
+  })
+
+  it('VẮNG cột owner = "mine" — dòng cũ không bị bỏ sót khi lọc "của tôi"', () => {
+    const f = { start: '2020-01-01', end: '2030-01-01', owners: ['mine' as const] }
+    expect(matchesFilter(t(), f)).toBe(true)
+  })
+
+  it('chọn nhiều người thì lấy hợp', () => {
+    const f = { start: '2020-01-01', end: '2030-01-01', owners: ['mine' as const, 'shared' as const] }
+    expect(matchesFilter(t('shared'), f)).toBe(true)
+    expect(matchesFilter(t('partner'), f)).toBe(false)
+  })
+
+  it('mảng rỗng = không lọc, không phải lọc ra rỗng', () => {
+    expect(matchesFilter(t('partner'), { start: '2020-01-01', end: '2030-01-01', owners: [] })).toBe(true)
+  })
+})

@@ -9,6 +9,7 @@ import {
   useAccounts,
   useCategories,
   useDeleteTransactions,
+  useProfile,
   useRates,
   useSearchTransactions,
   useTagGroups,
@@ -19,7 +20,7 @@ import {
 import { toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
-import type { TransactionRow, TransactionType } from '../../types/database.types'
+import type { TransactionRow, TransactionType, TxOwner } from '../../types/database.types'
 import {
   isEmptyFilter,
   parseSavedFilters,
@@ -37,6 +38,13 @@ import { SelectionActionBar } from './SelectionActionBar'
 import { TransactionItem } from './TransactionItem'
 import { useTxSelection } from './useTxSelection'
 import { Card, EmptyState, PageHeader, filterChipClass } from '../../components/ui'
+
+/** Ba lựa chọn lọc theo người chi — cùng nhãn với ô chọn trong form ghi. */
+const OWNER_FILTERS: { value: TxOwner; label: string }[] = [
+  { value: 'mine', label: 'Mình' },
+  { value: 'partner', label: 'Người ấy' },
+  { value: 'shared', label: 'Chung' },
+]
 
 const TYPE_TABS: { value: TransactionType | 'all'; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -115,6 +123,9 @@ export function SearchPage() {
   const [accountIds, setAccountIds] = useState<string[]>([])
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds)
   const [uncategorized, setUncategorized] = useState(initial.uncat)
+  const { data: profile } = useProfile()
+  const coupleMode = profile?.couple_mode ?? false
+  const [ownerFilter, setOwnerFilter] = useState<TxOwner[]>([])
   const [amountMinStr, setAmountMinStr] = useState('')
   const [amountMaxStr, setAmountMaxStr] = useState('')
   // Mở sẵn khối lọc nếu vào từ deep-link, để thấy ngay mình đang lọc theo nhãn nào
@@ -200,6 +211,7 @@ export function SearchPage() {
       types: typeFilter === 'all' ? undefined : [typeFilter],
       categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
       accountIds: accountIds.length > 0 ? accountIds : undefined,
+      owners: ownerFilter.length > 0 ? ownerFilter : undefined,
       amountMin: toMinor(amountMinStr),
       amountMax: toMinor(amountMaxStr),
       // undefined khi tắt: để khoá này không xuất hiện trong queryKey của react-query,
@@ -207,7 +219,10 @@ export function SearchPage() {
       uncategorized: uncategorized || undefined,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [from, to, debouncedText, typeFilter, categoryIds, accountIds, amountMinStr, amountMaxStr, baseFactor, uncategorized],
+    // `ownerFilter` PHẢI có mặt: thiếu nó thì `filter` không dựng lại, react-query giữ
+    // nguyên queryKey cũ và danh sách không đổi một dòng nào — bộ lọc trông như đang bật
+    // (chip sáng lên) mà kết quả y hệt. Đo được: 96 kết quả ở cả ba trạng thái.
+    [from, to, debouncedText, typeFilter, categoryIds, accountIds, ownerFilter, amountMinStr, amountMaxStr, baseFactor, uncategorized],
   )
 
   const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
@@ -349,6 +364,33 @@ export function SearchPage() {
               <BookmarkPlus className="h-4 w-4" /> Lưu bộ lọc
             </button>
           )}
+        </div>
+      )}
+
+      {/* AI CHI — chỉ hiện khi đã bật ở Cài đặt (cùng công tắc với ô chọn lúc ghi).
+          Bấm lại chip đang bật để bỏ chọn: đây là bộ lọc chồng được, không phải một
+          nhóm loại trừ. */}
+      {coupleMode && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-2xs uppercase tracking-label text-fg-muted">Ai chi</span>
+          {OWNER_FILTERS.map((o) => {
+            const on = ownerFilter.includes(o.value)
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() =>
+                  setOwnerFilter((prev) =>
+                    on ? prev.filter((v) => v !== o.value) : [...prev, o.value],
+                  )
+                }
+                aria-pressed={on}
+                className={filterChipClass(on)}
+              >
+                {o.label}
+              </button>
+            )
+          })}
         </div>
       )}
 

@@ -100,6 +100,13 @@ export type ProfileRow = {
    * giá trị, nên giá trị lạ từ DB cũ không làm app trắng màn.
    */
   density_pref: string
+  /**
+   * Bật chiều "ai chi" (migration 0064). Vắng mặt = false.
+   *
+   * CHỈ đổi giao diện: cột `transactions.owner` luôn tồn tại và luôn có giá trị dù công
+   * tắc này tắt. Tắt lại không mất dữ liệu đã gắn — chỉ là thôi hỏi.
+   */
+  couple_mode?: boolean
   created_at: string
 }
 
@@ -304,6 +311,9 @@ export type CategoryRow = {
   kind: CategoryKind
 }
 
+/** Ai chi một khoản (migration 0064). */
+export type TxOwner = 'mine' | 'partner' | 'shared'
+
 export type TransactionRow = {
   id: string
   user_id: string
@@ -335,6 +345,13 @@ export type TransactionRow = {
   exclude_from_stats?: boolean
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, KHÔNG phải thu nhập). */
   is_refund?: boolean
+  /**
+   * Ai chi khoản này (migration 0064). Vắng mặt = 'mine' — dữ liệu cũ là của chủ sổ.
+   *
+   * CHỈ là chiều phân loại, KHÔNG phải quyền truy cập: app vẫn một người dùng, RLS
+   * không đổi. Xem chú thích trong migration.
+   */
+  owner?: TxOwner
   /**
    * Lệnh cổ phiếu đã sinh ra dòng tiền này (migration 0054); null/vắng = giao dịch thường.
    *
@@ -927,6 +944,7 @@ export type Database = {
           | 'push_tz'
           | 'push_last_sent_at'
           | 'density_pref'
+          | 'couple_mode'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
           | 'fuyo_claimed_years'
@@ -948,6 +966,7 @@ export type Database = {
             | 'push_tz'
             | 'push_last_sent_at'
           | 'density_pref'
+          | 'couple_mode'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
           | 'fuyo_claimed_years'
@@ -1061,6 +1080,7 @@ export type Database = {
           | 'is_debt_flow'
           | 'exclude_from_stats'
           | 'is_refund'
+          | 'owner'
           | 'stock_trade_id'
           | 'stock_symbol'
         >
@@ -1083,6 +1103,7 @@ export type Database = {
             | 'is_debt_flow'
             | 'exclude_from_stats'
             | 'is_refund'
+            | 'owner'
             | 'stock_trade_id'
             | 'stock_symbol'
           >

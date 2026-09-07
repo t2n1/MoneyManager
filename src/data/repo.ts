@@ -54,6 +54,7 @@ import type {
   TagSpendRow,
   TaxShelter,
   TransactionRow,
+  TxOwner,
   TransactionTagRow,
   TransactionType,
 } from '../types/database.types'
@@ -189,6 +190,8 @@ export interface NewTransaction {
   recurring_rule_id?: string | null
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, không phải thu nhập). */
   is_refund?: boolean
+  /** Ai chi khoản này (migration 0064). Bỏ trống = 'mine'. */
+  owner?: TxOwner
   /** Nhãn gắn kèm (ghi đè toàn bộ nhãn hiện có khi patch). Bỏ trống = không đổi. */
   tag_ids?: string[]
 }
@@ -295,6 +298,8 @@ export interface TxFilter {
    * NULL bằng IN được — phải là `.is('category_id', null)`.
    */
   uncategorized?: boolean
+  /** Lọc theo người chi (migration 0064). Bỏ trống = mọi người. */
+  owners?: TxOwner[]
 }
 
 /** Cố ý KHÔNG có base_currency (đổi tiền gốc sẽ làm sai mọi số đã quy đổi). */
@@ -323,6 +328,7 @@ export type ProfilePatch = Partial<
     | 'push_tz'
     // Cách trình bày Gọn/Đầy đủ (migration 0040)
     | 'density_pref'
+    | 'couple_mode'
     // Năm đã khai khấu trừ người phụ thuộc ở nước ngoài (migration 0056).
     | 'fuyo_claimed_years'
   >

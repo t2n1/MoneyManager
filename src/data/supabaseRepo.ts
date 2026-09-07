@@ -321,6 +321,9 @@ export const supabaseRepo: Repo = {
         const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
         q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)
       }
+      // `owner` có DEFAULT 'mine' và NOT NULL (0064) nên không có dòng nào null —
+      // `.in` là đủ, không cần nhánh `or(... is null)` như phía demo.
+      if (filter.owners && filter.owners.length > 0) q = q.in('owner', filter.owners)
       if (filter.amountMin != null) q = q.gte('amount', filter.amountMin)
       if (filter.amountMax != null) q = q.lte('amount', filter.amountMax)
       return q

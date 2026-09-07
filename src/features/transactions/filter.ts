@@ -46,6 +46,13 @@ export function matchesFilter(t: TransactionRow, filter: TxFilter): boolean {
     if (!hit) return false
   }
 
+  // Vắng mặt = 'mine' (migration 0064): dòng ghi TRƯỚC khi có cột này là của chủ sổ.
+  // Không mặc định thì lọc "của tôi" sẽ bỏ sót toàn bộ lịch sử cũ — im lặng và khó thấy,
+  // vì danh sách vẫn đầy giao dịch, chỉ thiếu đúng phần trước một mốc thời gian.
+  if (filter.owners && filter.owners.length > 0) {
+    if (!filter.owners.includes(t.owner ?? 'mine')) return false
+  }
+
   if (filter.amountMin != null && t.amount < filter.amountMin) return false
   if (filter.amountMax != null && t.amount > filter.amountMax) return false
 

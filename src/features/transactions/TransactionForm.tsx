@@ -15,7 +15,12 @@ import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from
 import { promptDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES } from '../../lib/currencies'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
-import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
+import type {
+  DebtDirection,
+  TransactionRow,
+  TransactionType,
+  TxOwner,
+} from '../../types/database.types'
 import {
   useAccounts,
   useBudgetReport,
@@ -36,7 +41,7 @@ import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { remitMonthlyTotals, remitStrip } from '../reports/longRange'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
-import { IconButton, SegmentedControl, Select } from '../../components/ui'
+import { IconButton, SegmentedControl, Select, filterChipClass } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { CategoryRow } from './CategoryRow'
 import { recentCategories } from './recentCategories'
@@ -91,6 +96,13 @@ import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
 import { NguoiThanSheet } from '../../components/NguoiThanSheet'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
+/** Ba lựa chọn "ai chi". Nhãn ngắn vì chúng đứng thành hàng ba trên màn 375px. */
+const OWNER_OPTIONS: { value: TxOwner; label: string }[] = [
+  { value: 'mine', label: 'Mình' },
+  { value: 'partner', label: 'Người ấy' },
+  { value: 'shared', label: 'Chung' },
+]
+
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
 
 /**
@@ -316,6 +328,7 @@ export function TransactionForm({
   const [excludeFromStats, setExcludeFromStats] = useState(initial?.exclude_from_stats ?? false)
   // Hoàn tiền: giao dịch CHI mang dấu âm — tiền về ví nhưng không phải thu nhập
   const [isRefund, setIsRefund] = useState(initial?.is_refund ?? false)
+  const [owner, setOwner] = useState<TxOwner>(initial?.owner ?? 'mine')
   // Nhãn: form sửa nạp sẵn nhãn hiện có của giao dịch
   const { data: allLinks = [] } = useTransactionTags()
   const initialTagIds = useMemo(
@@ -444,6 +457,11 @@ export function TransactionForm({
    */
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
+  // Ai chi (migration 0064). Chỉ HỎI khi người dùng đã bật ở Cài đặt — không thì đây là
+  // một quyết định thừa nằm giữa đường đi thường ngày, mà lời hứa của form này là ghi
+  // xong trong 5 giây. `profile` phải đọc trước dòng này nên khối đặt ở đây, không ở
+  // cụm state phía trên.
+  const coupleMode = profile?.couple_mode ?? false
   const { base, rates } = useRates()
   // VND trên 1 JPY, tính qua base currency của hồ sơ — thường base đã là JPY (rates.JPY
   // = 1) nên phép chia này là no-op; viết vậy để đúng cả khi ai đó đổi base sang tiền
@@ -1097,6 +1115,10 @@ export function TransactionForm({
         note: note.trim(),
         exclude_from_stats: type === 'transfer' ? false : excludeFromStats,
         is_refund: type === 'expense' ? isRefund : false,
+        // Gửi kể cả khi công tắc tắt: cột luôn có giá trị, và giữ nguyên giá trị cũ của
+        // một giao dịch đang sửa (nếu không thì tắt công tắc rồi sửa ghi chú là âm thầm
+        // xoá mất nhãn "người ấy" đã gắn).
+        owner,
         tag_ids: effectiveTagIds,
       }
       if (showTransferFee && transferFee > 0) {
@@ -1687,6 +1709,31 @@ export function TransactionForm({
           </IconButton>
         )}
       </div>
+      )}
+
+      {/* AI CHI (migration 0064) — chỉ hiện khi đã bật ở Cài đặt.
+          Ba nút có nhãn chứ không phải dropdown: chỉ ba lựa chọn, và đây là thứ bấm mỗi
+          lần ghi nên một cú chạm phải đủ. Chuyển khoản KHÔNG hỏi: tiền dời giữa hai ví
+          của chính mình thì "ai chi" không có nghĩa gì. */}
+      {coupleMode && type !== 'transfer' && (
+        <div className="mt-1.5 px-1">
+          <span className="mb-1 block text-2xs uppercase tracking-label text-fg-muted">
+            Ai chi khoản này
+          </span>
+          <div className="flex gap-1">
+            {OWNER_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setOwner(o.value)}
+                aria-pressed={owner === o.value}
+                className={filterChipClass(owner === o.value, 'md', 'flex-1 justify-center')}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.

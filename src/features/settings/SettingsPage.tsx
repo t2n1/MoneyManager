@@ -10,6 +10,7 @@ import { confirmDialog } from '../../lib/dialog'
 import type { CurrencyCode } from '../../lib/money'
 import { formatRateLine } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
+import { CoupleToggle } from './CoupleToggle'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
@@ -132,6 +133,8 @@ export function SettingsPage() {
           <DensityToggle />
 
           <FontSizeToggle />
+
+          <CoupleToggle />
 
           <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
             <PanelHeader>Hồ sơ</PanelHeader>

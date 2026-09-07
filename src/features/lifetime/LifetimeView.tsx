@@ -207,6 +207,14 @@ export function LifetimeView() {
     [savedDraft, draft],
   )
   const dirty = changes.length > 0
+  /**
+   * Có bàn sửa để đặt cạnh đồ thị không. Lưới chỉ chuyển sang hai cột khi CÓ — không
+   * thì cột thứ hai rỗng và đồ thị bị bóp còn 1fr mà chẳng nhường chỗ cho ai.
+   *
+   * Điều kiện phải TRÙNG KHÍT với điều kiện dựng `<ScenarioWorkbench>` bên dưới; lệch
+   * một vế là ra đúng cái ca rỗng đó.
+   */
+  const coBanSua = profile != null && savedDraft != null && working != null
 
   /** Bản chiếu của dữ liệu ĐÃ LƯU — đường xám "trước khi đổi". Chỉ tính khi có gì để so. */
   const baselineRows = useMemo(() => {
@@ -759,11 +767,32 @@ export function LifetimeView() {
         />
       )}
 
-      {/* MỘT CỘT (bản vẽ v5). Trước đây là lưới hai cột: đồ thị bên trái, ba panel vặn
-          bên phải — và dưới `xl` ba panel đó phải chui vào một sheet đáy, tức cùng một
-          bộ điều khiển tồn tại ở hai chỗ với hai bố cục. Nay mọi ô sửa nằm trong BÀN SỬA
-          ngay dưới đồ thị, cùng một mặt phẳng, một bản duy nhất ở mọi bề ngang. */}
+      {/* HAI CỘT TỪ `xl`, MỘT CỘT dưới đó — đồ thị và bàn sửa cạnh nhau, sửa tới đâu
+          liếc sang thấy tới đó mà không phải cuộn.
+
+          KHÁC HẲN lưới hai cột của bản trước v5, thứ đã bị bỏ có lý do: hồi đó cột phải
+          là ba PANEL RIÊNG, và dưới `xl` chúng phải chui vào một sheet đáy — tức cùng
+          một bộ điều khiển tồn tại ở hai chỗ với hai bố cục, hai đường code. Ở đây cột
+          phải là ĐÚNG `<ScenarioWorkbench>` đó, cùng một cây DOM ở mọi bề ngang; lưới
+          chỉ quyết định nó nằm CẠNH hay nằm DƯỚI. Không có bản thứ hai nào để lệch.
+
+          Cột phải rộng CỐ ĐỊNH 26rem chứ không theo tỷ lệ: bàn sửa có những khối khai
+          báo bề ngang tối thiểu (`min-w-[17.5rem]` ở ô tài sản khởi điểm), nên một tỷ
+          lệ phần trăm sẽ bóp nó vỡ. Phần còn lại dồn hết cho đồ thị — đồ thị tự đo bề
+          ngang bằng ResizeObserver nên nó co giãn theo.
+
+          MỐC 1400px, không phải `xl` (1280px): đo trên app, ở 1280 phần còn lại cho đồ
+          thị chỉ 629px, mà dưới 700px `LifetimeChartCard` rơi xuống chiều cao 240px
+          thay vì 340px — tức chia cột xong thì đồ thị vừa hẹp vừa lùn, đúng cái nó cần
+          nhất. Từ 1400px trở lên đồ thị còn ≥700px và giữ chiều cao đầy đủ. */}
       <div className="flex min-w-0 flex-col gap-3">
+        <div
+          className={`grid min-w-0 items-start gap-3 ${
+            coBanSua
+              ? 'grid-cols-1 min-[1400px]:grid-cols-[minmax(0,1fr)_26rem]'
+              : 'grid-cols-1'
+          }`}
+        >
         <div className="flex min-w-0 flex-col">
           {/* Thanh nháp DÁN vào đầu thẻ đồ thị (bo góc trên, không viền dưới) thay vì
               đứng rời ở đầu trang: nó nói về chính bản chiếu ngay dưới nó, và đặt rời
@@ -863,8 +892,10 @@ export function LifetimeView() {
               )
             }
           />
-        </div>
 
+        {/* Dải so sánh nằm TRONG cột đồ thị, không phải một ô lưới riêng: nó nói về
+            chính bản chiếu ngay trên nó. Là ô lưới thứ ba thì nó rơi vào cột phải và
+            đẩy bàn sửa xuống hàng dưới — lưới hai cột hoá ra ba ô. */}
         {compareScenario && compareRows && compareRows.length > 0 && (
           <CompareStrip
             left={{
@@ -883,9 +914,10 @@ export function LifetimeView() {
             currencyMismatch={compareScenario.display_currency !== active.display_currency}
           />
         )}
+        </div>
 
-        {/* BÀN SỬA KỊCH BẢN — ngay dưới đồ thị, cùng một mặt phẳng. Sửa tới đâu nhìn lên
-            thấy tới đó; không còn lớp phủ nào che mất thứ đang được lái. */}
+        {/* BÀN SỬA KỊCH BẢN — CẠNH đồ thị từ `xl`, dưới đồ thị ở màn hẹp hơn. Cùng một
+            mặt phẳng ở cả hai ca; không có lớp phủ nào che mất thứ đang được lái. */}
         {profile && savedDraft && working && (
           <ScenarioWorkbench
             // `key`: bàn sửa giữ vài state khởi tạo MỘT LẦN lúc gắn (tab đang mở, năm
@@ -939,6 +971,7 @@ export function LifetimeView() {
             }
           />
         )}
+        </div>
 
         <YearTableSection
           rows={shownRows}

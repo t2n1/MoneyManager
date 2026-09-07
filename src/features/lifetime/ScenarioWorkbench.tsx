@@ -555,7 +555,15 @@ export function ScenarioWorkbench({
 
   return (
     <>
-      <section className="rounded-xl bg-surface shadow-sm dark:border dark:border-border-panel dark:shadow-none">
+      {/* `@container`: từ đây xuống, các mốc gãy dòng của hàng CHẶNG và hàng MỐC đo bề
+          ngang CỦA CHÍNH THẺ NÀY (`@xl`, `@2xl`), không đo bề ngang màn hình.
+
+          Vì sao bắt buộc: bàn sửa nay có thể nằm trong một CỘT HẸP cạnh đồ thị. Mốc
+          theo màn hình (`lg:`) thì ở màn 1600px nó bật bố cục một-hàng bên trong một ô
+          chỉ 416px — hàng chặng cần 607px nên tràn ra ngoài và bị cắt mất cột Chi. Đo
+          bằng mắt trên app, 2026-09-08. Mốc theo container thì cùng một cây DOM tự xếp
+          đúng ở cả hai chỗ, không cần bản thứ hai. */}
+      <section className="@container rounded-xl bg-surface shadow-sm dark:border dark:border-border-panel dark:shadow-none">
         {/* ---------- Đầu thẻ ---------- */}
         <div className="flex flex-wrap items-center gap-2.5 px-4 pb-2 pt-3">
           <SectionTitle className="shrink-0">Sửa kịch bản</SectionTitle>
@@ -703,10 +711,10 @@ export function ScenarioWorkbench({
                         : 'border-border-panel bg-surface'
                     }`}
                   >
-                    <div className="grid grid-cols-2 items-end gap-2 lg:flex">
+                    <div className="grid grid-cols-2 items-end gap-2 @2xl:flex">
                       <label
                         htmlFor={`${uid}-py-${p.id}`}
-                        className={`${FIELD_LABEL} min-w-0 lg:w-[5.5rem] lg:shrink-0`}
+                        className={`${FIELD_LABEL} min-w-0 @2xl:w-[5.5rem] @2xl:shrink-0`}
                       >
                         Từ năm
                         <YearInput
@@ -717,7 +725,7 @@ export function ScenarioWorkbench({
                           onCommit={(y) => onEdit((d) => patchDraftPhase(d, p.id, { startYear: y }))}
                         />
                       </label>
-                      <label className={`${FIELD_LABEL} min-w-0 lg:flex-1`}>
+                      <label className={`${FIELD_LABEL} min-w-0 @2xl:flex-1`}>
                         Tên chặng
                         <input
                           value={p.label}
@@ -731,7 +739,7 @@ export function ScenarioWorkbench({
                       </label>
                       {/* Ô TIỀN của chặng — từ v5 đây là nơi DUY NHẤT khai tiền. Mốc
                           cuộc đời không còn tiền riêng, chúng đọc theo chặng. */}
-                      <label className={`${FIELD_LABEL} min-w-0 lg:w-[6.5rem] lg:shrink-0`}>
+                      <label className={`${FIELD_LABEL} min-w-0 @2xl:w-[6.5rem] @2xl:shrink-0`}>
                         Tiền
                         <Select
                           value={p.currency}
@@ -750,7 +758,7 @@ export function ScenarioWorkbench({
                           ))}
                         </Select>
                       </label>
-                      <span className={`${FIELD_LABEL} min-w-0 text-money-in lg:w-[8rem] lg:shrink-0`}>
+                      <span className={`${FIELD_LABEL} min-w-0 text-money-in @2xl:w-[8rem] @2xl:shrink-0`}>
                         Thu / năm ({sym})
                         <span className="mt-0.5 block">
                           <MoneyField
@@ -765,7 +773,7 @@ export function ScenarioWorkbench({
                           />
                         </span>
                       </span>
-                      <span className={`${FIELD_LABEL} min-w-0 text-money-out lg:w-[8rem] lg:shrink-0`}>
+                      <span className={`${FIELD_LABEL} min-w-0 text-money-out @2xl:w-[8rem] @2xl:shrink-0`}>
                         Chi / năm ({sym})
                         <span className="mt-0.5 block">
                           <MoneyField
@@ -780,7 +788,7 @@ export function ScenarioWorkbench({
                           />
                         </span>
                       </span>
-                      <div className="col-span-2 flex justify-end gap-1 lg:col-span-1 lg:self-end">
+                      <div className="col-span-2 flex justify-end gap-1 @2xl:col-span-1 @2xl:self-end">
                         <IconButton
                           aria-label={`Chi tiết chặng ${p.label}`}
                           title="Quốc gia…"
@@ -1023,7 +1031,7 @@ export function ScenarioWorkbench({
                       ev.id === focusEventId ? 'border-accent' : 'border-border-panel'
                     }`}
                   >
-                  <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+                  <div className="flex flex-wrap items-center gap-2 @xl:flex-nowrap">
                     {/* Cặp nút thu/chi trong MỘT khung: chúng là hai giá trị của cùng
                         một trường. `aria-pressed` bắt buộc — trạng thái chỉ thể hiện
                         bằng màu. */}
@@ -1103,8 +1111,8 @@ export function ScenarioWorkbench({
                     >
                       {CURRENCIES[evCur].symbol}
                     </span>
-                    <div className="flex w-full items-center gap-2 md:contents">
-                      <span className="min-w-0 flex-1 md:w-[8.75rem] md:flex-none">
+                    <div className="flex w-full items-center gap-2 @xl:contents">
+                      <span className="min-w-0 flex-1 @xl:w-[8.75rem] @xl:flex-none">
                         <MoneyField
                           value={ev.amountMinor}
                           currency={evCur}

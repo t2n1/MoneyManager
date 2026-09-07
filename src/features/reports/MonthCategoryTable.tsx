@@ -13,6 +13,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { SectionTitle, Card, Money, Num, deltaTone, signedPct, Sparkline } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import type { CurrencyCode } from '../../lib/money'
+import { capList } from './capList'
 import {
   budgetCellLabel,
   concentration,
@@ -86,6 +87,15 @@ function DeltaCell({ deltaPct, isNew }: { deltaPct: number | null; isNew: boolea
   return <Num tone={deltaTone(deltaPct)}>{signedPct(deltaPct)}</Num>
 }
 
+/**
+ * Số dòng hiện trước khi gộp phần đuôi.
+ *
+ * 10 chứ không 5: một tháng thật có 20–25 danh mục lá, cắt ở 5 thì phần "nhỏ hơn" nuốt
+ * quá nửa tổng chi và bảng thôi trả lời được câu "tiền đi vào đâu". 10 giữ được khoảng
+ * 85–90% tổng trong phần hiện ra (đo trên demo và trên tháng 8 thật).
+ */
+const CAP = 10
+
 export function MonthCategoryTable({
   rows,
   total,
@@ -110,7 +120,13 @@ export function MonthCategoryTable({
   chuaGhi?: { nhan: string; soTien: number } | null
 }) {
   const [sort, setSort] = useState<MonthTableSort>('amount')
-  const sorted = sortMonthTable(rows, sort)
+  const [moHet, setMoHet] = useState(false)
+  const sortedAll = sortMonthTable(rows, sort)
+  // Cắt ở top N: ba dòng đầu là thứ quyết định, mà liệt kê hết 25 danh mục thì chúng
+  // đứng ngang hàng với dòng ¥210 và trên điện thoại phải cuộn hai màn mới hết. Luật
+  // cắt (kể cả ca "đuôi đúng một dòng thì đừng cắt") ở capList.ts, có phép thử.
+  const cat = capList(sortedAll, CAP, (r) => r.thisMonth)
+  const sorted = moHet ? sortedAll : cat.head
   const conc = concentration(rows)
 
   // Chèn theo TRỊ TUYỆT ĐỐI khi đang sắp theo tiền: dòng "Ghi thừa" mang số âm, xếp theo
@@ -290,7 +306,44 @@ export function MonthCategoryTable({
           {chuaGhi !== null && viTriChen === sorted.length && (
             <DongChuaGhi dong={chuaGhi} base={base} approx={approx} grid={GRID} />
           )}
+          {!moHet && cat.tail.length > 0 && (
+            <li role="row" className={`${GRID} border-b border-border-subtle px-4 py-2.5`}>
+              <span role="cell" className="min-w-0 truncate text-sm text-fg-muted">
+                {cat.tail.length} danh mục nhỏ hơn
+              </span>
+              <span role="cell" className="text-right">
+                <Money
+                  amount={cat.tailTotal}
+                  currency={base}
+                  tone="muted"
+                  approx={approx}
+                  className="text-sm"
+                />
+              </span>
+              <span role="cell" className="text-right text-sm">
+                <Num tone="muted">
+                  {total > 0 ? `${Math.round((cat.tailTotal / total) * 100)}%` : '—'}
+                </Num>
+              </span>
+              <span role="cell" className="hidden text-right lg:block" />
+              <span role="cell" className="text-right" />
+              <span role="cell" className="hidden text-right lg:block" />
+              <span role="cell" className="text-right" />
+            </li>
+          )}
         </ul>
+
+        {/* Nút mở/thu — KHÔNG bọc Guide: thiếu nó thì phần đuôi thành không có cách nào
+            xem, tức là mất chức năng chứ không phải gọn hơn. */}
+        {cat.tail.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMoHet((v) => !v)}
+            className="w-full border-b border-border-subtle px-4 py-2.5 text-left text-sm font-medium text-fg-accent hover:bg-surface-sunken"
+          >
+            {moHet ? 'Thu gọn' : `Xem tất cả ${rows.length} danh mục`}
+          </button>
+        )}
 
         {/* Hàng tổng ở CHÂN bảng, nền chrome như header: tổng ở đầu bảng thì mắt đọc nó
             trước khi biết nó là tổng của cái gì. */}

@@ -12,7 +12,8 @@ import {
 } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
-import { showToast } from '../../lib/dialog'
+import { planAutoBudget } from './autoBudget'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
 import { EmptyState, Money, SectionTitle, SegmentedControl } from '../../components/ui'
 import { useChiChuaGhi } from '../reports/useChiChuaGhi'
@@ -275,6 +276,15 @@ function ProgressBar({
   )
 }
 
+/**
+ * Danh mục có trung bình dưới mức này không được đặt hạn mức tự động.
+ *
+ * Hạn mức chỉ có nghĩa khi VƯỢT nó là một tin. Một danh mục trung bình ¥800/tháng mà
+ * cũng có một dòng trần thì bảng dài thêm mà chẳng canh được gì — và mỗi dòng thừa lại
+ * đẩy ba dòng thật sự quan trọng xuống dưới.
+ */
+const AUTO_MIN_AVERAGE = 1_000
+
 export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { visual } = useDensity()
   const monthKeyStr = monthKeyString(monthKey)
@@ -384,6 +394,54 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       else next.add(id)
       return next
     })
+  }
+
+  /**
+   * Đặt hạn mức cho CẢ BẢNG từ trung bình 6 tháng.
+   *
+   * App đã tính sẵn trung bình từng danh mục và đã đưa nó vào sheet đặt hạn mức của
+   * TỪNG dòng. Cái còn thiếu là bước đầu tiên: người mới phải mở sheet 20 lần và gõ 20
+   * con số mà app đã biết cả rồi — đó là chỗ người ta bỏ cuộc.
+   *
+   * Hỏi trước khi ghi, và nói rõ SỐ DÒNG SẼ ĐÈ: đây là thao tác duy nhất trên màn này
+   * sửa nhiều dòng một lúc, mà hoàn tác thì phải gõ tay lại từng dòng.
+   */
+  async function handleAutoBudget() {
+    // `expenseCats` đã lọc `type === 'expense'` và mục đã lưu trữ; danh mục chuyển tài
+    // sản không nằm trong đó (chúng có `kind = 'transfer'` nhưng vẫn `type = 'expense'`),
+    // nên `buildBudgetReport` sẽ tự bỏ chúng — xem `progress.ts`.
+    const eligible = expenseCats.map((c) => c.id)
+    const plan = planAutoBudget({
+      averages: new Map([...suggestions].map(([id, s]) => [id, s.average])),
+      current: new Map(report?.lines.map((l) => [l.categoryId, l.budgeted]) ?? []),
+      eligible,
+      minAverage: AUTO_MIN_AVERAGE,
+    })
+    if (plan.lines.length === 0) {
+      showToast('Chưa đủ lịch sử để đề xuất hạn mức nào.', 'info')
+      return
+    }
+    const ok = await confirmDialog({
+      title: `Đặt ${plan.lines.length} hạn mức từ 6 tháng qua?`,
+      message:
+        plan.overwrite > 0
+          ? `Tổng ${formatMoney(plan.total, base)}. Trong đó ${plan.overwrite} mục ĐANG CÓ hạn mức sẽ bị ghi đè.`
+          : `Tổng ${formatMoney(plan.total, base)}. Không mục nào đang có hạn mức bị đụng.`,
+      confirmLabel: 'Đặt hạn mức',
+    })
+    if (!ok) return
+    try {
+      for (const line of plan.lines) {
+        await upsert.mutateAsync({
+          categoryId: line.categoryId,
+          monthKey: monthKeyStr,
+          amount: line.amount,
+        })
+      }
+    } catch {
+      return
+    }
+    showToast(`Đã đặt ${plan.lines.length} hạn mức`, 'success')
   }
 
   async function handleCopy() {
@@ -945,13 +1003,22 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             <AxisStrip data={axis} monthKey={monthKey} base={base} linkToDetail={false} />
           </div>
         )}
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="mt-3 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
-        >
-          Chép hạn mức tháng trước
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
+          >
+            Chép hạn mức tháng trước
+          </button>
+          <button
+            type="button"
+            onClick={handleAutoBudget}
+            className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
+          >
+            Đặt từ 6 tháng qua
+          </button>
+        </div>
       </Card>
 
       {/* KHÔNG có khối "Cần để ý" riêng nữa (B8 của gói 1a).

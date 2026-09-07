@@ -108,23 +108,8 @@ interface Props {
   onSelectEvent?: (id: string) => void
   /** Mốc đang mở form sửa — chip của nó viền đậm. */
   editingEventId?: string | null
-  /**
-   * Form sửa mốc, do chỗ gọi dựng. Thẻ này chỉ ĐỊNH VỊ nó cạnh đúng chip: chỉ thẻ này
-   * biết năm nào ra pixel nào, còn form thì cần biết đơn vị tiền, tỷ giá và cách ghi —
-   * những thứ một thẻ đồ thị không nên biết.
-   */
-  eventEditor?: (pos: EventEditorAnchor) => ReactNode
 }
 
-/** Chỗ đặt form sửa mốc, tính từ góc trên-trái của vùng vẽ. */
-export interface EventEditorAnchor {
-  /** Toạ độ x của chip đang sửa. */
-  anchorX: number
-  /** Bề ngang vùng vẽ — form tự kẹp để không tràn ra ngoài thẻ. */
-  plotWidth: number
-  /** Mép trên gợi ý: ngay dưới đồ thị và dưới dải chặng. */
-  top: number
-}
 
 // Brief mẫu dùng #111827 (gần đen) cho đường lịch sử — mù trên nền dark. Lượt sửa đầu
 // đổi sang sky-500 và lập luận "đủ sáng ở cả hai nền" — lập luận đó CHỈ kiểm dark mode.
@@ -336,7 +321,6 @@ export function LifetimeChartCard({
   onMoveEventEnd,
   onSelectEvent,
   editingEventId = null,
-  eventEditor,
 }: Props) {
   const [opts, setOpts] = useState<ChartOpts>(DEFAULT_OPTS)
   const [hoverYear, setHoverYear] = useState<number | null>(null)
@@ -1328,7 +1312,7 @@ export function LifetimeChartCard({
               <button
                 key={e.id}
                 type="button"
-                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${e.enabled === false ? ' — ĐANG TẮT, không tính vào phép chiếu' : ''}${onMoveEvent ? ' — kéo để dời cả cụm, bấm để sửa' : ''}${
+                title={`${e.startYear}${e.endYear !== null && e.endYear !== e.startYear ? `–${e.endYear}` : ''} · ${e.label}${e.enabled === false ? ' — ĐANG TẮT, không tính vào phép chiếu' : ''}${onMoveEvent ? ' — kéo để dời cả cụm, bấm để mở nó trong bàn sửa' : ''}${
                   onMoveEventEnd && e.endYear !== null && e.endYear > e.startYear
                     ? '; kéo cái đuôi để đổi năm kết thúc'
                     : ''
@@ -1502,18 +1486,6 @@ export function LifetimeChartCard({
             </div>
           )}
 
-          {/* Form sửa mốc do chỗ gọi dựng, nhưng CHỖ ĐẶT thì thẻ này tính: chỉ ở đây mới
-              biết chip của mốc đang ở pixel nào và đồ thị cao bao nhiêu. */}
-          {eventEditor &&
-            editingEventId !== null &&
-            (() => {
-              const ev = visibleEvents.find((e) => e.id === editingEventId)
-              return eventEditor({
-                anchorX: ev ? xs(ev.startYear) : plotW / 2,
-                plotWidth: plotW,
-                top: chartH + (opts.lane && phases.length > 0 ? LANE_H : 0) + 4,
-              })
-            })()}
         </div>
 
         {/* Chú giải là CHỮ, không bấm được — đánh đổi có ý thức (xem task-8-report.md):

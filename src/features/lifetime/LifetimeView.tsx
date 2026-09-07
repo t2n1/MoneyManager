@@ -26,23 +26,21 @@ import {
   draftPhaseIndex,
   draftToInput,
   patchDraftEvent,
-  removeDraftEvent,
   type ScenarioDraft,
 } from './draft'
 import { DraftBanner } from './DraftBanner'
-import { EventEditorPopover } from './EventEditorPopover'
 import { assetsAtAge, extraSavingsForFire, firstNegativeYear, fireYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import type { PresetContext } from './presets'
 import { PresetPanel } from './PresetPanel'
-import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
+import { hasStress, NO_STRESS, projectLifetime, type StressConfig } from './project'
 import { realityCheck } from './realityCheck'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { ScenarioWorkbench } from './ScenarioWorkbench'
 import { defaultStress } from './StressPanel'
 import { pickActive } from './buildInput'
-import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { convertMinorToday, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
 import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
@@ -96,7 +94,6 @@ export function LifetimeView() {
   //
   // Không còn `editorOpen`: bàn sửa nằm THẲNG trong trang nên nó luôn hiện — không có
   // trạng thái đóng/mở nào để nhớ.
-  const [editorFocusEventId, setEditorFocusEventId] = useState<string | undefined>(undefined)
   const [tableOpen, setTableOpen] = useState(false)
   /** Năm mà Bảng theo năm (sheet) phải cuộn tới khi mở — đặt từ hai ô kết luận có NĂM. */
   const [tableFocusYear, setTableFocusYear] = useState<number | undefined>(undefined)
@@ -111,6 +108,14 @@ export function LifetimeView() {
   // thứ quyết định thanh nháp có hiện hay không.
   const [draft, setDraft] = useState<ScenarioDraft | null>(null)
   const [saving, setSaving] = useState(false)
+  /**
+   * Mốc đang được chọn — MỘT state, hai nơi đọc: chip trên đồ thị viền đậm, và bàn sửa
+   * mở tab Mốc rồi nhảy tới đúng hàng đó.
+   *
+   * Trước đây có HAI state (`editingEventId` cho popover cạnh đồ thị, `editorFocusEventId`
+   * cho bàn sửa) vì có hai chỗ sửa một mốc. Popover đã bỏ (xem `onSelectEvent` dưới),
+   * nên hai state ấy nhập làm một — hai state cho một khái niệm là hai thứ để lệch.
+   */
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   /** Bộ đếm sinh id cho mốc/chặng vừa thêm — xem `applyPreset`. */
   const presetSeed = useRef(0)
@@ -227,30 +232,6 @@ export function LifetimeView() {
     return projectLifetime({ ...shownInput, stress })
   }, [shownInput, stress])
 
-  const editingEvent = useMemo(
-    () => working?.events.find((e) => e.id === editingEventId) ?? null,
-    [working, editingEventId],
-  )
-
-  /**
-   * Chặng phủ năm bắt đầu của mốc đang sửa — nguồn NƯỚC và TIỀN cho nút "Tra hộ".
-   *
-   * Phải là `useMemo`: trước đây đây là một IIFE nằm trong JSX, nên mỗi lần render nó sắp
-   * lại cả `working.phases` và trao một OBJECT MỚI cho popover — popover thấy prop đổi ở
-   * mọi render dù chặng không hề đổi.
-   */
-  const changCuaMoc = useMemo(() => {
-    if (working === null || editingEvent === null) return null
-    const sorted = [...working.phases].sort((a, b) => a.startYear - b.startYear)
-    const p = phaseForYear(sorted, editingEvent.startYear)
-    return p === undefined
-      ? null
-      : {
-          nuoc: p.country,
-          tien: currencyAt(sorted, editingEvent.startYear, working.displayCurrency),
-        }
-  }, [working, editingEvent])
-
   const shownPhaseIndex = working ? draftPhaseIndex(working, currentYear) : -1
   const shownPhase =
     shownInput && shownPhaseIndex >= 0 ? shownInput.phases[shownPhaseIndex] : null
@@ -347,14 +328,14 @@ export function LifetimeView() {
   )
 
   /**
-   * Mở trình sửa kịch bản, tuỳ chọn nhắm sẵn vào một mốc.
+   * Nhắm bàn sửa vào một mốc: bàn sửa mở tab "Mốc cuộc đời" và nhảy tới đúng hàng.
    *
-   * Mọi đường vào trình sửa đi qua đây thay vì gọi `setEditorOpen(true)` rải rác: bốn
-   * chỗ gọi mà chỉ một chỗ nhớ dọn `editorFocusEventId` là lần mở SAU đó cuộn tới một
-   * mốc người dùng không hề bấm — mốc của lần mở TRƯỚC còn sót lại trong state.
+   * Mọi đường vào (chip trên đồ thị, bảng theo năm, sheet bảng theo năm) đi qua đây thay
+   * vì `setEditingEventId` rải rác: ba chỗ gọi mà chỉ một chỗ nhớ dọn là lần sau nhảy
+   * tới một mốc người dùng không hề bấm — mốc của lần trước còn sót lại trong state.
    */
   function openEditor(focusEventId?: string) {
-    setEditorFocusEventId(focusEventId)
+    setEditingEventId(focusEventId ?? null)
   }
 
   /** Mở Bảng theo năm dạng sheet, cuộn thẳng tới một năm. */
@@ -575,7 +556,6 @@ export function LifetimeView() {
 
   const currency = active.display_currency as CurrencyCode
   const birthYear = profile?.birth_year ?? shownInput.birthYear
-  const maxYear = birthYear + shownInput.endAge
 
   // --- Hai câu phụ của băng kết luận --------------------------------------------------
   const negYear = firstNegativeYear(shownRows, 'low')
@@ -864,33 +844,11 @@ export function LifetimeView() {
                 }),
               )
             }
-            onSelectEvent={setEditingEventId}
+            // Bấm chip = NHẮM bàn sửa vào mốc đó, không mở form riêng nữa. Popover
+            // cũ tồn tại vì bàn sửa nằm DƯỚI đồ thị (sửa thì mất hình); từ khi bàn sửa
+            // nằm CẠNH đồ thị, nó vừa thừa vừa che mất một góc đồ thị.
+            onSelectEvent={openEditor}
             editingEventId={editingEventId}
-            eventEditor={
-              editingEvent === null
-                ? undefined
-                : (pos) => (
-                <EventEditorPopover
-                  event={editingEvent}
-                  // Toạ độ do thẻ đồ thị tính — nó là chỗ duy nhất biết năm nào ra pixel nào.
-                  anchorX={pos.anchorX}
-                  plotWidth={pos.plotWidth}
-                  top={pos.top}
-                  minYear={currentYear}
-                  maxYear={maxYear}
-                  chang={changCuaMoc}
-                  onPatch={(patch) =>
-                    editDraft((d) => patchDraftEvent(d, editingEvent.id, patch))
-                  }
-                  onDelete={() => {
-                    editDraft((d) => removeDraftEvent(d, editingEvent.id))
-                    setEditingEventId(null)
-                    showToast(`Đã bỏ mốc "${editingEvent.label}" khỏi bản nháp.`, 'success')
-                  }}
-                  onClose={() => setEditingEventId(null)}
-                />
-              )
-            }
           />
 
         {/* Dải so sánh nằm TRONG cột đồ thị, không phải một ô lưới riêng: nó nói về
@@ -949,7 +907,7 @@ export function LifetimeView() {
             inflationBps={inflationBps}
             onInflation={setInflationBps}
             fxOf={pageFxOf}
-            focusEventId={editorFocusEventId}
+            focusEventId={editingEventId ?? undefined}
             presetChips={
               <PresetPanel
                 variant="inline"

@@ -11,7 +11,7 @@
 // `fxModel.ts`). Muốn mốc tính bằng đồng khác thì đổi tiền của CHẶNG.
 //
 // GHI VÀO BẢN NHÁP, KHÔNG GHI DB — lý do đầy đủ ở đầu `PhaseFormSheet.tsx`.
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
@@ -25,6 +25,10 @@ import {
 } from './eventAmount'
 import { EVENT_ICONS, EVENT_ICON_GROUPS, EventIcon } from './eventIcons'
 import { MAX_LOAN_YEARS, homeCashOutInYear, type HomeAsset } from './homeAsset'
+import { useTraSo } from '../../hooks/queries'
+import { dungCauHoi } from './traSo'
+import { docKetQua, type KetQuaTra, type LoiTra } from './traSoKetQua'
+import { TraSoSheet } from './TraSoSheet'
 import { TAG_COLOR_KEYS, TAG_COLOR_LABELS, TAG_HEX, tagColor } from '../tags/colors'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
@@ -55,6 +59,16 @@ interface Props {
    * Rỗng/không truyền thì ô đó vẫn dùng được, chỉ là phải tự gõ số.
    */
   chiTheoDanhMuc?: { name: string; annualMinor: number }[]
+  /**
+   * Chặng phủ năm bắt đầu của mốc — nguồn NƯỚC và TIỀN cho nút "Tra hộ". `null` thì ẩn
+   * nút đó (không biết hỏi giá ở nước nào, bằng đồng nào).
+   *
+   * "Tra hộ" trước đây nằm ở `EventEditorPopover` — form nhỏ cạnh đồ thị. Popover đã bỏ
+   * (08/09/2026: nó trùng khít với hàng mốc trong bàn sửa, và từ khi bàn sửa nằm CẠNH đồ
+   * thị thì lý do tồn tại của nó — "sửa mà không mất hình" — cũng hết). Nút theo về đây,
+   * chỗ duy nhất còn sửa được mọi thứ của một mốc.
+   */
+  chang?: { nuoc: string | null; tien: CurrencyCode } | null
   /** Ghi các trường đã sửa vào bản nháp. */
   onApply: (patch: Partial<Omit<DraftEvent, 'id'>>) => void
   /** Bỏ mốc này khỏi bản nháp. */
@@ -67,6 +81,7 @@ export function EventFormSheet({
   event,
   currency,
   chiTheoDanhMuc = [],
+  chang = null,
   onApply,
   onRemove,
   onClose,
@@ -191,6 +206,73 @@ export function EventFormSheet({
   }
   const giaiThich = eventSpanNote(xemTruoc)
 
+  // --- "Tra hộ" (dời từ EventEditorPopover) -------------------------------------------
+  const [moTraSo, setMoTraSo] = useState(false)
+  const [ketQua, setKetQua] = useState<KetQuaTra | LoiTra | null>(null)
+  /** true = sheet đang mở nhưng CHƯA gửi gì đi. Xem `batDauTra`. */
+  const [choXacNhan, setChoXacNhan] = useState(false)
+  const traSo = useTraSo()
+  /**
+   * Thẻ lượt: đóng sheet giữa chừng rồi bấm "Tra hộ" lại là một đường có thật (Esc/bấm
+   * ra ngoài KHÔNG huỷ request đang bay). Không có thẻ này, lượt cũ về muộn hơn sẽ đè
+   * kết quả của lượt mới — người dùng bấm "Lấy" một con số không thuộc câu mình vừa hỏi.
+   */
+  const luotRef = useRef(0)
+
+  const cauHoi =
+    chang === null
+      ? null
+      : dungCauHoi({
+          nhan: label,
+          kind,
+          namBatDau: yearValid ? yearNum : event.startYear,
+          namKetThuc: forever ? null : endYearValid ? endYearNum : null,
+          nuoc: chang.nuoc,
+          tien: chang.tien,
+        })
+
+  /**
+   * Bấm "Tra hộ".
+   *
+   * Mốc TỰ ĐẶT TÊN dừng ở màn xác nhận, chưa gửi gì: nhãn mốc là chữ người dùng gõ, và
+   * bản thiết kế đòi cảnh báo "trước khi gửi — người dùng bấm tiếp hay thôi". Mốc có sẵn
+   * dựng câu hỏi TỪ LUẬT (không mang chữ người dùng) nên gửi thẳng, không hỏi lại.
+   */
+  function batDauTra() {
+    if (cauHoi === null || chang === null) return
+    setKetQua(null)
+    setMoTraSo(true)
+    if (!cauHoi.laMocCoSan) {
+      setChoXacNhan(true)
+      return
+    }
+    setChoXacNhan(false)
+    guiTraSo()
+  }
+
+  function guiTraSo() {
+    if (cauHoi === null || chang === null) return
+    setChoXacNhan(false)
+    const luot = ++luotRef.current
+    // Truyền cả `tien`: bản demo dội lại đúng đồng đó, nếu không `docKetQua` sẽ từ chối
+    // với 'sai-tien' ở mọi chặng không phải JPY. Xem JSDoc `Repo.traSo`.
+    traSo.mutate(
+      { van: cauHoi.van, tien: chang.tien },
+      {
+        onSuccess: (tho) => {
+          if (luot !== luotRef.current) return
+          setKetQua(docKetQua(tho, chang.tien))
+        },
+        // Mất mạng / function lỗi / hết hạn mức đều dừng ở đây — dùng 'khong-goi-duoc',
+        // KHÔNG dùng 'doc-khong-ra' (đó là mã cho kết quả đọc không ra, nói sai chỗ hỏng).
+        onError: (e) => {
+          if (luot !== luotRef.current) return
+          setKetQua({ loi: 'khong-goi-duoc', noiDung: e instanceof Error ? e.message : String(e) })
+        },
+      },
+    )
+  }
+
   /** Nhãn của ô số tiền, theo hình đang chọn — xem chú thích tại chỗ dùng. */
   const amountLabel = muaTaiSan
     ? 'Chi phí GIỮ mỗi năm (thuế, bảo hiểm, bảo trì)'
@@ -250,6 +332,7 @@ export function EventFormSheet({
   const uid = useId()
 
   return (
+    <>
     <div
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
       onClick={onClose}
@@ -494,6 +577,17 @@ export function EventFormSheet({
             className={`text-right font-semibold ${field}`}
           />
         </div>
+        {cauHoi !== null && (
+          <div className="mb-1 flex justify-end">
+            <button
+              type="button"
+              onClick={batDauTra}
+              className="min-h-11 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary transition active:scale-95 hover:bg-surface-sunken"
+            >
+              Tra hộ
+            </button>
+          </div>
+        )}
         {!amountValid && (
           <p role="alert" className="mb-2 text-sm text-money-out">
             Số tiền không được âm.
@@ -936,5 +1030,31 @@ export function EventFormSheet({
         </div>
       </div>
     </div>
+
+    {/* Sheet "Tra hộ" nằm NGOÀI sheet mốc, cùng cấp: hai lớp phủ lồng nhau thì Esc đóng
+        nhầm lớp và nền mờ tô hai lần. Cùng luật với bảng theo năm ở LifetimeView. */}
+    {moTraSo && chang !== null && cauHoi !== null && (
+      <TraSoSheet
+        dangChay={traSo.isPending}
+        ketQua={ketQua}
+        tien={chang.tien}
+        choXacNhan={choXacNhan}
+        canhBaoRiengTu={!cauHoi.laMocCoSan}
+        onXacNhan={guiTraSo}
+        onDong={() => {
+          setMoTraSo(false)
+          setChoXacNhan(false)
+        }}
+        onChon={(minor, ghiChu) => {
+          setAmount(minor)
+          // NỐI THÊM, không thay: ghi đè ở đây là xoá sạch ghi chú người dùng tự viết.
+          setNote((cu) => (cu.trim() === '' ? ghiChu : `${cu}
+
+${ghiChu}`))
+          setMoTraSo(false)
+        }}
+      />
+    )}
+    </>
   )
 }

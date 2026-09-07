@@ -1530,6 +1530,18 @@ export function ScenarioWorkbench({
         <EventFormSheet
           event={eventSheet}
           currency={currencyAt(phases, eventSheet.startYear, currency)}
+          // Nước + tiền của chặng phủ năm bắt đầu — nguồn cho nút "Tra hộ", dời về đây
+          // từ `EventEditorPopover` (đã bỏ 08/09/2026). Chặng đã sắp tăng dần theo
+          // `startYear` (draftFromRows / applyPreset đều sort), nên `findLast` là chặng
+          // đang hiệu lực; không có chặng nào phủ thì trả null và nút tự ẩn.
+          chang={(() => {
+            const p = [...phases]
+              .sort((a, b) => a.startYear - b.startYear)
+              .findLast((x) => x.startYear <= eventSheet.startYear)
+            return p === undefined
+              ? null
+              : { nuoc: p.country, tien: currencyAt(phases, eventSheet.startYear, currency) }
+          })()}
           // Chỉ truyền khi mốc bắt đầu ở chặng ĐANG CHẠY: `baseline` tính theo tiền của
           // chặng đó, nên với một mốc ở chặng khác (có thể khác đồng tiền) các con số
           // này sẽ sai đơn vị — thà không gợi ý còn hơn gợi ý một số sai 165 lần.

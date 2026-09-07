@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Banknote } from 'lucide-react'
+import { ChevronRight, Banknote, Search } from 'lucide-react'
 import { repo } from '../../data'
 import {
   useDebtPayments,
@@ -122,6 +122,25 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             <Banknote className="h-4 w-4 shrink-0" />
             <span className="flex-1">Giao dịch trả nợ · Xem khoản nợ</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-green-500 dark:text-green-400" />
+          </button>
+        )}
+        {/* "Nơi này còn những lần nào nữa" — câu hỏi bật ra ngay lúc đang nhìn một khoản
+            chi, mà trước nay phải tự nhớ tên rồi sang trang Tìm kiếm gõ lại. Ghi chú là
+            thứ gần nhất với "nơi mua" mà app này có (không có bảng merchant riêng), nên
+            link đi bằng chính nó. Chỉ hiện khi có ghi chú: không có thì tìm chuỗi rỗng
+            sẽ trả về TOÀN BỘ sổ, đúng cái ngược với ý người bấm. */}
+        {tx.note.trim() !== '' && (
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/search?q=${encodeURIComponent(tx.note.trim())}`)
+              onClose()
+            }}
+            className="mb-3 flex w-full items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-left text-sm font-medium text-fg-secondary active:scale-[0.99]"
+          >
+            <Search className="h-4 w-4 shrink-0" />
+            <span className="flex-1 truncate">Xem mọi lần “{tx.note.trim()}”</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
           </button>
         )}
         <TransactionForm

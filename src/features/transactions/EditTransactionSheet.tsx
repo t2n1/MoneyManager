@@ -1,14 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Banknote, Search } from 'lucide-react'
+import { ChevronRight, Banknote, Search, SplitSquareHorizontal } from 'lucide-react'
 import { repo } from '../../data'
 import {
+  useAccounts,
   useDebtPayments,
   useDeleteTransaction,
+  useRates,
   useUpdateTransaction,
 } from '../../hooks/queries'
 import { showUndoToast } from '../../lib/undoToast'
+import { SplitSheet } from './SplitSheet'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 import { toNewTransaction } from './restore'
@@ -33,6 +36,12 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
   const navigate = useNavigate()
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
+  const [moChia, setMoChia] = useState(false)
+  // Tiền của giao dịch = tiền của TÀI KHOẢN NGUỒN, không phải base — `amount` được khai
+  // theo đơn vị đó (xem chú thích cột amount ở database.types).
+  const { data: accounts = [] } = useAccounts()
+  const { base } = useRates()
+  const currency = accounts.find((a) => a.id === tx.account_id)?.currency ?? base
 
   // Giao dịch sinh từ trả nợ → cho bấm về đúng khoản nợ. Nguồn sự thật là
   // debt_payments.transaction_id (không chỉ dựa cờ is_debt_flow).
@@ -129,6 +138,19 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             thứ gần nhất với "nơi mua" mà app này có (không có bảng merchant riêng), nên
             link đi bằng chính nó. Chỉ hiện khi có ghi chú: không có thì tìm chuỗi rỗng
             sẽ trả về TOÀN BỘ sổ, đúng cái ngược với ý người bấm. */}
+        {/* CHIA — chỉ cho khoản chi/thu có số dương. Chuyển khoản không chia được: nó
+            có hai đầu tài khoản, chia một đầu là làm lệch số dư đầu kia. */}
+        {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && (
+          <button
+            type="button"
+            onClick={() => setMoChia(true)}
+            className="mb-3 flex w-full items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-left text-sm font-medium text-fg-secondary active:scale-[0.99]"
+          >
+            <SplitSquareHorizontal className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Chia thành nhiều dòng</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
+          </button>
+        )}
         {tx.note.trim() !== '' && (
           <button
             type="button"
@@ -158,6 +180,17 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
           }}
         />
       </div>
+      {moChia && (
+        <SplitSheet
+          tx={tx}
+          currency={currency}
+          onClose={() => setMoChia(false)}
+          onDone={() => {
+            setMoChia(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1299,7 +1299,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // sheet chuẩn (rounded-t-2xl / lg:rounded-2xl) nên thuộc ngoại lệ 'sheet'.
     // 34 (từ 33, 2026-09-06): bảng chọn của Phân loại chi tiêu (redesign "nhãn tóm tắt
     // + bảng chọn") — sheet mới, cùng khuôn chuẩn, ngoại lệ 'sheet' hợp lệ tiếp theo.
-    { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    // 35 (từ 34, 2026-09-07): SplitSheet (chia một giao dịch thành nhiều dòng) — sheet
+    // mới, dùng đúng khuôn `rounded-t-2xl` / `lg:rounded-2xl`, ngoại lệ 'sheet' tiếp theo.
+    { needle: 'rounded-2xl', max: 35, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
     // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
     //

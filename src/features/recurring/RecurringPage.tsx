@@ -9,17 +9,26 @@ import {
   useRangeTransactions,
   useRates,
   useRecurringRules,
+  useProfile,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
 } from '../../hooks/queries'
-import { addDaysISO, toISODate } from '../../lib/dates'
+import {
+  addDaysISO,
+  addMonths,
+  formatMonthLabel,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+} from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import { formatMoney } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { monthlyLoad } from './monthlyLoad'
 import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/recurring'
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
+import { BillCalendarCard } from './BillCalendarCard'
 import { RecurringFormSheet } from './RecurringFormSheet'
 import { Card, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
 
@@ -123,6 +132,28 @@ export function RecurringPage() {
 
   // Radar (mục T): quét 180 ngày gần nhất tìm khoản lặp đều chưa có quy tắc.
   const today = toISODate(new Date())
+
+  // --- Lịch khoản định kỳ ----------------------------------------------------------
+  // Tôn trọng ngày bắt đầu tháng của người dùng, y như mọi màn khác: lịch chạy 25→24
+  // mà thẻ Ngân sách chạy 1→30 thì hai màn nói hai "tháng này" khác nhau.
+  const { data: profile } = useProfile()
+  const monthStartDay = profile?.month_start_day ?? 1
+  const [calMonth, setCalMonth] = useState(() => monthKeyForDate(toISODate(new Date()), 1))
+  useEffect(() => {
+    setCalMonth(monthKeyForDate(toISODate(new Date()), monthStartDay))
+  }, [monthStartDay])
+  const calRange = useMemo(
+    () => getMonthRange(calMonth, monthStartDay),
+    [calMonth, monthStartDay],
+  )
+  const { data: calTxs = [] } = useRangeTransactions(calRange)
+  const currencyOfRule = useMemo(() => {
+    const byId = new Map(rules.map((r) => [r.id, r.account_id]))
+    return (ruleId: string): CurrencyCode => {
+      const accId = byId.get(ruleId)
+      return accounts.find((a) => a.id === accId)?.currency ?? base
+    }
+  }, [rules, accounts, base])
   const radarRange = useMemo(() => {
     const d = new Date()
     d.setDate(d.getDate() - 180)
@@ -243,6 +274,17 @@ export function RecurringPage() {
           <Plus className="h-4 w-4" /> Thêm
         </button>
       </PageHeader>
+
+      <BillCalendarCard
+        rules={rules}
+        txs={calTxs}
+        range={calRange}
+        todayISO={today}
+        monthLabel={formatMonthLabel(calMonth)}
+        currencyOf={currencyOfRule}
+        onPrev={() => setCalMonth((m) => addMonths(m, -1))}
+        onNext={() => setCalMonth((m) => addMonths(m, 1))}
+      />
 
       {suggestions.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-green-200 bg-state-good-bg dark:border-green-900">

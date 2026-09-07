@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
+import { BookmarkPlus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import { Guide } from '../../components/Guide'
 import { DateField } from '../../components/DateField'
@@ -20,6 +20,15 @@ import { toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
+import {
+  isEmptyFilter,
+  parseSavedFilters,
+  removeSavedFilter,
+  SAVED_FILTERS_KEY,
+  upsertSavedFilter,
+  type SavedFilter,
+  type SavedFilterState,
+} from './savedFilters'
 import { sumIncomeExpense } from '../reports/aggregate'
 import { filterByTags, tagsByTransaction } from '../tags/aggregate'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -110,6 +119,55 @@ export function SearchPage() {
   const [amountMaxStr, setAmountMaxStr] = useState('')
   // Mở sẵn khối lọc nếu vào từ deep-link, để thấy ngay mình đang lọc theo nhãn nào
   const [showMore, setShowMore] = useState(initial.tagIds.length > 0 || initial.uncat)
+  // --- Bộ lọc đã lưu (localStorage; luật ở savedFilters.ts, 22 test) -----------------
+  const [saved, setSaved] = useState<SavedFilter[]>(() => {
+    try {
+      return parseSavedFilters(localStorage.getItem(SAVED_FILTERS_KEY))
+    } catch {
+      return []
+    }
+  })
+  const ghiSaved = (next: SavedFilter[]) => {
+    setSaved(next)
+    try {
+      localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next))
+    } catch {
+      // Chế độ riêng tư của trình duyệt chặn ghi — bộ lọc vẫn dùng được trong phiên này.
+    }
+  }
+  const trangThai = (): SavedFilterState => ({
+    text,
+    type: typeFilter,
+    from,
+    to,
+    categoryIds,
+    accountIds,
+    tagIds,
+    uncategorized,
+    amountMin: amountMinStr,
+    amountMax: amountMaxStr,
+  })
+  const apDung = (f: SavedFilter) => {
+    const s = f.state
+    setText(s.text)
+    setDebouncedText(s.text)
+    setTypeFilter(s.type as TransactionType | 'all')
+    setFrom(s.from)
+    setTo(s.to)
+    setCategoryIds(s.categoryIds)
+    setAccountIds(s.accountIds)
+    setTagIds(s.tagIds)
+    setUncategorized(s.uncategorized)
+    setAmountMinStr(s.amountMin)
+    setAmountMaxStr(s.amountMax)
+    setShowMore(true)
+  }
+  function luuBoLoc() {
+    const ten = window.prompt('Đặt tên cho bộ lọc này:')?.trim()
+    if (!ten) return
+    ghiSaved(upsertSavedFilter(saved, ten, trangThai(), crypto.randomUUID()))
+    showToast(`Đã lưu bộ lọc “${ten}”`, 'success')
+  }
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   // Nhập theo đơn vị chính của tiền gốc → quy ra minor units để so với amount đã lưu.
@@ -257,6 +315,42 @@ export function SearchPage() {
           </button>
         ))}
       </div>
+
+      {/* BỘ LỌC ĐÃ LƯU. Tám mặt lọc dựng được câu hỏi rất cụ thể ("chi tiền mặt trên
+          ¥5.000 ba tháng qua"), nhưng dựng lại từ đầu mỗi lần là sáu thao tác — và sai
+          một ô là ra một câu hỏi khác. Chỉ mời lưu khi ĐÃ lọc gì đó. */}
+      {(saved.length > 0 || !isEmptyFilter(trangThai())) && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          {saved.map((f) => (
+            <span key={f.id} className="inline-flex items-center">
+              <button
+                type="button"
+                onClick={() => apDung(f)}
+                className={filterChipClass(false, 'md', 'rounded-r-none')}
+              >
+                {f.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => ghiSaved(removeSavedFilter(saved, f.id))}
+                aria-label={`Bỏ bộ lọc ${f.name}`}
+                className={filterChipClass(false, 'md', 'rounded-l-none border-l-0 px-2 text-fg-muted')}
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </span>
+          ))}
+          {!isEmptyFilter(trangThai()) && (
+            <button
+              type="button"
+              onClick={luuBoLoc}
+              className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-fg-accent"
+            >
+              <BookmarkPlus className="h-4 w-4" /> Lưu bộ lọc
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Khoảng ngày */}
       <div className="mb-2 flex items-center gap-2 text-sm text-fg-secondary">

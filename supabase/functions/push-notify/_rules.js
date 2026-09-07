@@ -1032,7 +1032,8 @@ function detectRecurring(txs, existingKeys, todayISO, opts = {}) {
       note: commonNote(arr.map((t) => t.note)),
       frequency,
       occurrences: arr.length,
-      lastDate
+      lastDate,
+      recentDates: dates.slice(-3).reverse()
     });
   }
   out.sort((a, b) => b.occurrences - a.occurrences);

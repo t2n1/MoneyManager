@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRightLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowRightLeft, Pause, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
 import {
   useAccounts,
   useCategories,
@@ -112,6 +112,11 @@ export function RecurringPage() {
     rule: null,
   })
   const [dismissed, setDismissed] = useState<string[]>(readDismissed)
+  /**
+   * Gợi ý đang duyệt. Kẹp lại khi danh sách ngắn đi (vừa tạo hoặc vừa bỏ) — không kẹp
+   * thì bấm "Không định kỳ" ở gợi ý cuối là chỉ số trỏ ra ngoài mảng và khối trắng ra.
+   */
+  const [goiYIdx, setGoiYIdx] = useState(0)
 
   // "?new=1": form Nhập dẫn sang đây thay cho dropdown "Lặp lại" đã bỏ (một dòng
   // "Khoản này lặp lại? → Tạo quy tắc"). Một liên kết hứa "Tạo quy tắc" mà đáp lại
@@ -287,19 +292,27 @@ export function RecurringPage() {
       />
 
       {suggestions.length > 0 && (
+        /* DUYỆT TỪNG THẺ, không đổ cả danh sách.
+           Danh sách bảy dòng buộc người ta quyết định bảy lần trước khi làm được gì —
+           và mỗi dòng chỉ ghi "7 lần" mà không nói bảy lần đó rơi vào ngày nào, nên
+           phải tin app một cách mù quáng hoặc bỏ qua cả khối. Một thẻ có BẰNG CHỨNG
+           (ba ngày gần nhất) thì mắt tự thấy nhịp — và cũng tự thấy khi app đoán sai. */
         <section className="overflow-hidden rounded-xl border border-green-200 bg-state-good-bg dark:border-green-900">
-          <SectionTitle className="flex items-center gap-1.5 px-3 pt-3 text-green-800 dark:text-green-200">
-            <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
-          </SectionTitle>
-          <p className="px-3 pt-0.5 text-sm text-green-700/80 dark:text-green-300/80">
-            Phát hiện từ lịch sử — tạo quy tắc để tự sinh giao dịch kỳ tới.
-          </p>
-          <ul className="mt-2 divide-y divide-green-100 dark:divide-green-900/50">
-            {suggestions.map((s) => {
-              const acc = accountOf(s.account_id)
-              const cat = categoryOf(s.category_id)
-              return (
-                <li key={s.key} className="flex items-center gap-2 px-3 py-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 px-3 pt-3">
+            <SectionTitle className="flex items-center gap-1.5 text-green-800 dark:text-green-200">
+              <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
+            </SectionTitle>
+            <span className="font-mono text-2xs text-green-700/80 dark:text-green-300/80">
+              {Math.min(goiYIdx + 1, suggestions.length)}/{suggestions.length}
+            </span>
+          </div>
+          {(() => {
+            const s = suggestions[Math.min(goiYIdx, suggestions.length - 1)]
+            const acc = accountOf(s.account_id)
+            const cat = categoryOf(s.category_id)
+            return (
+              <div className="px-3 pb-3 pt-1.5">
+                <div className="flex items-center gap-2">
                   <span className="text-lg">{cat?.icon ?? '🔁'}</span>
                   <div className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-fg-primary">
@@ -311,25 +324,39 @@ export function RecurringPage() {
                       {s.frequency === 'monthly' ? 'hàng tháng' : 'hàng tuần'} · {s.occurrences} lần
                     </span>
                   </div>
+                </div>
+                {/* Bằng chứng — KHÔNG bọc Guide: bỏ nó đi thì gợi ý quay về chỗ phải tin
+                    mù quáng, tức là mất thứ khiến quyết định này quyết định được. */}
+                <p className="mt-1.5 font-mono text-2xs text-green-700/80 dark:text-green-300/80">
+                  Gần nhất: {s.recentDates.map(fmtDate).join(' · ')}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className={actionButtonClass('primary', 'shrink-0')}
+                    className={actionButtonClass('primary')}
                   >
-                    Tạo
+                    Tạo quy tắc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGoiYIdx((i) => i + 1)}
+                    disabled={goiYIdx >= suggestions.length - 1}
+                    className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken disabled:opacity-50"
+                  >
+                    Để sau
                   </button>
                   <button
                     type="button"
                     onClick={() => dismissSuggestion(s.key)}
-                    aria-label="Bỏ qua gợi ý"
-                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-green-700/60 hover:text-green-700 dark:text-green-300/60"
+                    className="rounded-md px-3 py-1.5 text-sm font-medium text-fg-muted hover:text-fg-primary"
                   >
-                    <X className="h-4 w-4" />
+                    Không định kỳ
                   </button>
-                </li>
-              )
-            })}
-          </ul>
+                </div>
+              </div>
+            )
+          })()}
         </section>
       )}
 

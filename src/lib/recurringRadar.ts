@@ -14,6 +14,14 @@ export interface RecurringSuggestion {
   frequency: Extract<RecurringFrequency, 'weekly' | 'monthly'>
   occurrences: number
   lastDate: string
+  /**
+   * Tối đa 3 lần gần nhất, MỚI → CŨ. Là BẰNG CHỨNG của gợi ý.
+   *
+   * Vì sao cần: "7 lần" không cho biết bảy lần đó rơi vào ngày nào, nên người dùng phải
+   * tin app một cách mù quáng hoặc bỏ qua gợi ý. Ba ngày gần nhất là đủ để mắt tự thấy
+   * nhịp — và cũng đủ để thấy app đoán SAI khi nó đoán sai.
+   */
+  recentDates: string[]
 }
 
 /** Chữ ký của một quy tắc/giao dịch để so khớp "đã có rule chưa". */
@@ -109,6 +117,7 @@ export function detectRecurring(
       frequency,
       occurrences: arr.length,
       lastDate,
+      recentDates: dates.slice(-3).reverse(),
     })
   }
   // Nhiều lần lặp nhất lên trước

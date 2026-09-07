@@ -83,3 +83,29 @@ describe('detectRecurring', () => {
     expect(detectRecurring(txs, new Set(), today)).toHaveLength(0)
   })
 })
+
+describe('recentDates — bằng chứng của gợi ý', () => {
+  it('trả tối đa 3 lần gần nhất, MỚI trước', () => {
+    const txs = ['2026-05-06', '2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06'].map(
+      (d, i) => tx({ id: `t${i}`, occurred_on: d }),
+    )
+    const [s] = detectRecurring(txs, new Set(), '2026-09-10')
+    expect(s.recentDates).toEqual(['2026-09-06', '2026-08-06', '2026-07-06'])
+  })
+
+  it('ít hơn 3 lần thì trả đủ bấy nhiêu, không đệm rỗng', () => {
+    const txs = ['2026-07-06', '2026-08-06', '2026-09-06'].map((d, i) =>
+      tx({ id: `t${i}`, occurred_on: d }),
+    )
+    const [s] = detectRecurring(txs, new Set(), '2026-09-10')
+    expect(s.recentDates).toHaveLength(3)
+  })
+
+  it('ngày đầu của recentDates luôn trùng lastDate', () => {
+    const txs = ['2026-06-06', '2026-07-06', '2026-08-06', '2026-09-06'].map((d, i) =>
+      tx({ id: `t${i}`, occurred_on: d }),
+    )
+    const [s] = detectRecurring(txs, new Set(), '2026-09-10')
+    expect(s.recentDates[0]).toBe(s.lastDate)
+  })
+})

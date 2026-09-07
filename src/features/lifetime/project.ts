@@ -5,8 +5,15 @@
 // phép thử đó đi theo ĐỒ THỊ import, nên mọi file thêm vào đây cũng bị soi cùng luật.
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { eventAmountInYear, shapeOf, type AmountShape } from './eventAmount'
+import { resolvePhasePercents } from './phasePercent'
 
-/** Chặng đời: thu chi NỀN. Chặng sau bắt đầu thì chặng trước kết thúc. */
+/**
+ * Chặng đời: thu chi NỀN. Chặng sau bắt đầu thì chặng trước kết thúc.
+ *
+ * `incomePctOfPrev`/`expensePctOfPrev` (migration 0067) là ĐƯỜNG THỨ HAI để khai hai
+ * con số nền — theo phần trăm chặng liền trước thay vì số tuyệt đối. Cả hai tuỳ chọn,
+ * bỏ trống = y như trước. Giải ở `phasePercent.ts`, ngay đầu `projectLifetime`.
+ */
 export interface LifetimePhase {
   startYear: number
   label: string
@@ -14,6 +21,13 @@ export interface LifetimePhase {
   currency: CurrencyCode
   annualIncomeMinor: number
   annualExpenseMinor: number
+  /**
+   * Thu của chặng này = bao nhiêu PHẦN TRĂM thu của chặng liền trước (đã quy về cùng
+   * đồng tiền). Bỏ trống = dùng `annualIncomeMinor`. Bỏ qua ở chặng đầu tiên.
+   */
+  incomePctOfPrev?: number | null
+  /** Như `incomePctOfPrev`, cho chi. Ví dụ 80 = "nghỉ hưu thì chi 80% như bây giờ". */
+  expensePctOfPrev?: number | null
   /** 1 đơn vị `currency` = bao nhiêu đơn vị display, theo MAJOR units. */
   fxToDisplay: number
 }
@@ -54,6 +68,25 @@ export interface LifetimeEvent {
   growthBps?: number
   /** Mốc lặp mỗi bao nhiêu năm. Bỏ trống hoặc 1 = mọi năm trong khoảng. */
   repeatEveryYears?: number | null
+  /**
+   * Số MỖI NĂM bị TRỪ KHỎI CHI NỀN trong khoảng [startYear, endYear], theo minor units
+   * của `currency` mốc này. Bỏ trống hoặc 0 = không thay gì (migration 0067).
+   *
+   * Chi nền lấy từ CHI THẬT (nút "Dùng số này" ở thẻ chặng), nên nó đã chứa tiền thuê
+   * nhà, tiền nuôi con, mọi thứ đang tiêu. Thêm một mốc "Mua nhà" là cộng khoản trả nợ
+   * LÊN TRÊN tiền thuê vẫn còn nguyên trong chi nền — phần nhà ở bị tính hai lần.
+   *
+   * TRỪ SUỐT KHOẢNG, không theo nhịp lặp và không theo hình dạng: mua nhà là thôi trả
+   * tiền thuê MỌI NĂM, không phải mỗi 8 năm.
+   */
+  replacesMinor?: number
+  /** Tên khoản bị thay, để câu giải thích đọc được ("thay cho Nhà ở"). Chỉ là chữ. */
+  replacesLabel?: string
+  /**
+   * Khoá màu trong `features/tags/colors.ts`. Chuỗi rỗng = tô chip theo Thu/Chi như
+   * trước. KHÔNG vào phép tính — engine mang nó theo để bản nháp không làm mất.
+   */
+  color?: string
   /**
    * Tên icon trong bộ icon mốc (`eventIcons.tsx`). Chuỗi rỗng = dùng mũi tên lên/xuống
    * theo Thu/Chi như trước. KHÔNG vào phép tính — engine mang nó theo để `fxModel` và
@@ -253,7 +286,13 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
   // sánh `stress !== null`, và bản chiếu bình thường không đi qua nhánh nào của khối này.
   const stress = hasStress(input.stress) ? (input.stress as StressConfig) : null
 
-  const sortedPhases = [...phases].sort((a, b) => a.startYear - b.startYear)
+  // Giải phần trăm NGAY SAU khi sắp, trước mọi phép tính: từ đây xuống, hai con số
+  // nền của một chặng là số tuyệt đối, và không nhánh nào phải biết chúng được khai
+  // kiểu gì (migration 0067).
+  const sortedPhases = resolvePhasePercents(
+    [...phases].sort((a, b) => a.startYear - b.startYear),
+    displayCurrency,
+  )
   // "Sống thọ hơn dự tính" kéo dài chính bản chiếu, không phải sửa `endAge` của kịch
   // bản: endAge là dữ liệu đã lưu, còn cú sốc là một câu hỏi "nếu như" không được ghi.
   const lastYear = birthYear + endAge + (stress?.longevity.on ? stress.longevity.years : 0)
@@ -291,13 +330,36 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
         phase.fxToDisplay,
       ) * infl,
     )
-    const expenseMinor = Math.round(
-      convertLifetimeMinor(
-        phase.annualExpenseMinor,
-        phase.currency,
-        displayCurrency,
-        phase.fxToDisplay,
-      ) * infl,
+    // Phần chi nền bị các mốc THAY (migration 0067) — trừ NGAY TRONG `expenseMinor`,
+    // không tính riêng rồi trừ sau. `expenseMinor` được JSDoc hứa là "chi nền của
+    // chặng", và một mốc "Mua nhà" thay tiền thuê thì tiền thuê KHÔNG còn là chi nền
+    // nữa. Ngưỡng FIRE (25× chi, insights.ts) đọc đúng trường này, nên để nó mang số
+    // chưa trừ là để hai chỗ trên cùng một màn hình nói hai số khác nhau.
+    //
+    // Chỉ xét KHOẢNG — không qua `eventAmountInYear`, không theo nhịp lặp: xem JSDoc
+    // `replacesMinor`. Kẹp sàn 0: khai thay nhiều hơn cả chi nền là gõ sai, mà một chi
+    // nền ÂM sẽ chảy vào `netFlowMinor` thành "chặng này tự sinh ra tiền".
+    let replacedMinor = 0
+    for (const e of events) {
+      if (e.enabled === false) continue
+      const r = e.replacesMinor ?? 0
+      if (r <= 0) continue
+      if (e.startYear > year) continue
+      if (e.endYear !== null && e.endYear < year) continue
+      replacedMinor += convertLifetimeMinor(r, e.currency, displayCurrency, e.fxToDisplay)
+    }
+    const expenseMinor = Math.max(
+      0,
+      Math.round(
+        (convertLifetimeMinor(
+          phase.annualExpenseMinor,
+          phase.currency,
+          displayCurrency,
+          phase.fxToDisplay,
+        ) -
+          replacedMinor) *
+          infl,
+      ),
     )
 
     // Mất việc và giảm thu đánh vào THU NỀN, sau quy đổi và sau lạm phát: chúng là

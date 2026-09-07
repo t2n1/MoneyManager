@@ -84,6 +84,8 @@ export function buildLifetimeInput(args: BuildLifetimeInputArgs): LifetimeInput 
       currency: p.currency as CurrencyCode,
       annualIncomeMinor: p.annual_income_minor,
       annualExpenseMinor: p.annual_expense_minor,
+      incomePctOfPrev: p.income_pct_of_prev ?? null,
+      expensePctOfPrev: p.expense_pct_of_prev ?? null,
       fxToDisplay: p.fx_to_display,
     }))
   // Kịch bản không có chặng nào thì `projectLifetime` trả mảng rỗng — không có gì để
@@ -108,6 +110,9 @@ export function buildLifetimeInput(args: BuildLifetimeInputArgs): LifetimeInput 
       growthBps: e.growth_bps ?? 0,
       repeatEveryYears: e.repeat_every_years ?? null,
       icon: e.icon ?? '',
+      replacesMinor: e.replaces_minor ?? 0,
+      replacesLabel: e.replaces_label ?? '',
+      color: e.color ?? '',
     }))
 
   return {

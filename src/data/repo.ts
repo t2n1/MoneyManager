@@ -547,6 +547,10 @@ export interface NewLifePhase {
   currency: string
   annual_income_minor: number
   annual_expense_minor: number
+  /** % thu của chặng LIỀN TRƯỚC (migration 0067). Bỏ trống = dùng số tuyệt đối. */
+  income_pct_of_prev?: number | null
+  /** % chi của chặng LIỀN TRƯỚC. Bỏ trống = dùng số tuyệt đối. */
+  expense_pct_of_prev?: number | null
   fx_to_display: number
 }
 
@@ -580,6 +584,12 @@ export interface NewLifeEvent {
   repeat_every_years?: number | null
   /** Khoá icon (eventIcons.tsx). Bỏ trống = mũi tên theo `kind`. */
   icon?: string
+  /** Số mỗi năm bị trừ khỏi CHI NỀN (migration 0067). Bỏ trống = 0, không thay gì. */
+  replaces_minor?: number
+  /** Tên khoản bị thay, cho câu giải thích. Bỏ trống = ''. */
+  replaces_label?: string
+  /** Khoá màu (features/tags/colors.ts). Bỏ trống = tô theo `kind`. */
+  color?: string
 }
 
 export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>

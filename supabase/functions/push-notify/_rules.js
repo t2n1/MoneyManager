@@ -1248,6 +1248,51 @@ function shapeOf(e) {
   };
 }
 
+// src/features/lifetime/phasePercent.ts
+function resolvePhasePercents(phases, displayCurrency) {
+  const out = [];
+  for (let i = 0; i < phases.length; i++) {
+    const p = phases[i];
+    const prev = out[i - 1];
+    if (prev === void 0) {
+      out.push(p);
+      continue;
+    }
+    const income = fromPct(p.incomePctOfPrev, prev.annualIncomeMinor, prev, p, displayCurrency);
+    const expense = fromPct(p.expensePctOfPrev, prev.annualExpenseMinor, prev, p, displayCurrency);
+    if (income === null && expense === null) {
+      out.push(p);
+      continue;
+    }
+    out.push({
+      ...p,
+      ...income !== null && { annualIncomeMinor: income },
+      ...expense !== null && { annualExpenseMinor: expense }
+    });
+  }
+  return out;
+}
+function fromPct(pct2, prevMinor, prev, cur, displayCurrency) {
+  if (pct2 == null) return null;
+  if (!Number.isFinite(pct2) || pct2 < 0) return null;
+  if (!(cur.fxToDisplay > 0)) return null;
+  const prevInDisplay = convertLifetimeMinor(
+    prevMinor,
+    prev.currency,
+    displayCurrency,
+    prev.fxToDisplay
+  );
+  const wantedInDisplay = prevInDisplay * pct2 / 100;
+  return Math.round(
+    convertLifetimeMinor(
+      Math.round(wantedInDisplay),
+      displayCurrency,
+      cur.currency,
+      1 / cur.fxToDisplay
+    )
+  );
+}
+
 // src/features/lifetime/project.ts
 var STRESS_ILLNESS_EVENT_ID = "stress:illness";
 function hasStress(s) {
@@ -1283,7 +1328,10 @@ function projectLifetime(input) {
   } = input;
   if (phases.length === 0) return [];
   const stress = hasStress(input.stress) ? input.stress : null;
-  const sortedPhases = [...phases].sort((a, b) => a.startYear - b.startYear);
+  const sortedPhases = resolvePhasePercents(
+    [...phases].sort((a, b) => a.startYear - b.startYear),
+    displayCurrency
+  );
   const lastYear = birthYear + endAge + (stress?.longevity.on ? stress.longevity.years : 0);
   if (lastYear < currentYear) return [];
   const inflation = nominalTerms ? inflationBps / 1e4 : 0;
@@ -1306,13 +1354,25 @@ function projectLifetime(input) {
         phase.fxToDisplay
       ) * infl
     );
-    const expenseMinor = Math.round(
-      convertLifetimeMinor(
-        phase.annualExpenseMinor,
-        phase.currency,
-        displayCurrency,
-        phase.fxToDisplay
-      ) * infl
+    let replacedMinor = 0;
+    for (const e of events) {
+      if (e.enabled === false) continue;
+      const r = e.replacesMinor ?? 0;
+      if (r <= 0) continue;
+      if (e.startYear > year) continue;
+      if (e.endYear !== null && e.endYear < year) continue;
+      replacedMinor += convertLifetimeMinor(r, e.currency, displayCurrency, e.fxToDisplay);
+    }
+    const expenseMinor = Math.max(
+      0,
+      Math.round(
+        (convertLifetimeMinor(
+          phase.annualExpenseMinor,
+          phase.currency,
+          displayCurrency,
+          phase.fxToDisplay
+        ) - replacedMinor) * infl
+      )
     );
     let stressedIncomeMinor = incomeMinor;
     if (stress) {
@@ -2170,6 +2230,8 @@ function buildLifetimeInput(args) {
     currency: p.currency,
     annualIncomeMinor: p.annual_income_minor,
     annualExpenseMinor: p.annual_expense_minor,
+    incomePctOfPrev: p.income_pct_of_prev ?? null,
+    expensePctOfPrev: p.expense_pct_of_prev ?? null,
     fxToDisplay: p.fx_to_display
   }));
   if (phases.length === 0) return void 0;
@@ -2188,7 +2250,10 @@ function buildLifetimeInput(args) {
     endAmountMinor: e.end_amount_minor ?? null,
     growthBps: e.growth_bps ?? 0,
     repeatEveryYears: e.repeat_every_years ?? null,
-    icon: e.icon ?? ""
+    icon: e.icon ?? "",
+    replacesMinor: e.replaces_minor ?? 0,
+    replacesLabel: e.replaces_label ?? "",
+    color: e.color ?? ""
   }));
   return {
     // Năm hiện tại suy từ `todayISO` chứ KHÔNG gọi `new Date()` ở đây: hook gọi hàm

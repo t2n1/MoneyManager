@@ -45,6 +45,8 @@ const phaseRow = (over: Partial<LifePhaseRow> & Pick<LifePhaseRow, 'id' | 'start
   currency: 'JPY',
   annual_income_minor: 6_800_000,
   annual_expense_minor: 4_300_000,
+  income_pct_of_prev: null,
+  expense_pct_of_prev: null,
   fx_to_display: 1,
   created_at: '2026-01-01',
   ...over,
@@ -60,6 +62,9 @@ const eventRow = (over: Partial<LifeEventRow> & Pick<LifeEventRow, 'id' | 'start
   growth_bps: 0,
   repeat_every_years: null,
   icon: '',
+  replaces_minor: 0,
+  replaces_label: '',
+  color: '',
   amount_minor: 2_500_000,
   currency: 'JPY',
   label: 'Cưới',
@@ -298,6 +303,9 @@ describe('planDraftSave', () => {
         growthBps: 0,
         repeatEveryYears: null,
         icon: '',
+        replacesMinor: 0,
+        replacesLabel: '',
+        color: '',
         amountMinor: 12_000_000,
         currency: 'JPY',
         label: 'Mua nhà',
@@ -325,6 +333,9 @@ describe('planDraftSave', () => {
         growth_bps: 0,
         repeat_every_years: null,
         icon: '',
+        replaces_minor: 0,
+        replaces_label: '',
+        color: '',
       },
     ])
     expect(plan.eventDeletes).toEqual([])
@@ -343,7 +354,7 @@ describe('planDraftSave', () => {
         id: `${NEW_ID_PREFIX}9`, startYear: 2034, endYear: 2034, kind: 'expense',
         amountMinor: 1, currency: 'JPY', label: 'Tạm', note: '', fxToDisplay: 1, inflate: true,
         enabled: true, amountShape: 'per_year', endAmountMinor: null, growthBps: 0,
-        repeatEveryYears: null, icon: '',
+        repeatEveryYears: null, icon: '', replacesMinor: 0, replacesLabel: '', color: '',
       })
     })
     const d = edit(() => {})
@@ -415,7 +426,11 @@ describe('applyPreset', () => {
   it('chặng mới thành lệnh THÊM chứ không phải lệnh sửa', () => {
     const plan = planDraftSave(base(), applyPreset(base(), ketQuaMau, 1))
     expect(plan.phasePatches).toEqual([])
-    expect(plan.phaseInserts).toEqual([ketQuaMau.phases[0]])
+    // Hai trường phần trăm của 0067: mẫu không có khái niệm "phần trăm chặng trước",
+    // nên chặng sinh từ mẫu luôn khai số tuyệt đối.
+    expect(plan.phaseInserts).toEqual([
+      { ...ketQuaMau.phases[0], income_pct_of_prev: null, expense_pct_of_prev: null },
+    ])
     // `enabled: true` là của migration 0063, và năm trường hình dạng là của 0066: mốc
     // lấy từ thư viện mẫu luôn ở trạng thái BẬT và ở hình 'per_year', không thừa hưởng
     // cờ nào từ bản mẫu (bản mẫu không có khái niệm tắt, cũng không có hình dạng).
@@ -428,6 +443,9 @@ describe('applyPreset', () => {
         growth_bps: 0,
         repeat_every_years: null,
         icon: '',
+        replaces_minor: 0,
+        replaces_label: '',
+        color: '',
       },
     ])
   })

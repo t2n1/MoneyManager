@@ -70,6 +70,11 @@ export interface DraftEvent extends LifetimeEvent {
   growthBps: number
   repeatEveryYears: number | null
   icon: string
+  /** Số mỗi năm bị trừ khỏi chi nền (0067). 0 = không thay gì. */
+  replacesMinor: number
+  replacesLabel: string
+  /** Khoá màu (features/tags/colors.ts). '' = tô theo Thu/Chi. */
+  color: string
 }
 
 /**
@@ -127,6 +132,8 @@ export function draftFromRows(
         currency: p.currency as CurrencyCode,
         annualIncomeMinor: p.annual_income_minor,
         annualExpenseMinor: p.annual_expense_minor,
+        incomePctOfPrev: p.income_pct_of_prev ?? null,
+        expensePctOfPrev: p.expense_pct_of_prev ?? null,
         fxToDisplay: p.fx_to_display,
       }))
       .sort((a, b) => a.startYear - b.startYear),
@@ -149,6 +156,9 @@ export function draftFromRows(
         growthBps: e.growth_bps ?? 0,
         repeatEveryYears: e.repeat_every_years ?? null,
         icon: e.icon ?? '',
+        replacesMinor: e.replaces_minor ?? 0,
+        replacesLabel: e.replaces_label ?? '',
+        color: e.color ?? '',
       }))
       .sort((a, b) => a.startYear - b.startYear),
   }
@@ -178,6 +188,8 @@ export function draftToInput(base: LifetimeInput, draft: ScenarioDraft): Lifetim
         currency: p.currency,
         annualIncomeMinor: p.annualIncomeMinor,
         annualExpenseMinor: p.annualExpenseMinor,
+        incomePctOfPrev: p.incomePctOfPrev,
+        expensePctOfPrev: p.expensePctOfPrev,
         fxToDisplay: p.fxToDisplay,
       }),
     ),
@@ -198,6 +210,9 @@ export function draftToInput(base: LifetimeInput, draft: ScenarioDraft): Lifetim
         growthBps: e.growthBps,
         repeatEveryYears: e.repeatEveryYears,
         icon: e.icon,
+        replacesMinor: e.replacesMinor,
+        replacesLabel: e.replacesLabel,
+        color: e.color,
       }),
     ),
   }
@@ -248,6 +263,22 @@ export type DraftChange =
   | { kind: 'phaseCurrency'; label: string; from: CurrencyCode; to: CurrencyCode }
   | { kind: 'phaseFx'; label: string; from: number; to: number }
   | { kind: 'phaseCountry'; label: string; to: string | null }
+  | {
+      /**
+       * Chặng đổi CÁCH KHAI thu/chi: theo phần trăm chặng trước, hay số tuyệt đối
+       * (migration 0067). `null` = số tuyệt đối.
+       *
+       * Phải là một loại RIÊNG, không gộp vào `income`/`expense`: đổi từ "80%
+       * (=¥3,2tr)" sang "cố định ¥3,2tr" không làm con số nhúc nhích, nhưng nó CÓ đổi
+       * — lần sau chặng trước tăng lương thì một bên đi theo, một bên đứng. Không có
+       * loại này thì `dirty` false và nút Lưu tắt trên một thay đổi có thật.
+       */
+      kind: 'phasePct'
+      label: string
+      field: 'income' | 'expense'
+      from: number | null
+      to: number | null
+    }
   | { kind: 'phasesAdded'; count: number }
   | { kind: 'phasesRemoved'; count: number }
   | { kind: 'eventsAdded'; count: number }
@@ -340,6 +371,25 @@ export function draftChanges(saved: ScenarioDraft, draft: ScenarioDraft): DraftC
     if (s.country !== d.country) {
       out.push({ kind: 'phaseCountry', label: d.label, to: d.country })
     }
+    // Cùng lớp lỗi với ba trường trên — xem chú thích ở đó.
+    if ((s.incomePctOfPrev ?? null) !== (d.incomePctOfPrev ?? null)) {
+      out.push({
+        kind: 'phasePct',
+        label: d.label,
+        field: 'income',
+        from: s.incomePctOfPrev ?? null,
+        to: d.incomePctOfPrev ?? null,
+      })
+    }
+    if ((s.expensePctOfPrev ?? null) !== (d.expensePctOfPrev ?? null)) {
+      out.push({
+        kind: 'phasePct',
+        label: d.label,
+        field: 'expense',
+        from: s.expensePctOfPrev ?? null,
+        to: d.expensePctOfPrev ?? null,
+      })
+    }
   }
 
   const phasesAdded = draft.phases.filter((p) => isNewId(p.id)).length
@@ -388,7 +438,10 @@ function sameEvent(a: DraftEvent, b: DraftEvent): boolean {
     a.endAmountMinor === b.endAmountMinor &&
     a.growthBps === b.growthBps &&
     a.repeatEveryYears === b.repeatEveryYears &&
-    a.icon === b.icon
+    a.icon === b.icon &&
+    a.replacesMinor === b.replacesMinor &&
+    a.replacesLabel === b.replacesLabel &&
+    a.color === b.color
   )
 }
 
@@ -450,6 +503,8 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         currency: d.currency,
         annual_income_minor: d.annualIncomeMinor,
         annual_expense_minor: d.annualExpenseMinor,
+        income_pct_of_prev: d.incomePctOfPrev,
+        expense_pct_of_prev: d.expensePctOfPrev,
         fx_to_display: d.fxToDisplay,
       })
       continue
@@ -467,6 +522,10 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
     if (s.annualIncomeMinor !== d.annualIncomeMinor) patch.annual_income_minor = d.annualIncomeMinor
     if (s.annualExpenseMinor !== d.annualExpenseMinor) {
       patch.annual_expense_minor = d.annualExpenseMinor
+    if ((s.incomePctOfPrev ?? null) !== (d.incomePctOfPrev ?? null))
+      patch.income_pct_of_prev = d.incomePctOfPrev ?? null
+    if ((s.expensePctOfPrev ?? null) !== (d.expensePctOfPrev ?? null))
+      patch.expense_pct_of_prev = d.expensePctOfPrev ?? null
     }
     if (Object.keys(patch).length > 0) phasePatches.push({ id: d.id, patch })
   }
@@ -500,6 +559,9 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         growth_bps: d.growthBps,
         repeat_every_years: d.repeatEveryYears,
         icon: d.icon,
+        replaces_minor: d.replacesMinor,
+        replaces_label: d.replacesLabel,
+        color: d.color,
       })
       continue
     }
@@ -579,6 +641,8 @@ export function applyPreset(
           currency: p.currency as CurrencyCode,
           annualIncomeMinor: p.annual_income_minor,
           annualExpenseMinor: p.annual_expense_minor,
+          incomePctOfPrev: p.income_pct_of_prev ?? null,
+          expensePctOfPrev: p.expense_pct_of_prev ?? null,
           fxToDisplay: p.fx_to_display,
         }),
       ),
@@ -603,6 +667,9 @@ export function applyPreset(
           growthBps: e.growth_bps ?? 0,
           repeatEveryYears: e.repeat_every_years ?? null,
           icon: e.icon ?? '',
+          replacesMinor: e.replaces_minor ?? 0,
+          replacesLabel: e.replaces_label ?? '',
+          color: e.color ?? '',
         }),
       ),
     ].sort((a, b) => a.startYear - b.startYear),
@@ -772,6 +839,8 @@ export function draftRowsFor(
       currency: p.currency,
       annual_income_minor: p.annualIncomeMinor,
       annual_expense_minor: p.annualExpenseMinor,
+      income_pct_of_prev: p.incomePctOfPrev,
+      expense_pct_of_prev: p.expensePctOfPrev,
       fx_to_display: p.fxToDisplay,
     })),
     events: draft.events.map((e) => ({
@@ -791,6 +860,9 @@ export function draftRowsFor(
       growth_bps: e.growthBps,
       repeat_every_years: e.repeatEveryYears,
       icon: e.icon,
+      replaces_minor: e.replacesMinor,
+      replaces_label: e.replacesLabel,
+      color: e.color,
     })),
   }
 }

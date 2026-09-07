@@ -1882,7 +1882,16 @@ export const demoRepo: Repo = {
   },
 
   async getLifePhases() {
-    return (load().lifePhases ?? []).slice().sort((a, b) => a.start_year - b.start_year)
+    return (load().lifePhases ?? [])
+      .slice()
+      // Mặc định cho cột thêm sau: bản demo trong localStorage của người xem có thể cũ
+      // hơn migration mới nhất (xem lý do đầy đủ ở `getLifeEvents`).
+      .map((p) => ({
+        ...p,
+        income_pct_of_prev: p.income_pct_of_prev ?? null,
+        expense_pct_of_prev: p.expense_pct_of_prev ?? null,
+      }))
+      .sort((a, b) => a.start_year - b.start_year)
   },
 
   async createLifePhase(input: NewLifePhase) {
@@ -1902,6 +1911,8 @@ export const demoRepo: Repo = {
       currency: input.currency,
       annual_income_minor: input.annual_income_minor,
       annual_expense_minor: input.annual_expense_minor,
+      income_pct_of_prev: input.income_pct_of_prev ?? null,
+      expense_pct_of_prev: input.expense_pct_of_prev ?? null,
       fx_to_display: input.fx_to_display,
       created_at: nowISO(),
     }
@@ -1955,6 +1966,9 @@ export const demoRepo: Repo = {
         growth_bps: e.growth_bps ?? 0,
         repeat_every_years: e.repeat_every_years ?? null,
         icon: e.icon ?? '',
+        replaces_minor: e.replaces_minor ?? 0,
+        replaces_label: e.replaces_label ?? '',
+        color: e.color ?? '',
       }))
       .sort((a, b) => a.start_year - b.start_year)
   },
@@ -1983,6 +1997,9 @@ export const demoRepo: Repo = {
       growth_bps: input.growth_bps ?? 0,
       repeat_every_years: input.repeat_every_years ?? null,
       icon: input.icon ?? '',
+      replaces_minor: input.replaces_minor ?? 0,
+      replaces_label: input.replaces_label ?? '',
+      color: input.color ?? '',
       created_at: nowISO(),
     }
     db.lifeEvents.push(row)

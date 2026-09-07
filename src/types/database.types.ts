@@ -741,6 +741,13 @@ export type LifePhaseRow = {
   currency: string
   annual_income_minor: number
   annual_expense_minor: number
+  /**
+   * Thu chặng này = bao nhiêu % thu chặng LIỀN TRƯỚC (migration 0067). null = dùng
+   * `annual_income_minor`. Bỏ qua ở chặng đầu. Luật ở src/features/lifetime/phasePercent.ts.
+   */
+  income_pct_of_prev: number | null
+  /** Như `income_pct_of_prev`, cho chi. 80 = "nghỉ hưu thì chi 80% như bây giờ". */
+  expense_pct_of_prev: number | null
   /** 1 đơn vị currency = bao nhiêu đơn vị display_currency, theo MAJOR units */
   fx_to_display: number
   created_at: string
@@ -786,6 +793,16 @@ export type LifeEventRow = {
   repeat_every_years: number | null
   /** Khoá icon trong src/features/lifetime/eventIcons.tsx. '' = mũi tên theo `kind`. */
   icon: string
+  /**
+   * Số MỖI NĂM bị trừ khỏi CHI NỀN trong [start_year, end_year], theo `currency` dòng
+   * này (migration 0067). 0 = không thay gì. Chống ĐẾM HAI LẦN: chi nền lấy từ chi
+   * thật nên đã chứa tiền thuê nhà; mốc "Mua nhà" cộng chồng lên là tính hai lần.
+   */
+  replaces_minor: number
+  /** Tên khoản bị thay, để câu giải thích đọc được ("thay cho Nhà ở"). */
+  replaces_label: string
+  /** Khoá màu trong src/features/tags/colors.ts. '' = tô theo `kind` như trước. */
+  color: string
   created_at: string
 }
 
@@ -1431,6 +1448,8 @@ export type Database = {
           | 'annual_income_minor'
           | 'annual_expense_minor'
           | 'fx_to_display'
+          | 'income_pct_of_prev'
+          | 'expense_pct_of_prev'
         >
         Update: Partial<
           Pick<
@@ -1442,6 +1461,8 @@ export type Database = {
             | 'annual_income_minor'
             | 'annual_expense_minor'
             | 'fx_to_display'
+            | 'income_pct_of_prev'
+            | 'expense_pct_of_prev'
           >
         >
         Relationships: []
@@ -1462,6 +1483,9 @@ export type Database = {
           | 'growth_bps'
           | 'repeat_every_years'
           | 'icon'
+          | 'replaces_minor'
+          | 'replaces_label'
+          | 'color'
         >
         Update: Partial<
           Pick<
@@ -1481,6 +1505,9 @@ export type Database = {
             | 'growth_bps'
             | 'repeat_every_years'
             | 'icon'
+            | 'replaces_minor'
+            | 'replaces_label'
+            | 'color'
           >
         >
         Relationships: []

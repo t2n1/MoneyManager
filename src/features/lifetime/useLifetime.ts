@@ -132,6 +132,8 @@ export function useLifetime() {
             currency: p.currency as CurrencyCode,
             annualIncomeMinor: p.annual_income_minor,
             annualExpenseMinor: p.annual_expense_minor,
+            incomePctOfPrev: p.income_pct_of_prev ?? null,
+            expensePctOfPrev: p.expense_pct_of_prev ?? null,
             fxToDisplay: p.fx_to_display,
           }),
         )
@@ -153,6 +155,9 @@ export function useLifetime() {
             growthBps: e.growth_bps ?? 0,
             repeatEveryYears: e.repeat_every_years ?? null,
             icon: e.icon ?? '',
+            replacesMinor: e.replaces_minor ?? 0,
+            replacesLabel: e.replaces_label ?? '',
+            color: e.color ?? '',
           }),
         )
       // Tiền nằm trên CHẶNG, mốc suy từ chặng, tỷ giá lấy hôm nay — xem `fxModel.ts`.

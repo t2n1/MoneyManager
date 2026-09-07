@@ -466,3 +466,123 @@ describe('projectLifetime — mốc TẮT TẠM (migration 0063)', () => {
     expect(r.events.map((e) => e.id)).toEqual(['b'])
   })
 })
+
+describe('projectLifetime — mốc THAY chi nền (migration 0067)', () => {
+  const ev = (over: Record<string, unknown> = {}) => ({
+    id: 'nha',
+    startYear: 2030,
+    endYear: null as number | null,
+    kind: 'expense' as const,
+    amountMinor: 1_800_000,
+    currency: 'JPY' as const,
+    label: 'Trả nợ mua nhà',
+    fxToDisplay: 1,
+    inflate: false,
+    ...over,
+  })
+
+  it('trừ phần bị thay khỏi CHI NỀN, không phải khỏi netFlow riêng', () => {
+    // Chi nền ¥4M (đã gồm ¥1,2M tiền thuê). Mốc mua nhà ¥1,8M/năm thay tiền thuê.
+    // Đúng: chi nền về ¥2,8M, mốc cộng ¥1,8M → tổng ra ¥4,6M, không phải ¥5,8M.
+    const rows = projectLifetime(
+      baseInput({ events: [ev({ replacesMinor: 1_200_000 })] }),
+    )
+    const truoc = rows.find((r) => r.year === 2029)!
+    const sau = rows.find((r) => r.year === 2030)!
+    expect(truoc.expenseMinor).toBe(4_000_000)
+    expect(sau.expenseMinor).toBe(2_800_000)
+    expect(sau.netFlowMinor).toBe(5_000_000 - 2_800_000 - 1_800_000)
+  })
+
+  it('chỉ trừ TRONG KHOẢNG của mốc', () => {
+    const rows = projectLifetime(
+      baseInput({ events: [ev({ startYear: 2030, endYear: 2031, replacesMinor: 1_200_000 })] }),
+    )
+    const at = (y: number) => rows.find((r) => r.year === y)!.expenseMinor
+    expect(at(2029)).toBe(4_000_000)
+    expect(at(2030)).toBe(2_800_000)
+    expect(at(2031)).toBe(2_800_000)
+    expect(at(2032)).toBe(4_000_000)
+  })
+
+  it('trừ MỌI NĂM trong khoảng, KHÔNG theo nhịp lặp', () => {
+    // Mua nhà là thôi trả tiền thuê mọi năm, không phải mỗi 5 năm. Mốc chỉ tốn tiền
+    // ở năm đúng nhịp, nhưng phần THAY thì suốt khoảng.
+    const rows = projectLifetime(
+      baseInput({
+        events: [
+          ev({ startYear: 2030, endYear: 2035, repeatEveryYears: 5, replacesMinor: 1_200_000 }),
+        ],
+      }),
+    )
+    expect(rows.find((r) => r.year === 2031)!.expenseMinor).toBe(2_800_000)
+    // 2031 lệch nhịp nên mốc không tốn đồng nào ở đó...
+    expect(rows.find((r) => r.year === 2031)!.events).toHaveLength(0)
+    // ...nhưng tiền thuê vẫn đã thôi trả.
+    expect(rows.find((r) => r.year === 2030)!.events).toHaveLength(1)
+  })
+
+  it('mốc TẮT TẠM thì không thay gì cả', () => {
+    const rows = projectLifetime(
+      baseInput({ events: [ev({ replacesMinor: 1_200_000, enabled: false })] }),
+    )
+    expect(rows.find((r) => r.year === 2030)!.expenseMinor).toBe(4_000_000)
+  })
+
+  it('khai thay nhiều hơn cả chi nền thì kẹp ở 0, KHÔNG cho chi nền âm', () => {
+    // Chi nền âm sẽ chảy vào netFlow thành "chặng này tự sinh ra tiền".
+    const rows = projectLifetime(
+      baseInput({ events: [ev({ replacesMinor: 9_000_000 })] }),
+    )
+    const sau = rows.find((r) => r.year === 2030)!
+    expect(sau.expenseMinor).toBe(0)
+    expect(sau.netFlowMinor).toBe(5_000_000 - 0 - 1_800_000)
+  })
+
+  it('mốc mang tiền KHÁC: quy đổi phần thay theo tỷ giá của chính mốc', () => {
+    const rows = projectLifetime(
+      baseInput({
+        events: [
+          ev({ currency: 'VND', fxToDisplay: 1 / 165, amountMinor: 0, replacesMinor: 165_000_000 }),
+        ],
+      }),
+    )
+    // ₫165.000.000 ÷ 165 = ¥1.000.000 → chi nền ¥4M − ¥1M = ¥3M.
+    expect(rows.find((r) => r.year === 2030)!.expenseMinor).toBe(3_000_000)
+  })
+})
+
+describe('projectLifetime — chặng khai bằng PHẦN TRĂM (migration 0067)', () => {
+  it('chi của chặng sau = 80% chặng trước', () => {
+    const rows = projectLifetime(
+      baseInput({
+        endAge: 45,
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Đi làm',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 5_000_000,
+            annualExpenseMinor: 4_000_000,
+            fxToDisplay: 1,
+          },
+          {
+            startYear: 2036,
+            label: 'Nghỉ hưu',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 0,
+            annualExpenseMinor: 0,
+            expensePctOfPrev: 80,
+            incomePctOfPrev: 0,
+            fxToDisplay: 1,
+          },
+        ],
+      }),
+    )
+    const huu = rows.find((r) => r.year === 2036)!
+    expect(huu.expenseMinor).toBe(3_200_000)
+    expect(huu.incomeMinor).toBe(0)
+  })
+})

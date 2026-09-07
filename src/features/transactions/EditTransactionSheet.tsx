@@ -15,6 +15,7 @@ import { SplitSheet } from './SplitSheet'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 import { toNewTransaction } from './restore'
+import { provenanceLine, txProvenance } from './txProvenance'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
 
@@ -37,6 +38,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
   const [moChia, setMoChia] = useState(false)
+  const laiLich = provenanceLine(txProvenance(tx))
   // Tiền của giao dịch = tiền của TÀI KHOẢN NGUỒN, không phải base — `amount` được khai
   // theo đơn vị đó (xem chú thích cột amount ở database.types).
   const { data: accounts = [] } = useAccounts()
@@ -179,6 +181,16 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             onClose()
           }}
         />
+        {/* LAI LỊCH. Câu hỏi "tôi sửa dòng này chưa?" bật ra mỗi lần đối chiếu sổ với
+            sao kê, mà một giao dịch mở ra chỉ cho thấy các con số HIỆN TẠI — giống hệt
+            một dòng chưa ai đụng vào. Ba mốc này DB đã giữ sẵn từ migration 0001, chỉ là
+            chưa bao giờ hiện ra. Không bọc <Guide>: đây là dữ liệu của chính dòng này,
+            không phải câu hướng dẫn, nên chế độ Gọn vẫn phải thấy. */}
+        {laiLich !== '' && (
+          <p className="mt-3 border-t border-border-panel pt-2 text-2xs text-fg-on-track">
+            {laiLich}
+          </p>
+        )}
       </div>
       {moChia && (
         <SplitSheet

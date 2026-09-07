@@ -7,6 +7,16 @@
 // quên nhiều thì tháng đó trông rẻ, và Ngân sách còn báo "chưa vượt" trong khi ví đã cạn.
 // Xem spec docs/superpowers/specs/2026-09-05-chi-chua-ghi-so-design.md.
 //
+// ĐỌC Ý ĐỊNH, KHÔNG ĐỌC SỐ. Cùng một hành động (nhập số dư thực tế) mang hai nghĩa khác
+// nhau mà chỉ người ghi biết là nghĩa nào: "ví tôi hụt ¥3.000" (tiêu quên ghi — phải vào
+// Chi) và "tôi vừa khai số dư ban đầu" (không tiêu đồng nào — không được vào Chi). Trước
+// migration 0065 file này coi MỌI khoản bù là nghĩa thứ nhất, và trên sổ thật ngày
+// 07/09/2026 nó cho ra: tháng 8 chi ¥303.936 phồng thành ¥16.364.804 (một lượt khai số dư
+// ban đầu — năm dòng tạo cùng một phút, trong đó Yucho −¥20.846.401), tháng 9 chi ¥144.294
+// thành −¥1.141.798 (một lần đối chiếu tài khoản VND, +213.121.047 đ). Nên bây giờ cột
+// `adjust_is_spend` là cửa vào, và ô chọn nằm ở ReconcileSheet — chỗ duy nhất người dùng
+// còn nhớ mình vừa làm gì.
+//
 // VÌ SAO KHÔNG SỬA THẲNG aggregate.ts: `sumIncomeExpense` có 11 file gọi và
 // `categoryBreakdown` có 15, trải cả sang `src/mcp/`. Sửa ở đó là đổi lặng lẽ cả những màn
 // ta không định đổi — gồm cả câu trả lời của MCP server. Ở đây là một đầu vào RIÊNG, chỉ ba
@@ -27,7 +37,12 @@ import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
  * Dùng `account.type` chứ KHÔNG dùng ghi chú `CARD_RECONCILE_NOTE`: kiểu tài khoản là dữ
  * liệu có cấu trúc, còn chuỗi ghi chú thì người dùng sửa được.
  */
-const KIEU_TINH: ReadonlySet<AccountType> = new Set<AccountType>(['cash', 'bank', 'ic', 'ewallet'])
+export const KIEU_TINH: ReadonlySet<AccountType> = new Set<AccountType>([
+  'cash',
+  'bank',
+  'ic',
+  'ewallet',
+])
 
 export interface ChiChuaGhi {
   /** Ròng, quy về base. Dương = tiêu mà chưa ghi. Âm = đã ghi thừa. */
@@ -69,6 +84,9 @@ export function tinhChiChuaGhi(
   for (const t of txs) {
     if (!t.exclude_from_stats) continue
     if (!t.category_id || !laDanhMucBu.has(t.category_id)) continue
+    // Người ghi đã nói khoản bù này là tiền tiêu quên ghi hay chỉ là chỉnh số dư
+    // (migration 0065). Chỉ ý thứ nhất mới là chi tiêu — xem ĐỌC Ý ĐỊNH ở đầu file.
+    if (!t.adjust_is_spend) continue
     const a = tk.get(t.account_id)
     if (!a || !KIEU_TINH.has(a.type)) continue
 
@@ -104,7 +122,13 @@ export function tinhChiChuaGhi(
  */
 export function tongChiCoPhanChuaGhi(chiDaGhi: number, c: ChiChuaGhi): number {
   if (c.soLanDoiChieu === 0) return chiDaGhi
-  return chiDaGhi + c.net
+  // KHÔNG BAO GIỜ ÂM. "Ghi thừa" nhiều hơn cả phần chi đã ghi trong kỳ là một con số
+  // không có nghĩa vật lý — không ai tiêu âm tiền — và nó lan ra khắp nơi: thẻ ba đường
+  // đọc "Chi tiêu −¥1.141.798", sơ đồ dòng tiền tắt hẳn, phán quyết ngân sách đem một số
+  // âm so với hạn mức. Đo trên sổ thật 07/09/2026: đúng ca đó, do một lần đối chiếu tài
+  // khoản VND. Kẹp ở 0 là nói "chi đã ghi là tất cả những gì ta biết" — y như khi kỳ này
+  // không đối chiếu lần nào.
+  return Math.max(0, chiDaGhi + c.net)
 }
 
 /** Dòng để bày ra bảng / màn Ngân sách. null = không có gì để nói, đừng hiện dòng nào. */

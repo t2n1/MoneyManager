@@ -171,6 +171,11 @@ export interface NewTransaction {
   /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
   exclude_from_stats?: boolean
   /**
+   * Chỉ có nghĩa với khoản "Điều chỉnh số dư" (migration 0065): true = phần chênh này là
+   * tiền đã tiêu mà quên ghi. Xem `chiChuaGhi.ts`.
+   */
+  adjust_is_spend?: boolean
+  /**
    * Lệnh cổ phiếu sinh ra dòng tiền này (migration 0054).
    * Chỉ repo đặt trường này — giao diện nhập giao dịch không bao giờ đặt.
    */

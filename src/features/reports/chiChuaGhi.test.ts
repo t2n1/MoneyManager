@@ -41,10 +41,17 @@ function tx(p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>
   }
 }
 
-/** Khoản bù chuẩn: exclude_from_stats + danh mục "Điều chỉnh số dư" đúng chiều. */
+/**
+ * Khoản bù chuẩn ĐÃ ĐƯỢC ĐÁNH DẤU LÀ CHI TIÊU: exclude_from_stats + danh mục "Điều chỉnh
+ * số dư" đúng chiều + `adjust_is_spend: true`.
+ *
+ * Cờ đó mặc định `false` từ migration 0065 nên phải đặt tay ở đây — mọi test dưới đây nói
+ * về ca "tiêu mà quên ghi". Ca còn lại (chỉ chỉnh số dư) dùng `buChinhSo`.
+ */
 function bu(p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>): TransactionRow {
   return tx({
     exclude_from_stats: true,
+    adjust_is_spend: true,
     category_id: p.type === 'income' ? 'adjust-in' : 'adjust-out',
     ...p,
   })
@@ -175,5 +182,66 @@ describe('dongChiChuaGhi', () => {
       nhan: 'Ghi thừa',
       soTien: -5_000,
     })
+  })
+})
+
+/** Khoản bù CHỈ CHỈNH SỐ DƯ — mặc định của migration 0065, không phải chi tiêu. */
+function buChinhSo(
+  p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>,
+): TransactionRow {
+  return bu({ ...p, adjust_is_spend: false })
+}
+
+describe('adjust_is_spend — chỉ khoản người ghi nói là chi tiêu mới vào tổng Chi', () => {
+  it('khoản chỉ chỉnh số dư bị BỎ QUA hoàn toàn', () => {
+    const c = tinh([buChinhSo({ type: 'expense', amount: 20_846_401 })])
+    expect(c.net).toBe(0)
+    expect(c.soLanDoiChieu).toBe(0)
+    expect(c.huong).toBeNull()
+  })
+
+  it('cờ VẮNG MẶT cũng là bỏ qua — dữ liệu cũ tạo trước 05/09/2026 không mang ý định nào', () => {
+    const cu = tx({
+      type: 'expense',
+      amount: 177_665,
+      exclude_from_stats: true,
+      category_id: 'adjust-out',
+    })
+    expect(tinh([cu]).net).toBe(0)
+  })
+
+  it('trộn hai loại thì chỉ loại "đã tiêu" được cộng', () => {
+    const c = tinh([
+      bu({ type: 'expense', amount: 3_000 }),
+      buChinhSo({ type: 'expense', amount: 20_846_401 }),
+    ])
+    expect(c.net).toBe(3_000)
+    expect(c.soLanDoiChieu).toBe(1)
+  })
+
+  it('ca thật tháng 8/2026: lượt khai số dư ban đầu KHÔNG còn phồng tổng Chi', () => {
+    // Năm dòng tạo cùng một phút ngày 07/08 08:21, back-date về 05–06/08.
+    const khaiSoDu = [
+      buChinhSo({ type: 'expense', amount: 20_846_401, account_id: 'nh' }),
+      buChinhSo({ type: 'income', amount: 1_661_218, account_id: 'nh' }),
+      buChinhSo({ type: 'income', amount: 1_455_000, account_id: 'vi' }),
+      buChinhSo({ type: 'income', amount: 641_894, account_id: 'nh' }),
+      buChinhSo({ type: 'income', amount: 199_554_545, account_id: 'vnd' }),
+    ]
+    expect(tongChiCoPhanChuaGhi(303_936, tinh(khaiSoDu))).toBe(303_936)
+  })
+})
+
+describe('tongChiCoPhanChuaGhi — không bao giờ âm', () => {
+  it('ghi thừa nhiều hơn cả phần chi đã ghi thì kẹp ở 0, không ra số âm', () => {
+    // Ca thật tháng 9/2026: đối chiếu tài khoản VND +213.121.047 đ ≈ ¥1,29 triệu.
+    const c = tinh([bu({ type: 'income', amount: 213_121_047, account_id: 'vnd' })])
+    expect(c.net).toBeLessThan(-1_000_000)
+    expect(tongChiCoPhanChuaGhi(144_294, c)).toBe(0)
+  })
+
+  it('ghi thừa ít hơn thì vẫn trừ bình thường', () => {
+    const c = tinh([bu({ type: 'income', amount: 50_000 })])
+    expect(tongChiCoPhanChuaGhi(144_294, c)).toBe(94_294)
   })
 })

@@ -13,6 +13,7 @@ import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
+import { KIEU_TINH } from '../reports/chiChuaGhi'
 import {
   ADJUST_CATEGORY_ICON,
   ADJUST_CATEGORY_NAME,
@@ -79,6 +80,19 @@ export function ReconcileSheet({
   const [occurredOn, setOccurredOn] = useState(suggestedDate)
   const [saving, setSaving] = useState(false)
 
+  // PHẦN CHÊNH NÀY LÀ GÌ — câu hỏi chỉ người bấm trả lời được (migration 0065).
+  //
+  // Chỉ hỏi khi câu trả lời thay đổi được điều gì: `chiChuaGhi.ts` chỉ nhìn bốn kiểu tài
+  // khoản này, nên với thẻ tín dụng / đầu tư thì ô chọn là một quyết định vô nghĩa nằm
+  // giữa đường đi thường ngày. Và chỉ khi thật sự có chênh lệch — khớp rồi thì không có
+  // khoản bù nào để phân loại.
+  const anhHuongChi = KIEU_TINH.has(account.type)
+  // MẶC ĐỊNH THEO KIỂU TÀI KHOẢN. Ví / IC / ví điện tử thì tiền ra không để lại dấu, nên
+  // sổ hụt gần như luôn là tiêu mà quên ghi. Ngân hàng thì mọi đồng đều có dấu — lệch ở
+  // đó gần như luôn là số dư khai sai, không phải tiêu lén. Đây đúng là điều đã xảy ra
+  // trên sổ thật: một lượt khai số dư ban đầu trên Yucho bị tính thành ¥20,8 triệu chi.
+  const [laChiTieu, setLaChiTieu] = useState(account.type !== 'bank')
+
   const { diff, type } = reconcilePlan({ isCard, currentBalance, entered })
   // Khớp vẫn lưu được: lần bấm ấy không sinh giao dịch nào nhưng vẫn là một lần đối
   // chiếu, và cột `last_reconciled_at` là chỗ duy nhất ghi lại được việc đó.
@@ -109,6 +123,10 @@ export function ReconcileSheet({
           occurred_on: occurredOn,
           note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
           exclude_from_stats: true,
+          // `anhHuongChi` chặn ở đây nữa, không chỉ ở giao diện: kiểu tài khoản mà
+          // chiChuaGhi bỏ qua thì cột này phải là false, không phải một giá trị người
+          // dùng chưa từng thấy để mà chọn.
+          adjust_is_spend: anhHuongChi && laChiTieu,
         })
       }
       // Đóng dấu SAU khi khoản bù đã vào sổ: hỏng ở giữa thì mất cái mốc, không mất
@@ -207,6 +225,51 @@ export function ReconcileSheet({
           </>
         )}
 
+        {/* PHẦN CHÊNH NÀY LÀ GÌ. Hai nút có nhãn chứ không phải một ô tích: ô tích chỉ
+            đặt tên cho MỘT trạng thái, người đọc phải tự suy bỏ trống nghĩa là gì — mà ở
+            đây hai nghĩa đều nặng như nhau (một cái làm tổng Chi nhảy, một cái không). */}
+        {diff !== 0 && anhHuongChi && (
+          <>
+            <span className="mb-1 block text-sm font-medium text-fg-muted">
+              Phần chênh này là gì
+            </span>
+            <div className="mb-3 flex gap-1">
+              {[
+                {
+                  value: true,
+                  label: 'Đã tiêu, quên ghi',
+                  hint: 'Kể vào tổng Chi tháng',
+                },
+                {
+                  value: false,
+                  label: 'Chỉ chỉnh số dư',
+                  hint: 'Không phải chi tiêu',
+                },
+              ].map((opt) => {
+                const active = laChiTieu === opt.value
+                return (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => setLaChiTieu(opt.value)}
+                    aria-pressed={active}
+                    className={`flex flex-1 flex-col items-center gap-0.5 rounded-md border px-2 py-2 text-sm font-medium transition ${
+                      active
+                        ? 'border-accent bg-state-good-bg text-state-good-fg'
+                        : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
+                    }`}
+                  >
+                    {opt.label}
+                    <span className="text-center text-2xs font-normal text-fg-on-track">
+                      {opt.hint}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
         <div className="mb-3 rounded-md border border-border-subtle bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
             <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
@@ -238,12 +301,17 @@ export function ReconcileSheet({
                 : 'Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
               : isCard
                 ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} trên thẻ vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`
-                : // Ví/tài khoản thường: khoản bù KHÔNG còn vô hình. Báo cáo tháng kể nó
-                  // vào tổng Chi ở dòng "Chưa ghi rõ" / "Ghi thừa" (xem chiChuaGhi.ts).
-                  // Câu này phải nói ra, không thì người dùng bấm Điều chỉnh xong thấy
-                  // tổng Chi nhảy mà không hiểu vì sao. Nhánh THẺ ở trên giữ nguyên chữ
-                  // "không tính vào thống kê" — tính năng đó cố ý loại thẻ tín dụng.
-                  `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}, và Báo cáo tháng ${diff > 0 ? 'trừ nó khỏi' : 'kể nó vào'} tổng Chi ở dòng "${diff > 0 ? 'Ghi thừa' : 'Chưa ghi rõ'}".`}
+                : // Ví/tài khoản thường: khoản bù KHÔNG còn vô hình khi người dùng chọn
+                  // "đã tiêu, quên ghi" — Báo cáo tháng kể nó vào tổng Chi ở dòng
+                  // "Chưa ghi rõ" / "Ghi thừa" (xem chiChuaGhi.ts). Câu này phải nói ra,
+                  // không thì bấm Điều chỉnh xong thấy tổng Chi nhảy mà không hiểu vì sao.
+                  // Chọn "chỉ chỉnh số dư" thì phải nói NGƯỢC LẠI cho rõ, vì đó mới là mặc
+                  // định của ngân hàng — im lặng ở nhánh đó là để người dùng tự đoán.
+                  `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}. ${
+                    anhHuongChi && laChiTieu
+                      ? `Báo cáo tháng ${diff > 0 ? 'trừ nó khỏi' : 'kể nó vào'} tổng Chi ở dòng "${diff > 0 ? 'Ghi thừa' : 'Chưa ghi rõ'}".`
+                      : 'Số dư khớp lại, còn tổng Chi của Báo cáo giữ nguyên.'
+                  }`}
           </p>
         </div>
 

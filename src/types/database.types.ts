@@ -343,6 +343,16 @@ export type TransactionRow = {
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (báo cáo/ngân sách/insight); số dư vẫn tính. Mục AM/X. */
   exclude_from_stats?: boolean
+  /**
+   * CHỈ có nghĩa với khoản danh mục "Điều chỉnh số dư" (migration 0065).
+   *
+   * true = phần chênh này là tiền đã tiêu mà quên ghi → `chiChuaGhi.ts` cộng vào tổng Chi.
+   * false/vắng = chỉ chỉnh lại số dư cho khớp, không phải chi tiêu.
+   *
+   * Vắng mặt = false, và đó là mặc định đúng cho dữ liệu cũ: mọi khoản bù tạo trước
+   * 05/09/2026 được bấm khi tính năng "Chưa ghi rõ" chưa tồn tại.
+   */
+  adjust_is_spend?: boolean
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, KHÔNG phải thu nhập). */
   is_refund?: boolean
   /**
@@ -1079,6 +1089,7 @@ export type Database = {
           | 'remit_recipient_id'
           | 'is_debt_flow'
           | 'exclude_from_stats'
+          | 'adjust_is_spend'
           | 'is_refund'
           | 'owner'
           | 'stock_trade_id'
@@ -1102,6 +1113,7 @@ export type Database = {
             | 'remit_recipient_id'
             | 'is_debt_flow'
             | 'exclude_from_stats'
+            | 'adjust_is_spend'
             | 'is_refund'
             | 'owner'
             | 'stock_trade_id'

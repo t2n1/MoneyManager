@@ -211,12 +211,16 @@ describe('curvePath', () => {
   })
 
   it('CHẶN control point trong khoảng y của hai đầu đoạn', () => {
-    // Đỉnh nhọn: y đi 0 → 100 → 0. Không chặn thì Catmull-Rom cho control point vượt
-    // lên trên 100 (hoặc xuống dưới 0) và đường vồng ra ngoài dữ liệu.
-    const d = curvePath([[0, 0], [10, 100], [20, 0], [30, 100]])
+    // Fixture không-đối-xứng để bắt lỗi clamp: dữ liệu là [0, 10, 12, 0] nên y ∈ [0, 12].
+    // Fixture đối-xứng như trước [[0, 0], [10, 100], [20, 0], [30, 100]] khiến mọi control
+    // point Catmull-Rom (tính không chặn) cũng rơi vào [0, 100] vì tính chất tuần hoàn, nên
+    // test vẫn xanh ngay cả khi xóa chan(...) — không bắt được gì. Với fixture này,
+    // segment 1 sinh c2y=13.67 (nằm ngoài [10, 12]) mà không chặn, khiến assertion
+    // "max ≤ 12" FAIL khi xóa chan, PASS khi giữ. Vậy test mới làm được việc nó.
+    const d = curvePath([[0, 0], [10, 10], [20, 12], [30, 0]])
     const ys = [...d.matchAll(/[MC]?[\d.-]+ ([\d.-]+)/g)].map((m) => Number(m[1]))
     expect(Math.min(...ys)).toBeGreaterThanOrEqual(0)
-    expect(Math.max(...ys)).toBeLessThanOrEqual(100)
+    expect(Math.max(...ys)).toBeLessThanOrEqual(12)
   })
 
   it('giữ nguyên mọi điểm dữ liệu làm đầu/cuối các đoạn', () => {

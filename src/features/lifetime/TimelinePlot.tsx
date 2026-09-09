@@ -23,7 +23,13 @@
 // `W = 1824`. Repo thì không (spec §5). Bề ngang VÀ chiều cao vùng vẽ đều đo bằng
 // ResizeObserver từ một hộp khai `h-[35rem]`, nên khi `rem` to ra vì Cỡ chữ thì hình
 // học đi theo thay vì bị cắt.
-import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { EmptyState, Money, Num } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -57,7 +63,9 @@ import {
   type PlotZoom,
 } from './plotFrame'
 import type { YearRow } from './project'
+import { normalizeSpan, spanYears, type YearSpan } from './quickAddRange'
 import { useBoxSize } from './useBoxSize'
+import { useYearDrag } from './useYearDrag'
 
 /** Nhãn trục tiền đặt BÊN TRONG vùng vẽ, ngay phải trục và TRÊN đường kẻ (bản vẽ:
  *  `left: 58px`, `top: y − 16`). Đặt trong nên bề rộng nhãn không cần lề trái — đó là
@@ -108,6 +116,12 @@ export interface ComparisonLine {
 // re-export ở đây để chỗ gọi cũ không phải đổi đường import.
 export type { PlotZoom }
 
+/** Chỗ BẤM/KÉO trên nền, theo pixel TRONG hộp đã đo — chỗ gọi neo bảng chọn nhanh vào. */
+export interface PlotPoint {
+  x: number
+  y: number
+}
+
 interface Props {
   /** Bản chiếu ĐANG XEM (nháp nếu có nháp, không thì bản đã lưu). */
   rows: YearRow[]
@@ -147,6 +161,17 @@ interface Props {
   onMoveEvent?: (id: string, year: number) => void
   /** Đổi năm KẾT THÚC. Chỗ gọi chặn sàn `startYear + 1`. */
   onMoveEventEnd?: (id: string, year: number) => void
+
+  // --- Bảng chọn nhanh trên NỀN đồ thị (Task 13) -------------------------------------
+
+  /**
+   * Bấm nền (một năm) hoặc kéo ngang rồi nhả (một khoảng). `at` là chỗ bấm, pixel trong
+   * hộp đã đo — chỗ gọi neo bảng vào đó.
+   *
+   * Không truyền thì nền đồ thị KHÔNG bắt cử chỉ nào: rê chuột đọc số vẫn chạy, nhưng
+   * bấm không mở gì. Nhờ vậy màn cũ (nếu còn dựng `TimelinePlot`) không mọc thêm hành vi.
+   */
+  onQuickAdd?: (span: YearSpan, at: PlotPoint) => void
 }
 
 /** Tham chiếu ỔN ĐỊNH cho "không có" — `[]` trong JSX tạo mảng mới mỗi lần render. */
@@ -187,6 +212,7 @@ export function TimelinePlot({
   onSelectEvent,
   onMoveEvent,
   onMoveEventEnd,
+  onQuickAdd,
 }: Props) {
   // Khởi tạo bằng một cỡ hợp lý rồi để ResizeObserver sửa ngay ở lượt bày đầu: mọi hàm
   // hình học dưới đây tự chịu được cỡ sai, còn `rows` rỗng thì chúng cũng đã canh. Hai lời
@@ -364,13 +390,100 @@ export function TimelinePlot({
     }
   }, [onHoverYear])
 
+  // --- Bấm / kéo ngang trên NỀN đồ thị → bảng chọn nhanh -----------------------------
+  //
+  // Dùng CHÍNH `useYearDrag` mà khối chặng và icon mốc dùng, không viết cử chỉ thứ hai:
+  // ngưỡng phân biệt bấm với kéo (`DRAG_LIFT_PX` = 6px của bản vẽ), `setPointerCapture`
+  // và phép gộp theo nhịp khung hình đều đã nằm trong đó. Hai bản là hai độ nhạy chuột
+  // khác nhau trên cùng một màn.
+  //
+  // Dải đang kéo giữ ở CẢ ref lẫn state: state để vẽ, ref để đọc được ngay trong
+  // `pointerup` — `setState` chưa hiện ra ở lượt render này, mà lúc nhả chuột là đúng lúc
+  // phải biết dải cuối cùng là gì để mở bảng cho khoảng đó.
+  const bandRef = useRef<YearSpan | null>(null)
+  const [band, setBand] = useState<YearSpan | null>(null)
+  /** Chỗ NHẤN, pixel trong hộp — bảng neo vào đây (không neo theo chỗ nhả chuột: kéo từ
+   *  phải sang trái thì bảng sẽ nhảy sang mép kia giữa lúc đang đọc nhãn dải). */
+  const pressAtRef = useRef<PlotPoint>({ x: 0, y: 0 })
+
+  const bgDrag = useYearDrag<{ year: number }>({
+    yearAt,
+    onDrag: (_k, year, grabYear) => {
+      bandRef.current = normalizeSpan(grabYear, year)
+      setBand(bandRef.current)
+    },
+    // Nhấn rồi thả mà chưa qua 6px — một cú BẤM, tức một năm.
+    onClick: (k) => onQuickAdd?.({ startYear: k.year, endYear: k.year }, pressAtRef.current),
+  })
+
+  const dropBand = useCallback(() => {
+    bandRef.current = null
+    setBand(null)
+  }, [])
+
+  const onBgDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!onQuickAdd) return
+      const el = boxRef.current
+      const r = el?.getBoundingClientRect()
+      pressAtRef.current = { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) }
+      bgDrag.start({ year: yearAt(e.clientX) }, e)
+    },
+    [onQuickAdd, boxRef, bgDrag, yearAt],
+  )
+
+  /**
+   * Nhả chuột: để `useYearDrag` chốt khung hình cuối TRƯỚC (nó gọi `onDrag` lần nữa, nên
+   * `bandRef` mới là dải thật ở vị trí cuối), rồi mới mở bảng. Đảo thứ tự là mở bảng cho
+   * một khoảng thiếu tới một năm ở đầu phải.
+   */
+  const onBgUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      bgDrag.surface.onPointerUp(e)
+      const s = bandRef.current
+      if (s === null) return
+      dropBand()
+      onQuickAdd?.(s, pressAtRef.current)
+    },
+    [bgDrag, dropBand, onQuickAdd],
+  )
+
+  const onBgCancel = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      bgDrag.surface.onPointerCancel(e)
+      dropBand()
+    },
+    [bgDrag, dropBand],
+  )
+
+  /** Xem `useYearDrag`: trình duyệt nhả capture khi phần tử rời DOM và bắn sự kiện này
+   *  thay cho `pointerup`. Ở ca BÌNH THƯỜNG nó cũng bắn, ngay sau `pointerup` — lúc đó
+   *  `bandRef` đã được dọn nên `dropBand` chỉ là một lần gọi rơi vào chỗ trống. */
+  const onBgLost = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      bgDrag.surface.onLostPointerCapture(e)
+      dropBand()
+    },
+    [bgDrag, dropBand],
+  )
+
   return (
     // `h-[35rem]` = 560px của bản vẽ ở cỡ chữ Vừa (spec §5). Là `rem` nên nó co giãn
     // theo Cài đặt → Cỡ chữ, và vì chiều cao được ĐO nên hình học đi theo.
     <div
       ref={attachBox}
       className="relative h-[35rem] w-full cursor-crosshair select-none"
-      onPointerMove={(e) => trackHover(e.clientX)}
+      onPointerDown={onBgDown}
+      // Rê chuột đọc số VÀ vẽ dải chọn khoảng dùng chung một sự kiện: hai listener trên
+      // cùng phần tử là hai lần gọi `getBoundingClientRect` mỗi khung hình, và mỗi cái
+      // gộp theo một nhịp rAF riêng nên vạch dọc với dải có thể lệch nhau một khung.
+      onPointerMove={(e) => {
+        trackHover(e.clientX)
+        bgDrag.surface.onPointerMove(e)
+      }}
+      onPointerUp={onBgUp}
+      onPointerCancel={onBgCancel}
+      onLostPointerCapture={onBgLost}
       onPointerLeave={clearHover}
     >
       {rows.length === 0 ? (
@@ -580,9 +693,56 @@ export function TimelinePlot({
             </span>
           ))}
 
+          {/* DẢI CHỌN KHOẢNG NĂM — hiện trong lúc kéo ngang trên nền. Nền và viền đều
+              qua token: `bg-accent-band` là `rgba(70,217,126,.09)` của bản vẽ ở chế độ
+              Tối và bản light tương ứng (index.css), `border-dashed border-accent` là
+              viền đứt `#46d97e`. Chêm hex vào đây là đúng cái guardrail cấm.
+
+              `pointer-events-none`: dải nằm ngay dưới con trỏ đang kéo, ăn sự kiện thì
+              chính lượt kéo đang vẽ nó bị mất `pointermove`. */}
+          {band && (
+            <>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute z-20 rounded-md border border-dashed border-accent bg-accent-band"
+                style={{
+                  left: xs(band.startYear),
+                  // Sàn 2px: lúc vừa qua ngưỡng 6px, hai đầu dải có thể còn cùng một năm
+                  // — một khối rộng 0 thì không có gì hiện ra và người dùng tưởng cử chỉ
+                  // đã rớt.
+                  width: Math.max(2, xs(band.endYear) - xs(band.startYear)),
+                  top: plotTop,
+                  height: Math.max(2, plotBottom - plotTop),
+                }}
+              />
+              <div
+                className="pointer-events-none absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-accent bg-surface-chrome px-2.5 py-1"
+                style={{
+                  top: plotTop + 6,
+                  left: Math.min(
+                    Math.max((xs(band.startYear) + xs(band.endYear)) / 2, plotLeft + 70),
+                    plotRight - 70,
+                  ),
+                }}
+              >
+                <Num className="text-2xs">{`${band.startYear}–${band.endYear}`}</Num>
+                <span aria-hidden className="text-2xs text-fg-muted">
+                  ·
+                </span>
+                <Num tone="muted" className="text-2xs">
+                  {spanYears(band)}
+                </Num>
+                <span className="text-2xs text-fg-muted">năm</span>
+              </div>
+            </>
+          )}
+
           {/* Vạch rê chuột + chấm + chip đọc số. Lớp phủ HTML chứ không phải SVG: chip
-              mang CHỮ, và chữ trong SVG không co theo Cỡ chữ. */}
-          {hoverRow && (
+              mang CHỮ, và chữ trong SVG không co theo Cỡ chữ.
+
+              Tắt trong lúc kéo dải: chip đọc số và nhãn dải đứng đúng cùng một chỗ
+              (`plotTop + 6`), nên hai cái cùng lúc là hai hộp chữ chồng nhau. */}
+          {hoverRow && band === null && (
             <>
               <div
                 aria-hidden

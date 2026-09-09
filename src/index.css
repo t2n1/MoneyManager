@@ -230,6 +230,17 @@
   --accent-soft-bg: rgba(0, 130, 54, 0.08);
   --accent-soft-ring: rgba(0, 130, 54, 0.28);
 
+  /* DẢI CHỌN KHOẢNG NĂM khi kéo ngang trên nền đồ thị Tương lai (bản vẽ 1c:
+     `rgba(70,217,126,.09)`). Là token riêng chứ không phải `bg-accent/10` viết tay, cùng
+     lý lẽ với --accent-soft-bg ngay trên: alpha đặt một chỗ thì đo lại một lần là xong,
+     và hai chế độ cần hai con số khác nhau.
+     Vì sao KHÔNG dùng lại --accent-soft-bg: dải này nằm ĐÈ LÊN đường đồ thị và lưới,
+     không nằm trên một nền phẳng — nó phải đủ nhạt để đường bên dưới còn đọc được, nên
+     alpha ở dark là .09 của bản vẽ chứ không phải .14 của mục đang chọn.
+     Light 0,10 chứ không 0,09: nền trang sáng, cùng alpha thì vệt xanh gần như biến mất
+     (cùng chiều điều chỉnh mà --accent-soft-bg đã làm, ngược dấu). */
+  --accent-band-bg: rgba(0, 130, 54, 0.1);
+
   /* Chặng cuối của gradient panel (redesign 2: thẻ tổng và panel cột phụ đổ dốc nhẹ
      từ --surface xuống đây). Ở light gradient gần như không thấy — đúng chủ ý, thẻ
      light vốn phẳng. Dùng qua tiện ích bg-panel-gradient bên dưới. */
@@ -383,6 +394,9 @@
   --accent-soft-bg: rgba(92, 224, 138, 0.14);
   --accent-soft-ring: rgba(92, 224, 138, 0.3);
 
+  /* Dải chọn khoảng năm (xem :root) — ĐÚNG con số của bản vẽ 1c cho thang tối. */
+  --accent-band-bg: rgba(70, 217, 126, 0.09);
+
   --surface-grad-to: #0f120f; /* gradient panel: --surface → đây, dốc xuống rất nhẹ */
 
   /* Lát donut ở chế độ Tối — ĐẢO CHIỀU so với light (cùng lý lẽ với --fg-muted và
@@ -437,6 +451,7 @@
   --color-fg-disabled: var(--fg-disabled);
   --color-accent-soft: var(--accent-soft-bg);
   --color-accent-soft-ring: var(--accent-soft-ring);
+  --color-accent-band: var(--accent-band-bg);
 }
 
 /* Gradient panel của redesign 2: thẻ tổng Thu/Chi và panel cột phụ đổ dốc rất nhẹ từ
@@ -480,6 +495,10 @@
      cùng 180ms mà dùng chung một tên thì lần sau muốn tách nhịp phải đi tìm từng chỗ.
      Lúc ĐANG KÉO thì nơi dùng BỎ class này (không đè thời lượng): xem PhaseLane.tsx. */
   --motion-block: 180ms;
+  /* Bảng chọn nhanh / popover của console Tương lai lúc MỞ (bản vẽ 1c, bảng "Chuyển
+     động": `omPop` — opacity + translateY −6px, `.16s`). Biến riêng theo VIỆC, cùng lý
+     lẽ với --motion-block ngay trên. */
+  --motion-popover: 160ms;
   /* KHÔNG phải một dòng của bảng §12 — bảng đó không có mục nào cho thanh tải. Đặt tên ở
      đây vì luật "không viết thời lượng bằng tay" chỉ chặt được khi nó không có ngoại lệ,
      mà vòng tải là thời lượng cuối cùng còn sót lại. 300ms giữ nguyên giá trị đang chạy:
@@ -535,12 +554,33 @@
     opacity: 1;
   }
 }
+/* Bảng chọn nhanh của console Tương lai: rơi XUỐNG 6px vào chỗ (bản vẽ 1c `omPop`). Có
+   kèm opacity, khác `sheet-in` — bảng này mở ĐÈ LÊN đường đồ thị đang chạy dưới nó, nên
+   một khối đặc trượt vào che mất chỗ vừa bấm; mờ dần vào thì thấy được cả hai. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 @theme {
   --animate-swap-in: swap-in var(--motion-period) var(--ease-out);
   --animate-sheet-in: sheet-in var(--motion-sheet) var(--ease-out);
   --animate-sheet-pop: sheet-pop var(--motion-sheet) var(--ease-out);
   --animate-overlay-in: overlay-in var(--motion-sheet) var(--ease-out);
+  /* Hai animation của console Tương lai. Cả hai tự tôn trọng `prefers-reduced-motion`
+     nhờ block ở cuối file (animation-duration → 0,01ms) — không khai lại ở đây. */
+  --animate-pop-in: pop-in var(--motion-popover) var(--ease-out);
 }
 
 /* Mỗi tiện ích dưới đây gói TRỌN một dòng của bảng §12: nội suy cái gì, trong bao lâu,

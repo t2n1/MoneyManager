@@ -49,6 +49,7 @@ import {
   removeDraftEvent,
   removeDraftPhase,
   setPhaseCurrency,
+  type DraftPhase,
   type ScenarioDraft,
 } from './draft'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
@@ -57,11 +58,19 @@ import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
 import { clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
-import { viewRange } from './plotFrame'
-import type { LifePreset, PresetContext } from './presets'
+import { PIN_TOP, viewRange } from './plotFrame'
+import type { LifePreset, PresetContext, PresetResult } from './presets'
 import { phaseForYear, projectLifetime } from './project'
+import { QuickAddBoard } from './QuickAddBoard'
+import { applySpanToResult } from './quickAddApply'
+import type { SpanApply, YearSpan } from './quickAddRange'
 import { lifetimeVerdict } from './summary'
-import { TimelinePlot, type ComparisonLine, type PlotZoom } from './TimelinePlot'
+import {
+  TimelinePlot,
+  type ComparisonLine,
+  type PlotPoint,
+  type PlotZoom,
+} from './TimelinePlot'
 import { useLifetime } from './useLifetime'
 import { YearTableSection } from './YearTableView'
 
@@ -82,6 +91,25 @@ const COMPARE_COLORS = [
   'var(--chart-slice-4)',
   'var(--chart-slice-5)',
 ] as const
+
+/**
+ * Chỗ neo DỌC của bảng chọn nhanh, pixel trong hộp vùng vẽ đã đo. Dùng chính `PIN_TOP`
+ * (mép trên hàng icon mốc) thay vì một con số mới: bảng là lớp phủ tạm, và neo nó ở mép
+ * trên là chỗ duy nhất luôn đủ chiều cao cho nó ở MỌI kích cỡ chữ — xem lời ghi tại chỗ
+ * dùng. Là toạ độ trong hộp đã đo nên nó ở px, cùng hệ với `plotFrame.ts`.
+ */
+const QUICK_TOP_PX = PIN_TOP
+
+/**
+ * Chặng phủ một năm. MỘT chỗ trả lời câu đó cho cả hai chỗ cần (tên chặng của mốc đang
+ * chọn, và tiền của một mốc trống vừa sinh) — `phaseForYear` (project.ts) đã tự rơi về
+ * chặng SỚM NHẤT cho một năm nằm trước chặng đầu tiên, cùng luật mà `currencyAt`
+ * (fxModel.ts) dùng: nói một mốc không thuộc chặng nào là bảo khoản chi năm 2020 tính
+ * bằng đơn vị khác hẳn khoản chi năm 2026 của cùng một chặng.
+ */
+function phaseCovering(phases: readonly DraftPhase[], year: number): DraftPhase | null {
+  return phaseForYear([...phases].sort((a, b) => a.startYear - b.startYear), year) ?? null
+}
 
 const ZOOM_ITEMS = [
   { value: '10', label: '10 năm' },
@@ -176,12 +204,19 @@ function TuongLaiConsole() {
   /** Đang chọn chặng/mốc nào — `pick`/`sel` của bản vẽ. Dock đọc để dispatch. */
   const [sel, setSel] = useState<DockSelection>({ type: 'none' })
 
+  // --- Bảng chọn nhanh (Task 13) ------------------------------------------------------
+  //
+  // State ở TRANG chứ trong `TimelinePlot`: bảng phải đóng được bằng `Esc` (lớp bàn phím
+  // ở đây), và nó ghi vào bản nháp — cả hai thứ đó sống ở trang. Vùng vẽ chỉ báo ra cử
+  // chỉ và chỗ bấm, vì chỉ nó biết phép chiếu năm→pixel.
+  const [quick, setQuick] = useState<{ span: YearSpan; at: PlotPoint } | null>(null)
   // Đổi kịch bản thì nháp phải rơi: nó là bản sao của kịch bản CŨ, giữ lại là âm thầm áp
   // thu/chi/mốc của kịch bản này lên kịch bản kia. Lựa chọn cũng rơi — id không còn thuộc
   // kịch bản đang xem.
   useEffect(() => {
     setDraft(null)
     setSel({ type: 'none' })
+    setQuick(null)
   }, [activeId])
 
   /** Ảnh chụp bản ĐÃ LƯU, dạng nháp — gốc quy chiếu của mọi phép so và mọi lệnh ghi. */
@@ -341,6 +376,86 @@ function TuongLaiConsole() {
     }
   }, [ensureFirstScenario])
 
+  // ===== Đường GHI — khai TRƯỚC ba cổng bên dưới =====
+  //
+  // Ở đây chứ không cạnh chỗ dùng vì lớp bàn phím của màn này (task kế tiếp) là một HOOK:
+  // hook phải được gọi vô điều kiện ở mọi lần render, tức TRÊN mọi `return` sớm — và kéo
+  // theo đó, mọi thứ nó cần (hai con số năm, các đường dời) cũng phải khai trên đó.
+
+  /** Năm hiện tại của bản chiếu. Rơi về năm thật của máy khi chưa tải xong — chỉ dùng cho
+   *  lượt render trước cổng, lúc chưa có gì để sửa. */
+  const currentYear = shownInput?.currentYear ?? new Date().getFullYear()
+  /** Năm cuối bản chiếu — "đến năm" của chặng CUỐI (chặng cuối chạy tới hết bản chiếu). */
+  const lastYear = shownRows.length > 0 ? shownRows[shownRows.length - 1].year : currentYear
+
+  /**
+   * Dời năm bắt đầu của một chặng — đường ghi DUY NHẤT của dải chặng đời (kéo khối, kéo
+   * hai mép, và ô năm trong dock đều về đây).
+   *
+   * Chặn ngay trong mutator và chặn theo `d.phases`, không theo `working.phases`: lượt kéo
+   * gộp theo nhịp khung hình nên hai lần gọi liên tiếp có thể cùng đọc một `working` cũ,
+   * và một phép chặn tính trên mảng cũ sẽ cho ra năm trùng với chặng vừa dời
+   * (`unique (scenario_id, start_year)`, migration 0031).
+   *
+   * `clampPhaseStartYear` là chỗ DUY NHẤT khai luật này (Bất biến 1: chặng đầu khoá ở năm
+   * hiện tại; Bất biến 2: sàn và không trùng năm) — cùng hàm mà ô năm trong dock dùng, nên
+   * kéo và gõ không thể cho ra hai kết quả khác nhau. Hệ quả cần biết: kéo một chặng VƯỢT
+   * QUA chặng bên cạnh thì nó nhận năm trống gần nhất và hai chặng ĐỔI THỨ TỰ, chứ không
+   * bị chặn lại ở sát bên — đúng như gõ năm đó vào ô.
+   *
+   */
+  const movePhaseStart = useCallback(
+    (id: string, wanted: number) =>
+      editDraft((d) =>
+        patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
+      ),
+    [editDraft, currentYear],
+  )
+
+  /**
+   * Dời năm BẮT ĐẦU của một mốc — GIỮ NGUYÊN ĐỘ DÀI.
+   *
+   * Giữ độ dài là điều bản vẽ làm (dòng 1310) và nó đúng: kéo "Nuôi con 2031–2053" sang
+   * 2033 là dời cả quãng nuôi con, không phải cắt ngắn nó 2 năm. Mốc "tới hết đời"
+   * (`endYear === null`) không có độ dài nào để giữ, và nó phải Ở LẠI `null` — đặt một năm
+   * cho nó là lặng lẽ biến "đến hết đời" thành một khoảng có hạn.
+   *
+   * Chặn trong `[currentYear, lastYear]`: lượt KÉO đã bị `xToYear` kẹp trong khung nhìn,
+   * nhưng đường BÀN PHÍM (←/→) thì không — và một mốc lùi về trước năm hiện tại thì không
+   * còn năm nào trong bản chiếu để rơi vào.
+   */
+  const moveEventStart = useCallback(
+    (id: string, wanted: number) =>
+      editDraft((d) => {
+        const e = d.events.find((x) => x.id === id)
+        if (!e) return d
+        const sy = Math.max(currentYear, Math.min(lastYear, Math.round(wanted)))
+        const span = e.endYear === null ? null : e.endYear - e.startYear
+        return patchDraftEvent(d, id, {
+          startYear: sy,
+          endYear: span === null ? null : Math.min(lastYear, sy + span),
+        })
+      }),
+    [editDraft, currentYear, lastYear],
+  )
+
+  /**
+   * Đổi năm KẾT THÚC. Sàn là `startYear + 1` — cùng sàn mà màn cũ dùng
+   * (`LifetimeChartCard`): một mốc có `endYear === startYear` thì thanh độ dài dài 0px và
+   * cái chốt rơi đúng dưới icon của chính nó, tức kéo được vào đó rồi không kéo ra được.
+   */
+  const moveEventEnd = useCallback(
+    (id: string, wanted: number) =>
+      editDraft((d) => {
+        const e = d.events.find((x) => x.id === id)
+        if (!e) return d
+        return patchDraftEvent(d, id, {
+          endYear: Math.max(e.startYear + 1, Math.min(lastYear, Math.round(wanted))),
+        })
+      }),
+    [editDraft, lastYear],
+  )
+
   if (isLoading) return <EmptyState>Đang tải…</EmptyState>
 
   // --- Cổng 2: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
@@ -410,9 +525,6 @@ function TuongLaiConsole() {
 
   const currency = active.display_currency as CurrencyCode
   const birthYear = shownInput.birthYear
-  const currentYear = shownInput.currentYear
-  /** Năm cuối bản chiếu — "đến năm" của chặng CUỐI (chặng cuối chạy tới hết bản chiếu). */
-  const lastYear = shownRows.length > 0 ? shownRows[shownRows.length - 1].year : currentYear
 
   /**
    * Khoảng năm ĐANG XEM. Cùng `viewRange` mà `TimelinePlot` gọi (plotFrame.ts), không phải
@@ -420,64 +532,6 @@ function TuongLaiConsole() {
    * khối chặng không còn nằm dưới đúng đoạn đường của nó.
    */
   const [laneX0, laneX1] = viewRange(currentYear, lastYear, zoom)
-
-  /**
-   * Dời năm bắt đầu của một chặng — đường ghi DUY NHẤT của dải chặng đời (kéo khối, kéo
-   * hai mép, và ←/→ đều về đây).
-   *
-   * Chặn ngay trong mutator và chặn theo `d.phases`, không theo `working.phases`: lượt kéo
-   * gộp theo nhịp khung hình nên hai lần gọi liên tiếp có thể cùng đọc một `working` cũ,
-   * và một phép chặn tính trên mảng cũ sẽ cho ra năm trùng với chặng vừa dời
-   * (`unique (scenario_id, start_year)`, migration 0031).
-   *
-   * `clampPhaseStartYear` là chỗ DUY NHẤT khai luật này (Bất biến 1: chặng đầu khoá ở năm
-   * hiện tại; Bất biến 2: sàn và không trùng năm) — cùng hàm mà ô năm trong dock dùng, nên
-   * kéo và gõ không thể cho ra hai kết quả khác nhau. Hệ quả cần biết: kéo một chặng VƯỢT
-   * QUA chặng bên cạnh thì nó nhận năm trống gần nhất và hai chặng ĐỔI THỨ TỰ, chứ không
-   * bị chặn lại ở sát bên — đúng như gõ năm đó vào ô.
-   */
-  const movePhaseStart = (id: string, wanted: number) =>
-    editDraft((d) =>
-      patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
-    )
-
-  /**
-   * Dời năm BẮT ĐẦU của một mốc — GIỮ NGUYÊN ĐỘ DÀI.
-   *
-   * Giữ độ dài là điều bản vẽ làm (dòng 1310) và nó đúng: kéo "Nuôi con 2031–2053" sang
-   * 2033 là dời cả quãng nuôi con, không phải cắt ngắn nó 2 năm. Mốc "tới hết đời"
-   * (`endYear === null`) không có độ dài nào để giữ, và nó phải Ở LẠI `null` — đặt một năm
-   * cho nó là lặng lẽ biến "đến hết đời" thành một khoảng có hạn.
-   *
-   * Chặn trong `[currentYear, lastYear]`: lượt KÉO đã bị `xToYear` kẹp trong khung nhìn,
-   * nhưng đường BÀN PHÍM (←/→) thì không — và một mốc lùi về trước năm hiện tại thì không
-   * còn năm nào trong bản chiếu để rơi vào.
-   */
-  const moveEventStart = (id: string, wanted: number) =>
-    editDraft((d) => {
-      const e = d.events.find((x) => x.id === id)
-      if (!e) return d
-      const sy = Math.max(currentYear, Math.min(lastYear, Math.round(wanted)))
-      const span = e.endYear === null ? null : e.endYear - e.startYear
-      return patchDraftEvent(d, id, {
-        startYear: sy,
-        endYear: span === null ? null : Math.min(lastYear, sy + span),
-      })
-    })
-
-  /**
-   * Đổi năm KẾT THÚC. Sàn là `startYear + 1` — cùng sàn mà màn cũ dùng
-   * (`LifetimeChartCard`): một mốc có `endYear === startYear` thì thanh độ dài dài 0px và
-   * cái chốt rơi đúng dưới icon của chính nó, tức kéo được vào đó rồi không kéo ra được.
-   */
-  const moveEventEnd = (id: string, wanted: number) =>
-    editDraft((d) => {
-      const e = d.events.find((x) => x.id === id)
-      if (!e) return d
-      return patchDraftEvent(d, id, {
-        endYear: Math.max(e.startYear + 1, Math.min(lastYear, Math.round(wanted))),
-      })
-    })
 
   /**
    * Các `startYear` của chặng — nam châm ±1 năm khi kéo mốc bám vào chúng (bản vẽ:
@@ -563,13 +617,7 @@ function TuongLaiConsole() {
    * tính bằng đơn vị khác hẳn khoản chi năm 2026 của cùng một chặng. ĐƠN VỊ TIỀN thì
    * vẫn đi qua chính `currencyAt`, chỗ duy nhất khai luật đó.
    */
-  const sortedPhases = [...working.phases].sort((a, b) => a.startYear - b.startYear)
-  const evPhase =
-    selEvent === undefined || sortedPhases.length === 0
-      ? null
-      : selEvent.startYear < sortedPhases[0].startYear
-        ? sortedPhases[0]
-        : phaseForYear(sortedPhases, selEvent.startYear) ?? null
+  const evPhase = selEvent === undefined ? null : phaseCovering(working.phases, selEvent.startYear)
 
   /** `PresetContext` cho các chip "Thêm mốc từ mẫu" — đọc chặng ĐANG HIỆU LỰC, đúng
    *  khuôn `buildPresetCtx` của màn cũ (LifetimeView), không dựng luật thứ hai. */
@@ -588,6 +636,94 @@ function TuongLaiConsole() {
       displayCurrency: currency,
       fxOf: (c) => pageFxOf(c, currency),
     }
+  }
+
+  /**
+   * Thêm một mẫu TỪ BẢNG CHỌN NHANH — khoảng năm đã được bảng dịch sẵn qua
+   * `applySpanToPreset` + `applySpanToResult`, nên ở đây chỉ còn hai việc: né năm trùng
+   * cho mẫu sinh CHẶNG, và nhắm con trỏ vào thứ vừa thêm.
+   *
+   * Né năm trùng bằng `freePhaseStartYear` (không `clampPhaseStartYear` với một chặng giả
+   * nhét vào mảng) và chỉ né khi mẫu THẬT SỰ sinh chặng — đúng hai quyết định đã ghi ở
+   * `onAddPreset` của dock, xem lời ghi dài ở đó cho lý do (review 2026-09-09 #1 và #2).
+   * Ba mẫu sinh chặng đều đặt `start_year: ctx.year`, nên phải DỰNG LẠI mẫu ở năm mới
+   * chứ không sửa `start_year` tại chỗ: mẫu còn tính vài số khác theo `ctx.year`
+   * (`nghi-huu` lấy năm nhận 年金 từ tuổi 65).
+   */
+  const addPresetFromBoard = (preset: LifePreset, apply: SpanApply, result: PresetResult) => {
+    const seed = ++newIdSeed.current
+    const nam =
+      result.phases.length > 0
+        ? freePhaseStartYear(working.phases, apply.year, currentYear, lastYear)
+        : apply.year
+    const final =
+      nam === apply.year
+        ? result
+        : applySpanToResult(preset.build(buildPresetCtx(nam)), { ...apply, year: nam })
+    editDraft((d) => applyPreset(d, final, seed))
+    // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng thì giữ nguyên lựa
+    // chọn — không có mốc để nhắm tới.
+    if (final.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
+    setQuick(null)
+    showToast(
+      `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+      'success',
+    )
+  }
+
+  /**
+   * "+ Mốc trống": một mốc CHI 0 đồng đúng khoảng đã chọn, rồi mở ngay bảng sửa trong dock.
+   *
+   * Số 0 là có chủ đích, khác mọi mẫu: mẫu đoán hộ một con số có nguồn tra cứu, còn mốc
+   * trống thì không có gì để đoán — một con số bịa ở đây sẽ đi thẳng vào bản chiếu mà
+   * không có câu "số mặc định, kiểm tra lại" nào che.
+   *
+   * Tiền thì KHÔNG để trống: nó suy ra từ chặng phủ năm đó (`currencyAt`, luật v5 của
+   * `fxModel.ts`) cùng đúng `fxToDisplay` của chặng ấy — để `1` khi chặng dùng đơn vị khác
+   * tiền hiển thị là bật cờ cảnh báo thiếu tỷ giá cho một dòng vốn không thiếu gì.
+   */
+  const addBlankFromBoard = (span: YearSpan) => {
+    const seed = ++newIdSeed.current
+    const sy = Math.max(currentYear, Math.min(lastYear, span.startYear))
+    // Khoảng một năm → mốc một năm (`endYear === startYear`), đúng mặc định của mọi mốc
+    // một lần trong `presets.ts`. Không để `null`: "tới hết đời" là một lựa chọn người
+    // dùng phải tự khai, không phải thứ một cú bấm nền sinh ra.
+    const ey = span.endYear > span.startYear ? Math.min(lastYear, span.endYear) : sy
+    editDraft((d) => {
+      const ph = phaseCovering(d.phases, sy)
+      const tien = currencyAt(d.phases, sy, currency)
+      return addDraftEvent(
+        d,
+        {
+          startYear: sy,
+          endYear: ey,
+          kind: 'expense',
+          amountMinor: 0,
+          currency: tien,
+          label: 'Mốc mới',
+          note: '',
+          fxToDisplay: tien === currency ? 1 : (ph?.fxToDisplay ?? 1),
+          inflate: true,
+          enabled: true,
+          amountShape: 'per_year',
+          endAmountMinor: null,
+          growthBps: 0,
+          repeatEveryYears: null,
+          icon: '',
+          replacesMinor: 0,
+          replacesLabel: '',
+          color: '',
+          assetValueMinor: 0,
+          assetChangeBps: 0,
+          loanMinor: 0,
+          loanRateBps: 0,
+          loanYears: 0,
+        },
+        seed,
+      ).draft
+    })
+    setSel({ type: 'event', id: addedEventId(seed) })
+    setQuick(null)
   }
 
   const dockEvent =
@@ -892,7 +1028,17 @@ function TuongLaiConsole() {
             )}
           </div>
 
-          {/* --- HÀNG 7: vùng vẽ ---------------------------------------------------- */}
+          {/* --- HÀNG 7: vùng vẽ ----------------------------------------------------
+
+                  Hộp `relative` bọc ngoài: bảng chọn nhanh và toast hoàn tác là lớp phủ
+                  đặt theo toạ độ TRONG vùng vẽ, nhưng chúng KHÔNG nằm trong `TimelinePlot`.
+                  Lý do: cả hai ghi vào bản nháp và đóng được bằng `Esc` — hai thứ sống ở
+                  trang. Vùng vẽ chỉ báo ra cử chỉ kèm chỗ bấm (`onQuickAdd`), vì chỉ nó
+                  biết phép chiếu năm→pixel. Và vì chúng là phần tử EM của vùng vẽ (không
+                  phải con), cú bấm vào bảng không nổi bọt vào nền đồ thị để mở thêm một
+                  bảng nữa. `TimelinePlot` khai `h-[35rem] w-full` nên hộp này trùng khít
+                  nó, tức toạ độ báo ra dùng được thẳng ở đây. */}
+          <div className="relative min-w-0">
           <TimelinePlot
             rows={shownRows}
             currency={currency}
@@ -917,7 +1063,35 @@ function TuongLaiConsole() {
             }
             onMoveEvent={moveEventStart}
             onMoveEventEnd={moveEventEnd}
+            onQuickAdd={(span, at) => setQuick({ span, at })}
           />
+
+          {/* BẢNG CHỌN NHANH. Kẹp toạ độ NGANG trong lòng vùng vẽ, đúng idiom mà chip đọc
+              số trong `TimelinePlot` dùng: ở hai mép trục, `translateX(-50%)` đẩy một nửa
+              bảng ra ngoài thẻ, và ở mép phải nó chui xuống dưới cột dock.
+
+              Còn theo trục DỌC thì bảng neo ở TRÊN, không ở chỗ bấm — lệch bản vẽ có chủ
+              đích: bản vẽ khoá khung 1080px nên bảng mở ở đâu cũng còn chỗ, còn vùng vẽ ở
+              đây cao 35rem và bảng cao tới 18rem, nên mở ở nửa dưới là quá nửa bảng nằm
+              ngoài. Cùng lý lẽ đã dùng cho chip đọc số. */}
+          {quick !== null && (
+            <div
+              className="absolute z-40 -translate-x-1/2"
+              style={{ top: QUICK_TOP_PX, left: quick.at.x }}
+            >
+              <QuickAddBoard
+                span={quick.span}
+                birthYear={birthYear}
+                currency={currency}
+                buildCtx={buildPresetCtx}
+                onAddPreset={addPresetFromBoard}
+                onAddBlank={addBlankFromBoard}
+                onClose={() => setQuick(null)}
+              />
+            </div>
+          )}
+
+          </div>
 
           {/* --- HÀNG 8: dải chặng đời --------------------------------------------
 

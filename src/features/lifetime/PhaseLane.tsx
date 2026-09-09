@@ -87,9 +87,19 @@ interface Props {
   /** Bắt đầu kéo — dock đi theo thứ đang kéo. */
   onSelect: (id: string) => void
   /**
-   * Đặt `startYear` của chặng `id`. Dải này KHÔNG tự chặn: `clampPhaseStartYear`
-   * (phaseYear.ts) là chỗ duy nhất khai luật đó và chỗ gọi đã đi qua nó — viết một phép
-   * chặn thứ hai ở đây là hai luật cho cùng một cột dữ liệu.
+   * Đặt `startYear` của chặng `id`.
+   *
+   * Dải này TỰ CHẶN, ở bốn chỗ (mép trái · mép phải trên chặng kế · kéo giữa · `←`/`→`),
+   * tất cả bằng CÙNG một hàm `blockPhaseStartYearAtNeighbours` — nên năm đi ra khỏi đây đã
+   * nằm trong khoảng mở giữa hai chặng liền kề. Nó cần thế: hình học của khối (`laneBlocks`)
+   * phải khớp với năm mà nó vừa xin, không thì khối trượt tới một chỗ rồi bị đẩy về chỗ khác.
+   *
+   * Chỗ gọi chặn LẠI bằng ĐÚNG hàm đó, trên mảng chặng của chính bản nháp (`dragPhase.ts`) —
+   * không phải "hai luật cho cùng một cột" mà là cùng một luật, tính lại trên dữ liệu mới
+   * nhất: lượt kéo gộp theo nhịp khung hình nên prop `phases` ở đây có thể chậm một khung.
+   * Điều BỊ CẤM là chặn lần thứ hai bằng một hàm KHÁC — `clampPhaseStartYear` (luật của ô
+   * năm gõ tay trong dock) từng nằm đúng chỗ đó và giành lấy kết quả của dải này (phát hiện
+   * review cuối nhánh 2026-09-09, Finding 1).
    */
   onMoveStart: (id: string, year: number) => void
 }
@@ -212,9 +222,10 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
               surface={drag.surface}
               onToggle={onToggle}
               // Phát hiện review 2026-09-09, Finding 2: cộng thẳng `step` rồi gọi
-              // `onMoveStart` đi qua `movePhaseStart` → `clampPhaseStartYear` (DÒ-NĂM-TRỐNG,
-              // đúng cho ô năm gõ tay — xem JSDoc `blockPhaseStartYearAtNeighbours`), KHÔNG
-              // qua phép CHẶN mà cả ba đường kéo đã dùng từ bản sửa finding trước. Hệ quả:
+              // `onMoveStart` từng đi qua một writer ở `TuongLaiPage` chặn bằng
+              // `clampPhaseStartYear` (DÒ-NĂM-TRỐNG, đúng cho ô năm gõ tay — xem JSDoc
+              // `blockPhaseStartYearAtNeighbours`), KHÔNG qua phép CHẶN mà cả ba đường kéo
+              // đã dùng từ bản sửa finding trước (nay writer đó là `dragPhase.ts`). Hệ quả:
               // hai chặng liền năm (p2=2035, p3=2036) — một cú → duy nhất trên p2 xin 2036,
               // thấy đã có người, NHẢY qua thành 2037: p2 xếp SAU p3, đổi thứ tự, mà một cú
               // bấm phím còn CHỦ Ý hơn một cú kéo lỡ tay. Đi qua cùng hàm CHẶN với đường kéo

@@ -172,11 +172,18 @@ export function PlanDockPhase({
           // KHÔNG tự ghi đè về `currentYear` ở đây: dock không có nút Xong để tắt, nên mọi
           // ô bị SAI thì bị CHẶN, nhưng đây không phải một ô — nó là một khác biệt dữ liệu
           // có thật, và ghi đè âm thầm dữ liệu người dùng không phải việc của phép chặn.
-          // Sửa đúng cách là kéo chặng trên trục (Task 11), nên chỉ nói ra, không tự sửa.
+          //
+          // KHÔNG mời "kéo khối chặng trên trục" nữa (phát hiện review cuối nhánh
+          // 2026-09-09, Finding 3): khối chặng ĐÃ kéo được từ nhánh này, nhưng chặng ĐẦU
+          // thì không — `blockPhaseStartYearAtNeighbours` trả nguyên năm đang có ở `i === 0`
+          // vì chặng đầu không có mép trái, nên kéo giữa khối đầu là NO-OP. Một câu chỉ dẫn
+          // tới một cử chỉ không làm gì là tệ hơn không có câu nào. Nói HỆ QUẢ thay vì hứa
+          // một cách sửa: `phaseForYear` (project.ts) dùng chặng sớm nhất cho mọi năm nằm
+          // trước nó, nên bản chiếu vẫn liền mạch, chỉ là quãng đầu đọc theo chặng này.
           <Guide className="mt-1 block text-2xs text-fg-muted">
             Chặng đầu đang bắt đầu ở năm <Num tone="muted">{phase.startYear}</Num>, không phải
-            năm nay (<Num tone="muted">{currentYear}</Num>) — sửa bằng cách kéo chặng trên trục
-            khi khối chặng kéo được (sắp có).
+            năm nay (<Num tone="muted">{currentYear}</Num>). Bản chiếu vẫn tính từ hôm nay —
+            những năm trước <Num tone="muted">{phase.startYear}</Num> đọc theo đúng chặng này.
           </Guide>
         ))}
 

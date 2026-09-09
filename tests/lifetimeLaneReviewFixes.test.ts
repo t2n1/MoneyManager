@@ -15,6 +15,9 @@ const LIFETIME = fileURLToPath(new URL('../src/features/lifetime/', import.meta.
 const phaseLane = readFileSync(LIFETIME + 'PhaseLane.tsx', 'utf8')
 const eventPins = readFileSync(LIFETIME + 'EventPins.tsx', 'utf8')
 const useYearDrag = readFileSync(LIFETIME + 'useYearDrag.ts', 'utf8')
+const tuongLaiPage = readFileSync(LIFETIME + 'TuongLaiPage.tsx', 'utf8')
+const dragPhase = readFileSync(LIFETIME + 'dragPhase.ts', 'utf8')
+const planDockPhase = readFileSync(LIFETIME + 'PlanDockPhase.tsx', 'utf8')
 
 /**
  * Nội dung BÊN TRONG cặp ngoặc nhọn cân bằng ngay sau `${attr}={` — dùng để tách từng
@@ -104,6 +107,38 @@ describe('Finding 2 (Important) — ←/→ trên khối chặng phải CHẶN t
     // `b.id, b.startYear + step)` (tức lời gọi step cộng thẳng đã KHÔNG còn tồn tại trần
     // trụi, mà đã được bọc trong lời gọi blockPhaseStartYearAtNeighbours ở trên).
     expect(body).not.toMatch(/onMoveStart\(\s*b\.id\s*,\s*b\.startYear \+ step\s*\)/)
+  })
+})
+
+describe('Review CUỐI NHÁNH, Finding 1 (CRITICAL) — đường KÉO chỉ đi qua MỘT phép chặn, và không phải phép của ô năm', () => {
+  // Số học của cả hai hệ quả nằm ở `src/features/lifetime/dragPhase.test.ts` (phép thử
+  // THẬT, chạy trên mã đã ship). Khối này canh cái mà một phép thử thuần không thấy: chỗ
+  // NỐI DÂY. Hồi quy đã xảy ra chính là ở đó — hai hàm đúng, mắc nối tiếp thành sai.
+  it('TuongLaiPage.tsx: không còn một lời gọi `clampPhaseStartYear(` nào — luật đó chỉ thuộc ô năm trong dock', () => {
+    expect(tuongLaiPage).not.toMatch(/clampPhaseStartYear\s*\(/)
+  })
+
+  it('TuongLaiPage.tsx: dải chặng nhận đúng writer của đường kéo (`dragPhaseStartYear`), và writer đó gọi `dragPhaseStart` trong mutator', () => {
+    expect(tuongLaiPage).toContain('onMoveStart={dragPhaseStartYear}')
+    expect(tuongLaiPage).toMatch(/editDraft\(\(d\) => dragPhaseStart\(d, id, wanted\)\)/)
+  })
+
+  it('dragPhase.ts: chặn bằng ĐÚNG một hàm, trên `draft.phases` của bản nháp truyền vào (không phải một mảng chụp từ trước)', () => {
+    expect(dragPhase).toContain('blockPhaseStartYearAtNeighbours(draft.phases, id, wanted)')
+    // Không GỌI, và không import — luật của ô năm gõ tay không có đường vào đây. (Tên hàm
+    // đó vẫn được phép xuất hiện trong lời ghi: đó là chỗ giải thích vì sao nó không ở đây.)
+    expect(dragPhase).not.toMatch(/clampPhaseStartYear\s*\(/)
+    expect(dragPhase).toMatch(
+      /import \{ blockPhaseStartYearAtNeighbours \} from '\.\/phaseYear'/,
+    )
+  })
+
+  it('PlanDockPhase.tsx: ô năm trong dock GIỮ NGUYÊN `clampPhaseStartYear` — quyết định đã chốt, bản sửa này không được gộp hai đường', () => {
+    expect(planDockPhase).toContain('clampPhaseStartYear(sorted, phase.id, y, currentYear)')
+  })
+
+  it('PlanDockPhase.tsx: câu nhắc chặng-đầu-ở-tương-lai không còn hứa một tính năng "sắp có" (Finding 3)', () => {
+    expect(planDockPhase).not.toMatch(/sắp có/)
   })
 })
 

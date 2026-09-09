@@ -66,13 +66,16 @@ import {
   type ScenarioDraft,
 } from './draft'
 import { DraftBanner } from './DraftBanner'
+import { dragPhaseStart } from './dragPhase'
 import { changeParts } from './draftText'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
-import { blockPhaseStartYearAtNeighbours, clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
+// `clampPhaseStartYear` KHÔNG được import ở đây: nó là luật của Ô NĂM GÕ TAY và chỉ
+// `PlanDockPhase.tsx` gọi nó. Đường kéo đi qua `dragPhase.ts` — xem Finding 1 ở đó.
+import { blockPhaseStartYearAtNeighbours, freePhaseStartYear } from './phaseYear'
 import { PIN_TOP, clampQuickBoardLeft, viewRange } from './plotFrame'
 import type { LifePreset, PresetContext, PresetResult } from './presets'
 import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
@@ -771,33 +774,29 @@ function TuongLaiConsole() {
   )
 
   /**
-   * Dời năm bắt đầu của một chặng — đường ghi DUY NHẤT của dải chặng đời (kéo khối, kéo
-   * hai mép, và ô năm trong dock đều về đây).
+   * Dời năm bắt đầu của một chặng bằng một cú KÉO trên dải (kéo khối, kéo hai mép, và `←`/`→`
+   * bắt trên chính khối). Ô NĂM trong dock KHÔNG về đây — nó tự chặn bằng
+   * `clampPhaseStartYear` (`PlanDockPhase.tsx`), cố tình khác hành vi.
    *
-   * Chặn ngay trong mutator và chặn theo `d.phases`, không theo `working.phases`: lượt kéo
-   * gộp theo nhịp khung hình nên hai lần gọi liên tiếp có thể cùng đọc một `working` cũ,
-   * và một phép chặn tính trên mảng cũ sẽ cho ra năm trùng với chặng vừa dời
-   * (`unique (scenario_id, start_year)`, migration 0031).
+   * MỘT phép chặn duy nhất, `blockPhaseStartYearAtNeighbours`, và chặn ngay trong mutator
+   * theo `d.phases`. Trước bản sửa này chỗ đây chặn LẦN THỨ HAI bằng `clampPhaseStartYear`
+   * và phép thứ hai giành lấy kết quả của `PhaseLane` — kéo sang trái đẩy chặng sang phải,
+   * vượt qua cả một chặng nằm giữa; và kéo giữa khối chặng ĐẦU rơi vào nhánh chặng-đầu của
+   * hàm đó, thứ ghi `currentYear` mà không kiểm trùng, sinh hai chặng cùng `start_year`
+   * (phát hiện review cuối nhánh 2026-09-09, Finding 1). Toàn bộ hợp đồng và cả hai phép
+   * tính nằm ở `dragPhase.ts` + `dragPhase.test.ts`.
    *
-   * `clampPhaseStartYear` là chỗ DUY NHẤT khai luật này (Bất biến 1: chặng đầu khoá ở năm
-   * hiện tại; Bất biến 2: sàn và không trùng năm) — cùng hàm mà ô năm trong dock dùng, nên
-   * kéo và gõ không thể cho ra hai kết quả khác nhau. Hệ quả cần biết: kéo một chặng VƯỢT
-   * QUA chặng bên cạnh thì nó nhận năm trống gần nhất và hai chặng ĐỔI THỨ TỰ, chứ không
-   * bị chặn lại ở sát bên — đúng như gõ năm đó vào ô.
-   *
-   * ĐƯỜNG BÀN PHÍM KHÔNG ĐI QUA ĐÂY — xem `nudgePhase` ngay dưới.
+   * ĐƯỜNG BÀN PHÍM TOÀN TRANG KHÔNG ĐI QUA ĐÂY — xem `nudgePhase` ngay dưới (cùng luật
+   * chặn, khác chỗ đọc năm đang có).
    */
-  const movePhaseStart = useCallback(
-    (id: string, wanted: number) =>
-      editDraft((d) =>
-        patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
-      ),
-    [editDraft, currentYear],
+  const dragPhaseStartYear = useCallback(
+    (id: string, wanted: number) => editDraft((d) => dragPhaseStart(d, id, wanted)),
+    [editDraft],
   )
 
   /**
    * `←`/`→` trên một chặng đang chọn: CHẶN tại chặng liền kề
-   * (`blockPhaseStartYearAtNeighbours`), KHÔNG dò-năm-trống-rồi-nhảy như `movePhaseStart`.
+   * (`blockPhaseStartYearAtNeighbours`), KHÔNG dò-năm-trống-rồi-nhảy như ô năm trong dock.
    *
    * Đây là phát hiện review 2026-09-09 Finding 2, và nó đúng với cả lớp bàn phím toàn
    * trang: hai chặng liền năm (2035, 2036) — một cú → duy nhất trên chặng 2035 xin 2036,
@@ -1776,7 +1775,7 @@ function TuongLaiConsole() {
                 cur.type === 'phase' && cur.id === id ? { type: 'none' } : { type: 'phase', id },
               )
             }
-            onMoveStart={movePhaseStart}
+            onMoveStart={dragPhaseStartYear}
           />
 
         </div>

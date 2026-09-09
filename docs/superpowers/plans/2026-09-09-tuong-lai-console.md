@@ -931,6 +931,41 @@ Verified locations before writing this task:
 - [ ] **Step 6:** `npm test && npx tsc -b && npm run lint`. Then report what to check in the browser — saving a draft must actually persist, which is the one thing that cannot be inferred from a screenshot.
 - [ ] **Step 7:** Commit.
 
+### Task 15c: Re-home the three §13 features still stranded in `LifetimeView`
+
+**Added mid-execution (2026-09-09), second plan defect of the same shape as Task 15b.**
+Tasks 7–15b built the drawing's twelve rows faithfully — and that is exactly why these
+were missed. They are **app features the drawing does not have**, so nothing in the
+row-by-row build ever claimed them, and Task 16 deletes the only file that holds them.
+Spec §13 lists all three under "Không được để mất".
+
+Verified by grep before writing this task:
+
+| Feature | Lives only in | Status on the console |
+|---|---|---|
+| `realityCheck` (đối chiếu chi tiêu thật) | `LifetimeView.tsx` + `InsightCards.tsx` | `InsightCards` IS mounted, but the console never computes `baseline`, so the reality-check section renders empty |
+| `verdictDrift` + `useLifetimeVerdictSnapshots` | `LifetimeView.tsx` | absent |
+| `buildRetireTrial` / `applyRetireTrial` (thử nghỉ hưu) | `LifetimeView.tsx` | absent |
+
+**NOT a loss, checked:** `CompareStrip` is superseded — the console has its own compare
+switch at `TuongLaiPage.tsx:198` that draws every other scenario, which is the drawing's
+"So sánh" button. Do not port `CompareStrip`.
+
+**Files:**
+- Modify: `src/features/lifetime/TuongLaiPage.tsx`
+- Test: extend the existing `realityCheck.test.ts` / `verdictHistory.test.ts` / `tryRetire.test.ts` only if you add new pure logic; the mechanisms themselves are already covered
+
+**Interfaces:**
+- Consumes: `suggestBaseline` from `./baseline`, `realityCheck` from `./realityCheck`, `verdictDrift` from `./verdictHistory`, `useLifetimeVerdictSnapshots` + `useUpsertLifetimeVerdictSnapshot` from `../../hooks/queries`, `buildRetireTrial` + `applyRetireTrial` + `RETIRE_TRIAL_MIN_END_AGE` from `./tryRetire`.
+- Produces: a console that computes `baseline` and passes it onward.
+
+- [ ] **Step 1:** Read `LifetimeView.tsx` for how each of the three is wired today — `suggestBaseline` around :249-263, the verdict snapshot upsert, and the retire trial. That file is the working reference; do not modify it.
+- [ ] **Step 2:** Compute `baseline` on the console (it needs transactions + categories + accounts) and pass it to `InsightCards` so the reality-check section actually populates. **This same `baseline` also unblocks the `chiTheoDanhMuc` picker** — the "fill `replaces_minor` from a real category" affordance that currently exists only in `EventFormSheet`. Restore it in `PlanDockEvent` in this task; it is roughly six lines once `baseline` is present, and `EventFormSheet` is the only remaining copy.
+- [ ] **Step 3:** Wire the verdict snapshot path — read history, upsert on change, and surface the drift the way `LifetimeView` does. This is what makes "your conclusion changed since last month" possible; without it the screen forgets.
+- [ ] **Step 4:** Wire the retire trial. Respect `RETIRE_TRIAL_MIN_END_AGE`.
+- [ ] **Step 5:** `npm test && npx tsc -b && npm run lint`. Report what to verify in the browser — in particular that the reality-check section shows real numbers rather than an empty block.
+- [ ] **Step 6:** Commit.
+
 ### Task 16: Retire the old surfaces
 
 **Files:** Delete `LifetimeView.tsx`, `LifetimeChartCard.tsx`, `ScenarioWorkbench.tsx`, `EventFormSheet.tsx`, `PhaseFormSheet.tsx`, `PresetPanel.tsx`. Modify `src/backLink.test.ts:28`.

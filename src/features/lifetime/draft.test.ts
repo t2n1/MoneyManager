@@ -445,9 +445,16 @@ describe('applyPreset', () => {
     const plan = planDraftSave(base(), applyPreset(base(), ketQuaMau, 1))
     expect(plan.phasePatches).toEqual([])
     // Hai trường phần trăm của 0067: mẫu không có khái niệm "phần trăm chặng trước",
-    // nên chặng sinh từ mẫu luôn khai số tuyệt đối.
+    // nên chặng sinh từ mẫu luôn khai số tuyệt đối. Màu/icon của 0069 cũng vậy — `''`
+    // nghĩa là "tô theo thứ tự chặng", đúng default của cột.
     expect(plan.phaseInserts).toEqual([
-      { ...ketQuaMau.phases[0], income_pct_of_prev: null, expense_pct_of_prev: null },
+      {
+        ...ketQuaMau.phases[0],
+        income_pct_of_prev: null,
+        expense_pct_of_prev: null,
+        color: '',
+        icon: '',
+      },
     ])
     // `enabled: true` là của migration 0063, và năm trường hình dạng là của 0066: mốc
     // lấy từ thư viện mẫu luôn ở trạng thái BẬT và ở hình 'per_year', không thừa hưởng
@@ -531,6 +538,8 @@ describe('patchDraftPhase / removeDraftPhase / addDraftPhase', () => {
         currency: 'JPY',
         annualIncomeMinor: 0,
         annualExpenseMinor: 0,
+        color: '',
+        icon: '',
         fxToDisplay: 1,
       },
       7,
@@ -549,6 +558,8 @@ describe('patchDraftPhase / removeDraftPhase / addDraftPhase', () => {
         currency: 'JPY',
         annualIncomeMinor: 0,
         annualExpenseMinor: 0,
+        color: '',
+        icon: '',
         fxToDisplay: 1,
       },
       7,

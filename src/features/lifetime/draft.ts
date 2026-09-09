@@ -48,6 +48,18 @@ export function isNewId(id: string): boolean {
 /** Chặng trong nháp = chặng của engine + id dòng DB (để biết ghi vào đâu). */
 export interface DraftPhase extends LifetimePhase {
   id: string
+  /**
+   * Khoá màu (features/tags/colors.ts) và khoá icon của CHẶNG — migration 0069. `''` =
+   * chưa chọn (tô theo thứ tự chặng / không vẽ icon), đúng default của cột.
+   *
+   * BẮT BUỘC ở đây dù `LifetimePhase` không có hai trường này (engine không cần biết
+   * màu), và cùng lý do với `enabled` của `DraftEvent`: `draftChanges` so bằng `!==`,
+   * nên một chỗ dựng chặng mà quên khai sẽ cho `undefined !== ''` — nháp đọc ra "khác
+   * bản đã lưu" mãi mãi và nút Lưu không bao giờ tắt. Bắt buộc thì trình biên dịch chỉ
+   * ra mọi chỗ dựng, không phải đi dò lúc chạy.
+   */
+  color: string
+  icon: string
 }
 
 /** Mốc trong nháp. `id` bắt đầu bằng `NEW_ID_PREFIX` nghĩa là chưa có dòng DB. */
@@ -140,6 +152,8 @@ export function draftFromRows(
         annualExpenseMinor: p.annual_expense_minor,
         incomePctOfPrev: p.income_pct_of_prev ?? null,
         expensePctOfPrev: p.expense_pct_of_prev ?? null,
+        color: p.color ?? '',
+        icon: p.icon ?? '',
         fxToDisplay: p.fx_to_display,
       }))
       .sort((a, b) => a.startYear - b.startYear),
@@ -281,6 +295,19 @@ export type DraftChange =
   | { kind: 'phaseCountry'; label: string; to: string | null }
   | {
       /**
+       * Chặng đổi MÀU hoặc ICON (migration 0069). Một loại cho cả hai vì câu tóm tắt
+       * nói cùng một điều ("đổi dáng chặng X") — tách hai loại chỉ để in hai câu gần
+       * y hệt nhau.
+       *
+       * Vẫn phải CÓ MẶT trong danh sách: `dirty` suy ra từ chính danh sách này, nên
+       * thiếu nó thì chọn màu cho một chặng xong mà nút Lưu vẫn tắt — cùng lớp lỗi đã
+       * ghi ở ba trường chi tiết của chặng ngay trên.
+       */
+      kind: 'phaseLook'
+      label: string
+    }
+  | {
+      /**
        * Chặng đổi CÁCH KHAI thu/chi: theo phần trăm chặng trước, hay số tuyệt đối
        * (migration 0067). `null` = số tuyệt đối.
        *
@@ -386,6 +413,9 @@ export function draftChanges(saved: ScenarioDraft, draft: ScenarioDraft): DraftC
     }
     if (s.country !== d.country) {
       out.push({ kind: 'phaseCountry', label: d.label, to: d.country })
+    }
+    if (s.color !== d.color || s.icon !== d.icon) {
+      out.push({ kind: 'phaseLook', label: d.label })
     }
     // Cùng lớp lỗi với ba trường trên — xem chú thích ở đó.
     if ((s.incomePctOfPrev ?? null) !== (d.incomePctOfPrev ?? null)) {
@@ -528,6 +558,8 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
         annual_expense_minor: d.annualExpenseMinor,
         income_pct_of_prev: d.incomePctOfPrev,
         expense_pct_of_prev: d.expensePctOfPrev,
+        color: d.color,
+        icon: d.icon,
         fx_to_display: d.fxToDisplay,
       })
       continue
@@ -545,11 +577,21 @@ export function planDraftSave(saved: ScenarioDraft, draft: ScenarioDraft): Draft
     if (s.annualIncomeMinor !== d.annualIncomeMinor) patch.annual_income_minor = d.annualIncomeMinor
     if (s.annualExpenseMinor !== d.annualExpenseMinor) {
       patch.annual_expense_minor = d.annualExpenseMinor
-    if ((s.incomePctOfPrev ?? null) !== (d.incomePctOfPrev ?? null))
+    }
+    // Hai dòng phần trăm này NẰM NGOÀI nhánh `annualExpenseMinor` ở trên — trước
+    // 2026-09-09 chúng lọt vào TRONG cặp ngoặc đó (dấu `}` đặt sai chỗ), nên "nghỉ hưu
+    // chi 80% chặng trước" chỉ được ghi khi con số chi TÌNH CỜ cũng đổi. Đổi riêng cách
+    // khai thì thanh nháp báo có thay đổi, bấm Lưu chạy trơn, mà cột `expense_pct_of_prev`
+    // dưới DB không nhúc nhích — mở lại màn là mất sạch. Bắt được khi dựng bảng sửa chặng
+    // trong dock (Task 9), chỗ duy nhất còn khai phần trăm.
+    if ((s.incomePctOfPrev ?? null) !== (d.incomePctOfPrev ?? null)) {
       patch.income_pct_of_prev = d.incomePctOfPrev ?? null
-    if ((s.expensePctOfPrev ?? null) !== (d.expensePctOfPrev ?? null))
+    }
+    if ((s.expensePctOfPrev ?? null) !== (d.expensePctOfPrev ?? null)) {
       patch.expense_pct_of_prev = d.expensePctOfPrev ?? null
     }
+    if (s.color !== d.color) patch.color = d.color
+    if (s.icon !== d.icon) patch.icon = d.icon
     if (Object.keys(patch).length > 0) phasePatches.push({ id: d.id, patch })
   }
 
@@ -671,6 +713,8 @@ export function applyPreset(
           annualExpenseMinor: p.annual_expense_minor,
           incomePctOfPrev: p.income_pct_of_prev ?? null,
           expensePctOfPrev: p.expense_pct_of_prev ?? null,
+          color: p.color ?? '',
+          icon: p.icon ?? '',
           fxToDisplay: p.fx_to_display,
         }),
       ),
@@ -874,6 +918,8 @@ export function draftRowsFor(
       annual_expense_minor: p.annualExpenseMinor,
       income_pct_of_prev: p.incomePctOfPrev,
       expense_pct_of_prev: p.expensePctOfPrev,
+      color: p.color,
+      icon: p.icon,
       fx_to_display: p.fxToDisplay,
     })),
     events: draft.events.map((e) => ({

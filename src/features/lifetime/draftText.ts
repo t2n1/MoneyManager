@@ -43,6 +43,8 @@ export function describeChange(c: DraftChange, currency: CurrencyCode): string {
       return `tỷ giá của "${c.label}" ${c.from} → ${c.to}`
     case 'phaseCountry':
       return `quốc gia của "${c.label}" → ${c.to ?? 'để trống'}`
+    case 'phaseLook':
+      return `đổi màu/icon chặng "${c.label}"`
     case 'phasePct': {
       const ten = c.field === 'income' ? 'thu' : 'chi'
       const noi = (v: number | null) => (v === null ? 'số tự khai' : `${v}% chặng trước`)

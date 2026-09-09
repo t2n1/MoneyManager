@@ -9,7 +9,7 @@
 // có kịch bản chưa), khung ba vùng, và THỨ TỰ MƯỜI HAI HÀNG của bản vẽ. Nó không tự vẽ
 // gì — vùng vẽ là `TimelinePlot`, bố cục là `ConsoleFrame`, còn dock / dải chặng / bảng
 // chọn nhanh là các task kế tiếp cắm vào đúng ô đã chừa.
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Star } from 'lucide-react'
 import {
@@ -33,10 +33,21 @@ import { fetchRates } from '../../lib/rates'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { ConsoleFrame } from './ConsoleFrame'
-import { fxOfRates } from './fxModel'
+import {
+  addDraftPhase,
+  draftFromRows,
+  draftToInput,
+  patchDraftPhase,
+  removeDraftPhase,
+  setPhaseCurrency,
+  type ScenarioDraft,
+} from './draft'
+import { fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
-import { PlanDock } from './PlanDock'
+import { PlanDock, type DockSelection } from './PlanDock'
+import { clampPhaseStartYear } from './phaseYear'
+import { projectLifetime } from './project'
 import { lifetimeVerdict } from './summary'
 import { TimelinePlot, type ComparisonLine, type PlotZoom } from './TimelinePlot'
 import { useLifetime } from './useLifetime'
@@ -110,6 +121,8 @@ function TuongLaiConsole() {
     active,
     activeId,
     setActiveId,
+    phases,
+    events,
     rows,
     input,
     projectScenario,
@@ -134,6 +147,49 @@ function TuongLaiConsole() {
   const [compareOn, setCompareOn] = useState(false)
   const [creating, setCreating] = useState(false)
 
+  // --- Bản nháp (spec §12) -----------------------------------------------------------
+  //
+  // `null` = đang xem đúng bản đã lưu. Khác `null` = có một bản sao đang được vặn trong
+  // bộ nhớ; KHÔNG có gì xuống Supabase cho tới khi bấm Lưu — mà hàng Lưu do Task 15b
+  // dựng, nên ở đợt này mọi sửa đổi trong dock là THỬ, mất khi tải lại trang. Nói ra ở
+  // đây vì đó là hạn chế đã biết của đợt việc, không phải một chỗ hỏng.
+  //
+  // Cùng khuôn với `LifetimeView` (màn cũ, sẽ nghỉ): nháp không tự biến mất khi trùng lại
+  // bản gốc — `draftIsDirty` mới là thứ quyết định thanh nháp hiện hay không.
+  const [draft, setDraft] = useState<ScenarioDraft | null>(null)
+  /** Bộ đếm sinh id cho chặng vừa thêm — hai chặng trùng id thì React dựng nhầm và
+   *  `planDraftSave` ghi nhầm (xem `addDraftPhase`). */
+  const phaseSeed = useRef(0)
+  /** Đang chọn chặng/mốc nào — `pick`/`sel` của bản vẽ. Dock đọc để dispatch. */
+  const [sel, setSel] = useState<DockSelection>({ type: 'none' })
+
+  // Đổi kịch bản thì nháp phải rơi: nó là bản sao của kịch bản CŨ, giữ lại là âm thầm áp
+  // thu/chi/mốc của kịch bản này lên kịch bản kia. Lựa chọn cũng rơi — id không còn thuộc
+  // kịch bản đang xem.
+  useEffect(() => {
+    setDraft(null)
+    setSel({ type: 'none' })
+  }, [activeId])
+
+  /** Ảnh chụp bản ĐÃ LƯU, dạng nháp — gốc quy chiếu của mọi phép so và mọi lệnh ghi. */
+  const savedDraft = useMemo(
+    () => (active ? draftFromRows(active, phases, events) : null),
+    [active, phases, events],
+  )
+  const working = draft ?? savedDraft
+
+  /** Sửa bản nháp. Chưa có nháp thì tạo từ bản đã lưu — người dùng không phải "bắt đầu
+   *  một bản nháp", họ chỉ bấm một chặng rồi gõ. */
+  const editDraft = useCallback(
+    (mut: (d: ScenarioDraft) => ScenarioDraft) => {
+      setDraft((cur) => {
+        const base = cur ?? savedDraft
+        return base ? mut(base) : cur
+      })
+    },
+    [savedDraft],
+  )
+
   /**
    * Tỷ giá HÔM NAY, nền là tiền hiển thị của kịch bản. CÙNG `queryKey` với `useLifetime`
    * nên React Query trả thẳng từ cache — không có lượt tải thứ hai.
@@ -156,17 +212,34 @@ function TuongLaiConsole() {
   )
 
   /**
+   * Bản chiếu ĐANG XEM — từ bản NHÁP, không từ dòng đã lưu. Đây là điều làm dock có
+   * nghĩa: vặn tới đâu đồ thị đổi tới đó (spec §12).
+   *
+   * `draftToInput` đè phases/events của nháp lên input đã ráp, mà nháp mang `fxToDisplay`
+   * ĐÃ LƯU — con số cũ, không phải tỷ giá hôm nay. Nên phải chuẩn hoá LẠI sau đó, đúng
+   * như `buildInputFor` làm cho bản đã lưu: thiếu bước này thì đổi tiền của một chặng
+   * xong, bản chiếu vẫn nhân theo tỷ giá cũ (đã bắt được trên app thật 2026-08-24).
+   */
+  const shownInput = useMemo(() => {
+    if (!input || !working) return input
+    const base = draftToInput(input, working)
+    const norm = normalizeToPhaseCurrency(base.phases, base.events, base.displayCurrency, pageFxOf)
+    return { ...base, phases: norm.phases, events: norm.events }
+  }, [input, working, pageFxOf])
+  const shownRows = useMemo(() => (shownInput ? projectLifetime(shownInput) : []), [shownInput])
+
+  /**
    * Có dòng nào thiếu tỷ giá không. Quy ước toàn repo: thiếu rate thì LOẠI khoản đó ra
    * và bật cờ, KHÔNG bao giờ quy 1:1 — thà thiếu còn hơn bịa. Ở đây cờ đó thành dấu `≈`
    * trên tiêu đề và một câu nói rõ đơn vị nào chưa tra được.
    */
   const missingRateCurrencies = useMemo(() => {
-    if (!input) return []
+    if (!shownInput) return []
     const coTien = new Set<CurrencyCode>()
-    for (const p of input.phases) coTien.add(p.currency)
-    for (const e of input.events) coTien.add(e.currency)
-    return [...coTien].filter((c) => pageFxOf(c, input.displayCurrency) === null)
-  }, [input, pageFxOf])
+    for (const p of shownInput.phases) coTien.add(p.currency)
+    for (const e of shownInput.events) coTien.add(e.currency)
+    return [...coTien].filter((c) => pageFxOf(c, shownInput.displayCurrency) === null)
+  }, [shownInput, pageFxOf])
 
   // Ngày hôm nay ở dạng ISO — cần TRƯỚC `biggestExpense` bên dưới (bản đồ khoản lớn tính
   // "còn bao nhiêu tháng" từ ngày này), nên khai sớm hơn vị trí cũ (đứng cạnh `verdict`).
@@ -184,7 +257,7 @@ function TuongLaiConsole() {
   const { data: goalsForBigMap = [] } = useSavingsGoals()
   const { data: balancesForBigMap = [] } = useAccountBalances()
   const biggestExpense = useMemo(() => {
-    if (!input) return null
+    if (!shownInput) return null
     const balanceById = new Map(balancesForBigMap.map((b) => [b.id, b]))
     const goalInputs: GoalLikeInput[] = goalsForBigMap.map((g) => {
       const acc = balanceById.get(g.account_id)
@@ -193,14 +266,14 @@ function TuongLaiConsole() {
         name: g.name,
         targetMinor: g.target_amount,
         progressMinor: acc ? (acc.market_value ?? acc.balance) : 0,
-        currency: (acc?.currency ?? input.displayCurrency) as CurrencyCode,
+        currency: (acc?.currency ?? shownInput.displayCurrency) as CurrencyCode,
         targetDate: g.target_date,
       }
     })
     const map = buildBigExpenseMap({
       todayISO,
-      displayCurrency: input.displayCurrency,
-      events: input.events,
+      displayCurrency: shownInput.displayCurrency,
+      events: shownInput.events,
       planned: plannedForBigMap.filter((p) => p.status === 'planned'),
       goals: goalInputs,
       fxOf: pageFxOf,
@@ -209,7 +282,7 @@ function TuongLaiConsole() {
     return item && item.remainingMinor !== null
       ? { label: item.label, amountMinor: item.remainingMinor }
       : null
-  }, [input, balancesForBigMap, goalsForBigMap, plannedForBigMap, pageFxOf, todayISO])
+  }, [shownInput, balancesForBigMap, goalsForBigMap, plannedForBigMap, pageFxOf, todayISO])
 
   // --- Kịch bản so sánh ---------------------------------------------------------------
   //
@@ -238,12 +311,12 @@ function TuongLaiConsole() {
 
   // --- Kết luận (dải thống kê hàng 3) -------------------------------------------------
   const verdict = useMemo(
-    () => (input && rows.length > 0 ? lifetimeVerdict(rows, input.birthYear) : null),
-    [input, rows],
+    () => (shownInput && shownRows.length > 0 ? lifetimeVerdict(shownRows, shownInput.birthYear) : null),
+    [shownInput, shownRows],
   )
   const atEnd = useMemo(
-    () => (input && rows.length > 0 ? assetsAtAge(rows, input.endAge) : null),
-    [input, rows],
+    () => (shownInput && shownRows.length > 0 ? assetsAtAge(shownRows, shownInput.endAge) : null),
+    [shownInput, shownRows],
   )
 
   const handleCreateFirst = useCallback(async () => {
@@ -320,10 +393,79 @@ function TuongLaiConsole() {
 
   // `scenarios.length > 0` nên `active` luôn có giá trị ở nhánh này; guard chỉ để TS thu
   // hẹp kiểu cho phần JSX bên dưới, không phải một trạng thái thật sẽ xảy ra.
-  if (!active || !input) return <EmptyState>Đang tải…</EmptyState>
+  if (!active || !input || !shownInput || !working) return <EmptyState>Đang tải…</EmptyState>
 
   const currency = active.display_currency as CurrencyCode
-  const birthYear = input.birthYear
+  const birthYear = shownInput.birthYear
+  const currentYear = shownInput.currentYear
+  /** Năm cuối bản chiếu — "đến năm" của chặng CUỐI (chặng cuối chạy tới hết bản chiếu). */
+  const lastYear = shownRows.length > 0 ? shownRows[shownRows.length - 1].year : currentYear
+
+  // --- Bộ prop cho dock ---------------------------------------------------------------
+  //
+  // Đọc chặng TỪ BẢN NHÁP (`working`), không từ `shownInput`: panel ghi vào nháp bằng
+  // `patchDraftPhase`, nên nó phải hiện đúng dòng nháp — `shownInput.phases` đã bị
+  // `normalizeToPhaseCurrency` đè lại `fxToDisplay` và không mang `id` nào để trỏ vào.
+  const selPhase = sel.type === 'phase' ? working.phases.find((p) => p.id === sel.id) : undefined
+  const dockPhase =
+    selPhase === undefined
+      ? undefined
+      : {
+          phases: working.phases,
+          phase: selPhase,
+          displayCurrency: currency,
+          currentYear,
+          lastYear,
+          fxOf: pageFxOf,
+          onPatch: (patch: Parameters<typeof patchDraftPhase>[2]) =>
+            editDraft((d) => patchDraftPhase(d, selPhase.id, patch)),
+          // `setPhaseCurrency` (KHÔNG phải `patchDraftPhase`): đổi tiền của chặng còn
+          // phải gắn nhãn lại mọi mốc rơi vào nó, không thì màn hình và bản chiếu nói
+          // hai con số khác nhau. Hai con số đã QUY ĐỔI do panel tính (xem `doiTien`).
+          onCurrency: (next: CurrencyCode, incomeMinor: number, expenseMinor: number) =>
+            editDraft((d) =>
+              patchDraftPhase(setPhaseCurrency(d, selPhase.id, next), selPhase.id, {
+                annualIncomeMinor: incomeMinor,
+                annualExpenseMinor: expenseMinor,
+              }),
+            ),
+          onDuplicate: () => {
+            const seed = ++phaseSeed.current
+            // Năm của bản sao: ngay sau bản gốc, nhích tới năm còn trống —
+            // `unique (scenario_id, start_year)` chặn năm trùng.
+            const y = clampPhaseStartYear(
+              [...working.phases, { id: 'ban-sao', startYear: selPhase.startYear + 1 }],
+              'ban-sao',
+              selPhase.startYear + 1,
+              currentYear,
+            )
+            editDraft((d) =>
+              addDraftPhase(
+                d,
+                {
+                  startYear: y,
+                  label: `${selPhase.label} (bản sao)`,
+                  country: selPhase.country,
+                  currency: selPhase.currency,
+                  annualIncomeMinor: selPhase.annualIncomeMinor,
+                  annualExpenseMinor: selPhase.annualExpenseMinor,
+                  incomePctOfPrev: selPhase.incomePctOfPrev,
+                  expensePctOfPrev: selPhase.expensePctOfPrev,
+                  color: selPhase.color,
+                  icon: selPhase.icon,
+                  fxToDisplay: selPhase.fxToDisplay,
+                },
+                seed,
+              ),
+            )
+          },
+          onRemove: () => {
+            editDraft((d) => removeDraftPhase(d, selPhase.id))
+            // Bỏ chọn NGAY: id vừa xoá không còn dòng nào, và dock rơi về thẻ tóm tắt
+            // thay vì một panel rỗng.
+            setSel({ type: 'none' })
+          },
+        }
 
   return (
     <ConsoleFrame
@@ -377,7 +519,7 @@ function TuongLaiConsole() {
               Sinh <Num tone="muted">{birthYear}</Num> · chiếu đến tuổi{' '}
               {/* `currency` là MÃ ba chữ ("JPY"), không phải số — <Num> chỉ dành cho số
                   (xem đầu file Num.tsx). Bọc nó là hiện văn xuôi bằng chữ mono. */}
-              <Num tone="muted">{input.endAge}</Num> · <span>{currency}</span>
+              <Num tone="muted">{shownInput.endAge}</Num> · <span>{currency}</span>
             </p>
           </div>
 
@@ -406,7 +548,7 @@ function TuongLaiConsole() {
                 )}
               </StatCell>
 
-              <StatCell label={`Lúc ${input.endAge} tuổi`}>
+              <StatCell label={`Lúc ${shownInput.endAge} tuổi`}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
@@ -536,49 +678,75 @@ function TuongLaiConsole() {
 
           {/* --- HÀNG 7: vùng vẽ ---------------------------------------------------- */}
           <TimelinePlot
-            rows={rows}
+            rows={shownRows}
             currency={currency}
-            // `null` cho tới khi có bản nháp để so: dock (task kế) là chỗ sinh ra nháp,
-            // trước đó hai đường sẽ trùng khít nhau.
-            saved={null}
+            // Đường "trước khi đổi" là bản chiếu của dữ liệu ĐÃ LƯU, và chỉ có nghĩa khi
+            // nháp đang khác nó — trùng khít thì hai đường vẽ lên nhau, chỉ làm dày nét.
+            saved={draft === null ? null : rows}
             compare={comparisons}
-            events={input.events}
+            events={shownInput.events}
             zoom={zoom}
             showBand={showBand}
             showFire={showFire}
             log={log}
           />
 
-          {/* --- HÀNG 8: dải chặng đời (Task 11 — PhaseLane) ------------------------ */}
-          <PlaceholderRow
-            label="Chặng đời"
-            note="Khối chặng kéo được sẽ nằm ở đây."
-            // Thẳng hàng với lề trái vùng vẽ (3,25rem = 52px của bản vẽ) để khối chặng
-            // khớp trục năm ngay khi Task 11 cắm vào.
-            className="ml-[3.25rem] h-[2.875rem]"
-          />
+          {/* --- HÀNG 8: dải chặng đời (Task 11 — PhaseLane) ------------------------
+
+                  TẠM: một dải chip thay cho khối chặng kéo được. Nó tồn tại vì bảng sửa
+                  trong dock đã xong mà đường vào của bản vẽ (bấm khối chặng trên trục)
+                  thì chưa — Task 11 dựng `PhaseLane` và thay đúng chỗ này. Chip chứ không
+                  phải một khối trang trí: `<FilterChip>` là <button>, nên Tab tới được và
+                  Enter/Space bấm được, tức panel kiểm được bằng bàn phím từ hôm nay.
+
+                  Thẳng hàng với lề trái vùng vẽ (3,25rem = 52px của bản vẽ) để khối chặng
+                  khớp trục năm ngay khi Task 11 cắm vào. */}
+          <div className="ml-[3.25rem] flex min-h-[2.875rem] min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-dashed border-border-strong px-3 py-1.5">
+            <SectionTitle role="micro" className="shrink-0">
+              Chặng đời
+            </SectionTitle>
+            {working.phases.map((p) => (
+              <FilterChip
+                key={p.id}
+                on={sel.type === 'phase' && sel.id === p.id}
+                size="sm"
+                onClick={() =>
+                  setSel((cur) =>
+                    cur.type === 'phase' && cur.id === p.id
+                      ? { type: 'none' }
+                      : { type: 'phase', id: p.id },
+                  )
+                }
+                title={`Sửa chặng "${p.label}"`}
+              >
+                <Num tone="muted">{p.startYear}</Num>
+                <span className="truncate">{p.label}</span>
+              </FilterChip>
+            ))}
+          </div>
         </div>
       }
       // ===== Cột dock — LUÔN chừa sẵn, kể cả khi không chọn gì (spec §5) =====
       //
-      // `sel` gõ cứng 'none': chưa có state chọn chặng/mốc nào (Task 11/12 — PhaseLane
-      // và EventPins — mới sinh ra state đó khi bấm vào trục). PlanDock đã dispatch sẵn
-      // ba nhánh nên khi state tới, chỗ này chỉ đổi giá trị `sel`, không đổi cấu trúc.
+      // `sel` là state thật từ Task 9. Đường vào của bản vẽ (bấm khối chặng / icon mốc
+      // trên trục) do Task 11/12 dựng; tới lúc đó chỗ này không đổi gì — chúng chỉ gọi
+      // `setSel`.
       dock={
         <PlanDock
-          sel={{ type: 'none' }}
+          sel={sel}
+          phase={dockPhase}
           summary={{
             currency,
-            phaseCount: input.phases.length,
-            eventCount: input.events.length,
+            phaseCount: shownInput.phases.length,
+            eventCount: shownInput.events.length,
             fireYear: verdict?.fireYear ?? null,
             fireAge: verdict?.fireAge ?? null,
-            endAge: input.endAge,
+            endAge: shownInput.endAge,
             assetsAtEndMinor: atEnd?.center ?? null,
             hasMissingRate: missingRateCurrencies.length > 0,
             biggestExpense,
-            realReturnBps: input.realReturnBps,
-            inflationBps: input.inflationBps,
+            realReturnBps: shownInput.realReturnBps,
+            inflationBps: shownInput.inflationBps,
           }}
         />
       }
@@ -600,10 +768,10 @@ function TuongLaiConsole() {
           {/* --- HÀNG 11 + 12: chip chuyển pane và pane đang mở. Hai khối dưới đây tự
                   mang chip tiêu đề của mình rồi bung nội dung ngay dưới — đúng cặp
                   "chip + pane" mà bản vẽ vẽ thành hai hàng. */}
-          <YearTableSection rows={rows} currency={currency} scenarioName={active.name} />
+          <YearTableSection rows={shownRows} currency={currency} scenarioName={active.name} />
 
           <BigExpenseMapSection
-            events={input.events}
+            events={shownInput.events}
             displayCurrency={currency}
             fxOf={pageFxOf}
             todayISO={todayISO}

@@ -957,6 +957,11 @@ export function ScenarioWorkbench({
                         currency: last?.currency ?? currency,
                         annualIncomeMinor: last?.annualIncomeMinor ?? 0,
                         annualExpenseMinor: last?.annualExpenseMinor ?? 0,
+                        // Màu/icon để TRỐNG, không kế thừa (0069): '' nghĩa là "tô theo
+                        // thứ tự chặng", còn chép màu của chặng cuối là hai chặng cạnh
+                        // nhau trùng màu — đúng thứ màu riêng tồn tại để tránh.
+                        color: '',
+                        icon: '',
                         fxToDisplay: last?.fxToDisplay ?? 1,
                       },
                       seed,

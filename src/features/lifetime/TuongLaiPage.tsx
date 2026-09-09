@@ -11,7 +11,7 @@
 // chọn nhanh là các task kế tiếp cắm vào đúng ô đã chừa.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Star } from 'lucide-react'
+import { ChevronDown, Plus, Star } from 'lucide-react'
 import {
   ActionButton,
   Card,
@@ -40,6 +40,7 @@ import {
   addedEventId,
   addedPhaseId,
   applyPreset,
+  draftChanges,
   draftFromRows,
   draftPhaseIndex,
   draftToInput,
@@ -52,18 +53,24 @@ import {
   type DraftPhase,
   type ScenarioDraft,
 } from './draft'
+import { DraftBanner } from './DraftBanner'
+import { changeParts } from './draftText'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
-import { assetsAtAge } from './insights'
+import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
 import { blockPhaseStartYearAtNeighbours, clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
 import { PIN_TOP, clampQuickBoardLeft, viewRange } from './plotFrame'
 import type { LifePreset, PresetContext, PresetResult } from './presets'
-import { phaseForYear, projectLifetime } from './project'
+import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
 import { QuickAddBoard } from './QuickAddBoard'
 import { applySpanToResult } from './quickAddApply'
 import type { SpanApply, YearSpan } from './quickAddRange'
+import { scaleExpenses } from './quickTune'
+import { QuickTuneRow } from './QuickTuneRow'
+import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
+import { defaultStress, StressPanel } from './StressPanel'
 import { lifetimeVerdict } from './summary'
 import { topLayer } from './topLayer'
 import {
@@ -194,13 +201,32 @@ function TuongLaiConsole() {
   // --- Bản nháp (spec §12) -----------------------------------------------------------
   //
   // `null` = đang xem đúng bản đã lưu. Khác `null` = có một bản sao đang được vặn trong
-  // bộ nhớ; KHÔNG có gì xuống Supabase cho tới khi bấm Lưu — mà hàng Lưu do Task 15b
-  // dựng, nên ở đợt này mọi sửa đổi trong dock là THỬ, mất khi tải lại trang. Nói ra ở
-  // đây vì đó là hạn chế đã biết của đợt việc, không phải một chỗ hỏng.
+  // bộ nhớ; KHÔNG có gì xuống Supabase cho tới khi bấm "Lưu vào kế hoạch" ở hàng 9
+  // (`QuickTuneRow`) hoặc một trong ba nút của thanh nháp.
   //
   // Cùng khuôn với `LifetimeView` (màn cũ, sẽ nghỉ): nháp không tự biến mất khi trùng lại
-  // bản gốc — `draftIsDirty` mới là thứ quyết định thanh nháp hiện hay không.
+  // bản gốc — `changes.length` mới là thứ quyết định thanh nháp hiện hay không.
   const [draft, setDraft] = useState<ScenarioDraft | null>(null)
+  /** Đang chạy lệnh ghi — hai nút Lưu khoá lại để một cú bấm đôi không ra hai lệnh. */
+  const [saving, setSaving] = useState(false)
+  /**
+   * Vị trí thanh "Chi mỗi năm ±" (hàng 9), PHẦN TRĂM so với bản đã lưu.
+   *
+   * State RIÊNG chứ không suy ra từ nháp: hiệu ứng của nó nằm rải trên `annualExpenseMinor`
+   * của mọi chặng khai số tuyệt đối, và dò ngược một phần trăm chung từ mấy con số đã làm
+   * tròn là một phép đoán — sửa tay chi của một chặng trong dock là đủ để phép đoán đó ra
+   * số khác. Nó rơi về 0 ở đúng những chỗ nháp rơi (đổi kịch bản, Lưu, Bỏ).
+   */
+  const [expenseAdjPct, setExpenseAdjPct] = useState(0)
+  /**
+   * Cú sốc của hàng 10 (`StressPanel`). KHÔNG thuộc bản nháp và không bao giờ được ghi:
+   * "nếu năm 2030 khủng hoảng" là một câu hỏi, không phải một dự định của người dùng (xem
+   * đầu file StressPanel.tsx). Vì vậy nó ở một state riêng, và thanh nháp KHÔNG bật lên
+   * khi bật cú sốc.
+   */
+  const [stress, setStress] = useState<StressConfig>(NO_STRESS)
+  /** Hàng 10 đang bung hay còn là chip thu gọn. */
+  const [stressOpen, setStressOpen] = useState(false)
   /** Bộ đếm sinh id cho chặng/mốc vừa thêm — hai dòng trùng id thì React dựng nhầm và
    *  `planDraftSave` ghi nhầm (xem `addDraftPhase`). MỘT bộ đếm cho cả ba đường thêm
    *  (chặng, mốc, mẫu): hai bộ đếm độc lập là hai chuỗi số có thể gặp nhau. */
@@ -243,6 +269,7 @@ function TuongLaiConsole() {
   // bấm "Hoàn tác" sau khi đổi kịch bản sẽ đổ nguyên chúng vào kịch bản mới.
   useEffect(() => {
     setDraft(null)
+    setExpenseAdjPct(0)
     setSel({ type: 'none' })
     setQuick(null)
     undo.clear()
@@ -267,6 +294,21 @@ function TuongLaiConsole() {
     },
     [savedDraft],
   )
+
+  /**
+   * Gieo lại bộ cú sốc MỘT LẦN cho mỗi kịch bản.
+   *
+   * Vì sao không dùng thẳng `NO_STRESS`: nhãn của từng công tắc in ra chính mấy con số
+   * bên trong, nên trước khi bật thì dòng phụ đọc thành "chi thêm 0 năm 0". Và mang
+   * nguyên bộ sốc của kịch bản này sang kịch bản khác thì mấy con số năm trong đó có thể
+   * rơi ngoài khoảng chiếu của kịch bản mới mà không ai để ý — xem `defaultStress`.
+   */
+  const stressSeededFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!active || !input || stressSeededFor.current === active.id) return
+    stressSeededFor.current = active.id
+    setStress(defaultStress(input.currentYear, rows[0]?.expenseMinor ?? 0))
+  }, [active, input, rows])
 
   /**
    * Tỷ giá HÔM NAY, nền là tiền hiển thị của kịch bản. CÙNG `queryKey` với `useLifetime`
@@ -305,6 +347,101 @@ function TuongLaiConsole() {
     return { ...base, phases: norm.phases, events: norm.events }
   }, [input, working, pageFxOf])
   const shownRows = useMemo(() => (shownInput ? projectLifetime(shownInput) : []), [shownInput])
+
+  // --- Nháp đang đổi những gì, và đường GHI (spec §12) --------------------------------
+  //
+  // `changes` là DỮ LIỆU (`DraftChange[]`), không phải chuỗi — số tiền phải đi qua
+  // `formatCompact` mà `draft.ts` cố ý không được biết tới. Hai chỗ hiện nó (thanh nháp ở
+  // đầu trang và dòng chênh lệch ở hàng 9) dùng CÙNG `changeParts`, nên không có hai lối
+  // nói cho cùng một cú vặn.
+  const changes = useMemo(
+    () => (savedDraft && draft ? draftChanges(savedDraft, draft) : []),
+    [savedDraft, draft],
+  )
+  const dirty = changes.length > 0
+
+  /**
+   * Bản chiếu CÓ cú sốc — `null` khi không cú nào bật.
+   *
+   * Đây là chỗ chứng minh "stress không sửa kế hoạch": nó chiếu từ `shownInput` (bản
+   * nháp) với `stress` ghép vào ĐÚNG LÚC GỌI, không đi qua `setDraft` và không có đường
+   * nào tới `commitDraft`. `projectLifetime` không sửa đối số của nó (xem project.ts), nên
+   * `shownInput`, `working` và `draft` đều nguyên vẹn sau lượt chiếu này.
+   */
+  const stressRows = useMemo(() => {
+    if (!shownInput || !hasStress(stress)) return null
+    return projectLifetime({ ...shownInput, stress })
+  }, [shownInput, stress])
+
+  const qc = useQueryClient()
+  const refreshTree = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['lifeScenarios'] }),
+      qc.invalidateQueries({ queryKey: ['lifePhases'] }),
+      qc.invalidateQueries({ queryKey: ['lifeEvents'] }),
+    ])
+  }, [qc])
+
+  /** Bỏ nháp — đường ra không mất gì ngoài chính lượt vặn. */
+  const discardDraft = useCallback(() => {
+    setDraft(null)
+    setExpenseAdjPct(0)
+  }, [])
+
+  /**
+   * GHI nháp đè lên chính kịch bản của nó. Cùng khuôn `LifetimeView.handleCommit`.
+   *
+   * Dọn nháp SAU khi ghi xong, và KHÔNG dọn khi lỗi: dọn trước thì một lệnh hỏng để người
+   * dùng nhìn lại bản cũ mà không biết mình vừa mất những gì, còn dọn khi lỗi là phạt họ
+   * vì mạng hỏng.
+   */
+  const handleCommit = useCallback(async () => {
+    if (!savedDraft || !draft || saving) return
+    setSaving(true)
+    try {
+      await commitDraft({ saved: savedDraft, draft, afterWrite: refreshTree })
+      setDraft(null)
+      setExpenseAdjPct(0)
+      showToast('Đã lưu vào kế hoạch.', 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không lưu được.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }, [savedDraft, draft, saving, refreshTree])
+
+  /**
+   * Tạo một kịch bản MỚI mang nội dung nháp, để nguyên bản gốc.
+   *
+   * Đường ra quan trọng nhất của cả tính năng vặn thử và vì thế phải còn ở console: phần
+   * lớn lượt vặn là để SO ("về VN thì sao"), mà bắt người dùng chọn giữa ghi đè kịch bản
+   * đang có và mất hết những gì vừa vặn là ép họ hy sinh một trong hai câu trả lời.
+   */
+  const handleSaveAsNew = useCallback(async () => {
+    if (!active || !draft || saving) return
+    setSaving(true)
+    try {
+      const copy = await saveDraftAsNewScenario({
+        draft,
+        source: active,
+        name: `${active.name} (thử)`,
+        afterCreate: refreshTree,
+      })
+      setDraft(null)
+      setExpenseAdjPct(0)
+      setActiveId(copy.id)
+      showToast(`Đã lưu thành "${copy.name}" — bản gốc giữ nguyên.`, 'success')
+    } catch (err) {
+      showToast(
+        err instanceof Error
+          ? `${err.message} — kiểm dải chip kịch bản, có thể đã tạo một bản dở dang.`
+          : 'Không tạo được kịch bản mới.',
+        'error',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }, [active, draft, saving, refreshTree, setActiveId])
 
   /**
    * Có dòng nào thiếu tỷ giá không. Quy ước toàn repo: thiếu rate thì LOẠI khoản đó ra
@@ -683,6 +820,8 @@ function TuongLaiConsole() {
 
   const currency = active.display_currency as CurrencyCode
   const birthYear = shownInput.birthYear
+  /** Bao nhiêu cú sốc đang bật — huy hiệu trên chip hàng 10 khi nó còn thu gọn. */
+  const stressCount = Object.values(stress).filter((v) => v.on).length
 
   /**
    * Khoảng năm ĐANG XEM. Cùng `viewRange` mà `TimelinePlot` gọi (plotFrame.ts), không phải
@@ -977,6 +1116,39 @@ function TuongLaiConsole() {
       // ===== HÀNG 2–4 của bản vẽ: phủ hết bề ngang, nằm trên hai cột =====
       top={
         <div className="flex min-w-0 flex-col gap-2.5">
+          {/* --- THANH NHÁP -------------------------------------------------------
+                  Ở ĐẦU khối, trên cả dải kịch bản: nó nói về TOÀN BỘ những gì đang
+                  hiện bên dưới, và bản nháp ở console sinh ra từ mọi hướng (kéo mốc
+                  trên trục, kéo khối chặng, gõ trong dock, ba thanh trượt hàng 9) — một
+                  thanh nằm cạnh riêng một trong số đó sẽ nói về ít hơn phần nó cai.
+                  Đây cũng là đường DUY NHẤT tới "Lưu thành kịch bản mới"; hàng 9 chỉ có
+                  Lưu và Bỏ. */}
+          {dirty && savedDraft && (
+            <DraftBanner
+              scenarioName={active.name}
+              changes={changes}
+              // "Trước" là bản chiếu của DỮ LIỆU ĐÃ LƯU — chính `rows` mà `useLifetime`
+              // trả về, cùng chuỗi số mà đồ thị vẽ thành đường "trước khi đổi". Không
+              // chiếu lại lần thứ hai ở đây: hai phép chiếu cho cùng một câu hỏi là hai
+              // chỗ để lệch nhau.
+              endBeforeMinor={
+                // `null` khi nháp vừa đổi tiền hiển thị — lúc đó "3M → 299M" là so một
+                // con số yên với một con số đô, nó chỉ nói tỷ giá. Xem `changeParts`.
+                working.displayCurrency !== savedDraft.displayCurrency || rows.length === 0
+                  ? null
+                  : rows[rows.length - 1].assetsEndMinor
+              }
+              endAfterMinor={
+                shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
+              }
+              currency={currency}
+              onCommit={() => void handleCommit()}
+              onSaveAsNew={() => void handleSaveAsNew()}
+              onDiscard={discardDraft}
+              saving={saving}
+            />
+          )}
+
           {/* --- HÀNG 2: thanh kịch bản --------------------------------------------- */}
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {scenarios.map((s) => {
@@ -1321,16 +1493,75 @@ function TuongLaiConsole() {
       below={
         <div className="flex min-w-0 flex-col gap-2.5">
           {/* --- HÀNG 9: vặn nhanh (3 thanh trượt + Lưu / Bỏ) --------------------- */}
-          <PlaceholderRow
-            label="Vặn nhanh"
-            note="Ba thanh trượt (lợi suất thực · chi mỗi năm · lạm phát chi tiêu), dòng chênh lệch so với bản đã lưu, và hai nút Lưu / Bỏ."
+          <QuickTuneRow
+            returnBps={working.realReturnBps}
+            onReturnBps={(bps) => editDraft((d) => ({ ...d, realReturnBps: bps }))}
+            spreadBps={working.bandSpreadBps}
+            onSpreadBps={(bps) => editDraft((d) => ({ ...d, bandSpreadBps: bps }))}
+            expenseAdjPct={expenseAdjPct}
+            onExpenseAdjPct={(pct) => {
+              setExpenseAdjPct(pct)
+              // Nhân từ bản ĐÃ LƯU, không từ giá trị đang hiện: một nhịp kéo gọi hàng
+              // chục lần và nhân dồn thì kéo lên rồi kéo về 0 không trả lại số đã lưu —
+              // xem `scaleExpenses` (quickTune.ts, có phép thử cho đúng ca đó).
+              editDraft((d) => (savedDraft ? scaleExpenses(savedDraft, d, pct) : d))
+            }}
+            changeParts={changeParts(
+              changes,
+              currency,
+              working.displayCurrency !== savedDraft?.displayCurrency || rows.length === 0
+                ? null
+                : rows[rows.length - 1].assetsEndMinor,
+              shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null,
+            )}
+            saving={saving}
+            onCommit={() => void handleCommit()}
+            onDiscard={discardDraft}
           />
 
-          {/* --- HÀNG 10: chip Stress test ---------------------------------------- */}
-          <PlaceholderRow
-            label="Stress test"
-            note="Ba công tắc: khủng hoảng một năm · suy thoái lợi suất 0% · chi cuối đời tăng. Bật lên chỉ để xem hậu quả, không sửa kế hoạch."
-          />
+          {/* --- HÀNG 10: chip Stress test ----------------------------------------
+                  Chip thu gọn bung ra hàng riêng — cùng khuôn "chip + pane" mà hàng 11
+                  (Bảng theo năm) và hàng 12 (Bản đồ khoản lớn) dùng.
+
+                  Cú sốc KHÔNG đi qua bản nháp và không có đường nào tới `commitDraft`:
+                  `onChange` chỉ gọi `setStress`, và hậu quả hiện ra bằng một bản chiếu
+                  RIÊNG (`stressRows`) cùng câu kết luận trong chính panel. Vì thế bật một
+                  cú sốc KHÔNG làm thanh nháp hiện lên — đúng như bản vẽ dặn ("không sửa
+                  kế hoạch"). */}
+          <Card as="section" elevation="panel" padding="panel">
+            <button
+              type="button"
+              onClick={() => setStressOpen((v) => !v)}
+              aria-expanded={stressOpen}
+              className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-label text-fg-muted transition"
+            >
+              Stress test
+              {stressCount > 0 && (
+                <span className="normal-case tracking-normal text-fg-warn">
+                  <Num tone="warn">{stressCount}</Num> đang bật
+                </span>
+              )}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${stressOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+            {stressOpen && (
+              <div className="mt-2">
+                <StressPanel
+                  variant="inline"
+                  value={stress}
+                  onChange={setStress}
+                  currency={currency}
+                  minYear={currentYear}
+                  maxYear={lastYear}
+                  baseNegativeYear={firstNegativeYear(shownRows, 'low')}
+                  stressNegativeYear={stressRows ? firstNegativeYear(stressRows, 'low') : null}
+                  birthYear={birthYear}
+                />
+              </div>
+            )}
+          </Card>
 
           {/* --- HÀNG 11 + 12: chip chuyển pane và pane đang mở. Hai khối dưới đây tự
                   mang chip tiêu đề của mình rồi bung nội dung ngay dưới — đúng cặp
@@ -1376,35 +1607,6 @@ function LegendItem({
       </svg>
       {children}
     </span>
-  )
-}
-
-/**
- * Một hàng CHỪA CHỖ. Nó tồn tại để thứ tự mười hai hàng của bản vẽ đúng từ hôm nay —
- * task kế tiếp thay ruột chứ không phải chèn thêm một hàng vào giữa, nên không có lượt
- * "sắp lại bố cục" nào ở cuối đợt.
- *
- * Nói rõ bằng chữ cái gì sẽ nằm ở đây, không để một khối xám trống: người dùng thật có
- * thể mở màn này giữa đợt, và một ô trống không nhãn đọc như một chỗ hỏng.
- */
-function PlaceholderRow({
-  label,
-  note,
-  className = '',
-}: {
-  label: string
-  note: string
-  className?: string
-}) {
-  return (
-    <div
-      className={`flex min-w-0 items-center gap-2 rounded-md border border-dashed border-border-strong px-3 py-2 ${className}`.trim()}
-    >
-      <SectionTitle role="micro" className="shrink-0">
-        {label}
-      </SectionTitle>
-      <span className="min-w-0 truncate text-2xs text-fg-muted">{note}</span>
-    </div>
   )
 }
 

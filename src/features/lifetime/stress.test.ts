@@ -64,6 +64,24 @@ describe('projectLifetime — không cú sốc nào bật', () => {
     // một hàm mà bộ luật thông báo (và bundle `_rules.js` phía server) đang gọi.
     expect(projectLifetime(inputOf(NO_STRESS))).toEqual(projectLifetime(inputOf()))
   })
+
+  /**
+   * "Stress test KHÔNG sửa kế hoạch" — bản vẽ dặn vậy, và hàng 10 của console
+   * (`TuongLaiPage`) dựa vào đúng tính chất này: nó chiếu bản có sốc bằng
+   * `projectLifetime({ ...shownInput, stress })`, mà `shownInput.phases`/`.events` là
+   * CHÍNH những đối tượng bản nháp đang giữ (`draftToInput` không chép sâu). Nếu engine
+   * sửa tại chỗ một chặng hay một mốc thì bật một cú sốc sẽ âm thầm đổi bản nháp — và
+   * cú "Lưu vào kế hoạch" kế tiếp ghi cú sốc đó xuống DB như một dự định.
+   *
+   * Chụp bằng JSON chứ không so tham chiếu: điều phải canh là NỘI DUNG không nhúc nhích,
+   * kể cả ở tầng sâu (một `phase.fxToDisplay` bị nhân tại chỗ vẫn cùng tham chiếu).
+   */
+  it('không sửa `phases`/`events` của input — bản nháp còn nguyên sau lượt chiếu có sốc', () => {
+    const input = inputOf(on({ crash: { on: true, year: 2030, dropPct: 20 }, longevity: { on: true, years: 10 } }))
+    const truoc = JSON.stringify({ phases: input.phases, events: input.events })
+    projectLifetime(input)
+    expect(JSON.stringify({ phases: input.phases, events: input.events })).toBe(truoc)
+  })
 })
 
 describe('cú sốc mất việc', () => {

@@ -36,6 +36,7 @@ import {
   useSavingsGoals,
   useUpsertLifetimeVerdictSnapshot,
 } from '../../hooks/queries'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import type { CurrencyCode } from '../../lib/currencies'
 import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
@@ -135,6 +136,19 @@ function phaseCovering(phases: readonly DraftPhase[], year: number): DraftPhase 
   return phaseForYear([...phases].sort((a, b) => a.startYear - b.startYear), year) ?? null
 }
 
+/**
+ * Cùng mốc mà CSS `xl:hidden`/`xl:block` bên dưới dùng để ẩn/hiện cả console — `80rem` là
+ * giá trị MẶC ĐỊNH của breakpoint `xl` trong Tailwind v4 (không bị `@theme` nào ghi đè,
+ * xem lời ghi ở `TuongLaiPage`). Một hằng DÙNG CHUNG cho `matchMedia` đọc, để không có một
+ * con số `1280` thứ hai đứng cạnh CSS rồi một ngày lệch nhau nếu ai đó đổi breakpoint.
+ *
+ * `min-width` viết bằng `rem` (không phải `px`) là điều làm `matchMedia` nghe đúng Cài đặt
+ * → Cỡ chữ: CSS tính `rem` trong media query theo font-size GỐC (`<html>`) tại thời điểm
+ * đó, và `src/lib/fontScale.ts` chính là thứ đổi font-size gốc — nên trình duyệt tự báo lại
+ * `matchMedia` khi người dùng đổi cỡ chữ, không cần code này biết gì về `--app-font-scale`.
+ */
+const CONSOLE_BREAKPOINT_QUERY = '(min-width: 80rem)' // == Tailwind xl, khớp xl:hidden/xl:block dưới
+
 const ZOOM_ITEMS = [
   { value: '10', label: '10 năm' },
   { value: '20', label: '20 năm' },
@@ -175,11 +189,26 @@ export function TuongLaiPage() {
 }
 
 /**
- * Ruột console. Tách khỏi vỏ để cổng bề ngang là CSS thuần: ở dưới 1280px cây này không
- * được dựng, nên không có query nào chạy và không có ResizeObserver nào bám vào một hộp
- * đang `display:none` (pane ẩn làm phép đo sai — rAF ngừng, transition đứng ở 0).
+ * Ruột console. Tách khỏi vỏ để state/hook của nó gọn ở một chỗ — KHÔNG vì cổng bề ngang
+ * ngăn nó dựng. Cổng đó (`xl:hidden`/`xl:block` ở `TuongLaiPage`) là CSS `display:none`,
+ * và React vẫn DỰNG cây này bình thường ở dưới 1280px: MỌI hook bên dưới vẫn chạy, kể cả
+ * trên điện thoại mở `/tuong-lai` (icon khám phá ở Bản tin, hoặc `/assets?view=future` cũ
+ * chuyển hướng vào đây) — chỉ có phần vẽ là bị `display:none` che đi. (Review finding
+ * 2026-09-09: bản comment cũ ở đây từng nói ngược lại.)
+ *
+ * Vì vậy DATA không được gate bằng cổng CSS: nó gate bằng `isDesktop` (`useMediaQuery`,
+ * khai ngay dưới) truyền vào tham số `enabled` của các query mà console SỞ HỮU riêng —
+ * nặng nhất là dải 366 ngày giao dịch cho baseline (xem khối "SỐ THẬT 12 THÁNG" bên dưới).
+ * `matchMedia` thay vì đọc `innerWidth` trong lúc render vì đây là quyết định TẢI DỮ LIỆU,
+ * không phải LAYOUT: sai ở lần vẽ đầu chỉ trễ hoặc bỏ một lượt tải rồi tự sửa ở lượt render
+ * kế — khác layout, nơi sai là một MÀN HÌNH SAI nhìn thấy được (lý do cổng layout phải là
+ * CSS, xem lời ghi ở `TuongLaiPage`). Không dùng `isDesktop` để quyết định render gì ở đây.
  */
 function TuongLaiConsole() {
+  // Cổng DỮ LIỆU của console — không quyết định render (xem lời ghi ở trên). Khai TRƯỚC
+  // `useLifetime` vì hook đó cần `isDesktop` để tự gate các query nó sở hữu riêng.
+  const isDesktop = useMediaQuery(CONSOLE_BREAKPOINT_QUERY)
+
   const {
     scenarios,
     active,
@@ -200,7 +229,7 @@ function TuongLaiConsole() {
     netWorthLoading,
     duplicateActiveScenario,
     duplicatingScenario,
-  } = useLifetime()
+  } = useLifetime({ enabled: isDesktop })
 
   // --- Cách ĐỌC bản chiếu (không thuộc kịch bản, không được ghi) ----------------------
   const [zoom, setZoom] = useState<PlotZoom>('all')
@@ -330,11 +359,15 @@ function TuongLaiConsole() {
    * Trang cần nó cho đúng một việc: biết bản chiếu có dòng nào KHÔNG quy đổi được hay
    * không. `useLifetime` chuẩn hoá tiền bên trong rồi bỏ cờ `hasMissingRate` đi, nên nếu
    * không tự tra lại thì màn này im lặng về một tổng đang bị thiếu.
+   *
+   * `enabled` gồm cả `isDesktop`: hai instance CÙNG `queryKey` (cái này và cái trong
+   * `useLifetime`) phải cùng gate theo cùng điều kiện — gate một cái mà để cái kia bật vô
+   * điều kiện thì cái còn bật vẫn tự kích lượt tải, gate coi như vô nghĩa.
    */
   const ratesQ = useQuery({
     queryKey: ['lifetime-rates-for', active?.display_currency],
     queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
-    enabled: !!active,
+    enabled: isDesktop && !!active,
     staleTime: 12 * 3600_000,
     gcTime: 24 * 3600_000,
     retry: 1,
@@ -590,16 +623,21 @@ function TuongLaiConsole() {
   // thật từ một danh mục…" trong dock (`chiTheoDanhMuc`). Hai chỗ tính riêng là hai con
   // số khác nhau cho cùng một câu "12 tháng qua bạn tiêu bao nhiêu".
   //
-  // GIÁ PHẢI TRẢ, nói ra để không ai tưởng nó miễn phí: `useRangeTransactions` là một
-  // query MÀN NÀY CHƯA TỪNG CHẠY. `useLifetime` cũng nạp dải này nhưng chỉ khi CHƯA có
-  // kịch bản nào (để tạo kịch bản đầu tiên), tức đúng ca console không dựng gì. Cùng
-  // `queryKey` (`['transactions', start, end]`) và cùng `baselineRange`, nên khi cả hai
-  // cùng bật thì React Query trả một bảng, không tải hai lần. `useAccounts`/`useCategories`
-  // thì `useLifetime` đã nạp vô điều kiện — hai lượt gọi này về từ cache.
+  // GIÁ PHẢI TRẢ, nói ra để không ai tưởng nó miễn phí: `useRangeTransactions` ở đây là
+  // query NẶNG NHẤT của cả console — 366 ngày, có thể hàng chục nghìn dòng phân trang.
+  // `useLifetime` cũng nạp dải này (cùng `queryKey`, cùng `baselineRange`) nhưng chỉ khi
+  // CHƯA có kịch bản nào; khi cả hai cùng bật thì React Query trả một bảng, không tải hai
+  // lần. `useAccounts`/`useCategories` thì `useLifetime` đã nạp vô điều kiện cho MỌI trang
+  // (qua `AppLayout` → `useNotifications`) — hai lượt gọi này về từ cache, không thêm gì.
+  //
+  // Gate bằng `isDesktop`: console chỉ dùng được từ 1280px (CSS `xl:hidden`/`xl:block` ở
+  // `TuongLaiPage`), nhưng CSS `display:none` không ngăn React dựng cây này — nếu không tự
+  // gate, một điện thoại mở `/tuong-lai` sẽ kéo về đúng dải nặng nhất màn hình chỉ để hiện
+  // một lời nhắn "mở bằng máy tính" (review finding 2026-09-09).
   const { data: baselineAccounts = [] } = useAccounts()
   const { data: baselineCategories = [] } = useCategories()
   const baselineTxRange = useMemo(() => baselineRange(todayISO), [todayISO])
-  const baselineTxQ = useRangeTransactions(baselineTxRange)
+  const baselineTxQ = useRangeTransactions(baselineTxRange, isDesktop)
   /**
    * Chặng ĐANG CHẠY, đọc từ bản nháp — sổ chỉ nói được về hôm nay, nên số thật chỉ có
    * nghĩa khi đặt cạnh chặng của hôm nay. Cùng cặp `draftPhaseIndex` + `shownInput.phases`
@@ -676,7 +714,11 @@ function TuongLaiConsole() {
       display_currency: input.displayCurrency,
     }
   }, [input, rows, thisMonthOn])
-  const verdictHistoryQ = useLifetimeVerdictSnapshots(active?.id)
+  // `isDesktop`: console-only, không nơi nào khác nạp key này (xem lời ghi ở khối "SỐ THẬT
+  // 12 THÁNG" phía trên). Lệnh GHI (`upsertVerdict.mutate` bên dưới) không gate theo đây —
+  // đó là một dòng lịch sử/tháng, không phải một lượt tải nặng, và giữ nó ghi đều bất kể
+  // thiết bị nào mở app là điều đúng cho tính năng "so với N tháng trước".
+  const verdictHistoryQ = useLifetimeVerdictSnapshots(active?.id, isDesktop)
   const upsertVerdict = useUpsertLifetimeVerdictSnapshot()
   /**
    * Thẻ chống ghi lặp: MỘT lệnh ghi cho mỗi (kịch bản, kết luận) trong phiên.

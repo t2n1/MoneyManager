@@ -63,7 +63,18 @@ const DEFAULT_END_AGE = 90
 const DEFAULT_REAL_RETURN_BPS = 200
 const DEFAULT_BAND_SPREAD_BPS = 150
 
-export function useLifetime() {
+/**
+ * `enabled` (mặc định true) — gate cho các query mà KHÔNG trang nào khác của app đã nạp sẵn
+ * (`ratesQ`, `groupSettingsQ`, `debtPaymentsQ`, `txsQ` bên dưới có lời ghi tại chỗ nói rõ vì
+ * sao đúng bốn cái này — KHÔNG phải mọi query trong hook). `LifetimeView` gọi `useLifetime()`
+ * không truyền tham số nên hành vi của nó giữ nguyên.
+ *
+ * `TuongLaiPage` truyền `{ enabled: isDesktop }` (`useMediaQuery`, cổng 1280px của console)
+ * vì cổng hiện màn là CSS `hidden xl:block` — `display:none`, không phải bỏ dựng cây — nên
+ * điện thoại mở `/tuong-lai` vẫn chạy MỌI hook ở đây nếu không tự gate lấy dữ liệu.
+ */
+export function useLifetime(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options
   const qc = useQueryClient()
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -96,10 +107,14 @@ export function useLifetime() {
   // dùng hai tỷ giá khác nhau.
   //
   // `staleTime` 12 giờ: nguồn chỉ đổi số một lần mỗi ngày (xem lib/rates.ts).
+  //
+  // `enabled` gồm cả `enabled` (tham số của hook, cổng console) — KHÁC `useRates()` (tỷ giá
+  // chung app đã nạp sẵn ở AppLayout cho mọi trang), key này (`lifetime-rates-for`) chỉ
+  // console Tương lai gọi nên không có ai khác nạp hộ.
   const ratesQ = useQuery({
     queryKey: ['lifetime-rates-for', active?.display_currency],
     queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
-    enabled: !!active,
+    enabled: enabled && !!active,
     staleTime: 12 * 3600_000,
     gcTime: 24 * 3600_000,
     retry: 1,
@@ -234,7 +249,7 @@ export function useLifetime() {
   const { data: categories = [] } = useCategories()
   const todayISO = toISODate(new Date())
   const range = useMemo(() => baselineRange(todayISO), [todayISO])
-  const txsQ = useRangeTransactions(range, noScenarioYet)
+  const txsQ = useRangeTransactions(range, noScenarioYet && enabled)
 
   // --- Tài sản ròng hiện tại → starting_assets_minor của kịch bản đầu tiên ---
   // Lỗi thứ 13 của kế hoạch: bản chiếu đầu tiên KHÔNG được bắt đầu từ 0 nếu người dùng
@@ -243,11 +258,17 @@ export function useLifetime() {
   // (`breakdown.total + debts.net + breakdown.cardDebt`, cùng điều kiện "đáng tin"),
   // KHÔNG tự cộng lại từ đầu — hai chỗ tính hai lối khác nhau sẽ trôi lệch nhau theo
   // thời gian, và người dùng sẽ thấy trang Tài sản báo một số còn Lifetime báo số khác.
+  // `balancesQ`/`debtsQ`/`useRates()` KHÔNG được truyền `enabled` ở đây: `AppLayout` đã nạp
+  // ba key này (`balances`, `debts`, tỷ giá chung) VÔ ĐIỀU KIỆN cho MỌI trang qua
+  // `useNotifications()` (chuông thông báo) — gate lại ở đây không bớt được request nào,
+  // chỉ thêm rủi ro lệch hành vi. `groupSettingsQ`/`debtPaymentsQ` thì KHÔNG được nạp sẵn
+  // như vậy (không key nào của chúng xuất hiện trong `useNotifications.ts`) nên mới cần
+  // `enabled`.
   const balancesQ = useAccountBalances()
-  const groupSettingsQ = useAssetGroupSettings()
+  const groupSettingsQ = useAssetGroupSettings(enabled)
   const { base: baseCurrency, rates, isSuccess: ratesOk } = useRates()
   const debtsQ = useDebts()
-  const debtPaymentsQ = useDebtPayments()
+  const debtPaymentsQ = useDebtPayments(enabled)
 
   const settingsForBreakdown = useMemo<AssetGroupSetting[]>(
     () =>

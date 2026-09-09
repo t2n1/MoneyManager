@@ -171,12 +171,18 @@ export function useUpsertHealthSnapshot() {
   })
 }
 
-/** Lịch sử kết luận tab Tương lai của một kịch bản (migration 0055), cũ → mới. */
-export function useLifetimeVerdictSnapshots(scenarioId: string | undefined) {
+/**
+ * Lịch sử kết luận tab Tương lai của một kịch bản (migration 0055), cũ → mới.
+ *
+ * `enabled` (mặc định true) — thêm cho `TuongLaiPage` gate theo cổng bề ngang (console chỉ
+ * dùng được từ 1280px, xem `useMediaQuery`); `LifetimeView` gọi không truyền tham số này
+ * nên hành vi của nó không đổi.
+ */
+export function useLifetimeVerdictSnapshots(scenarioId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: ['lifetimeVerdictSnapshots', scenarioId],
     queryFn: () => repo.getLifetimeVerdictSnapshots(scenarioId as string),
-    enabled: !!scenarioId,
+    enabled: !!scenarioId && enabled,
     staleTime: 5 * 60_000,
   })
 }
@@ -1010,11 +1016,14 @@ export function useDeleteCategory() {
 
 // --- Nhóm tài sản ---
 
-export function useAssetGroupSettings() {
+/** `enabled` (mặc định true) — thêm cho `useLifetime` gate theo cổng bề ngang của console
+ *  Tương lai (xem `useMediaQuery`); mọi chỗ gọi khác không truyền nên hành vi không đổi. */
+export function useAssetGroupSettings(enabled = true) {
   return useQuery({
     queryKey: ['assetGroupSettings'],
     queryFn: () => repo.getAssetGroupSettings(),
     staleTime: 5 * 60_000,
+    enabled,
   })
 }
 
@@ -1260,11 +1269,14 @@ export function useDebts() {
   })
 }
 
-export function useDebtPayments() {
+/** `enabled` (mặc định true) — thêm cho `useLifetime` gate theo cổng bề ngang của console
+ *  Tương lai (xem `useMediaQuery`); mọi chỗ gọi khác không truyền nên hành vi không đổi. */
+export function useDebtPayments(enabled = true) {
   return useQuery({
     queryKey: ['debtPayments'],
     queryFn: () => repo.getDebtPayments(),
     staleTime: 60_000,
+    enabled,
   })
 }
 

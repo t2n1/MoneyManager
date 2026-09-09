@@ -42,17 +42,22 @@ describe('middleSpanYear', () => {
 })
 
 describe('applySpanToResult — mẫu vay lấy khoảng làm KỲ HẠN', () => {
-  it('mua-nha: khoản trả vay dài đúng số năm đã kéo, khoản trả trước KHÔNG dài ra', () => {
+  // Từ khi 'mua-nha' dùng hình dạng tài sản+vay (migration 0068) nó chỉ còn MỘT mốc, và
+  // khoảng kéo đi vào `loan_years` — không còn dòng "Trả vay mua nhà" riêng để kéo dài.
+  // `withTerm` đã lo cả hai hình dạng từ trước (nhánh `loan_years` ở trên nhánh
+  // `end_year`), nên chuyển mẫu sang hình dạng mới không cần sửa quickAddApply.ts.
+  it('mua-nha: khoảng vào `loan_years`, KHÔNG biến "tới hết đời" thành có hạn', () => {
     const r = fromSpan('mua-nha', { startYear: 2034, endYear: 2053 }) // 20 năm
-    expect(ranges(r.events)).toEqual([
-      ['Trả trước mua nhà', 2034, 2034],
-      ['Trả vay mua nhà', 2034, 2053],
-    ])
+    expect(r.events).toHaveLength(1)
+    expect(r.events[0].loan_years).toBe(20)
+    // Chi phí giữ nhà chạy tới hết bản chiếu — vòng tài sản ở project.ts không có biên
+    // trên, nên cắm một biên hữu hạn vào đây là làm hai nửa của mốc lệch pha.
+    expect(r.events[0].end_year).toBeNull()
   })
 
-  it('mua-nha: kéo đúng 35 năm cho lại chính mặc định của mẫu', () => {
+  it('mua-nha: kéo đúng 35 năm cho lại chính kỳ hạn mặc định của mẫu', () => {
     const r = fromSpan('mua-nha', { startYear: 2034, endYear: 2068 })
-    expect(r.events[1].end_year).toBe(2034 + 34)
+    expect(r.events[0].loan_years).toBe(35)
   })
 
   it('mua-xe: khoảng vào `loan_years`, KHÔNG biến "tới hết đời" thành có hạn', () => {

@@ -144,14 +144,13 @@ const CHILD_COST_7_15_JPY = 900_000
 const CHILD_COST_16_17_JPY = 1_200_000
 const CHILD_COST_UNIVERSITY_JPY = 1_800_000
 
-// Bốn số dưới đây trước là literal viết thẳng trong `build()`. Đặt tên có hậu tố `_JPY`
+// Hai số dưới đây trước là literal viết thẳng trong `build()`. Đặt tên có hậu tố `_JPY`
 // vì độ lớn của chúng được viết theo yên — xem QUY ƯỚC ĐƠN VỊ ở đầu file.
+// (Trước đây khối này có bốn số; hai số về nhà — `HOUSE_DOWN_PAYMENT_JPY` và
+// `HOUSE_LOAN_ANNUAL_JPY` — đã bỏ khi 'mua-nha' chuyển sang hình dạng tài sản+vay, vì
+// engine tự sinh trả trước và trả vay từ giá nhà và phần đi vay. Xem khối "Mua nhà".)
 /** Chi phí tổ chức đám cưới. Ước lượng, chưa tra nguồn (2026-07-29). */
 const WEDDING_COST_JPY = 3_000_000
-/** Khoản trả trước khi mua nhà. Ước lượng, chưa tra nguồn (2026-07-29). */
-const HOUSE_DOWN_PAYMENT_JPY = 5_000_000
-/** Khoản trả vay mỗi năm. Ước lượng, chưa tra nguồn (2026-07-29). */
-const HOUSE_LOAN_ANNUAL_JPY = 1_200_000
 /** Mức lương hưu (年金) bình quân giả định. Ước lượng, chưa tra nguồn (2026-07-29). */
 const PENSION_ANNUAL_JPY = 1_100_000
 /** Tuổi bắt đầu nhận 老齢年金 theo luật hiện hành (nhận sớm/muộn là lựa chọn, mẫu không đoán). */
@@ -161,6 +160,38 @@ export const PENSION_START_AGE = 65
 const MOVING_COST_JPY = 2_500_000
 /** Tiền gửi về cho bố mẹ mỗi năm. Ước lượng, chưa tra nguồn (2026-07-29). */
 const PARENT_SUPPORT_ANNUAL_VND = 60_000_000
+
+// --- Mua nhà (migration 0068: nhà là TÀI SẢN có vay, và nhà LÊN giá) ---
+// Nguồn cho bốn số đầu: dsg-handoff/README.md dòng 222 (bảng loại mốc "house"), tra
+// 2026-09-10 — "price 47.000.000 · downPct 20 · ratePct 1.3 · termYears 35 ·
+// taxPct 1.4". Bản trước của mẫu này chỉ có trả trước 500万 + trả vay 120万/năm, không
+// có nguồn và không có tài sản.
+/** Giá một căn nhà tại Nhật. Nguồn: dsg-handoff/README.md (2026-09-10). */
+const HOUSE_PRICE_JPY = 47_000_000
+/** Phần đi vay — bản vẽ: trả trước 20%, vay 80% giá nhà (47.000.000 × 0,8 =
+ *  37.600.000). Nguồn: dsg-handoff/README.md (2026-09-10). */
+const HOUSE_LOAN_JPY = 37_600_000
+/** Lãi suất vay mua nhà — bản vẽ ratePct 1.3 (vay nhà ở Nhật rẻ hơn vay xe rất
+ *  nhiều). Nguồn: dsg-handoff/README.md (2026-09-10). */
+const HOUSE_LOAN_RATE_BPS = 130
+/** Kỳ hạn vay 35 năm — khớp bản vẽ termYears 35, và cũng khớp quy ước
+ *  `applySpanToPreset` (quickAddRange.ts): kéo một khoảng 35 năm trên 'mua-nha' cho
+ *  `termYears: 35`. Nguồn: dsg-handoff/README.md (2026-09-10). */
+const HOUSE_LOAN_YEARS = 35
+/** Nhà lên giá mỗi năm — đúng con số ví dụ đã ghi sẵn ở trường `asset_change_bps`
+ *  (database.types.ts, homeAsset.ts: "Nhà +100; xe −1500"). Số quy ước đã có sẵn
+ *  trong chính migration 0068, không phải số tra riêng (2026-09-10). */
+const HOUSE_APPRECIATION_BPS = 100
+/** Chi phí giữ nhà mỗi năm = thuế tài sản (固定資産税) 1,4% × giá nhà, theo bản vẽ
+ *  taxPct 1.4 → 47.000.000 × 1,4% = 658.000. Khi `asset_value_minor > 0`,
+ *  `amount_minor` đổi nghĩa thành chi phí giữ tài sản hằng năm (xem homeAsset.ts) —
+ *  KHÔNG phải trả trước hay trả vay, hai khoản đó do engine tự sinh.
+ *
+ *  Đây là SÀN, không phải toàn bộ: sở hữu nhà thật còn bảo hiểm, sửa chữa, phí quản lý
+ *  (với chung cư là 管理費+修繕積立金, thường lớn hơn cả thuế). Bản vẽ chỉ mô hình phần
+ *  thuế nên mẫu theo đúng bản vẽ, và `note` vẫn nhắc "kiểm tra lại".
+ *  Nguồn: dsg-handoff/README.md (2026-09-10). */
+const HOUSE_PROPERTY_TAX_ANNUAL_JPY = 658_000
 
 // --- Mua xe (migration 0068: xe là TÀI SẢN có vay, khác nhà ở chỗ MẤT giá dần) ---
 // Nguồn cho bốn số dưới: dsg-handoff/README.md dòng 223 (bảng loại mốc "car"), tra
@@ -350,31 +381,46 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'mua-nha',
     label: 'Mua nhà',
-    hint: 'Một khoản trả trước và một khoản trả vay hằng năm tới năm trả hết.',
+    hint: 'Nhà là tài sản LÊN giá, mua bằng vay trả góp — số hằng năm là thuế/chi phí giữ nhà. Nhớ khai ô "thay cho" bằng tiền thuê đang trả, kẻo tính hai lần phần nhà ở.',
     yearLabel: 'Năm mua',
     color: 'amber',
     build: (ctx) => ({
       phases: [],
       events: [
-        // Cả hai ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
         ev(ctx, {
-          label: 'Trả trước mua nhà',
-          amount_minor: HOUSE_DOWN_PAYMENT_JPY,
+          label: 'Mua nhà',
+          // Ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
           currency: 'JPY',
-          // Giá HÔM NAY cho việc xảy ra ở năm tương lai — phồng theo lạm phát ở chế độ
-          // danh nghĩa, giống "Chi phí cưới" (không phải số luật định, không phải nợ vay).
+          // MỘT dòng duy nhất — cùng hình dạng với 'mua-xe' và cùng lý do. Bản trước của
+          // mẫu này sinh HAI khoản CHI thuần ("Trả trước mua nhà" + "Trả vay mua nhà") và
+          // không bao giờ đặt `asset_value_minor`: tài sản ròng tụt đi đúng số đã trả, và
+          // người dùng KHÔNG BAO GIỜ nhận được căn nhà. Đó đúng là vấn đề mà đầu
+          // homeAsset.ts mô tả — mua nhà luôn trông tệ hơn thực tế, trên chính quyết định
+          // lớn nhất người dùng mang tới màn này. Giờ engine tự sinh trả trước
+          // (`asset_value_minor − loan_minor`) và trả nợ mỗi năm từ các trường dưới đây.
+          amount_minor: HOUSE_PROPERTY_TAX_ANNUAL_JPY,
+          // `null` = tới hết đời, khớp với vòng tài sản ở project.ts vốn KHÔNG có biên
+          // trên — xem lời ghi dài ở 'mua-xe'. Để mặc định (= năm mua) thì chi phí giữ
+          // nhà chỉ tính đúng một năm trong khi căn nhà vẫn còn đó mãi.
+          end_year: null,
+          asset_value_minor: HOUSE_PRICE_JPY,
+          loan_minor: HOUSE_LOAN_JPY,
+          loan_rate_bps: HOUSE_LOAN_RATE_BPS,
+          loan_years: HOUSE_LOAN_YEARS,
+          // DƯƠNG — nhà lên giá, ngược dấu với `asset_change_bps` âm của xe.
+          asset_change_bps: HOUSE_APPRECIATION_BPS,
+          // CHỐNG ĐẾM HAI LẦN (migration 0067): chi nền của chặng lấy từ chi tiêu THẬT 12
+          // tháng, trong đó đã có tiền thuê nhà — cộng tiền nhà lên trên là tính hai lần
+          // phần nhà ở. Mẫu KHÔNG đoán hộ số tiền thuê: Tokyo và VN cách nhau rất xa, và
+          // một số thuê đoán sai cũng sai ÂM THẦM y như không khai. Nó chỉ dán nhãn sẵn
+          // để người dùng thấy có việc phải làm, rồi bảng sửa có nút lấy số THẬT từ danh
+          // mục điền vào (`chiTheoDanhMuc`).
+          replaces_minor: 0,
+          replaces_label: 'Nhà ở',
+          // Thuế/chi phí giữ nhà là giá HÔM NAY cho các năm tương lai — phồng theo lạm
+          // phát. Khoản trả vay lãi cố định KHÔNG đi qua cờ này: engine tự tính và tự
+          // nhân lạm phát riêng ở project.ts.
           inflate: true,
-        }),
-        ev(ctx, {
-          label: 'Trả vay mua nhà',
-          // Thời hạn vay: ước lượng, chưa tra nguồn (2026-07-29) — giả định vay 35 năm,
-          // năm mua tính là năm trả đầu tiên nên còn 34 năm sau đó.
-          end_year: ctx.year + 34,
-          amount_minor: HOUSE_LOAN_ANNUAL_JPY,
-          currency: 'JPY',
-          // Khoản trả vay lãi cố định là số danh nghĩa — không tăng theo lạm phát, khác
-          // với "Chi phí cưới"/"Trả trước mua nhà" ở trên vốn là giá hôm nay phải phồng.
-          inflate: false,
         }),
       ],
     }),

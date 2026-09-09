@@ -32,9 +32,25 @@ describe('presetWeight', () => {
     expect(w).toEqual({ kind: 'total', amountMinor: 21_900_000 - 2_736_000, years: 22 })
   })
 
-  it('Mua nhà: trả trước + 35 năm trả vay, không phải "trả trước + một năm"', () => {
+  // Mẫu MUA TÀI SẢN (migration 0068) là ca riêng: mốc của nó `end_year: null` vì vòng
+  // tài sản ở project.ts không có biên trên, nên luật "có mốc chạy hết đời → nói số MỖI
+  // NĂM" sẽ cho ra ĐÚNG chi phí giữ hằng năm và giấu mất cả món hàng — chip nói "nhà
+  // 65,8万/năm" cho một căn 4.700万. Với mẫu có tài sản, tổng là TIỀN RA THẬT suốt kỳ
+  // hạn: trả trước + trả nợ mỗi năm + chi phí giữ mỗi năm, kèm số năm = kỳ hạn vay.
+  it('Mua nhà: tiền ra thật suốt kỳ hạn, không phải chi phí giữ mỗi năm', () => {
     const w = presetWeight(build('mua-nha'), 'JPY')
-    expect(w).toEqual({ kind: 'total', amountMinor: 5_000_000 + 35 * 1_200_000, years: 35 })
+    // 9.400.000 trả trước (4.700万 − 3.760万 vay) + 35×1.337.728 trả nợ
+    // (niên kim theo THÁNG, xem yearlyLoanPayment) + 35×658.000 thuế/giữ nhà.
+    // Cao hơn giá nhà vì gồm 35 năm lãi và 35 năm thuế — đó là tiền RA, không phải giá.
+    expect(w).toEqual({ kind: 'total', amountMinor: 79_250_480, years: 35 })
+  })
+
+  // Cùng luật, kiểm trên mẫu thứ hai có tài sản. Trước khi có luật này chip "Mua xe" nói
+  // 30万/năm cho một chiếc 300万 — sai cùng kiểu, chỉ nhỏ hơn nên không ai để ý.
+  it('Mua xe: tiền ra thật suốt kỳ hạn, gồm cả trả trước và chi phí giữ', () => {
+    const w = presetWeight(build('mua-xe'), 'JPY')
+    // 900.000 trả trước + 5×458.432 trả nợ + 5×300.000 chi phí giữ.
+    expect(w).toEqual({ kind: 'total', amountMinor: 4_692_160, years: 5 })
   })
 
   it('Cưới: một lần, một năm', () => {

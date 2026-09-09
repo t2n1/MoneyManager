@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TAG_COLOR_KEYS } from '../tags/colors'
 import { eventAmountInYear, type EventShape } from './eventAmount'
+import { MAX_LOAN_YEARS } from './homeAsset'
 import { LIFE_PRESETS, PENSION_START_AGE, type PresetContext } from './presets'
 
 const ctx: PresetContext = {
@@ -162,12 +163,20 @@ describe('LIFE_PRESETS', () => {
     }
   })
 
-  it('mua nhà sinh chi một lần và khoản trả vay có hạn', () => {
-    const r = preset('mua-nha').build(ctx)
-    expect(r.events).toHaveLength(2)
-    const vay = r.events.find((e) => e.label.includes('vay'))!
-    expect(vay.end_year).not.toBeNull()
-    expect(vay.end_year!).toBeGreaterThan(vay.start_year)
+  // Ý cũ của phép thử này: "khoản trả vay phải CÓ HẠN, không chạy mãi". Từ khi 'mua-nha'
+  // dùng hình dạng tài sản+vay, tính hữu hạn đó chuyển từ `end_year` sang `loan_years`
+  // (còn `end_year: null` giờ là ĐÚNG, cho chi phí giữ nhà). Giữ lại ý đó ở đúng chỗ mới,
+  // và canh thêm một thứ phép thử cấu trúc không canh: kỳ hạn phải nằm trong trần
+  // `check (loan_years between 0 and 60)` của migration 0068 — vượt trần thì Postgres
+  // chối lúc LƯU, tức lỗi nổ xa chỗ gây ra.
+  it('kỳ hạn vay của mọi mẫu có tài sản là hữu hạn và trong trần của 0068', () => {
+    for (const p of LIFE_PRESETS) {
+      for (const e of p.build(ctx).events) {
+        if ((e.asset_value_minor ?? 0) <= 0) continue
+        expect(e.loan_years, `${p.id} · ${e.label}`).toBeGreaterThan(0)
+        expect(e.loan_years, `${p.id} · ${e.label}`).toBeLessThanOrEqual(MAX_LOAN_YEARS)
+      }
+    }
   })
 
   it('hỗ trợ bố mẹ mặc định tiền VND', () => {
@@ -261,6 +270,43 @@ describe('LIFE_PRESETS', () => {
     // xem homeAsset.ts) — PHẢI > 0, để một lần sửa sau này không âm thầm trả nó về 0
     // và hụt mất chi phí sở hữu xe (bảo hiểm/車検/thuế/bảo dưỡng).
     expect(xe.amount_minor).toBeGreaterThan(0)
+  })
+
+  // Mẫu 'mua-nha' viết TRƯỚC migration 0068 nên nó sinh hai khoản CHI thuần (trả trước +
+  // trả vay) và không bao giờ đặt asset_value_minor: người dùng thấy tài sản ròng tụt đi
+  // đúng số tiền đã trả, và KHÔNG BAO GIỜ nhận được căn nhà. Đó đúng là vấn đề mà đầu
+  // homeAsset.ts mô tả — mua nhà luôn trông tệ hơn thực tế, trên chính quyết định lớn
+  // nhất người dùng mang tới màn này. Cùng hình dạng với 'mua-xe', khác ở DẤU của
+  // asset_change_bps: nhà lên giá, xe mất giá.
+  it('mua-nha sinh MỘT sự kiện tài sản có vay, và nhà LÊN giá (khác dấu với xe)', () => {
+    const { events } = preset('mua-nha').build(ctx)
+    expect(events).toHaveLength(1)
+    const nha = events[0]
+    expect(nha.label).toContain('Mua nhà')
+    expect(nha.currency).toBe('JPY')
+    expect(nha.asset_value_minor).toBe(47_000_000)
+    expect(nha.loan_minor).toBe(37_600_000)
+    expect(nha.loan_rate_bps).toBe(130)
+    expect(nha.loan_years).toBe(35)
+    // DẤU DƯƠNG là điểm khác biệt với xe (-1500). Nhà mất giá là một mô hình khác hẳn,
+    // và đảo dấu ở đây làm tài sản cuối đời sai theo hướng khó thấy.
+    expect(nha.asset_change_bps).toBeGreaterThan(0)
+    // Chi phí giữ nhà hằng năm (thuế tài sản) — cùng lý do như xe: để 0 là hụt mất
+    // toàn bộ phần chi phí sở hữu.
+    expect(nha.amount_minor).toBeGreaterThan(0)
+    // Tới hết đời, khớp với vòng tài sản không có biên trên — xem lời ghi ở 'mua-xe'.
+    expect(nha.end_year).toBeNull()
+  })
+
+  // Chống ĐẾM HAI LẦN (migration 0067). Chi nền của chặng lấy từ chi tiêu THẬT 12 tháng,
+  // trong đó đã có tiền thuê nhà; cộng tiền nhà lên trên là tính hai lần phần nhà ở.
+  // Mẫu KHÔNG đoán hộ số tiền thuê (Tokyo và VN cách nhau rất xa, và một số thuê đoán sai
+  // cũng sai âm thầm y như không khai) — nó chỉ DÁN NHÃN sẵn ô đó để người dùng thấy có
+  // việc phải làm, rồi bảng sửa có nút lấy số THẬT từ danh mục điền vào.
+  it('mua-nha dán nhãn ô "thay cho" nhưng để số 0 cho người dùng điền', () => {
+    const nha = preset('mua-nha').build(ctx).events[0]
+    expect(nha.replaces_label).toBe('Nhà ở')
+    expect(nha.replaces_minor).toBe(0)
   })
 
   // Lỗi thật (review 2026-09-09): `ev()` mặc định end_year = start_year (chỉ năm mua).

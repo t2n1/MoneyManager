@@ -31,7 +31,7 @@ import { ChevronDown, Copy, Layers, Trash2 } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { ActionButton, Collapse, FilterChip, Money, Num, Select } from '../../components/ui'
-import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { useTraSo } from '../../hooks/queries'
 import type { DraftEvent } from './draft'
 import {
@@ -84,6 +84,16 @@ export interface PlanDockEventProps {
    * (không biết hỏi giá ở nước nào, bằng đồng nào).
    */
   chang: { nuoc: string | null; tien: CurrencyCode } | null
+  /**
+   * Chi THẬT theo danh mục, đã quy năm hoá, theo `currency` — để ô "thay cho khoản nào"
+   * (chống đếm hai lần, migration 0067) điền sẵn một con số CÓ THẬT thay vì bắt người
+   * dùng đoán. Nguồn là `suggestBaseline` trên sổ 12 tháng qua.
+   *
+   * Rỗng/không truyền thì ô đó vẫn dùng được, chỉ là phải tự gõ số. Chỗ gọi có nghĩa vụ
+   * chỉ truyền khi ĐƠN VỊ TIỀN khớp `currency` — `suggestBaseline` không quy đổi, nên một
+   * danh sách tính bằng đồng khác sẽ gợi ý một con số sai đơn vị (xem TuongLaiPage).
+   */
+  chiTheoDanhMuc?: { name: string; annualMinor: number }[]
   /** Ghi các trường đã sửa vào bản nháp (`patchDraftEvent`). */
   onPatch: (patch: Partial<Omit<DraftEvent, 'id'>>) => void
   /** Thêm một mốc từ mẫu và nhắm con trỏ vào nó (hàng "Loại mốc"). */
@@ -100,6 +110,7 @@ export function PlanDockEvent({
   currency,
   phaseLabel,
   chang,
+  chiTheoDanhMuc = [],
   onPatch,
   onAddPreset,
   onDuplicate,
@@ -460,6 +471,37 @@ export function PlanDockEvent({
           <span className={DOCK_LABEL}>
             Thay cho khoản đang tiêu nào ({CURRENCIES[currency].symbol}/năm)
           </span>
+          {/* "Lấy số thật từ một danh mục…" — đây là chỗ ô này thôi đòi người dùng ĐOÁN.
+              Chi nền của chặng vốn lấy từ sổ, nên con số "thôi không tiêu nữa" đã có sẵn
+              trong chính sổ đó: chọn "Nhà ở" là điền đúng số tiền nhà 12 tháng qua, đã
+              quy năm hoá. Ghi THẲNG vào nháp (không đệm state cục bộ) — cùng luật với mọi
+              ô khác trong dock, xem đầu file. */}
+          {chiTheoDanhMuc.length > 0 && (
+            <Select
+              aria-label="Chọn danh mục để lấy số thật"
+              wrapClassName="mb-1 w-full"
+              // Luôn quay về mục rỗng: đây là một LỆNH ("điền hộ tôi"), không phải một
+              // trường có giá trị — giá trị thật nằm ở ô tiền ngay dưới, và giữ tên danh
+              // mục ở đây sẽ nói dối khi người dùng sửa tay con số đó.
+              value=""
+              // Nhận diện bằng CHỈ SỐ, không bằng tên: `suggestBaseline` gán cùng một tên
+              // "Danh mục đã xóa" cho mọi danh mục đã bị xoá LẪN nhóm không danh mục, nên
+              // tra theo tên có thể lấy đúng dòng khác (và hai `key` trùng nhau). Bản ở
+              // `EventFormSheet` tra theo tên — đây là chỗ sửa lại khi dời về.
+              onChange={(e) => {
+                const c = chiTheoDanhMuc[Number(e.target.value)]
+                if (!c) return
+                onPatch({ replacesMinor: c.annualMinor, replacesLabel: c.name })
+              }}
+            >
+              <option value="">Lấy số thật từ một danh mục…</option>
+              {chiTheoDanhMuc.map((c, i) => (
+                <option key={i} value={i}>
+                  {c.name} — {formatMoney(c.annualMinor, currency)}/năm
+                </option>
+              ))}
+            </Select>
+          )}
           <MoneyField
             value={event.replacesMinor}
             currency={currency}

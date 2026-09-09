@@ -26,11 +26,21 @@ import {
 } from '../../components/ui'
 import { EstimateMark } from '../../components/EstimateMark'
 import { repo } from '../../data'
-import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
+import {
+  useAccountBalances,
+  useAccounts,
+  useCategories,
+  useLifetimeVerdictSnapshots,
+  usePlannedExpenses,
+  useRangeTransactions,
+  useSavingsGoals,
+  useUpsertLifetimeVerdictSnapshot,
+} from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
-import { toISODate } from '../../lib/dates'
+import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { fetchRates } from '../../lib/rates'
+import { suggestBaseline } from './baseline'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { ConsoleFrame } from './ConsoleFrame'
@@ -69,6 +79,7 @@ import { applySpanToResult } from './quickAddApply'
 import type { SpanApply, YearSpan } from './quickAddRange'
 import { scaleExpenses } from './quickTune'
 import { QuickTuneRow } from './QuickTuneRow'
+import { realityCheck } from './realityCheck'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { defaultStress, StressPanel } from './StressPanel'
 import { lifetimeVerdict } from './summary'
@@ -80,9 +91,11 @@ import {
   type PlotZoom,
   type TimelinePlotHandle,
 } from './TimelinePlot'
+import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
 import { UNDO_WINDOW_MS, makeUndo } from './undoStack'
 import { useConsoleKeys } from './useConsoleKeys'
-import { useLifetime } from './useLifetime'
+import { baselineRange, makeCurrencyOf, useLifetime } from './useLifetime'
+import { verdictDrift, type VerdictPoint } from './verdictHistory'
 import { YearTableSection } from './YearTableView'
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
@@ -571,6 +584,124 @@ function TuongLaiConsole() {
   /** Năm cuối bản chiếu — "đến năm" của chặng CUỐI (chặng cuối chạy tới hết bản chiếu). */
   const lastYear = shownRows.length > 0 ? shownRows[shownRows.length - 1].year : currentYear
 
+  // --- SỐ THẬT 12 THÁNG TỪ SỔ (spec §13, "không được để mất") -------------------------
+  //
+  // MỘT phép tính, HAI chỗ đọc: dòng "đời thật" của hàng 4 (`realityCheck`) và ô "Lấy số
+  // thật từ một danh mục…" trong dock (`chiTheoDanhMuc`). Hai chỗ tính riêng là hai con
+  // số khác nhau cho cùng một câu "12 tháng qua bạn tiêu bao nhiêu".
+  //
+  // GIÁ PHẢI TRẢ, nói ra để không ai tưởng nó miễn phí: `useRangeTransactions` là một
+  // query MÀN NÀY CHƯA TỪNG CHẠY. `useLifetime` cũng nạp dải này nhưng chỉ khi CHƯA có
+  // kịch bản nào (để tạo kịch bản đầu tiên), tức đúng ca console không dựng gì. Cùng
+  // `queryKey` (`['transactions', start, end]`) và cùng `baselineRange`, nên khi cả hai
+  // cùng bật thì React Query trả một bảng, không tải hai lần. `useAccounts`/`useCategories`
+  // thì `useLifetime` đã nạp vô điều kiện — hai lượt gọi này về từ cache.
+  const { data: baselineAccounts = [] } = useAccounts()
+  const { data: baselineCategories = [] } = useCategories()
+  const baselineTxRange = useMemo(() => baselineRange(todayISO), [todayISO])
+  const baselineTxQ = useRangeTransactions(baselineTxRange)
+  /**
+   * Chặng ĐANG CHẠY, đọc từ bản nháp — sổ chỉ nói được về hôm nay, nên số thật chỉ có
+   * nghĩa khi đặt cạnh chặng của hôm nay. Cùng cặp `draftPhaseIndex` + `shownInput.phases`
+   * mà màn cũ dùng (`draftToInput` giữ nguyên thứ tự chặng, nên chỉ số dùng chung được).
+   */
+  const baselinePhase = useMemo(() => {
+    if (!working || !shownInput) return null
+    const i = draftPhaseIndex(working, currentYear)
+    return i >= 0 ? (shownInput.phases[i] ?? null) : null
+  }, [working, shownInput, currentYear])
+  /**
+   * Thu/chi thật đã quy năm hoá, theo TIỀN CỦA CHẶNG đang chạy. `suggestBaseline` tự lọc
+   * giao dịch cùng đơn vị tiền và KHÔNG quy đổi (xem baseline.ts) — truyền tiền hiển thị
+   * vào đây thay vì tiền của chặng là lấy sai tập giao dịch.
+   *
+   * `null` CHO TỚI KHI sổ về (`isSuccess`), không rơi về một mảng rỗng: `suggestBaseline`
+   * trên 0 giao dịch trả thu 0 / chi 0, thứ `realityCheck` đọc thành "kế hoạch để dành X,
+   * sổ ghi 0" — một cảnh báo sai chớp lên ở mỗi lượt tải, và một cảnh báo sai ở đúng chỗ
+   * người dùng tới để tin số. Quy ước toàn repo: thà thiếu còn hơn bịa.
+   */
+  const baseline = useMemo(
+    () =>
+      baselinePhase && baselineTxQ.isSuccess
+        ? suggestBaseline(
+            baselineTxQ.data ?? [],
+            baselineCategories,
+            makeCurrencyOf(baselineAccounts, (profile?.base_currency as CurrencyCode) ?? 'JPY'),
+            baselinePhase.currency,
+            todayISO,
+          )
+        : null,
+    [
+      baselinePhase,
+      baselineTxQ.isSuccess,
+      baselineTxQ.data,
+      baselineCategories,
+      baselineAccounts,
+      profile?.base_currency,
+      todayISO,
+    ],
+  )
+  /** Kế hoạch vs sổ thật — hàng 4 hiện một dòng khi lệch đủ lớn (realityCheck.ts). */
+  const reality = useMemo(
+    () => (shownInput && baseline ? realityCheck(shownInput, baseline) : null),
+    [shownInput, baseline],
+  )
+
+  // --- LỊCH SỬ KẾT LUẬN (migration 0055, spec §13) ------------------------------------
+  //
+  // Đây là NGOẠI LỆ DUY NHẤT của luật "mọi lệnh ghi đi qua bản nháp" trên màn này: một
+  // dòng lịch sử không phải một dự định của người dùng để chờ họ bấm Lưu, nó là ảnh chụp
+  // kết luận của THÁNG NÀY. Không ghi thì màn không có ký ức, và câu "kết luận của bạn đã
+  // đổi so với tháng trước" không bao giờ nói được.
+  //
+  // Ghi từ `input`/`rows` (bản ĐÃ LƯU, chưa qua nháp, chưa qua cú sốc): lịch sử phải là
+  // kế hoạch thật, không phải những lần vặn thử. Một dòng mỗi tháng tài chính mỗi kịch
+  // bản; mở lại trong tháng thì ghi đè.
+  const monthStartDay = profile?.month_start_day ?? 1
+  const thisMonthOn = useMemo(
+    () => getMonthRange(monthKeyForDate(todayISO, monthStartDay), monthStartDay).start,
+    [todayISO, monthStartDay],
+  )
+  const verdictNow = useMemo((): VerdictPoint | null => {
+    if (!input || rows.length === 0) return null
+    const v = lifetimeVerdict(rows, input.birthYear)
+    const end = assetsAtAge(rows, input.endAge)
+    if (!end) return null
+    return {
+      month_on: thisMonthOn,
+      fire_year: v.fireYear,
+      negative_year: v.negativeYear,
+      end_age: input.endAge,
+      assets_end_minor: end.center,
+      display_currency: input.displayCurrency,
+    }
+  }, [input, rows, thisMonthOn])
+  const verdictHistoryQ = useLifetimeVerdictSnapshots(active?.id)
+  const upsertVerdict = useUpsertLifetimeVerdictSnapshot()
+  /**
+   * Thẻ chống ghi lặp: MỘT lệnh ghi cho mỗi (kịch bản, kết luận) trong phiên.
+   *
+   * Không thể chỉ dựa vào mảng phụ thuộc của effect: `upsertVerdict` là kết quả
+   * `useMutation`, một object MỚI ở mỗi lượt render, nên effect chạy lại sau mỗi lần
+   * `setState` của cả trang (rê chuột trên đồ thị là hàng chục lượt). Khoá bằng chuỗi
+   * NỘI DUNG của kết luận, nên Lưu nháp làm kết luận đổi thì ghi lại, còn render lại thì
+   * không. `recordedVerdict` được đặt TRƯỚC khi gọi `mutate` — hai lượt effect của chế độ
+   * Strict trong React không ra hai lệnh ghi.
+   */
+  const recordedVerdict = useRef<string | null>(null)
+  useEffect(() => {
+    if (!active || !verdictNow) return
+    const key = `${active.id}|${JSON.stringify(verdictNow)}`
+    if (recordedVerdict.current === key) return
+    recordedVerdict.current = key
+    upsertVerdict.mutate({ scenario_id: active.id, ...verdictNow })
+  }, [active, verdictNow, upsertVerdict])
+  /** Kết luận đã trôi thế nào so với mốc cũ nhất trong 6 tháng (verdictHistory.ts). */
+  const drift = useMemo(
+    () => (verdictNow ? verdictDrift(verdictHistoryQ.data ?? [], thisMonthOn, verdictNow) : null),
+    [verdictNow, verdictHistoryQ.data, thisMonthOn],
+  )
+
   /**
    * Dời năm bắt đầu của một chặng — đường ghi DUY NHẤT của dải chặng đời (kéo khối, kéo
    * hai mép, và ô năm trong dock đều về đây).
@@ -839,6 +970,16 @@ function TuongLaiConsole() {
   const stressCount = Object.values(stress).filter((v) => v.on).length
 
   /**
+   * Bao nhiêu "tin mới" đang nằm trong panel hàng 4 lúc nó còn gập — huy hiệu trên chip
+   * "Gợi ý & cách đọc". Xem lời ghi tại chỗ dùng cho lý do và cho lý do BỎ nút thử nghỉ
+   * việc ra khỏi phép đếm.
+   *
+   * `drift` chỉ được đếm khi KHÔNG có nháp, khớp đúng điều kiện truyền `drift` xuống
+   * `InsightCards` — đếm một dòng sẽ không hiện là hứa một thứ không có.
+   */
+  const tinMoi = (reality?.meaningful === true ? 1 : 0) + (!dirty && drift?.changed === true ? 1 : 0)
+
+  /**
    * Khoảng năm ĐANG XEM. Cùng `viewRange` mà `TimelinePlot` gọi (plotFrame.ts), không phải
    * một phép tính thứ hai: dải chặng đời phải xem đúng khoảng của đồ thị, lệch một năm là
    * khối chặng không còn nằm dưới đúng đoạn đường của nó.
@@ -948,6 +1089,35 @@ function TuongLaiConsole() {
   }
 
   /**
+   * "Thử nghỉ việc từ <năm FIRE>" (spec §13, tryRetire.ts) — cắm mẫu Nghỉ hưu vào năm đó
+   * và kéo tuổi chiếu lên `RETIRE_TRIAL_MIN_END_AGE`, TRONG BẢN NHÁP.
+   *
+   * Vì sao nút này phải còn: "Không bao giờ âm" ở dải hàng 3 là câu trả lời DỄ — mô hình
+   * cho người dùng đi làm tới tuổi cuối kịch bản, nên tiền không thể âm. Câu hỏi thật của
+   * mốc FIRE là "nghỉ đúng năm đó thì tiền có đủ tới già không", và đây là chỗ duy nhất
+   * trong app hỏi nó.
+   *
+   * Đi qua `editDraft` như mọi lượt vặn khác: thanh nháp bật lên, Bỏ là về như cũ. Luật
+   * "có nên mời hay không" nằm ở `canOfferRetireTrial` (tryRetire.ts) và `InsightCards`
+   * gọi nó — không chép lại ở đây để nút và mẫu không trôi lệch nhau.
+   */
+  const handleTryRetire = (year: number) => {
+    const result = buildRetireTrial(shownInput, active.id, year, pageFxOf)
+    if (!result) {
+      showToast('Chưa có chặng nào để dựa vào — thêm chặng trước rồi thử lại.', 'error')
+      return
+    }
+    const seed = ++newIdSeed.current
+    editDraft((d) => applyRetireTrial(d, result, seed))
+    const stretched = working.endAge < RETIRE_TRIAL_MIN_END_AGE
+    showToast(
+      `Đã thêm chặng Nghỉ hưu từ ${year}${stretched ? ` và kéo tuổi chiếu tới ${RETIRE_TRIAL_MIN_END_AGE}` : ''}. Đọc lại kết luận ở trên; không muốn giữ thì bấm Bỏ ở thanh nháp.`,
+      'success',
+      8000,
+    )
+  }
+
+  /**
    * Thêm một mẫu TỪ BẢNG CHỌN NHANH — khoảng năm đã được bảng dịch sẵn qua
    * `applySpanToPreset` + `applySpanToResult`, nên ở đây chỉ còn hai việc: né năm trùng
    * cho mẫu sinh CHẶNG, và nhắm con trỏ vào thứ vừa thêm.
@@ -1035,6 +1205,27 @@ function TuongLaiConsole() {
     setQuick(null)
   }
 
+  /**
+   * Chi thật theo danh mục cho ô "Thay cho khoản đang tiêu nào" của panel mốc — thứ biến
+   * ô chống-đếm-hai-lần (migration 0067) từ "gõ một con số bạn tự đoán" thành "chọn một
+   * khoản bạn đang thật sự tiêu".
+   *
+   * Chỉ truyền khi ĐƠN VỊ TIỀN của mốc trùng đơn vị mà `baseline` được tính bằng:
+   * `suggestBaseline` lọc giao dịch theo tiền của CHẶNG ĐANG CHẠY và không quy đổi, nên
+   * với một mốc ở chặng dùng đồng khác thì mọi con số này sai đơn vị — thà không gợi ý
+   * còn hơn gợi ý một số sai 165 lần. Danh mục có chi ≤ 0 (chỉ toàn hoàn tiền) bị loại:
+   * "thay cho 0 đồng" không phải một lựa chọn có nghĩa.
+   */
+  const chiTheoDanhMuc =
+    selEvent !== undefined &&
+    baseline !== null &&
+    baselinePhase !== null &&
+    currencyAt(working.phases, selEvent.startYear, currency) === baselinePhase.currency
+      ? baseline.byCategory
+          .filter((c) => c.annualMinor > 0)
+          .map((c) => ({ name: c.name, annualMinor: c.annualMinor }))
+      : []
+
   const dockEvent =
     selEvent === undefined
       ? undefined
@@ -1043,6 +1234,7 @@ function TuongLaiConsole() {
           // Tiền của mốc SUY RA từ chặng, không tự khai (v5 — xem `fxModel.ts`).
           currency: currencyAt(working.phases, selEvent.startYear, currency),
           phaseLabel: evPhase?.label ?? null,
+          chiTheoDanhMuc,
           chang:
             evPhase === null
               ? null
@@ -1251,6 +1443,19 @@ function TuongLaiConsole() {
               </StatCell>
 
               <div className="ml-auto shrink-0">
+                {/* Huy hiệu "N tin mới" là hàng "chip lệch kế hoạch" mà bản vẽ xếp vào
+                    hàng 3 — gộp vào chính chip này thay vì dựng một control thứ hai:
+                    đích của nó (mở panel hàng 4) trùng khít đích của chip, và hai nút
+                    cạnh nhau cùng mở một panel là hai đường vào cho một việc.
+
+                    Vì sao cần: dòng "kế hoạch vs sổ thật" và dòng "so với N tháng trước"
+                    nằm TRONG panel hàng 4, thứ mặc định đang gập. Không có dấu nào ở
+                    ngoài thì một panel đang có tin xấu trông y hệt một panel không có gì
+                    để nói. Cùng khuôn với huy hiệu "N đang bật" của chip Stress test ở
+                    hàng 10.
+
+                    Đếm HAI thứ, cố ý bỏ nút "Thử nghỉ việc": nút đó gần như luôn mời
+                    được nên nó sẽ làm huy hiệu sáng mãi mãi, tức không còn là tin. */}
                 <FilterChip
                   on={hintsOpen}
                   size="sm"
@@ -1258,19 +1463,48 @@ function TuongLaiConsole() {
                   aria-expanded={hintsOpen}
                 >
                   Gợi ý &amp; cách đọc
+                  {tinMoi > 0 && !hintsOpen && (
+                    <span className="text-fg-warn">
+                      · <Num tone="warn">{tinMoi}</Num> tin mới
+                    </span>
+                  )}
                 </FilterChip>
               </div>
             </div>
           </Card>
 
-          {/* --- HÀNG 4: panel Gợi ý (ẩn/hiện) -------------------------------------- */}
+          {/* --- HÀNG 4: panel Gợi ý (ẩn/hiện) --------------------------------------
+
+                  ĐÂY LÀ CHỖ Ở của ba tính năng §13 mà bản vẽ không có: đối chiếu chi
+                  tiêu thật (`reality`), lịch sử kết luận (`drift`) và thử nghỉ hưu
+                  (`onTryRetire`). Cả ba đã có sẵn prop trong `InsightCards` và cả ba nói
+                  về CÙNG một thứ mà hộp này nói — "kết luận ở trên còn thiếu gì" — nên
+                  chúng không đáng một hàng riêng trong mười hai hàng của bản vẽ.
+
+                  ĐỌC BẢN NHÁP (`shownRows`/`shownInput`), không đọc bản đã lưu. Sửa từ
+                  Task 7: hồi đó bản nháp chưa tồn tại nên hàng này lấy `rows`/`input` vì
+                  đó là thứ duy nhất có. Từ Task 9 dải thống kê hàng 3 đọc bản nháp, và
+                  hai hàng cạnh nhau nói về hai bản chiếu khác nhau là đánh đố — nhất là
+                  khi hàng 4 chứa dòng "kế hoạch vs sổ thật", thứ phải đổi theo lượt vặn
+                  để có nghĩa. */}
           {hintsOpen && profile?.birth_year != null && (
             <InsightCards
-              rows={rows}
-              input={input}
+              rows={shownRows}
+              input={shownInput}
               birthYear={profile.birth_year}
               currency={currency}
               scenarioName={active.name}
+              reality={reality}
+              realityMonths={baseline?.monthsCovered ?? null}
+              onTryRetire={handleTryRetire}
+              // Đang có nháp thì hộp này nói về NHÁP, còn độ trôi so với bản ĐÃ LƯU —
+              // hai câu về hai bản chiếu khác nhau đứng cạnh nhau là đánh đố. Ẩn cho tới
+              // khi Lưu hoặc Bỏ. Cùng luật màn cũ dùng.
+              drift={dirty ? null : drift}
+              driftHistory={verdictHistoryQ.data ?? []}
+              // KHÔNG truyền `stressNote` dù prop có sẵn: trên console kết luận của cú
+              // sốc đã nằm trong chính `StressPanel` ở hàng 10 (nơi bật cú sốc), khác màn
+              // cũ nơi panel đó ở tít cột phải. Truyền cả hai là hai chỗ nói cùng một câu.
             />
           )}
         </div>

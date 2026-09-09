@@ -267,4 +267,27 @@ describe('blockPhaseStartYearAtNeighbours', () => {
   it('chặng không có trong danh sách vẫn trả một năm dùng được, không ném lỗi', () => {
     expect(blockPhaseStartYearAtNeighbours(chang, 'khong-co', 2044)).toBe(2044)
   })
+
+  // Phát hiện review 2026-09-09, Finding 2 (Important): ←/→ trên một khối chặng
+  // (`PhaseLane.tsx` — `onNudge`) từng gọi thẳng `onMoveStart(id, startYear + step)`, đi
+  // qua `movePhaseStart` → `clampPhaseStartYear` (DÒ-NĂM-TRỐNG), KHÔNG qua hàm CHẶN này —
+  // dù cả ba đường KÉO đã đi qua nó từ bản sửa finding trước (mục 12,
+  // task-11-12-report.md). Với hai chặng liền năm, một cú bấm phím NHẢY QUA hàng xóm và
+  // đổi thứ tự, giống hệt lỗi kéo-vượt-mép đã đóng — chỉ khác đường vào. Test này khớp
+  // đúng ví dụ trong finding: p2 = 2035, p3 = 2036 (liền năm), nhấn → một lần trên p2.
+  it('hàng xóm cách đúng 1 năm (đúng ca finding — p2=2035, p3=2036) — một bước ←/→ tại biên là NO-OP, không nhảy qua', () => {
+    const satCanh: PhaseYearSlot[] = [
+      { id: 'p1', startYear: 2026 },
+      { id: 'p2', startYear: 2035 },
+      { id: 'p3', startYear: 2036 }, // liền năm với p2 — không còn năm nào trống ở giữa
+    ]
+    // Đường CHẶN (đúng, sau khi sửa `onNudge`): dừng lại ở năm ĐANG CÓ, đứng yên.
+    expect(blockPhaseStartYearAtNeighbours(satCanh, 'p2', 2036)).toBe(2035)
+
+    // Đối chiếu trực tiếp với đường CŨ mà `onNudge` từng gọi thẳng (Finding 2): nó NHẢY
+    // QUA p3 (2037 > 2036 = p3.startYear) — hai chặng đổi thứ tự chỉ vì một cú bấm phím.
+    const duongCu = clampPhaseStartYear(satCanh, 'p2', 2036, NAY)
+    expect(duongCu).toBe(2037)
+    expect(duongCu).toBeGreaterThan(satCanh[2].startYear)
+  })
 })

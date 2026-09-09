@@ -154,8 +154,23 @@ export function useYearDrag<K>({ yearAt, onLift, onDrag, onClick }: Options<K>) 
     /**
      * Spread vào CHÍNH phần tử đó. Được, vì `setPointerCapture` gắn lên nó: mọi sự kiện
      * con trỏ sau đó đều đổi đích về đây, kể cả khi con trỏ đã ra ngoài màn hình.
+     *
+     * `onLostPointerCapture: end` (phát hiện review 2026-09-09, Finding 3): một phần tử
+     * đang giữ pointer capture mà bị GỠ KHỎI DOM giữa lúc kéo (ví dụ mép chặng ở
+     * `PhaseLane` tự ẩn khi khối co dưới `EDGE_MIN_BLOCK_W`, đúng lúc chính mép đó đang bị
+     * kéo) thì `pointerup`/`pointercancel` không bao giờ tới được nó nữa — trình duyệt tự
+     * nhả capture lúc gỡ và bắn `lostpointercapture` thay vào đó. Không bắt sự kiện này thì
+     * `press.current` không được dọn, `dragging` kẹt ở `true` mãi tới lượt bấm/thả kế tiếp,
+     * và `motion-block` bị khoá tắt (transition đứng yên) cho tới lúc đó. Dùng chung `end`
+     * (không viết một nhánh "huỷ" riêng): `end` đã tự vệ bằng `press.current`/`pointerId`,
+     * nên bắn thêm một lần nữa ở ca BÌNH THƯỜNG (trình duyệt cũng bắn
+     * `lostpointercapture` ngay sau khi nhả capture ở cuối một lượt kéo hợp lệ) chỉ là một
+     * lần gọi rơi vào guard đó, không làm gì thêm — không có `onDrag`/`onClick` gọi kép.
+     * Gắn ở ĐÂY (một chỗ trong hook dùng chung) chứ không riêng từng mép: `surface` đã
+     * spread lên MỌI phần tử kéo được ở cả `PhaseLane` lẫn `EventPins`, nên sửa một chỗ là
+     * chặn được cả lớp lỗi này, không chỉ ca mép chặng đã đo được.
      */
-    surface: { onPointerMove: move, onPointerUp: end, onPointerCancel: end },
+    surface: { onPointerMove: move, onPointerUp: end, onPointerCancel: end, onLostPointerCapture: end },
     /** true trong lúc đang kéo thật (đã qua ngưỡng). */
     dragging,
   }

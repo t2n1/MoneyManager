@@ -26,6 +26,7 @@
 //    định đã ghi ở `LifetimeChartCard.tsx:1177`.
 import type { CSSProperties } from 'react'
 import { EventIcon } from './eventIcons'
+import { isActivationKey } from './keyboardActivation'
 import { PIN_END_W, PIN_ROW_H, PIN_TOP, PIN_W, magnetToPhaseStart, pinEndX } from './plotFrame'
 import { TAG_HEX, tagColor } from '../tags/colors'
 import { useYearDrag } from './useYearDrag'
@@ -157,8 +158,16 @@ export function EventPins({
               />
             )}
 
-            {/* Icon mốc — `<button>` thật: Tab tới được, Enter/Space bấm được, ←/→ dời năm.
-                Một `<circle>` trong SVG thì không có thứ nào trong ba thứ đó. */}
+            {/* Icon mốc — `<button>` thật: Tab tới được, ←/→ dời năm. Một `<circle>` trong
+                SVG thì không có thứ nào trong hai thứ đó.
+
+                Enter/Space "bấm được" KHÔNG PHẢI miễn phí từ chính `<button>`: bấm/kéo ở
+                đây đi qua `useYearDrag` (`onPointerDown`/`{...drag.surface}`), không có
+                `onClick` React nào cả, nên phím Enter/Space (dispatch `click` gốc, không
+                phải `pointerdown`/`pointerup`) không tự gọi tới `onToggle`. Phát hiện
+                review 2026-09-09, Finding 1 (CRITICAL): dòng comment này từng khẳng định
+                sai — Enter/Space thật ra không làm gì. Sửa bằng nhánh `isActivationKey`
+                đầu `onKeyDown` bên dưới; dòng comment này giờ mới đúng với code thật. */}
             <button
               type="button"
               aria-pressed={selectedId === e.id}
@@ -191,8 +200,19 @@ export function EventPins({
               onPointerDown={(ev) => drag.start({ id: e.id, mode: 'pin' }, ev)}
               {...drag.surface}
               onKeyDown={(ev) => {
-                // Bàn phím phải làm được đúng việc mà chuột làm bằng cách kéo — repo này
-                // coi một tương tác chỉ-dùng-chuột là một lỗi (LifetimeChartCard.tsx:1358).
+                // Bàn phím phải làm được đúng việc mà chuột làm bằng cách bấm/kéo — repo
+                // này coi một tương tác chỉ-dùng-chuột là một lỗi
+                // (LifetimeChartCard.tsx:1358).
+                //
+                // Enter/Space TRƯỚC nhánh ←/→ (Finding 1, review 2026-09-09, CRITICAL):
+                // xem lời ghi ở `isActivationKey` và ở comment ngay trên icon này —
+                // `useYearDrag` chỉ nhận pointer, không có `onClick` React nào để phím Enter
+                // /Space rơi vào.
+                if (isActivationKey(ev.key)) {
+                  ev.preventDefault()
+                  onToggle?.(e.id)
+                  return
+                }
                 if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return
                 ev.preventDefault()
                 onMoveStart?.(e.id, e.startYear + (ev.key === 'ArrowLeft' ? -1 : 1))
@@ -238,6 +258,22 @@ export function EventPins({
                 onPointerDown={(ev) => drag.start({ id: e.id, mode: 'end' }, ev)}
                 {...drag.surface}
                 onKeyDown={(ev) => {
+                  // Enter/Space TRƯỚC nhánh ←/→ (Finding 1, cùng lý do ở icon mốc phía
+                  // trên). QUYẾT ĐỊNH cho chốt này cụ thể: bật/tắt lựa chọn của CHÍNH mốc
+                  // (`onToggle(e.id)`), không phải "không làm gì" — đây không phải một lựa
+                  // chọn tuỳ ý, nó khớp đúng hành vi CHUỘT đã có từ trước: `drag` ở trên là
+                  // MỘT instance `useYearDrag` dùng chung cho cả icon lẫn chốt
+                  // (`mode: 'pin' | 'end'`), và `onClick: (k) => onToggle?.(k.id)` của nó
+                  // gọi `onToggle` theo `id` bất kể `mode` — tức BẤM CHUỘT (không kéo) vào
+                  // chốt đã luôn mở/đóng bảng sửa của mốc, y hệt bấm vào icon. Không có khái
+                  // niệm "chốt đang được chọn" tách khỏi "mốc đang được chọn" (`selectedId`
+                  // so theo `id` của mốc, không so theo `mode`), nên Enter ở đây khớp đúng
+                  // với cùng một điểm chọn mà bàn phím đã tới qua icon.
+                  if (isActivationKey(ev.key)) {
+                    ev.preventDefault()
+                    onToggle?.(e.id)
+                    return
+                  }
                   if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return
                   ev.preventDefault()
                   onMoveEnd?.(e.id, (e.endYear as number) + (ev.key === 'ArrowLeft' ? -1 : 1))

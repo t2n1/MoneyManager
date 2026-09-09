@@ -31,6 +31,7 @@ import { useCallback, useMemo, type CSSProperties, type PointerEvent as ReactPoi
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { makeXScale, xToYear } from './chartGeom'
+import { isActivationKey } from './keyboardActivation'
 import { blockPhaseStartYearAtNeighbours } from './phaseYear'
 import { PhaseIcon } from './PlanDockParts'
 import { PLOT_LEFT, laneBlocks, plotRightOf, type LaneBlock } from './plotFrame'
@@ -61,6 +62,18 @@ type DragSurface = {
   onPointerMove: (e: ReactPointerEvent<HTMLElement>) => void
   onPointerUp: (e: ReactPointerEvent<HTMLElement>) => void
   onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => void
+  /**
+   * Phát hiện review 2026-09-09, Finding 3: mép kéo tự ẩn dưới `EDGE_MIN_BLOCK_W` — nếu
+   * chính mép đang cầm bị chặn (`blockPhaseStartYearAtNeighbours`) co khối xuống dưới
+   * ngưỡng đó GIỮA LÚC kéo, nó unmount ngay dưới con trỏ, `pointerup`/`pointercancel`
+   * không bao giờ tới được nó nữa, và `dragging` kẹt ở `true`. Trình duyệt tự nhả pointer
+   * capture khi phần tử bị gỡ khỏi DOM và bắn `lostpointercapture` đúng lúc đó — nối sự
+   * kiện này vào cùng đường `end()` (xem `useYearDrag.ts`) là chỗ chặn chung cho MỌI phần
+   * tử kéo được, không riêng mép chặng. `end()` đã tự vệ bằng `press.current` nên bắn hai
+   * lần (một lần `pointerup`/`pointercancel` bình thường, một lần `lostpointercapture` do
+   * chính thao tác nhả capture đó gây ra) không làm gì thêm ở lần thứ hai.
+   */
+  onLostPointerCapture: (e: ReactPointerEvent<HTMLElement>) => void
 }
 
 interface Props {
@@ -197,7 +210,18 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
               dragging={drag.dragging}
               onPointerDown={(e) => drag.start({ id: b.id, mode: 'body', from: b.startYear }, e)}
               surface={drag.surface}
-              onNudge={(step) => onMoveStart(b.id, b.startYear + step)}
+              onToggle={onToggle}
+              // Phát hiện review 2026-09-09, Finding 2: cộng thẳng `step` rồi gọi
+              // `onMoveStart` đi qua `movePhaseStart` → `clampPhaseStartYear` (DÒ-NĂM-TRỐNG,
+              // đúng cho ô năm gõ tay — xem JSDoc `blockPhaseStartYearAtNeighbours`), KHÔNG
+              // qua phép CHẶN mà cả ba đường kéo đã dùng từ bản sửa finding trước. Hệ quả:
+              // hai chặng liền năm (p2=2035, p3=2036) — một cú → duy nhất trên p2 xin 2036,
+              // thấy đã có người, NHẢY qua thành 2037: p2 xếp SAU p3, đổi thứ tự, mà một cú
+              // bấm phím còn CHỦ Ý hơn một cú kéo lỡ tay. Đi qua cùng hàm CHẶN với đường kéo
+              // thì một bước ←/→ sát hàng xóm là NO-OP (đứng yên), không nhảy qua.
+              onNudge={(step) =>
+                onMoveStart(b.id, blockPhaseStartYearAtNeighbours(phases, b.id, b.startYear + step))
+              }
             />
             {showEdges && !b.first && (
               <EdgeHandle
@@ -246,6 +270,8 @@ interface BlockProps {
   dragging: boolean
   onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void
   surface: DragSurface
+  /** Bấm (chuột) HOẶC Enter/Space (bàn phím) — bật/tắt lựa chọn. Xem Finding 1 ở `onKeyDown`. */
+  onToggle: (id: string) => void
   onNudge: (step: number) => void
 }
 
@@ -257,6 +283,7 @@ function PhaseBlock({
   dragging,
   onPointerDown,
   surface,
+  onToggle,
   onNudge,
 }: BlockProps) {
   return (
@@ -294,8 +321,18 @@ function PhaseBlock({
       onPointerDown={onPointerDown}
       {...surface}
       onKeyDown={(e) => {
-        // Bàn phím phải làm được đúng việc mà chuột làm bằng cách kéo — repo này coi một
-        // tương tác chỉ-dùng-chuột là một lỗi (lời ghi ở LifetimeChartCard.tsx:1358).
+        // Bàn phím phải làm được đúng việc mà chuột làm bằng cách bấm/kéo — repo này coi
+        // một tương tác chỉ-dùng-chuột là một lỗi (lời ghi ở LifetimeChartCard.tsx:1358).
+        //
+        // Enter/Space TRƯỚC nhánh ←/→ (Finding 1, review 2026-09-09, CRITICAL): khối này
+        // bấm/kéo qua `useYearDrag`, không có `onClick` React, nên một `<button>` bấm bằng
+        // phím (dispatch `click`, không phải `pointerdown`/`pointerup`) không gọi được gì
+        // nếu không tự bắt ở đây — Tab tới rồi Enter/Space từng không làm gì cả.
+        if (isActivationKey(e.key)) {
+          e.preventDefault()
+          onToggle(phase.id)
+          return
+        }
         // ←/→ dời chặng đang chọn một năm, đúng bảng "Bàn phím" của README.
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
         e.preventDefault()

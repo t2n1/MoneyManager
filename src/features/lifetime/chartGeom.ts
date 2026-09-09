@@ -162,6 +162,33 @@ export function linePath(pts: [number, number][]): string {
   return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')
 }
 
+/**
+ * `d` của một đường CONG qua đúng mọi điểm (Catmull-Rom → cubic Bézier).
+ *
+ * Vì sao không dùng `linePath`: đường gấp khúc đọc như dữ liệu rời rạc, còn tài sản
+ * ròng theo năm là một đường liên tục. Bản vẽ 1c đòi đường cong.
+ *
+ * Vì sao phải CHẶN control point: Catmull-Rom lấy độ dốc từ hai điểm LÂN CẬN, nên ở chỗ
+ * đường đổi chiều (đỉnh hoặc đáy) control point rơi ra ngoài khoảng y của đoạn và đường
+ * vồng vượt quá dữ liệu — vẽ ra một mức tài sản chưa từng có trong phép chiếu.
+ */
+export function curvePath(pts: [number, number][]): string {
+  if (pts.length === 0) return ''
+  const at = (i: number) => pts[Math.max(0, Math.min(pts.length - 1, i))]
+  const chan = (v: number, a: number, b: number) =>
+    Math.max(Math.min(a, b), Math.min(Math.max(a, b), v))
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a0, a1, a2, a3] = [at(i - 1), at(i), at(i + 1), at(i + 2)]
+    const c1x = a1[0] + (a2[0] - a0[0]) / 6
+    const c2x = a2[0] - (a3[0] - a1[0]) / 6
+    const c1y = chan(a1[1] + (a2[1] - a0[1]) / 6, a1[1], a2[1])
+    const c2y = chan(a2[1] - (a3[1] - a1[1]) / 6, a1[1], a2[1])
+    d += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${a2[0].toFixed(1)} ${a2[1].toFixed(1)}`
+  }
+  return d
+}
+
 /** `d` của một vùng khép kín giữa mép trên và mép dưới. */
 export function bandPath(hi: [number, number][], lo: [number, number][]): string {
   if (hi.length === 0 || lo.length === 0) return ''

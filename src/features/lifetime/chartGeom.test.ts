@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   bandPath,
+  curvePath,
   linePath,
   logYTicks,
   makeXScale,
@@ -194,6 +195,35 @@ describe('linePath / bandPath', () => {
     expect(d.endsWith('Z')).toBe(true)
     // Mép dưới phải đi từ x lớn về x nhỏ, không thì vùng bị xoắn thành nơ.
     expect(d.indexOf('L10.0 50.0')).toBeLessThan(d.indexOf('L0.0 50.0'))
+  })
+})
+
+describe('curvePath', () => {
+  it('rỗng và một điểm xử lý như linePath', () => {
+    expect(curvePath([])).toBe('')
+    expect(curvePath([[10, 20]])).toBe('M10.0 20.0')
+  })
+
+  it('hai điểm: control point ở 1/6 nhịp, không phải ở hai đầu', () => {
+    // Catmull-Rom ở đầu/cuối LẶP LẠI điểm biên, nên control point rơi vào ±1/6 nhịp:
+    // c1 = 0 + (10−0)/6 = 1,667 · c2 = 10 − (10−0)/6 = 8,333. Đã tính tay để chốt.
+    expect(curvePath([[0, 0], [10, 10]])).toBe('M0.0 0.0 C1.7 1.7 8.3 8.3 10.0 10.0')
+  })
+
+  it('CHẶN control point trong khoảng y của hai đầu đoạn', () => {
+    // Đỉnh nhọn: y đi 0 → 100 → 0. Không chặn thì Catmull-Rom cho control point vượt
+    // lên trên 100 (hoặc xuống dưới 0) và đường vồng ra ngoài dữ liệu.
+    const d = curvePath([[0, 0], [10, 100], [20, 0], [30, 100]])
+    const ys = [...d.matchAll(/[MC]?[\d.-]+ ([\d.-]+)/g)].map((m) => Number(m[1]))
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...ys)).toBeLessThanOrEqual(100)
+  })
+
+  it('giữ nguyên mọi điểm dữ liệu làm đầu/cuối các đoạn', () => {
+    const d = curvePath([[0, 5], [10, 15], [20, 25]])
+    expect(d.startsWith('M0.0 5.0')).toBe(true)
+    expect(d).toContain('10.0 15.0')
+    expect(d.endsWith('20.0 25.0')).toBe(true)
   })
 })
 

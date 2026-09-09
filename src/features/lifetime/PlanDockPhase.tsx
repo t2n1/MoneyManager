@@ -4,12 +4,13 @@
 // Thứ tự của bản vẽ: hàng nhận dạng → Thu/năm + Chi/năm → Tiền tệ khai + Quốc gia →
 // dòng để dành → Nhân đôi · Xoá.
 //
-// GHI THẲNG VÀO BẢN NHÁP, KHÔNG CÓ NÚT "XONG". Đây là chỗ khác hẳn `PhaseFormSheet` (sẽ
-// nghỉ): sheet đó đệm mọi ô trong state cục bộ rồi ghi một lần khi bấm Xong, vì nó là
-// một lớp phủ mở ra rồi đóng lại. Dock thì LUÔN mở cạnh đồ thị, và cả lý do nó tồn tại
-// là "vặn tới đâu đồ thị đổi tới đó" (spec §12) — một nút Xong ở đây sẽ chặn đúng thứ
-// người dùng tới đây để xem. Nên mỗi ô ghi ngay, và lớp nháp vẫn là lớp duy nhất bị
-// đụng: không có gì xuống Supabase cho tới khi bấm Lưu ở hàng vặn nhanh (Task 15b).
+// GHI THẲNG VÀO BẢN NHÁP, KHÔNG CÓ NÚT "XONG". Đây là chỗ khác hẳn `PhaseFormSheet` (màn
+// cũ, đã nghỉ ở Task 16): sheet đó đệm mọi ô trong state cục bộ rồi ghi một lần khi bấm
+// Xong, vì nó là một lớp phủ mở ra rồi đóng lại. Dock thì LUÔN mở cạnh đồ thị, và cả lý
+// do nó tồn tại là "vặn tới đâu đồ thị đổi tới đó" (spec §12) — một nút Xong ở đây sẽ
+// chặn đúng thứ người dùng tới đây để xem. Nên mỗi ô ghi ngay, và lớp nháp vẫn là lớp
+// duy nhất bị đụng: không có gì xuống Supabase cho tới khi bấm Lưu ở hàng vặn nhanh
+// (Task 15b).
 //
 // Hệ quả phải xử: một ô ghi ngay thì KHÔNG có chỗ nào để "tắt nút Lưu vì số sai". Nên
 // mọi giá trị phải được CHẶN thành hợp lệ thay vì bị từ chối:

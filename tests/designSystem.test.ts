@@ -610,7 +610,7 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     expect(
       moCoi.length,
       `<label> mồ côi: không đọc được tên ô. Cách sửa:\n` +
-        `  · nhãn cho MỘT ô  → htmlFor + id sinh bằng useId (mẫu: EventFormSheet)\n` +
+        `  · nhãn cho MỘT ô  → htmlFor + id sinh bằng useId (mẫu: PlanDockPhase)\n` +
         `  · nhãn cho NHÓM / cho MoneyField → <span>, tên ô đi qua aria-label\n` +
         moCoi.join('\n'),
     ).toBe(0)

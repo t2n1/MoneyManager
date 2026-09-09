@@ -16,8 +16,8 @@
 // 2. CHIP MANG "NẶNG CỠ NÀO" (`presetWeight`). Con số đó là thứ duy nhất trả lời "bấm cái
 //    này thì kế hoạch của tôi đổi bao nhiêu" TRƯỚC khi bấm, và nó không phải tổng các
 //    khoản mỗi năm cộng lại (xem presetWeight.ts, lỗi "Sinh con 436万" bắt được trên app
-//    2026-09-02). Nó vào đây từ `PresetPanel.tsx` — màn cũ sẽ nghỉ (spec §10), nên nếu
-//    không mang theo thì nó chết cùng file đó.
+//    2026-09-02). Nó vào đây từ `PresetPanel.tsx` — màn cũ, đã nghỉ ở Task 16 — nên nếu
+//    không mang theo thì nó đã chết cùng file đó.
 //
 // 3. TÍNH NẶNG TRÊN MẪU ĐÃ HẤP THU KHOẢNG, không trên mẫu mặc định: kéo 20 năm trên "Mua
 //    nhà" thì con số phải là trả trước + 20 năm trả vay, không phải + 35 năm. Chip nói một

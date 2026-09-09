@@ -6,9 +6,9 @@
 // có gì xuống Supabase cho tới khi nút "Lưu vào kế hoạch" ở đây được bấm (spec §12). Nút
 // này hỏng thì không phải "thiếu một hàng", mà là cả màn không lưu được gì.
 //
-// Ba thanh trượt lấy ra TỪ panel Giả định của `ScenarioWorkbench` (bản sẽ nghỉ, spec §10)
-// — cùng khuôn `<label htmlFor>` + số bên phải + `accent-[var(--…)]`, cùng phép nới biên
-// `sliderBound`. Chép ra chứ không sửa tại chỗ: file kia bị xoá ở task kế tiếp.
+// Ba thanh trượt lấy ra TỪ panel Giả định của `ScenarioWorkbench` (màn cũ, đã nghỉ ở
+// Task 16) — cùng khuôn `<label htmlFor>` + số bên phải + `accent-[var(--…)]`, cùng phép
+// nới biên `sliderBound`. Chép ra chứ không sửa tại chỗ: file kia đã bị xoá.
 //
 // KHÔNG SỞ HỮU BẢN NHÁP, cùng lý do đã ghi ở `ScenarioWorkbench`: `TuongLaiPage` giữ
 // `draft` và truyền xuống, vì đồ thị, dải thống kê và dock đều đọc CÙNG bản nháp đó.

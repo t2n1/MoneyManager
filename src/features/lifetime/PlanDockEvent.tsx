@@ -486,8 +486,7 @@ export function PlanDockEvent({
               value=""
               // Nhận diện bằng CHỈ SỐ, không bằng tên: `suggestBaseline` gán cùng một tên
               // "Danh mục đã xóa" cho mọi danh mục đã bị xoá LẪN nhóm không danh mục, nên
-              // tra theo tên có thể lấy đúng dòng khác (và hai `key` trùng nhau). Bản ở
-              // `EventFormSheet` tra theo tên — đây là chỗ sửa lại khi dời về.
+              // tra theo tên có thể lấy đúng dòng khác (và hai `key` trùng nhau).
               onChange={(e) => {
                 const c = chiTheoDanhMuc[Number(e.target.value)]
                 if (!c) return

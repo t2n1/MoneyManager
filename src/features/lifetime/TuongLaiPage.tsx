@@ -8,7 +8,7 @@
 // VAI CỦA FILE NÀY, theo spec §10: vỏ trang. Ba cổng (bề ngang ≥1280px · năm sinh · đã
 // có kịch bản chưa), khung ba vùng, và THỨ TỰ MƯỜI HAI HÀNG của bản vẽ. Nó không tự vẽ
 // gì — vùng vẽ là `TimelinePlot`, bố cục là `ConsoleFrame`, còn dock / dải chặng / bảng
-// chọn nhanh là các task kế tiếp cắm vào đúng ô đã chừa.
+// chọn nhanh (`PlanDock`/`PhaseLane`/`QuickAddBoard`) cắm vào đúng ô đã chừa.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Plus, Star } from 'lucide-react'
@@ -45,6 +45,7 @@ import { suggestBaseline } from './baseline'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { ConsoleFrame } from './ConsoleFrame'
+import { countCompareSkipped } from './compareSkip'
 import {
   addDraftEvent,
   addDraftPhase,
@@ -246,8 +247,8 @@ function TuongLaiConsole() {
   // bộ nhớ; KHÔNG có gì xuống Supabase cho tới khi bấm "Lưu vào kế hoạch" ở hàng 9
   // (`QuickTuneRow`) hoặc một trong ba nút của thanh nháp.
   //
-  // Cùng khuôn với `LifetimeView` (màn cũ, sẽ nghỉ): nháp không tự biến mất khi trùng lại
-  // bản gốc — `changes.length` mới là thứ quyết định thanh nháp hiện hay không.
+  // Cùng khuôn với `LifetimeView` (màn cũ, đã nghỉ ở Task 16): nháp không tự biến mất khi
+  // trùng lại bản gốc — `changes.length` mới là thứ quyết định thanh nháp hiện hay không.
   const [draft, setDraft] = useState<ScenarioDraft | null>(null)
   /** Đang chạy lệnh ghi — hai nút Lưu khoá lại để một cú bấm đôi không ra hai lệnh. */
   const [saving, setSaving] = useState(false)
@@ -566,25 +567,49 @@ function TuongLaiConsole() {
   // nút "So" trên từng thẻ. Kịch bản khác ĐƠN VỊ TIỀN bị loại và nói ra lý do: một chuỗi
   // số USD vẽ lên trục ¥ là sai im lặng — lọc `display_currency` ngay dưới đây, không
   // vẽ rồi mới ẩn.
-  const comparisons = useMemo<ComparisonLine[]>(() => {
+  //
+  // Một kịch bản ĐÚNG đơn vị tiền nhưng chiếu ra 0 năm (chưa có chặng đời nào, hoặc tuổi
+  // kết thúc đã qua) cũng không có gì để vẽ — cùng lý do, phải nói ra, và câu chữ phải
+  // KHÁC câu lệch đơn vị tiền vì chúng hướng người dùng đi hai nơi khác nhau (khai tỷ
+  // giá/đơn vị tiền ≠ thêm chặng đời). `compareCandidates` giữ nguyên chỉ số `i` được
+  // gán màu TRƯỚC khi lọc theo `rows.length` — hai kịch bản cùng đơn vị tiền, một rỗng
+  // một không, vẫn tô đúng màu đã gán cho kịch bản còn lại như trước khi tách khối này.
+  const compareCandidates = useMemo(() => {
     if (!compareOn || !active) return []
+    let matchedIdx = 0
     return scenarios
-      .filter((s) => s.id !== active.id && s.display_currency === active.display_currency)
-      .map((s, i) => ({
-        id: s.id,
-        name: s.name,
-        rows: projectScenario(s.id),
-        color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-      }))
-      .filter((c) => c.rows.length > 0)
+      .filter((s) => s.id !== active.id)
+      .map((s) => {
+        const currencyMismatch = s.display_currency !== active.display_currency
+        return {
+          id: s.id,
+          name: s.name,
+          currencyMismatch,
+          // Lệch đơn vị tiền thì chắc chắn bị ẩn — chiếu nó chỉ tốn công vô ích.
+          rows: currencyMismatch ? [] : projectScenario(s.id),
+          color: currencyMismatch ? '' : COMPARE_COLORS[matchedIdx++ % COMPARE_COLORS.length],
+        }
+      })
   }, [compareOn, active, scenarios, projectScenario])
 
-  const compareSkipped = useMemo(() => {
-    if (!compareOn || !active) return 0
-    return scenarios.filter(
-      (s) => s.id !== active.id && s.display_currency !== active.display_currency,
-    ).length
-  }, [compareOn, active, scenarios])
+  const comparisons = useMemo<ComparisonLine[]>(
+    () =>
+      compareCandidates
+        .filter((c) => !c.currencyMismatch && c.rows.length > 0)
+        .map((c) => ({ id: c.id, name: c.name, rows: c.rows, color: c.color })),
+    [compareCandidates],
+  )
+
+  const compareSkip = useMemo(
+    () =>
+      countCompareSkipped(
+        compareCandidates.map((c) => ({
+          currencyMismatch: c.currencyMismatch,
+          rowCount: c.rows.length,
+        })),
+      ),
+    [compareCandidates],
+  )
 
   // --- Kết luận (dải thống kê hàng 3) -------------------------------------------------
   const verdict = useMemo(
@@ -1624,10 +1649,16 @@ function TuongLaiConsole() {
                 {c.name}
               </LegendItem>
             ))}
-            {compareSkipped > 0 && (
+            {compareSkip.currencyMismatch > 0 && (
               <span className="text-fg-warn">
-                <Num tone="warn">{compareSkipped}</Num> kịch bản đang ẩn — khác đơn vị tiền với{' '}
-                {currency}, chưa quy đổi được nên không vẽ để tránh sai đơn vị.
+                <Num tone="warn">{compareSkip.currencyMismatch}</Num> kịch bản đang ẩn — khác đơn
+                vị tiền với {currency}, chưa quy đổi được nên không vẽ để tránh sai đơn vị.
+              </span>
+            )}
+            {compareSkip.zeroYears > 0 && (
+              <span className="text-fg-warn">
+                <Num tone="warn">{compareSkip.zeroYears}</Num> kịch bản đang ẩn — chưa chiếu được
+                năm nào, kiểm chặng đời và tuổi kết thúc của kịch bản đó.
               </span>
             )}
             {missingRateCurrencies.length > 0 && (

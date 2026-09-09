@@ -146,6 +146,47 @@ const MOVING_COST_JPY = 2_500_000
 /** Tiền gửi về cho bố mẹ mỗi năm. Ước lượng, chưa tra nguồn (2026-07-29). */
 const PARENT_SUPPORT_ANNUAL_VND = 60_000_000
 
+// --- Mua xe (migration 0068: xe là TÀI SẢN có vay, khác nhà ở chỗ MẤT giá dần) ---
+/** Giá xe mới cỡ trung bình tại Nhật. Ước lượng, chưa tra nguồn (2026-09-09). */
+const CAR_PRICE_JPY = 3_000_000
+/** Phần đi vay — giả định trả trước 20%, vay 80% giá xe (tỷ lệ phổ biến cho vay mua
+ *  xe). Ước lượng, chưa tra nguồn (2026-09-09). */
+const CAR_LOAN_JPY = 2_400_000
+/** Lãi suất vay mua xe. Ước lượng, chưa tra nguồn (2026-09-09). */
+const CAR_LOAN_RATE_BPS = 300
+/** Kỳ hạn vay 5 năm — khớp quy ước `applySpanToPreset` (quickAddRange.ts): kéo khoảng
+ *  2030–2034 (5 năm, đếm cả hai đầu) trên 'mua-xe' cho `termYears: 5`. Ước lượng, chưa
+ *  tra nguồn (2026-09-09). */
+const CAR_LOAN_YEARS = 5
+/** Xe mất giá mỗi năm — đúng con số ví dụ đã ghi sẵn ở trường `asset_change_bps`
+ *  (database.types.ts, homeAsset.ts: "Nhà +100; xe −1500"). Không phải số tra riêng
+ *  cho xe, mà là số quy ước đã có sẵn trong chính migration 0068 (2026-09-09). */
+const CAR_DEPRECIATION_BPS = -1500
+
+// --- Du lịch ---
+/** Chi phí một chuyến du lịch gia đình (ước tính trung bình, trong lẫn ngoài nước).
+ *  Ước lượng, chưa tra nguồn (2026-09-09). */
+const TRAVEL_COST_JPY = 500_000
+/** Lặp mỗi 2 năm — giả định tần suất một gia đình đi chơi xa. Ước lượng, chưa tra
+ *  nguồn (2026-09-09). */
+const TRAVEL_REPEAT_YEARS = 2
+
+// --- Học thêm ---
+/** Học phí một khoá học thêm/bằng cấp (cao học bán thời gian, chứng chỉ nghề...) mỗi
+ *  năm. Ước lượng, chưa tra nguồn (2026-09-09). */
+const FURTHER_STUDY_TUITION_ANNUAL_JPY = 800_000
+/** Khoản thu nhập hụt đi mỗi năm khi giảm giờ làm để học. Ước lượng, chưa tra nguồn
+ *  (2026-09-09) — CỐ Ý không tính theo % của `ctx.currentIncomeMinor`: con số đó theo
+ *  `ctx.currency` (có thể VND/USD/bất kỳ tiền nào của chặng), còn mọi sự kiện của ba
+ *  mẫu mới trong file này ép cứng JPY (xem QUY ƯỚC ĐƠN VỊ đầu file), và `ctx.fxOf` chỉ
+ *  quy đổi SANG `displayCurrency` chứ không quy đổi sang JPY cho một `ctx.currency` bất
+ *  kỳ. Tính % rồi dán nhãn JPY lên sẽ lặp lại đúng lỗi 150 lần đã ghi ở đầu file —
+ *  thà một số phẳng ước lượng còn hơn một số "chính xác" nhưng sai đơn vị. */
+const FURTHER_STUDY_INCOME_CUT_ANNUAL_JPY = 1_000_000
+/** Thời hạn khoá học — 2 năm (cao học bán thời gian/khoá dài phổ biến). Ước lượng,
+ *  chưa tra nguồn (2026-09-09). */
+const FURTHER_STUDY_YEARS = 2
+
 export const LIFE_PRESETS: LifePreset[] = [
   {
     id: 'cuoi',
@@ -269,6 +310,57 @@ export const LIFE_PRESETS: LifePreset[] = [
     }),
   },
   {
+    id: 'mua-xe',
+    label: 'Mua xe',
+    hint: 'Một khoản trả trước và một khoản trả vay hằng năm — xe là tài sản MẤT giá dần, khác nhà.',
+    yearLabel: 'Năm mua',
+    build: (ctx) => ({
+      phases: [],
+      events: [
+        // Cả hai ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
+        ev(ctx, {
+          label: 'Trả trước mua xe',
+          currency: 'JPY',
+          // `asset_value_minor > 0` đổi nghĩa `amount_minor` thành CHI PHÍ GIỮ tài sản
+          // mỗi năm (bảo hiểm/bảo trì xe) — xem homeAsset.ts. Mẫu này không mô hình chi
+          // phí giữ nên để 0. Tiền trả trước THẬT (asset_value_minor − loan_minor) và
+          // tiền trả vay hằng năm do CHÍNH các trường tài sản dưới đây sinh ra TỰ ĐỘNG
+          // (migration 0068, cùng cơ chế "mua nhà" khi nối qua homeAsset.ts/project.ts,
+          // dòng ~463–496 — không phải cơ chế mà preset 'mua-nha' ở TRÊN đang dùng, vì
+          // preset đó viết trước 0068 và chưa được nối vào homeAsset.ts).
+          amount_minor: 0,
+          asset_value_minor: CAR_PRICE_JPY,
+          loan_minor: CAR_LOAN_JPY,
+          loan_rate_bps: CAR_LOAN_RATE_BPS,
+          loan_years: CAR_LOAN_YEARS,
+          // Âm vì xe MẤT giá mỗi năm — ngược dấu với `asset_change_bps` dương của nhà.
+          asset_change_bps: CAR_DEPRECIATION_BPS,
+          // Giữ true theo cùng lý do "Trả trước mua nhà": nếu sau này có ai điền một
+          // chi phí giữ (khác 0) vào đây, đó là giá HÔM NAY nên phải phồng theo lạm
+          // phát. Với amount = 0 hiện tại, cờ này chưa đổi số nào.
+          inflate: true,
+        }),
+        ev(ctx, {
+          label: 'Trả vay mua xe',
+          currency: 'JPY',
+          // Mốc ĐÁNH DẤU, không mang số riêng: số trả vay THẬT được engine tự tính từ
+          // asset_value_minor/loan_minor/loan_years của dòng "Trả trước" ở trên — CÙNG
+          // một mốc "tài sản có vay", không phải hai khoản độc lập. Nếu dòng này CŨNG
+          // mang một amount_minor khác 0 thì khoản trả vay bị TÍNH HAI LẦN: một lần tự
+          // động từ dòng trên, một lần thủ công ở đây — đúng lớp lỗi "sai âm thầm" mà
+          // đầu file này đã cảnh báo. Để 0, chỉ giữ nhãn để người dùng thấy có một dòng
+          // "Trả vay" riêng biệt trong danh sách mốc.
+          amount_minor: 0,
+          end_year: ctx.year + (CAR_LOAN_YEARS - 1),
+          // Khoản trả vay lãi cố định là số DANH NGHĨA — cùng lý do đã ghi ở mẫu
+          // 'mua-nha'. Ghi lại ở đây dù amount = 0, cho đúng ý nghĩa nếu sau này ai điền
+          // số thủ công thay cho cơ chế tự động.
+          inflate: false,
+        }),
+      ],
+    }),
+  },
+  {
     id: 'nghi-huu',
     label: 'Nghỉ hưu',
     hint: 'Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.',
@@ -367,6 +459,71 @@ export const LIFE_PRESETS: LifePreset[] = [
           // tiền về VN), không phải ca hiếm. fx_to_display tính theo tiền VND của
           // CHÍNH sự kiện qua ctx.fxOf (fxForEvent()), không mượn ctx.fxToDisplay.
           currency: 'VND',
+        }),
+      ],
+    }),
+  },
+  {
+    id: 'du-lich',
+    label: 'Du lịch',
+    hint: 'Một khoản chi lặp lại mỗi vài năm, không phải một lần.',
+    yearLabel: 'Năm đầu',
+    build: (ctx) => ({
+      phases: [],
+      events: [
+        ev(ctx, {
+          label: 'Du lịch',
+          currency: 'JPY',
+          amount_minor: TRAVEL_COST_JPY,
+          end_year: ctx.year + 20,
+          // Lặp mỗi TRAVEL_REPEAT_YEARS năm (migration 0066) — không phải chi một lần,
+          // và không phải chi mọi năm. Xem eventAmount.ts: repeatEveryYears > 1 chỉ rơi
+          // vào đúng nhịp, các năm giữa bị bỏ hẳn khỏi bản chiếu.
+          repeat_every_years: TRAVEL_REPEAT_YEARS,
+          // Giá HÔM NAY cho một chuyến đi tương lai — phồng theo lạm phát, cùng lý do
+          // "Chi phí cưới"/"Trả trước mua nhà" ở trên.
+          inflate: true,
+        }),
+      ],
+    }),
+  },
+  {
+    id: 'hoc-them',
+    label: 'Học thêm',
+    hint: 'Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.',
+    yearLabel: 'Năm bắt đầu',
+    build: (ctx) => ({
+      phases: [],
+      events: [
+        ev(ctx, {
+          label: 'Học phí học thêm',
+          currency: 'JPY',
+          amount_minor: FURTHER_STUDY_TUITION_ANNUAL_JPY,
+          end_year: ctx.year + (FURTHER_STUDY_YEARS - 1),
+          // Giá HÔM NAY cho một khoá học tương lai — phồng theo lạm phát, cùng lý do
+          // "Chi phí cưới" ở trên.
+          inflate: true,
+        }),
+        ev(ctx, {
+          label: 'Giảm thu nhập khi đi học',
+          // CHỌN 'expense', KHÔNG PHẢI 'income' mang số âm: migration 0031 ép
+          // `check (amount_minor >= 0)` ngay trên cột này (xem src/data/repo.ts,
+          // NewLifeEvent.amount_minor), nên "thu nhập âm" không gõ được vào DB — kind:
+          // 'income' chỉ có thể CỘNG thêm thu, không bao giờ trừ. Một dòng CHI dương có
+          // đúng tác động lên netFlow (thu − chi) như một dòng THU bị trừ đi cùng số đó,
+          // nên 'expense' đạt được đúng ý "hụt thu" mà không phá luật check của cột.
+          //
+          // Lựa chọn còn lại là `replaces_minor`, nhưng trường đó trừ vào CHI NỀN của
+          // CHẶNG (đúng cho "mua nhà thay tiền thuê đang có trong chi nền") — sai ngữ
+          // nghĩa cho một khoản THU bị hụt, nên không dùng.
+          kind: 'expense',
+          currency: 'JPY',
+          amount_minor: FURTHER_STUDY_INCOME_CUT_ANNUAL_JPY,
+          end_year: ctx.year + (FURTHER_STUDY_YEARS - 1),
+          // Số hụt thu này KHÔNG tính theo % ctx.currentIncomeMinor — xem comment tại
+          // FURTHER_STUDY_INCOME_CUT_ANNUAL_JPY phía trên (đơn vị tiền của ctx là biến
+          // số, còn mẫu này ép cứng JPY).
+          inflate: true,
         }),
       ],
     }),

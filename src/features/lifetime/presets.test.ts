@@ -22,9 +22,19 @@ function preset(id: string) {
 }
 
 describe('LIFE_PRESETS', () => {
-  it('có đúng 6 mẫu', () => {
+  it('có đúng 9 mẫu', () => {
     expect(LIFE_PRESETS.map((p) => p.id).sort()).toEqual(
-      ['chuyen-nuoc', 'cuoi', 'ho-tro-bo-me', 'mua-nha', 'nghi-huu', 'sinh-con'].sort(),
+      [
+        'chuyen-nuoc',
+        'cuoi',
+        'du-lich',
+        'ho-tro-bo-me',
+        'hoc-them',
+        'mua-nha',
+        'mua-xe',
+        'nghi-huu',
+        'sinh-con',
+      ].sort(),
     )
   })
 
@@ -195,5 +205,55 @@ describe('LIFE_PRESETS', () => {
     const luong = r.events.find((e) => e.kind === 'income')!
     expect(luong.currency).toBe('JPY')
     expect(luong.fx_to_display).toBe(1)
+  })
+
+  // Ba mẫu Task 5 (mua-xe, du-lich, hoc-them): cùng canh QUY ƯỚC ĐƠN VỊ như mọi mẫu cũ.
+  it('ba mẫu mới đều ép cứng JPY và dán nhãn số mặc định', () => {
+    for (const id of ['mua-xe', 'du-lich', 'hoc-them']) {
+      const p = preset(id)
+      const { events } = p.build(ctx)
+      expect(events.length, id).toBeGreaterThan(0)
+      for (const e of events) {
+        expect(e.currency, `${id}/${e.label}`).toBe('JPY')
+        expect(e.note, `${id}/${e.label}`).toBe('Số mặc định, kiểm tra lại')
+      }
+    }
+  })
+
+  it('mua-xe sinh khoản trả trước + trả vay, và trả vay KHÔNG phồng theo lạm phát', () => {
+    const { events } = preset('mua-xe').build(ctx)
+    const traTruoc = events.find((e) => e.label.includes('Trả trước'))
+    const vay = events.find((e) => e.label.includes('Trả vay'))
+    expect(traTruoc).toBeDefined()
+    expect(vay).toBeDefined()
+    // Khoản trả vay lãi cố định là số DANH NGHĨA — cùng lý do đã ghi ở mẫu 'mua-nha'.
+    expect(vay!.inflate).toBe(false)
+    // Xe là TÀI SẢN có vay (migration 0068): giá trị + vay + mất giá nằm trên dòng
+    // "Trả trước", còn dòng "Trả vay" chỉ là mốc đánh dấu (amount = 0) để tránh đếm
+    // hai lần khoản trả vay — xem comment tại chỗ dựng mẫu trong presets.ts.
+    expect(traTruoc!.asset_value_minor).toBeGreaterThan(0)
+    expect(traTruoc!.loan_minor).toBeGreaterThan(0)
+    expect(traTruoc!.asset_change_bps).toBeLessThan(0)
+    expect(vay!.amount_minor).toBe(0)
+  })
+
+  it('du-lich lặp lại, không phải một lần', () => {
+    const { events } = preset('du-lich').build(ctx)
+    expect(events[0].end_year).not.toBe(events[0].start_year)
+    expect(events[0].repeat_every_years).not.toBeNull()
+    expect(events[0].repeat_every_years!).toBeGreaterThan(1)
+  })
+
+  it('hoc-them sinh học phí và một khoản giảm thu, cả hai đều kind expense', () => {
+    const { events } = preset('hoc-them').build(ctx)
+    expect(events.length).toBeGreaterThanOrEqual(2)
+    // amount_minor >= 0 luôn đúng (check DB migration 0031) — khoản giảm thu PHẢI là
+    // 'expense' dương, không phải 'income' âm (xem comment trong presets.ts).
+    for (const e of events) {
+      expect(e.kind, e.label).toBe('expense')
+      expect(e.amount_minor, e.label).toBeGreaterThanOrEqual(0)
+    }
+    const giamThu = events.find((e) => e.label.includes('Giảm thu nhập'))
+    expect(giamThu).toBeDefined()
   })
 })

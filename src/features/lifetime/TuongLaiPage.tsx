@@ -25,16 +25,18 @@ import {
   actionButtonClass,
 } from '../../components/ui'
 import { EstimateMark } from '../../components/EstimateMark'
-import { Guide } from '../../components/Guide'
 import { repo } from '../../data'
+import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { toISODate } from '../../lib/dates'
 import { fetchRates } from '../../lib/rates'
+import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { ConsoleFrame } from './ConsoleFrame'
 import { fxOfRates } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
+import { PlanDock } from './PlanDock'
 import { lifetimeVerdict } from './summary'
 import { TimelinePlot, type ComparisonLine, type PlotZoom } from './TimelinePlot'
 import { useLifetime } from './useLifetime'
@@ -166,6 +168,49 @@ function TuongLaiConsole() {
     return [...coTien].filter((c) => pageFxOf(c, input.displayCurrency) === null)
   }, [input, pageFxOf])
 
+  // Ngày hôm nay ở dạng ISO — cần TRƯỚC `biggestExpense` bên dưới (bản đồ khoản lớn tính
+  // "còn bao nhiêu tháng" từ ngày này), nên khai sớm hơn vị trí cũ (đứng cạnh `verdict`).
+  const todayISO = toISODate(new Date())
+
+  /**
+   * Khoản lớn nhất — cho hàng "Khoản lớn nhất" của thẻ Tóm tắt kế hoạch (dock, trạng
+   * thái không chọn gì). CÙNG bản đồ mà `BigExpenseMapSection` (hàng 12) đã dựng — ba
+   * nguồn mốc (sự kiện kịch bản, khoản sắp chi, mục tiêu tiết kiệm), CÙNG ba hook đọc dữ
+   * liệu — chỉ khác ở việc `biggestExpenseItem` chọn ra MỘT dòng nặng nhất thay vì vẽ cả
+   * danh sách. Không tính lại: `buildBigExpenseMap`/`biggestExpenseItem` đều thuần, xem
+   * bigExpenses.ts.
+   */
+  const { data: plannedForBigMap = [] } = usePlannedExpenses()
+  const { data: goalsForBigMap = [] } = useSavingsGoals()
+  const { data: balancesForBigMap = [] } = useAccountBalances()
+  const biggestExpense = useMemo(() => {
+    if (!input) return null
+    const balanceById = new Map(balancesForBigMap.map((b) => [b.id, b]))
+    const goalInputs: GoalLikeInput[] = goalsForBigMap.map((g) => {
+      const acc = balanceById.get(g.account_id)
+      return {
+        id: g.id,
+        name: g.name,
+        targetMinor: g.target_amount,
+        progressMinor: acc ? (acc.market_value ?? acc.balance) : 0,
+        currency: (acc?.currency ?? input.displayCurrency) as CurrencyCode,
+        targetDate: g.target_date,
+      }
+    })
+    const map = buildBigExpenseMap({
+      todayISO,
+      displayCurrency: input.displayCurrency,
+      events: input.events,
+      planned: plannedForBigMap.filter((p) => p.status === 'planned'),
+      goals: goalInputs,
+      fxOf: pageFxOf,
+    })
+    const item = biggestExpenseItem(map)
+    return item && item.remainingMinor !== null
+      ? { label: item.label, amountMinor: item.remainingMinor }
+      : null
+  }, [input, balancesForBigMap, goalsForBigMap, plannedForBigMap, pageFxOf, todayISO])
+
   // --- Kịch bản so sánh ---------------------------------------------------------------
   //
   // Một công tắc, vẽ MỌI kịch bản khác — đúng nút "So sánh" của bản vẽ, không phải một
@@ -200,8 +245,6 @@ function TuongLaiConsole() {
     () => (input && rows.length > 0 ? assetsAtAge(rows, input.endAge) : null),
     [input, rows],
   )
-
-  const todayISO = toISODate(new Date())
 
   const handleCreateFirst = useCallback(async () => {
     setCreating(true)
@@ -332,7 +375,9 @@ function TuongLaiConsole() {
                 chứ không nằm trong một hộp cài đặt nào. */}
             <p className="ml-auto shrink-0 truncate text-sm text-fg-muted">
               Sinh <Num tone="muted">{birthYear}</Num> · chiếu đến tuổi{' '}
-              <Num tone="muted">{input.endAge}</Num> · <Num tone="muted">{currency}</Num>
+              {/* `currency` là MÃ ba chữ ("JPY"), không phải số — <Num> chỉ dành cho số
+                  (xem đầu file Num.tsx). Bọc nó là hiện văn xuôi bằng chữ mono. */}
+              <Num tone="muted">{input.endAge}</Num> · <span>{currency}</span>
             </p>
           </div>
 
@@ -351,7 +396,9 @@ function TuongLaiConsole() {
 
               <StatCell label="Tự do tài chính">
                 {verdict?.fireYear == null ? (
-                  <Num tone="muted">chưa đạt</Num>
+                  // "chưa đạt" là CHỮ, không phải số — không qua <Num> (xem đầu file
+                  // Num.tsx: "Con số KHÔNG phải tiền").
+                  <span className="text-fg-muted">chưa đạt</span>
                 ) : (
                   <Num tone="in">
                     {verdict.fireYear} · {verdict.fireAge}t
@@ -474,8 +521,8 @@ function TuongLaiConsole() {
             ))}
             {compareSkipped > 0 && (
               <span className="text-fg-warn">
-                {compareSkipped} kịch bản đang ẩn — khác đơn vị tiền với {currency}, chưa quy
-                đổi được nên không vẽ để tránh sai đơn vị.
+                <Num tone="warn">{compareSkipped}</Num> kịch bản đang ẩn — khác đơn vị tiền với{' '}
+                {currency}, chưa quy đổi được nên không vẽ để tránh sai đơn vị.
               </span>
             )}
             {missingRateCurrencies.length > 0 && (
@@ -513,16 +560,27 @@ function TuongLaiConsole() {
         </div>
       }
       // ===== Cột dock — LUÔN chừa sẵn, kể cả khi không chọn gì (spec §5) =====
+      //
+      // `sel` gõ cứng 'none': chưa có state chọn chặng/mốc nào (Task 11/12 — PhaseLane
+      // và EventPins — mới sinh ra state đó khi bấm vào trục). PlanDock đã dispatch sẵn
+      // ba nhánh nên khi state tới, chỗ này chỉ đổi giá trị `sel`, không đổi cấu trúc.
       dock={
-        <Card as="section" padding="panel" elevation="panel">
-          <SectionTitle role="micro">Tóm tắt kế hoạch</SectionTitle>
-          <p className="mt-2 truncate text-2xs text-fg-muted">Chưa chọn chặng hay mốc nào.</p>
-          <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
-            Thẻ tóm tắt kế hoạch và bảng sửa chặng / mốc sẽ nằm ở đây. Cột này giữ bề rộng
-            cố định kể cả khi chưa chọn gì — đó là cách vùng vẽ không co giãn mỗi lần bấm
-            vào một mốc.
-          </Guide>
-        </Card>
+        <PlanDock
+          sel={{ type: 'none' }}
+          summary={{
+            currency,
+            phaseCount: input.phases.length,
+            eventCount: input.events.length,
+            fireYear: verdict?.fireYear ?? null,
+            fireAge: verdict?.fireAge ?? null,
+            endAge: input.endAge,
+            assetsAtEndMinor: atEnd?.center ?? null,
+            hasMissingRate: missingRateCurrencies.length > 0,
+            biggestExpense,
+            realReturnBps: input.realReturnBps,
+            inflationBps: input.inflationBps,
+          }}
+        />
       }
       // ===== HÀNG 9–12: phần cuộn bên dưới =====
       below={

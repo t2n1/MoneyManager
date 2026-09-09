@@ -282,3 +282,21 @@ export function buildBigExpenseMap(args: {
 
   return { items, totalMonthlyNeedMinor, hasMissingFx: missing, yearPressure, heavyYears }
 }
+
+/**
+ * Khoản NẶNG TAY nhất trong bản đồ — chọn, không tính lại gì. Dùng cho thẻ Tóm tắt kế
+ * hoạch (dock ở trạng thái không chọn gì, xem PlanSummaryCard.tsx): người dùng cần biết
+ * NGAY một con số "khoản lớn nhất" mà không phải mở cả Bản đồ khoản lớn.
+ *
+ * Bỏ qua dòng thiếu tỷ giá (`remainingMinor === null`) khi so sánh — đem một số THẬT so
+ * với một số KHÔNG BIẾT rồi kết luận "lớn hơn" là bịa, đúng luật `hasMissingRate` của cả
+ * repo. null khi không còn dòng nào so được (rỗng, hoặc mọi dòng đều thiếu tỷ giá).
+ */
+export function biggestExpenseItem(map: BigExpenseMap): BigExpenseItem | null {
+  let best: BigExpenseItem | null = null
+  for (const item of map.items) {
+    if (item.remainingMinor === null) continue
+    if (best === null || item.remainingMinor > (best.remainingMinor as number)) best = item
+  }
+  return best
+}

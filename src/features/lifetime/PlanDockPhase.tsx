@@ -42,6 +42,7 @@ import {
 } from './PlanDockParts'
 import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
 import { clampPhaseStartYear } from './phaseYear'
+import { phaseColorKey } from './planColors'
 
 export interface PlanDockPhaseProps {
   /** MỌI chặng của bản nháp, đã sắp theo năm — cần cho ba việc: chặn năm trùng, biết
@@ -125,6 +126,12 @@ export function PlanDockPhase({
         onIcon={(icon) => onPatch({ icon })}
         color={phase.color}
         onColor={(color) => onPatch({ color })}
+        // Màu mà DẢI CHẶNG thật sự tô khi chặng chưa chọn màu — cùng `phaseColorKey` và
+        // cùng thứ hạng theo năm mà `PhaseLane` dùng, nên ô màu trong dock vẽ đúng thứ trên
+        // trục (review cuối nhánh 2026-09-09, Finding 7). `Math.max(idx, 0)` cho ca chặng
+        // không có trong `phases` — không xảy ra trên đường thật, và một chỉ số âm chỉ làm
+        // vòng màu lệch đi chứ không được làm sập panel.
+        fallbackColor={phaseColorKey('', Math.max(idx, 0))}
         // Chặng tô TRẦM, mốc tô TƯƠI — spec §8, đó là cách người dùng phân biệt hai loại
         // chỉ bằng mắt.
         treatment="muted"

@@ -37,7 +37,7 @@ import { ArrowDownCircle, ArrowUpCircle, Plus, X } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { ActionButton, Card, IconButton, Money, Num, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
-import { TAG_HEX } from '../tags/colors'
+import { eventTint } from './planColors'
 import { LIFE_PRESETS, type LifePreset, type PresetContext, type PresetResult } from './presets'
 import { presetWeight } from './presetWeight'
 import { applySpanToResult } from './quickAddApply'
@@ -178,7 +178,12 @@ function PresetChip({
   // `EventPins` tô cho một mốc đã có màu (border-color + color, không phải nền đặc). Mũi
   // tên Thu/Chi bên dưới giữ nguyên `text-money-out`/`text-money-in` của riêng nó — class
   // trên chính SVG thắng `color` kế thừa từ button, nên nó không đổi màu theo preset.
-  const mau = TAG_HEX[preset.color]
+  //
+  // Qua `eventTint` (planColors.ts) chứ không tra `TAG_HEX` tay: chip này SINH ra một mốc
+  // mang đúng khoá màu đó, nên nó phải tô bằng chính hàm sẽ tô cái mốc ấy (review cuối
+  // nhánh 2026-09-09, Finding 6 — chỗ này là bản chép thứ ba, và lời ghi của nó tự thú là
+  // chép từ `EventPins`). Chip luôn bật nên phần `opacity` của kết quả không dùng tới.
+  const mau = eventTint(preset.color, netOut ? 'expense' : 'income').color
 
   return (
     <ActionButton

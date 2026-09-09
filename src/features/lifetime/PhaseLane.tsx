@@ -34,8 +34,9 @@ import { makeXScale, xToYear } from './chartGeom'
 import { isActivationKey } from './keyboardActivation'
 import { blockPhaseStartYearAtNeighbours } from './phaseYear'
 import { PhaseIcon } from './PlanDockParts'
+import { phaseColorKey } from './planColors'
 import { PLOT_LEFT, laneBlocks, plotRightOf, type LaneBlock } from './plotFrame'
-import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_HEX, tagColor, type TagColorKey } from '../tags/colors'
+import { TAG_CHIP_CLASS, TAG_HEX, type TagColorKey } from '../tags/colors'
 import { useBoxSize } from './useBoxSize'
 import { useYearDrag } from './useYearDrag'
 
@@ -103,15 +104,6 @@ interface Props {
    */
   onMoveStart: (id: string, year: number) => void
 }
-
-/**
- * Màu rơi về khi chặng chưa chọn màu (`color === ''`, default của migration 0069).
- *
- * Xoay theo THỨ TỰ chặng, đúng chữ trong migration ("`''` = tô theo thứ tự chặng như hiện
- * nay") — nhờ vậy dữ liệu cũ hiện ra ổn định chứ không thành một dải xám đều. Sáu khoá,
- * khớp số màu của `PHCOLORS` trong bản vẽ; `gray` để ngoài vì nó là màu của "không màu".
- */
-const FALLBACK_KEYS: readonly TagColorKey[] = TAG_COLOR_KEYS.filter((k) => k !== 'gray')
 
 /** Bề rộng một mép kéo (bản vẽ: 9px). Vạch grip bên trong là 2×16px. */
 const EDGE_W = 9
@@ -208,7 +200,11 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
         const p = byId.get(b.id)
         if (!p) return null
         const i = rank.get(b.id) ?? 0
-        const k = colorKeyOf(p, i)
+        // `phaseColorKey` (planColors.ts) — CÙNG hàm mà bảng chọn màu trong dock dùng để
+        // vẽ ô màu của chặng này. Trước đây luật rơi-về-màu chỉ nằm ở file này, nên dock
+        // hiện một vòng nét đứt "không màu" cho đúng cái chặng mà dải đang tô bằng một màu
+        // thật (review cuối nhánh 2026-09-09, Finding 7).
+        const k = phaseColorKey(p.color, i)
         const showEdges = b.width >= EDGE_MIN_BLOCK_W
         return (
           <div key={b.id}>
@@ -265,12 +261,6 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
 function nextIdOf(sorted: readonly LanePhase[], id: string): string | null {
   const i = sorted.findIndex((p) => p.id === id)
   return i >= 0 && i + 1 < sorted.length ? sorted[i + 1].id : null
-}
-
-function colorKeyOf(p: LanePhase, index: number): TagColorKey {
-  if (p.color !== '') return tagColor(p.color)
-  const n = FALLBACK_KEYS.length
-  return FALLBACK_KEYS[((index % n) + n) % n]
 }
 
 interface BlockProps {

@@ -27,8 +27,8 @@
 import type { CSSProperties } from 'react'
 import { EventIcon } from './eventIcons'
 import { isActivationKey } from './keyboardActivation'
+import { eventTint } from './planColors'
 import { PIN_END_W, PIN_ROW_H, PIN_TOP, PIN_W, magnetToPhaseStart, pinEndX } from './plotFrame'
-import { TAG_HEX, tagColor } from '../tags/colors'
 import { useYearDrag } from './useYearDrag'
 
 /**
@@ -104,14 +104,14 @@ export function EventPins({
         const top = PIN_TOP + (rows[i] ?? 0) * PIN_ROW_H
         const cx = xs(e.startYear)
         const off = e.enabled === false
-        // Màu riêng của mốc thắng màu theo Thu/Chi (migration 0067). Tô TƯƠI — màu đặc của
-        // bảng biểu đồ — trong khi chặng tô TRẦM (spec §8): hai cách tô từ cùng bảy khoá
-        // màu là cách người dùng phân biệt mốc với chặng chỉ bằng mắt.
-        const mau = e.color
-          ? TAG_HEX[tagColor(e.color)]
-          : e.kind === 'income'
-            ? 'var(--money-in)'
-            : 'var(--money-out)'
+        // Màu VÀ độ mờ đều từ `eventTint` (planColors.ts) — chỗ DUY NHẤT khai luật "màu
+        // riêng của mốc thắng màu theo Thu/Chi" (migration 0067) cùng cặp độ mờ bật/tắt
+        // (0063). Tô TƯƠI — màu đặc của bảng biểu đồ — trong khi chặng tô TRẦM (spec §8):
+        // hai cách tô từ cùng bảy khoá màu là cách người dùng phân biệt mốc với chặng chỉ
+        // bằng mắt. Ba bản chép của phép này từng lệch nhau về ĐỘ MỜ ngay giữa hai lớp kề
+        // nhau của cùng đồ thị (phát hiện review cuối nhánh 2026-09-09, Finding 6).
+        const tint = eventTint(e.color, e.kind, e.enabled)
+        const mau = tint.color
         // Chỉ mốc có năm kết thúc THẬT mới có CHỐT — xem lời ghi 4 ở đầu file.
         const coChot = e.endYear !== null && e.endYear > e.startYear
         // `xs(x1)` LÀ mép phải vùng vẽ (thang chiếu x1 vào đó) — xem `pinEndX` về lý do
@@ -147,7 +147,7 @@ export function EventPins({
                   ),
                   height: 2,
                   background: mau,
-                  opacity: off ? 0.2 : 0.45,
+                  opacity: tint.opacity,
                   ...(e.endYear === null && {
                     // Mờ dần ở mép phải: một đầu cắt vuông ở đúng mép vùng vẽ đọc như "kết
                     // thúc ở năm cuối đồ thị", mà không phải (LifetimeChartCard:1207).

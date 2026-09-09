@@ -36,7 +36,7 @@ import { Guide } from '../../components/Guide'
 import { ActionButton, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
-import { TAG_HEX, tagColor } from '../tags/colors'
+import { eventTint } from './planColors'
 import {
   bandPath,
   curvePath,
@@ -347,6 +347,22 @@ export function TimelinePlot({
     [xs, ys],
   )
 
+  /**
+   * KHÔNG có transition trên thuộc tính `d` của các đường dưới đây, và ĐỪNG thêm một
+   * token thời lượng mới để làm việc đó.
+   *
+   * Bản vẽ 1c cho các đường một transition `.22s`. Bản ghi của Task 7 nói lý do không bê
+   * sang là "chưa có motion token nào" — SAI VỀ SỰ THẬT, và bản ghi đó đã được sửa (phát
+   * hiện review cuối nhánh 2026-09-09, Finding 10): `--motion-assume: 220ms` (index.css)
+   * và `MOTION_ASSUME_MS` (lib/motion.ts) đã có sẵn và bằng đúng .22s.
+   *
+   * QUYẾT ĐỊNH VẪN GIỮ, vì một lý do KHÁC và thật: CSS chỉ nội suy được `d` khi hai path
+   * có CÙNG SỐ LỆNH vẽ, mà đổi zoom / bật log / bật-tắt dải đều đổi số lệnh (số điểm đổi,
+   * `curvePath` sinh một khúc `C` cho mỗi đoạn). Đúng những lúc chuyển động sẽ đáng nhìn
+   * nhất thì nó lặng lẽ không chạy — một hiệu ứng chỉ đúng một nửa số trường hợp. Nên nếu
+   * muốn có chuyển động ở đây, việc cần làm là dựng một phép nội suy trong JS, không phải
+   * thêm token.
+   */
   const centerPath = curvePath(dRows.map((r) => pt(r, (r2) => r2.assetsEndMinor)))
   const highPts = dRows.map((r) => pt(r, (r2) => r2.assetsOptimisticMinor))
   const lowPts = dRows.map((r) => pt(r, (r2) => r2.assetsPessimisticMinor))
@@ -706,26 +722,29 @@ export function TimelinePlot({
               <circle cx={xs(fireRow.year)} cy={ys(fireRow.assetsEndMinor)} r={5} fill="var(--money-in)" />
             )}
 
-            {/* 9. Vạch mốc — vạch dọc mảnh tại `startYear` từng mốc, màu của mốc */}
-            {visibleEvents.map((e) => (
-              <line
-                key={`m${e.id}`}
-                x1={xs(e.startYear)}
-                y1={0}
-                x2={xs(e.startYear)}
-                y2={plotBottom}
-                stroke={
-                  e.color
-                    ? TAG_HEX[tagColor(e.color)]
-                    : e.kind === 'income'
-                      ? 'var(--money-in)'
-                      : 'var(--money-out)'
-                }
-                strokeDasharray="3 3"
-                strokeWidth={1}
-                opacity={e.enabled === false ? 0.22 : 0.5}
-              />
-            ))}
+            {/* 9. Vạch mốc — vạch dọc mảnh tại `startYear` từng mốc, màu của mốc.
+
+                `eventTint` (planColors.ts) là chỗ DUY NHẤT khai màu và độ mờ của một mốc.
+                Vạch này từng giữ một bản chép riêng, và cặp độ mờ của nó đã trôi khỏi cặp
+                mà `EventPins` dùng — 0,5 / 0,22 ở đây so với 0,45 / 0,2 ở thanh độ dài, hai
+                lớp KỀ NHAU của cùng đồ thị (review cuối nhánh 2026-09-09, Finding 6). Cặp
+                đã chốt là 0,45 / 0,2; lý do chọn cặp thấp nằm ở đầu `planColors.ts`. */}
+            {visibleEvents.map((e) => {
+              const tint = eventTint(e.color, e.kind, e.enabled)
+              return (
+                <line
+                  key={`m${e.id}`}
+                  x1={xs(e.startYear)}
+                  y1={0}
+                  x2={xs(e.startYear)}
+                  y2={plotBottom}
+                  stroke={tint.color}
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                  opacity={tint.opacity}
+                />
+              )
+            })}
           </svg>
 
           {/* Icon mốc — lớp phủ HTML trên vùng vẽ. Nằm SAU `</svg>` nên nó vẽ lên trên

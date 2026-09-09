@@ -27,7 +27,14 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Ban, CircleDashed } from 'lucide-react'
 import { Card, SectionTitle } from '../../components/ui'
 import { EVENT_ICONS, EVENT_ICON_GROUPS } from './eventIcons'
-import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, TAG_HEX, tagColor } from '../tags/colors'
+import {
+  TAG_CHIP_CLASS,
+  TAG_COLOR_KEYS,
+  TAG_COLOR_LABELS,
+  TAG_HEX,
+  tagColor,
+  type TagColorKey,
+} from '../tags/colors'
 
 /**
  * Ô nhập trong dock. `rounded-md` (control 6px, §1.3) — pill chỉ dành cho nút.
@@ -70,6 +77,17 @@ interface IdentityRowProps {
   /** Khoá màu đang chọn; `''` = chưa chọn (tô theo mặc định của loại). */
   color: string
   onColor: (color: string) => void
+  /**
+   * Khoá màu mà chỗ VẼ thật sự dùng khi `color === ''`. Chỉ CHẶNG truyền (dải chặng tô
+   * theo thứ tự chặng, migration 0069); mốc thì để trống vì mặc định của nó là màu Thu/Chi,
+   * không phải một khoá trong bảng bảy màu.
+   *
+   * Có nó thì ô màu "không màu riêng" vẽ ĐÚNG màu dải đang vẽ, viền nét đứt để vẫn nói ra
+   * rằng đây là mặc định chứ không phải một lựa chọn người dùng đã làm. Thiếu nó thì bảng
+   * chọn hiện một vòng nét đứt trống cho đúng cái chặng đang có màu thật trên trục — hai
+   * chỗ nói hai điều (phát hiện review cuối nhánh 2026-09-09, Finding 7).
+   */
+  fallbackColor?: TagColorKey
   treatment: ColorTreatment
   /** Vẽ một khoá icon — mỗi loại tự quyết icon rơi về khi khoá trống/lạ. */
   renderIcon: (icon: string) => ReactNode
@@ -89,6 +107,7 @@ export function IdentityRow({
   onIcon,
   color,
   onColor,
+  fallbackColor,
   treatment,
   renderIcon,
   name,
@@ -123,11 +142,18 @@ export function IdentityRow({
       <Popover
         open={pick === 'color'}
         onOpenChange={(v) => setPick(v ? 'color' : null)}
-        label={color === '' ? 'Chọn màu' : `Màu: ${TAG_COLOR_LABELS[tagColor(color)]}`}
-        trigger={<Swatch color={color} treatment={treatment} />}
+        label={
+          color !== ''
+            ? `Màu: ${TAG_COLOR_LABELS[tagColor(color)]}`
+            : fallbackColor !== undefined
+              ? `Màu: mặc định theo thứ tự chặng (${TAG_COLOR_LABELS[fallbackColor]})`
+              : 'Chọn màu'
+        }
+        trigger={<Swatch color={color} fallback={fallbackColor} treatment={treatment} />}
       >
         <ColorGrid
           color={color}
+          fallback={fallbackColor}
           treatment={treatment}
           onPick={(k) => {
             onColor(k)
@@ -299,26 +325,41 @@ function IconGrid({
  */
 function ColorGrid({
   color,
+  fallback,
   treatment,
   onPick,
 }: {
   color: string
+  /** Xem `IdentityRowProps.fallbackColor`. */
+  fallback?: TagColorKey
   treatment: ColorTreatment
   onPick: (color: string) => void
 }) {
   return (
     <div className="flex w-[8.125rem] flex-wrap items-center gap-0.5">
+      {/* Ô "không màu riêng" GIỮ NGUYÊN vai trò ô đang chọn khi `color === ''` — đó là
+          trạng thái THẬT trong DB, và biến một mặc định thành một lựa chọn là nói dối về
+          dữ liệu. Chỉ HÌNH của nó đổi: có `fallback` thì nó vẽ đúng màu mà dải đang tô,
+          viền nét đứt (Finding 7). */}
       <button
         type="button"
-        aria-label="Không màu riêng"
-        title="Không màu riêng"
+        aria-label={
+          fallback === undefined
+            ? 'Không màu riêng'
+            : `Không màu riêng — mặc định đang là ${TAG_COLOR_LABELS[fallback]}`
+        }
+        title={
+          fallback === undefined
+            ? 'Không màu riêng'
+            : `Không màu riêng — mặc định theo thứ tự chặng, đang là ${TAG_COLOR_LABELS[fallback]}`
+        }
         aria-pressed={color === ''}
         onClick={() => onPick('')}
         className={`flex h-6 w-6 items-center justify-center rounded-full transition active:scale-95 ${
           color === '' ? 'ring-2 ring-accent' : 'hover:bg-surface-sunken'
         }`}
       >
-        <Swatch color="" treatment={treatment} />
+        <Swatch color="" fallback={fallback} treatment={treatment} />
       </button>
       {TAG_COLOR_KEYS.map((k) => (
         <button
@@ -347,8 +388,35 @@ function ColorGrid({
  * màu nhãn đã đo cho cả hai chế độ. Không chêm hex vào JSX (guardrail), và không tự trộn
  * một sắc độ thứ ba cho "trầm".
  */
-function Swatch({ color, treatment }: { color: string; treatment: ColorTreatment }) {
+function Swatch({
+  color,
+  fallback,
+  treatment,
+}: {
+  color: string
+  fallback?: TagColorKey
+  treatment: ColorTreatment
+}) {
   const SIZE = 'h-[1.0625rem] w-[1.0625rem] shrink-0 rounded-full border'
+  // Chưa chọn màu VÀ chỗ vẽ có một màu mặc định thật (chặng) → vẽ đúng màu đó, viền NÉT ĐỨT.
+  // Nét đứt là thứ giữ được cả hai câu: "dải đang tô màu này" và "bạn chưa chọn màu nào".
+  if (color === '' && fallback !== undefined) {
+    if (treatment === 'muted') {
+      return (
+        <span
+          aria-hidden
+          className={`${SIZE} border-dashed border-border-strong ${TAG_CHIP_CLASS[fallback]}`}
+        />
+      )
+    }
+    return (
+      <span
+        aria-hidden
+        className={`${SIZE} border-dashed border-border-strong`}
+        style={{ backgroundColor: TAG_HEX[fallback] }}
+      />
+    )
+  }
   if (color === '') {
     return <CircleDashed className="h-[1.0625rem] w-[1.0625rem] shrink-0 text-fg-muted" aria-hidden />
   }

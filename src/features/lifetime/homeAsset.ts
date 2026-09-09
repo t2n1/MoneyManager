@@ -24,8 +24,8 @@
 // ràng buộc.
 //
 // CÔNG THỨC ĐÓNG, không lặp từng tháng: `projectLifetime` có cổng hiệu năng 16ms mỗi
-// lượt chiếu (assumptions.test.ts), mà một mốc vay 35 năm lặp theo tháng là 420 vòng ×
-// mỗi năm chiếu × ba nhánh lợi suất.
+// lượt chiếu (project.test.ts, "cổng hiệu năng (R6)"), mà một mốc vay 35 năm lặp theo
+// tháng là 420 vòng × mỗi năm chiếu × ba nhánh lợi suất.
 
 /** Phần "mua tài sản" của một mốc. `assetValueMinor === 0` = mốc thường, không mua gì. */
 export interface HomeAsset {

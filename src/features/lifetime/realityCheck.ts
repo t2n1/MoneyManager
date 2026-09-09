@@ -40,7 +40,7 @@ export interface RealityCheck {
  * Chặng tương lai giữ nguyên: sổ chỉ nói được về hôm nay. `null` khi không có chặng.
  *
  * Số thật phải cùng tiền với chặng đó — `suggestBaseline` được gọi với
- * `currentPhase.currency` đúng vì thế (xem ScenarioWorkbench / LifetimeView).
+ * `currentPhase.currency` đúng vì thế (xem chỗ gọi trong `TuongLaiPage.tsx`).
  */
 export function withRealNumbers(input: LifetimeInput, real: RealNumbers): LifetimeInput | null {
   const sorted = [...input.phases].sort((a, b) => a.startYear - b.startYear)

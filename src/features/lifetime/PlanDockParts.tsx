@@ -39,7 +39,7 @@ import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, TAG_HEX, tagColor } f
 export const DOCK_INPUT =
   'rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary'
 /** Nhãn của một ô. `<label htmlFor>` khi trỏ vào MỘT control, `<span>` khi trỏ vào nhóm
- *  hoặc vào `<MoneyField>` (nó render hai ô, một cái bị CSS ẩn — xem PhaseFormSheet). */
+ *  hoặc vào `<MoneyField>` (nó render hai ô, một cái bị CSS ẩn — xem components/MoneyField.tsx). */
 export const DOCK_LABEL = 'mb-0.5 block text-2xs uppercase tracking-label text-fg-muted'
 
 /** Hai cách TÔ cùng bảy khoá màu — xem đầu file. */
@@ -369,9 +369,9 @@ function Swatch({ color, treatment }: { color: string; treatment: ColorTreatment
  * Ô nhập NĂM. Prop thắng khi KHÔNG gõ dở — giá trị đổi được từ ngoài (kéo trên đồ thị,
  * bỏ nháp, đổi kịch bản); trong lúc gõ thì giữ nguyên chuỗi người dùng đang gõ.
  *
- * Khuôn lấy từ `YearInput` của `ScenarioWorkbench` (sẽ nghỉ, spec §10) — chép ra thay vì
- * import: file đó là một màn cũ đang chờ xoá, và bảng sửa trong dock ghi thẳng vào nháp
- * nên `onCommit` ở đây nhận cả năm CHƯA hợp lệ để chỗ gọi tự chặn (xem `phaseYear.ts`).
+ * Khuôn lấy từ `YearInput` của `ScenarioWorkbench` (màn cũ, đã nghỉ ở Task 16) — chép ra
+ * thay vì import: file đó đã bị xoá, và bảng sửa trong dock ghi thẳng vào nháp nên
+ * `onCommit` ở đây nhận cả năm CHƯA hợp lệ để chỗ gọi tự chặn (xem `phaseYear.ts`).
  */
 export function YearBox({
   value,

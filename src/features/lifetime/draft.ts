@@ -14,8 +14,11 @@
 // hàm thuần có test — không phải một chuỗi `await repo.…` rải trong tay xử lý sự kiện,
 // nơi mà ca "sự kiện bị xoá" hay "sự kiện vừa thêm chưa có id" không có gì canh.
 //
-// KHÔNG thay `assumptions.ts`: file đó vẫn là đường vặn nhanh ba con số và có phép thử
-// hiệu năng riêng (cổng R6). File này là tầng trên nó.
+// KHÔNG thay `assumptions.ts`: cho tới khi nó bị xoá (Task 16, cùng lúc màn Tương lai
+// bản cũ nghỉ), file đó là đường vặn nhanh ba con số. Cổng hiệu năng riêng của nó
+// (R6) không chết theo — đã dọn về `project.test.ts`, cạnh chính `projectLifetime` mà
+// nó canh. File này (draft.ts) là tầng TRÊN thứ ba con số kia từng làm, không phải một
+// bản thay thế.
 import type {
   LifeEventPatch,
   LifePhasePatch,
@@ -278,8 +281,9 @@ export function draftPhaseIndex(draft: ScenarioDraft, currentYear: number): numb
   for (let i = 0; i < draft.phases.length; i++) {
     if (draft.phases[i].startYear <= currentYear) best = i
   }
-  // Mọi chặng còn ở tương lai thì lấy chặng sớm nhất — cùng luật với `currentPhaseIndex`
-  // (assumptions.ts): bản chiếu vẫn phải dựa trên một chặng nào đó.
+  // Mọi chặng còn ở tương lai thì lấy chặng sớm nhất — cùng luật mà `currentPhaseIndex`
+  // từng theo trong `assumptions.ts` (xoá ở Task 16, không còn bản nào khác giữ luật
+  // này): bản chiếu vẫn phải dựa trên một chặng nào đó.
   if (best === -1 && draft.phases.length > 0) return 0
   return best
 }
@@ -784,8 +788,11 @@ export function applyPreset(
  * RESET chứ không chỉ cảnh báo (quyết định đã chốt từ bản trình sửa cũ): `fx_to_display`
  * là "1 đơn vị tiền của dòng này quy ra bao nhiêu đơn vị tiền HIỂN THỊ". Đổi tiền hiển
  * thị thì con số cũ — dù người dùng từng khai đúng — đang trả lời một câu hỏi khác hẳn.
- * Để nguyên là giữ lại một con số sai mà không có gì nói ra; đặt về 1 thì `fx === 1` bật
- * đúng dấu cảnh báo mà `PhaseFormSheet`/`EventFormSheet` đã có sẵn.
+ * Để nguyên là giữ lại một con số sai mà không có gì nói ra; đặt về 1 là giá trị ĐÚNG
+ * cho "tỷ giá coi như chưa khai lại" — hai sheet cũ `PhaseFormSheet`/`EventFormSheet`
+ * (nghỉ ở Task 16) từng bật một dấu cảnh báo riêng đúng lúc `fx === 1`. Bất biến ở đây
+ * (`fx === 1` sau khi đổi tiền hiển thị = "chưa khai lại") không phụ thuộc UI nào —
+ * chỗ nào đọc `fx_to_display` sau này đều đọc ra đúng tín hiệu đó.
  *
  * KHÔNG đụng `startingAssetsMinor`: quy đổi nó cần tỷ giá HÔM NAY (mạng), mà file này
  * thuần. Chỗ gọi (trình sửa) quy đổi rồi mới đặt vào nháp — xem JSDoc `startingAssetsMinor`

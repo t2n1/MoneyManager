@@ -564,7 +564,8 @@ function TuongLaiConsole() {
   //
   // Một công tắc, vẽ MỌI kịch bản khác — đúng nút "So sánh" của bản vẽ, không phải một
   // nút "So" trên từng thẻ. Kịch bản khác ĐƠN VỊ TIỀN bị loại và nói ra lý do: một chuỗi
-  // số USD vẽ lên trục ¥ là sai im lặng (xem chartSeries.ts).
+  // số USD vẽ lên trục ¥ là sai im lặng — lọc `display_currency` ngay dưới đây, không
+  // vẽ rồi mới ẩn.
   const comparisons = useMemo<ComparisonLine[]>(() => {
     if (!compareOn || !active) return []
     return scenarios

@@ -702,3 +702,22 @@ describe('projectLifetime — mốc MUA TÀI SẢN (migration 0068)', () => {
     expect(r.ownedAssetsMinor).toBe(10_000_000)
   })
 })
+
+// Cổng R6: §4.4/13b cho phép vẽ lại NGAY trong lúc kéo chỉ khi phép chiếu chạy dưới
+// ~16 ms. Đo lại ở đây thay vì tin con số đã đo một lần — nếu ai đó làm projectLifetime
+// nặng lên gấp trăm lần, chính phép thử này phải là chỗ báo.
+//
+// Chuyển từ `assumptions.test.ts` (Task 16, xoá cùng màn Tương lai bản cũ — file đó chỉ
+// còn mỗi cổng này là sống, phần biên/bước thanh trượt đã chết theo `assumptions.ts`).
+// `projectLifetime` không đổi qua việc dọn dẹp đó (byte-identical với master), nên cổng
+// vẫn canh đúng thứ nó luôn canh.
+describe('cổng hiệu năng (R6)', () => {
+  it('projectLifetime dưới 16ms mỗi lần chiếu', () => {
+    const i = baseInput({ birthYear: 1990, endAge: 90, startingAssetsMinor: 10_000_000, realReturnBps: 300, inflationBps: 200 })
+    const N = 50
+    const t0 = performance.now()
+    for (let k = 0; k < N; k++) projectLifetime({ ...i, realReturnBps: 300 + k })
+    const moiLan = (performance.now() - t0) / N
+    expect(moiLan).toBeLessThan(16)
+  })
+})

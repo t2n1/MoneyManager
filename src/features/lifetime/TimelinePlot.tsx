@@ -819,7 +819,7 @@ export function TimelinePlot({
               năm sinh, cả hai ở `TuongLaiPage`) và khác cả nhánh `rows.length === 0` ngay
               trên: ở đây bản chiếu CHẠY ĐƯỢC và đường đồ thị đang vẽ bình thường, chỉ
               thiếu MỐC. Gộp ba thứ đó lại là nói "chưa có gì" trong khi đồ thị đang có
-              một đường — xem lời ghi đầu `LifetimeView.tsx`. */}
+              một đường. */}
           {events.length === 0 && (
             <div
               className="absolute left-1/2 z-30 w-[24rem] max-w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-dashed border-border-strong bg-surface-chrome p-4 text-center"

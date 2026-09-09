@@ -1,7 +1,7 @@
-// Bảng theo năm (Task 10) — bản dự phòng khả năng tiếp cận của LifetimeChartCard: đồ thị
+// Bảng theo năm (Task 10) — bản dự phòng khả năng tiếp cận của đồ thị (`TimelinePlot`):
 // Recharts một mình không đọc được bằng screen reader (dù đã có aria-label mô tả), nên
 // bảng này liệt kê ĐÚNG những con số đã vẽ, dạng đọc được bằng bàn phím/screen reader.
-// Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem LifetimePage.tsx.
+// Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem `TuongLaiPage.tsx`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertCircle, ArrowDownCircle, ArrowUpCircle, ChevronDown, Download, X } from 'lucide-react'
 import { Card, EmptyState, SectionTitle } from '../../components/ui'

@@ -66,8 +66,9 @@ const DEFAULT_BAND_SPREAD_BPS = 150
 /**
  * `enabled` (mặc định true) — gate cho các query mà KHÔNG trang nào khác của app đã nạp sẵn
  * (`ratesQ`, `groupSettingsQ`, `debtPaymentsQ`, `txsQ` bên dưới có lời ghi tại chỗ nói rõ vì
- * sao đúng bốn cái này — KHÔNG phải mọi query trong hook). `LifetimeView` gọi `useLifetime()`
- * không truyền tham số nên hành vi của nó giữ nguyên.
+ * sao đúng bốn cái này — KHÔNG phải mọi query trong hook). Mặc định `true` giữ nguyên
+ * phòng khi có caller khác không truyền tham số này — `TuongLaiPage` (chỗ gọi duy nhất
+ * hiện tại) luôn truyền `{ enabled: isDesktop }`, xem ngay dưới.
  *
  * `TuongLaiPage` truyền `{ enabled: isDesktop }` (`useMediaQuery`, cổng 1280px của console)
  * vì cổng hiện màn là CSS `hidden xl:block` — `display:none`, không phải bỏ dựng cây — nên
@@ -471,8 +472,9 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     rows,
     /** `LifetimeInput` đã dùng để ra `rows` — Task 9 (`InsightCards`) cần nguyên bản này. */
     input,
-    /** Chiếu một kịch bản khác theo id, dùng cho chế độ so sánh ở `LifetimeChartCard`
-     *  (Task 8). Trả `[]` nếu id không khớp kịch bản nào hoặc chưa có năm sinh. */
+    /** Chiếu một kịch bản khác theo id, dùng cho chế độ so sánh của `TuongLaiPage`
+     *  (nút "So sánh", Task 8). Trả `[]` nếu id không khớp kịch bản nào hoặc chưa có
+     *  năm sinh. */
     projectScenario,
     profile: profileQ.data,
     isLoading: profileQ.isLoading || scenariosQ.isLoading || phasesQ.isLoading || eventsQ.isLoading,

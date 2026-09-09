@@ -88,8 +88,8 @@ const KHONG_RO_NUOC = 'không rõ nước'
 /**
  * Nước ĐÃ BIẾT → tên dùng trong câu hỏi. Bảng này là một cái CỔNG, không phải tiện ích.
  *
- * VÌ SAO PHẢI CÓ. `phase.country` là ô nhập TỰ DO (`PhaseFormSheet` — placeholder "Ví dụ:
- * JP, US, VN", không phải danh sách chọn), nên chữ người dùng gõ vào đó là chữ tuỳ ý.
+ * VÌ SAO PHẢI CÓ. `phase.country` là ô nhập TỰ DO (`PlanDockPhase` — placeholder "JP, US,
+ * VN…", không phải danh sách chọn), nên chữ người dùng gõ vào đó là chữ tuỳ ý.
  * Chèn thẳng vào câu hỏi thì lời hứa "mốc sinh từ mẫu không gửi chữ nào người dùng gõ"
  * (bản thiết kế, mục "Dữ liệu gửi đi") vỡ ngay ở đường mốc-CÓ-SẴN — đường lẽ ra an toàn
  * nhất và không hề có cảnh báo nào. Qua bảng này, chữ đó chỉ còn là chìa để tra; cái đi

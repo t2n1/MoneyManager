@@ -69,7 +69,7 @@ describe('khoá riêng tư', () => {
   })
 
   it('ô Quốc gia là chữ TỰ DO nên không được lọt vào câu hỏi', () => {
-    // `phase.country` là input tự do (PhaseFormSheet), tức người dùng gõ gì cũng được —
+    // `phase.country` là input tự do (PlanDockPhase), tức người dùng gõ gì cũng được —
     // kể cả chuyện riêng. Fixture cũ ghim 'JP' nên chưa bao giờ chạm vào đường này.
     const THU_DICH = 'Nhật 123 <bí mật của tôi>'
     for (const nhan of Object.keys(LUAT_HOI)) {

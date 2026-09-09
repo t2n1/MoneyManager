@@ -56,10 +56,63 @@ export function clampPhaseStartYear(
   // Bất biến 1. Chặng đầu KHÔNG có bậc tự do nào — dock hiện năm này thành chữ tĩnh.
   if (i === 0) return khoang(currentYear, MIN_PHASE_YEAR)
 
-  // Bất biến 2. Sàn là năm sau hôm nay, và phải là một năm chưa ai chiếm.
-  const san = Math.max(MIN_PHASE_YEAR, currentYear + 1)
+  // Bất biến 2. Sàn là năm sau hôm nay VÀ sau chặng ĐẦU thật (`sorted[0]`) — không chỉ
+  // `currentYear + 1`. Hai giá trị này thường trùng nhau (chặng đầu luôn ở `currentYear`,
+  // xem Bất biến 1), nhưng dữ liệu có thể lệch (chặng đầu ở tương lai — sheet cũ không
+  // ép luật này, xem phát hiện review 2026-09-09 #3). Không cộng thêm điều kiện này thì
+  // sửa một chặng SAU có thể chọn một năm THẤP HƠN `sorted[0].startYear`, tức chặng đó
+  // sắp XẾP LÊN TRƯỚC chặng đầu ngay giữa lúc gõ — thứ hạng đổi, panel tưởng đang sửa
+  // chặng đầu (`laChangDau` lật), và `<YearBox>` của nó unmount ngay dưới con trỏ.
+  const san = Math.max(MIN_PHASE_YEAR, Math.max(currentYear, sorted[0].startYear) + 1)
   const dangDung = new Set(sorted.filter((p) => p.id !== id).map((p) => p.startYear))
   return namTrong(khoang(wanted, san), san, dangDung, dangCo)
+}
+
+/**
+ * Năm bắt đầu TRỐNG gần `wanted` nhất cho một chặng CHƯA TỒN TẠI — "Nhân đôi" và "+ Chặng
+ * đời mới từ đây" sinh một chặng mới, không sửa một chặng đang có.
+ *
+ * VÌ SAO TÁCH RIÊNG (gốc rễ của phát hiện review 2026-09-09 #1 và #2, không phải một bản
+ * vá). Hai chỗ gọi cũ nhét chặng mới vào MẢNG `phases` với một id giả rồi gọi
+ * `clampPhaseStartYear` — hàm đó trả lời "chặng ĐANG CÓ được đổi sang năm nào", không phải
+ * "một chặng MỚI được sinh ở năm nào". Khi chặng giả đó SẮP XẾP thành chặng đầu (năm gõ
+ * nhỏ hơn mọi chặng đang có — ví dụ mốc bị gõ tay xuống 2020), `clampPhaseStartYear` rơi
+ * vào Bất biến 1 và trả nguyên `currentYear`, KHÔNG hề kiểm trùng — mà `currentYear` chính
+ * là năm chặng đầu THẬT đang giữ. Kết quả: hai chặng cùng `start_year`, Lưu nổ
+ * `unique (scenario_id, start_year)` (migration 0031) ở Postgres, xa chỗ bấm. Ba chip mẫu
+ * ("Cưới"/"Nghỉ hưu"/"Chuyển nước") cũng sinh chặng ở đúng MỘT năm cố định
+ * (`currentYear + 2`) mỗi lần bấm — bấm hai lần ra cùng lỗi, không qua nhánh chặng-đầu
+ * nhưng cùng gốc "không kiểm trùng cho chặng mới".
+ *
+ * Sàn giống Bất biến 2 của `clampPhaseStartYear`: `currentYear + 1` — một chặng mới không
+ * được giành năm hiện tại của chặng đang chạy. Dò trong `[sàn, MAX_PHASE_YEAR]`, ưu tiên
+ * gần `wanted`, hoà thì chọn phía TĂNG — cùng luật `namTrong`.
+ *
+ * `lastYear` không tham gia dò (mọi năm trong `[sàn, MAX_PHASE_YEAR]` đều hợp lệ như
+ * nhau — một chặng mới có quyền chạy tới hết đời cũng như bất kỳ chặng nào khác), chỉ
+ * dùng cho phao cuối khi ĐẶC KÍN toàn bộ khoảng đó — lý thuyết thuần tuý, cần hơn 300
+ * chặng liền năm mới xảy ra, không thực tế trên dữ liệu thật. Không có "năm đang có" nào
+ * để lùi về (khác `namTrong` — chặng này CHƯA TỒN TẠI), nên phao là năm ngay sau
+ * `lastYear`: Lưu sẽ nổ ở Postgres nếu ca đó thật sự xảy ra, nhưng đó là tín hiệu thật hơn
+ * một giá trị bịa ra.
+ */
+export function freePhaseStartYear(
+  phases: PhaseYearSlot[],
+  wanted: number,
+  currentYear: number,
+  lastYear: number,
+): number {
+  const san = Math.max(MIN_PHASE_YEAR, currentYear + 1)
+  const dangDung = new Set(phases.map((p) => p.startYear))
+  const y = khoang(wanted, san)
+  if (!dangDung.has(y)) return y
+  for (let d = 1; d <= MAX_PHASE_YEAR - MIN_PHASE_YEAR; d++) {
+    const len = y + d
+    if (len <= MAX_PHASE_YEAR && !dangDung.has(len)) return len
+    const xuong = y - d
+    if (xuong >= san && !dangDung.has(xuong)) return xuong
+  }
+  return khoang(lastYear + 1, san)
 }
 
 function khoang(y: number, san: number): number {

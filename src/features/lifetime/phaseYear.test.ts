@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PHASE_YEAR, clampPhaseStartYear, type PhaseYearSlot } from './phaseYear'
+import {
+  MAX_PHASE_YEAR,
+  clampPhaseStartYear,
+  freePhaseStartYear,
+  type PhaseYearSlot,
+} from './phaseYear'
 
 const NAY = 2026
 
@@ -75,5 +80,91 @@ describe('clampPhaseStartYear', () => {
 
   it('làm tròn năm lẻ', () => {
     expect(clampPhaseStartYear(chang, 'p2', 2038.6, NAY)).toBe(2039)
+  })
+
+  // Phát hiện review 2026-09-09 #3: sàn của chặng SAU phải tính theo chặng ĐẦU THẬT
+  // (`sorted[0].startYear`), không chỉ `currentYear + 1`. `PhaseFormSheet` (sheet cũ,
+  // sống tới Task 16) không ép "chặng đầu luôn = currentYear", nên dữ liệu chặng đầu ở
+  // TƯƠNG LAI (so với `currentYear`) là một hình dạng có thật, không phải giả định lý
+  // thuyết. Không có test này thì sàn cũ (`currentYear + 1`) có thể thấp hơn năm chặng
+  // đầu đang giữ, và một chặng SAU gõ năm ở khoảng hở đó sẽ SẮP XẾP LÊN TRƯỚC chặng đầu
+  // ngay giữa lúc gõ — `laChangDau` lật, `<YearBox>` đang được gõ unmount dưới con trỏ.
+  it('sàn của chặng SAU tính theo chặng ĐẦU THẬT, không chỉ currentYear — chặng đầu ở tương lai (dữ liệu bất thường, sheet cũ không ép luật) không bị chặng sau vượt mặt', () => {
+    const changDauOTuongLai: PhaseYearSlot[] = [
+      { id: 'p1', startYear: 2030 }, // đáng lẽ = NAY (2026), nhưng dữ liệu cũ/hỏng để nó ở tương lai
+      { id: 'p2', startYear: 2035 },
+    ]
+    // Sàn CŨ (currentYear + 1 = 2027) sẽ chấp nhận thẳng năm gõ (2027) — DƯỚI năm chặng
+    // đầu (2030), tức p2 sắp xếp lên TRƯỚC p1. Sàn MỚI phải là max(NAY, 2030) + 1 = 2031.
+    expect(clampPhaseStartYear(changDauOTuongLai, 'p2', 2027, NAY)).toBe(2031)
+  })
+})
+
+describe('freePhaseStartYear', () => {
+  const chang: PhaseYearSlot[] = [
+    { id: 'p1', startYear: 2026 },
+    { id: 'p2', startYear: 2035 },
+    { id: 'p3', startYear: 2059 },
+  ]
+  const LAST = 2090
+
+  // Phát hiện review 2026-09-09 #1 và #2 — gốc rễ chung: một chặng MỚI (chưa có id, chưa
+  // nằm trong `phases`) cần một câu trả lời riêng, không mượn `clampPhaseStartYear`.
+
+  it('năm gõ đã có chặng khác giữ thì dò năm trống gần nhất (hoà thì chọn phía TĂNG)', () => {
+    // 2035 = năm của p2 — trùng thẳng.
+    expect(freePhaseStartYear(chang, 2035, NAY, LAST)).toBe(2036)
+  })
+
+  it('năm gõ THẤP HƠN MỌI chặng đang có (kể cả chặng đầu) vẫn không được trùng chặng đầu — đúng ca Finding 1: mốc bị gõ tay xuống dưới currentYear', () => {
+    // Cách gọi CŨ (đã sửa) mô phỏng lại đúng lỗi: nhét chặng giả vào mảng rồi gọi
+    // `clampPhaseStartYear` — chặng giả (id 'moi', năm 2020) sắp xếp thành chặng ĐẦU
+    // (2020 < mọi năm khác), nên rơi vào Bất biến 1 và trả nguyên `currentYear` — TRÙNG
+    // hệt năm chặng đầu thật (p1 cũng ở NAY). `clampPhaseStartYear` không đổi hành vi này
+    // (nó vẫn đúng nhiệm vụ của nó — chặn một chặng ĐÃ CÓ); cái sai là dùng nó cho việc
+    // này.
+    const gia = clampPhaseStartYear([...chang, { id: 'moi', startYear: 2020 }], 'moi', 2020, NAY)
+    expect(gia).toBe(NAY) // = 2026 — trùng thẳng p1.startYear, đây chính là lỗi.
+
+    // `freePhaseStartYear` không đi qua Bất biến 1 (nó không có khái niệm "chặng đầu"),
+    // nên nó không trùng.
+    const dung = freePhaseStartYear(chang, 2020, NAY, LAST)
+    expect(dung).not.toBe(NAY)
+    expect(chang.some((p) => p.startYear === dung)).toBe(false)
+    // Kẹp về sàn (currentYear + 1) vì 2020 dưới sàn, và sàn đó đang trống.
+    expect(dung).toBe(NAY + 1)
+  })
+
+  it('hai lần thêm liên tiếp (bấm "Cưới" hai lần) ra hai năm khác nhau, lần hai nhích lên', () => {
+    // Cả hai lần đều gõ đúng `currentYear + 2` — công thức cố định của `onAddPreset` và
+    // ba mẫu sinh chặng (`cuoi`/`nghi-huu`/`chuyen-nuoc`).
+    const wanted = NAY + 2
+    const lanMot = freePhaseStartYear(chang, wanted, NAY, LAST)
+    expect(lanMot).toBe(wanted) // 2028 — trống, nhận thẳng.
+
+    const sauLanMot: PhaseYearSlot[] = [...chang, { id: 'p-lan-1', startYear: lanMot }]
+    const lanHai = freePhaseStartYear(sauLanMot, wanted, NAY, LAST)
+    expect(lanHai).not.toBe(lanMot)
+    expect(lanHai).toBe(wanted + 1) // nhích lên — hoà thì chọn phía tăng.
+  })
+
+  it('kiệt cả khoảng đang chiếu quanh lastYear thì dò tiếp ra ngoài, không dừng lại ở lastYear', () => {
+    // Đặc kín 11 năm liền, DÀN ĐỀU quanh `LAST` (2085..2095) — mô phỏng một bản chiếu đã
+    // dày đặc chặng gần cuối đời. Năm trống gần nhất phải nằm NGOÀI dải đặc kín, không bị
+    // chặn lại ở đúng `lastYear` (một cách cài sai hợp lý: tưởng `lastYear` là trần).
+    const dayDac: PhaseYearSlot[] = Array.from({ length: 11 }, (_, i) => ({
+      id: `p${i}`,
+      startYear: 2085 + i,
+    }))
+    expect(freePhaseStartYear(dayDac, LAST, NAY, LAST)).toBe(2096)
+  })
+
+  it('kiệt tới tận MAX_PHASE_YEAR (lý thuyết thuần tuý) thì trả năm ngay sau lastYear làm phao, không ném lỗi', () => {
+    const san = NAY + 1
+    const dacKinToiTran: PhaseYearSlot[] = Array.from(
+      { length: MAX_PHASE_YEAR - san + 1 },
+      (_, i) => ({ id: `p${i}`, startYear: san + i }),
+    )
+    expect(freePhaseStartYear(dacKinToiTran, san, NAY, LAST)).toBe(LAST + 1)
   })
 })

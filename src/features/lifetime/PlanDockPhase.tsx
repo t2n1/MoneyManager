@@ -30,7 +30,15 @@ import { MoneyField } from '../../components/MoneyField'
 import { ActionButton, Money, Num, Select } from '../../components/ui'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { DraftPhase } from './draft'
-import { DOCK_INPUT, DOCK_LABEL, DockPanel, IdentityRow, PhaseIcon, YearBox } from './PlanDockParts'
+import {
+  DOCK_INPUT,
+  DOCK_LABEL,
+  DockPanel,
+  IdentityRow,
+  PhaseIcon,
+  SegButton,
+  YearBox,
+} from './PlanDockParts'
 import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
 import { clampPhaseStartYear } from './phaseYear'
 
@@ -128,8 +136,14 @@ export function PlanDockPhase({
             // Chặng đầu KHÔNG có ô nhập: năm của nó là năm hiện tại, không phải một
             // lựa chọn (xem `phaseYear.ts`). Một ô nhập luôn tự chặn về đúng một giá
             // trị đọc ra như một ô bị hỏng.
+            //
+            // Hiện `phase.startYear` THẬT, KHÔNG `currentYear` cứng (phát hiện review
+            // 2026-09-09 #3). `PhaseFormSheet` (sheet cũ, sống tới Task 16) không ép "chặng
+            // đầu luôn = currentYear", nên dữ liệu chặng đầu lệch năm nay là một hình dạng
+            // có thật — hiện một chữ tĩnh SAI với dữ liệu thật là nói dối, và không có cách
+            // nào sửa nó từ đây (không ghi đè âm thầm — xem <Guide> ngay dưới).
             <span className="w-[3.75rem] shrink-0 text-center text-sm text-fg-muted">
-              <Num tone="muted">{currentYear}</Num>
+              <Num tone="muted">{phase.startYear}</Num>
             </span>
           ) : (
             <YearBox
@@ -147,11 +161,23 @@ export function PlanDockPhase({
           </span>
         }
       />
-      {laChangDau && (
-        <Guide className="mt-1 block text-2xs text-fg-muted">
-          Chặng đầu bắt đầu từ năm nay — bản chiếu tính từ hôm nay.
-        </Guide>
-      )}
+      {laChangDau &&
+        (phase.startYear === currentYear ? (
+          <Guide className="mt-1 block text-2xs text-fg-muted">
+            Chặng đầu bắt đầu từ năm nay — bản chiếu tính từ hôm nay.
+          </Guide>
+        ) : (
+          // Chặng đầu KHÔNG ở năm nay (dữ liệu cũ/hỏng — xem ghi chú ở `fromYear` trên).
+          // KHÔNG tự ghi đè về `currentYear` ở đây: dock không có nút Xong để tắt, nên mọi
+          // ô bị SAI thì bị CHẶN, nhưng đây không phải một ô — nó là một khác biệt dữ liệu
+          // có thật, và ghi đè âm thầm dữ liệu người dùng không phải việc của phép chặn.
+          // Sửa đúng cách là kéo chặng trên trục (Task 11), nên chỉ nói ra, không tự sửa.
+          <Guide className="mt-1 block text-2xs text-fg-muted">
+            Chặng đầu đang bắt đầu ở năm <Num tone="muted">{phase.startYear}</Num>, không phải
+            năm nay (<Num tone="muted">{currentYear}</Num>) — sửa bằng cách kéo chặng trên trục
+            khi khối chặng kéo được (sắp có).
+          </Guide>
+        ))}
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         {khoiTien('income')}
@@ -286,31 +312,16 @@ export function PlanDockPhase({
         </span>
         {prevPhase !== null && (
           <div role="group" aria-labelledby={gid} className="mb-1 flex gap-1">
-            <button
-              type="button"
-              aria-pressed={!dangDungPct}
-              onClick={() => ghiPct(null)}
-              className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                !dangDungPct
-                  ? 'bg-accent text-fg-on-accent'
-                  : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-              }`}
-            >
+            <SegButton active={!dangDungPct} onClick={() => ghiPct(null)}>
               Gõ số
-            </button>
-            <button
-              type="button"
-              aria-pressed={dangDungPct}
+            </SegButton>
+            <SegButton
+              active={dangDungPct}
               title={`Khai bằng phần trăm chặng "${prevPhase.label}"`}
               onClick={() => ghiPct(pct ?? 80)}
-              className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                dangDungPct
-                  ? 'bg-accent text-fg-on-accent'
-                  : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-              }`}
             >
               % chặng trước
-            </button>
+            </SegButton>
           </div>
         )}
 

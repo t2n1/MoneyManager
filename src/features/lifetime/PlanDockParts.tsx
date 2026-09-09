@@ -474,12 +474,58 @@ export function NumBox({
           if (emptyIsNull) onCommit(null)
           return
         }
-        const n = Number(raw)
+        // Dấu PHẨY là dấu thập phân của bàn phím/locale Việt — `Number("3,5")` là `NaN`
+        // nên không có bước này thì gõ "3,5" không commit gì, và blur làm ô nhảy về "3"
+        // (bắt được ở phát hiện review 2026-09-09 #4). Cùng idiom `replace(',', '.')` đã
+        // dùng ở fundFees.ts, rebalance.ts, BudgetMethodSheet.tsx.
+        const n = Number(raw.trim().replace(',', '.'))
         if (Number.isFinite(n)) onCommit(n)
       }}
       onBlur={() => setEditing(false)}
       className={`w-full text-right font-mono ${DOCK_INPUT}`}
     />
+  )
+}
+
+/**
+ * Một nút trong một cặp/bộ NÚT-ĐÓNG-VAI-CÔNG-TẮC của dock ("Gõ số"/"% chặng trước", "Chi"/
+ * "Thu", "Đang tính"/"Đang tắt" kiểu, "Không"/"Có — nhà, xe, đất", "Trả thẳng"/"Vay"…).
+ *
+ * Bảy chỗ gọi trong hai panel từng chép tay CÙNG một chuỗi class (phát hiện review
+ * 2026-09-09 #5) — bảy bản chép là bảy chỗ để lệch nếu một ngày bậc màu đổi, và bảy `active
+ * :scale-95` thô góp vào đúng trần guardrail đang mỏng (`tests/designSystem.test.ts`). MỘT
+ * chỗ định nghĩa còn giảm số lượt guardrail đó phải đếm.
+ *
+ * KHÔNG dùng cho hai nút chọn LOẠI của bản vẽ đã có primitive riêng (`FilterChip`,
+ * `ActionButton`) — đây chỉ đứng cho những cặp "nút pill nhỏ nằm trong một hàng
+ * `role="group"`" mà bản vẽ vẽ, chưa có primitive nào của app khớp đúng cỡ 32px + bo tròn
+ * hoàn toàn đó.
+ */
+export function SegButton({
+  active,
+  onClick,
+  children,
+  title,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={title}
+      onClick={onClick}
+      className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
+        active
+          ? 'bg-accent text-fg-on-accent'
+          : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 

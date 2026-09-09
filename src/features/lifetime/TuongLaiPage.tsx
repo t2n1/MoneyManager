@@ -56,7 +56,7 @@ import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
 import { PlanDock, type DockSelection } from './PlanDock'
-import { clampPhaseStartYear } from './phaseYear'
+import { freePhaseStartYear } from './phaseYear'
 import type { LifePreset, PresetContext } from './presets'
 import { phaseForYear, projectLifetime } from './project'
 import { lifetimeVerdict } from './summary'
@@ -442,12 +442,16 @@ function TuongLaiConsole() {
             const seed = ++newIdSeed.current
             // Năm của bản sao: ngay sau bản gốc, nhích tới năm còn trống —
             // `unique (scenario_id, start_year)` chặn năm trùng.
-            const y = clampPhaseStartYear(
-              [...working.phases, { id: 'ban-sao', startYear: selPhase.startYear + 1 }],
-              'ban-sao',
-              selPhase.startYear + 1,
-              currentYear,
-            )
+            //
+            // `freePhaseStartYear`, KHÔNG `clampPhaseStartYear` với một chặng giả nhét vào
+            // mảng: chặng giả đó có thể SẮP XẾP thành chặng đầu (khi `selPhase.startYear +
+            // 1` thấp hơn mọi chặng đang có — hiếm nhưng có thể qua đường "+ Chặng đời mới
+            // từ đây" tạo một chặng ở năm thấp), và khi đó `clampPhaseStartYear` rơi vào
+            // Bất biến 1 (chặng đầu luôn = `currentYear`) mà KHÔNG kiểm trùng — ra đúng
+            // năm chặng đầu THẬT đang giữ. Đây là gốc rễ phát hiện review 2026-09-09 #1;
+            // `freePhaseStartYear` (phaseYear.ts) là câu trả lời riêng cho "một chặng MỚI
+            // được sinh ở năm nào", có kiểm trùng thật.
+            const y = freePhaseStartYear(working.phases, selPhase.startYear + 1, currentYear, lastYear)
             editDraft((d) =>
               addDraftPhase(
                 d,
@@ -531,9 +535,21 @@ function TuongLaiConsole() {
             // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương
             // lai, và một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ
             // thị, chỗ khó kéo nhất. Cùng con số với màn cũ.
-            const nam = currentYear + 2
+            const wanted = currentYear + 2
             const seed = ++newIdSeed.current
-            const result = preset.build(buildPresetCtx(nam))
+            const probe = preset.build(buildPresetCtx(wanted))
+            // Phát hiện review 2026-09-09 #2: BA mẫu sinh CHẶNG (`cuoi`/`nghi-huu`/
+            // `chuyen-nuoc`) đều đặt `start_year: ctx.year`, và trước đây `nam` luôn là
+            // đúng MỘT giá trị cố định — bấm "Cưới" hai lần ra hai chặng cùng năm, Lưu nổ
+            // `unique (scenario_id, start_year)`. Sáu mẫu còn lại chỉ sinh SỰ KIỆN (không
+            // có ràng buộc unique theo năm), nên chỉ né năm khi mẫu THẬT SỰ sinh một chặng
+            // — dò năm khác cho một mẫu không đụng bảng `life_phases` là đổi hành vi không
+            // cần thiết.
+            const nam =
+              probe.phases.length > 0
+                ? freePhaseStartYear(working.phases, wanted, currentYear, lastYear)
+                : wanted
+            const result = nam === wanted ? probe : preset.build(buildPresetCtx(nam))
             editDraft((d) => applyPreset(d, result, seed))
             // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng (không mốc
             // nào) thì giữ nguyên lựa chọn — không có mốc để nhắm tới.
@@ -553,12 +569,14 @@ function TuongLaiConsole() {
           },
           onNewPhaseFromHere: () => {
             const seed = ++newIdSeed.current
-            const y = clampPhaseStartYear(
-              [...working.phases, { id: 'moi', startYear: selEvent.startYear }],
-              'moi',
-              selEvent.startYear,
-              currentYear,
-            )
+            // `freePhaseStartYear`, không `clampPhaseStartYear` với chặng giả nhét vào
+            // mảng — đúng ca đã sinh ra phát hiện review 2026-09-09 #1: một mốc bị gõ tay
+            // xuống một năm THẤP HƠN mọi chặng đang có (ô năm của mốc chỉ kẹp sàn ở 1900,
+            // không kẹp theo `currentYear` — xem `onCommit` của `fromYear` ở
+            // `PlanDockEvent.tsx`) làm chặng giả sắp xếp thành chặng ĐẦU, và
+            // `clampPhaseStartYear` trả nguyên `currentYear` không kiểm trùng — đúng năm
+            // chặng đầu thật đang giữ. Xem JSDoc `freePhaseStartYear` (phaseYear.ts).
+            const y = freePhaseStartYear(working.phases, selEvent.startYear, currentYear, lastYear)
             editDraft((d) =>
               addDraftPhase(
                 d,

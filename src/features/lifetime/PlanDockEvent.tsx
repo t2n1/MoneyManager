@@ -30,15 +30,7 @@ import { useId, useRef, useState } from 'react'
 import { ChevronDown, Copy, Layers, Trash2 } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
-import {
-  ActionButton,
-  Collapse,
-  FilterChip,
-  Money,
-  Num,
-  Select,
-  actionButtonClass,
-} from '../../components/ui'
+import { ActionButton, Collapse, FilterChip, Money, Num, Select } from '../../components/ui'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { useTraSo } from '../../hooks/queries'
 import type { DraftEvent } from './draft'
@@ -57,6 +49,7 @@ import {
   EndYearBox,
   IdentityRow,
   NumBox,
+  SegButton,
   YearBox,
 } from './PlanDockParts'
 import type { LifePreset } from './presets'
@@ -320,19 +313,9 @@ export function PlanDockEvent({
                 hiện bằng MÀU. */}
             <div role="group" aria-labelledby={`${uid}-chieu`} className="flex gap-1">
               {(['expense', 'income'] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={event.kind === k}
-                  onClick={() => onPatch({ kind: k })}
-                  className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                    event.kind === k
-                      ? 'bg-accent text-fg-on-accent'
-                      : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-                  }`}
-                >
+                <SegButton key={k} active={event.kind === k} onClick={() => onPatch({ kind: k })}>
                   {k === 'expense' ? 'Chi' : 'Thu'}
-                </button>
+                </SegButton>
               ))}
             </div>
           </div>
@@ -512,32 +495,17 @@ export function PlanDockEvent({
             Khoản này có mua một tài sản không
           </span>
           <div role="group" aria-labelledby={`${uid}-ts`} className="flex gap-1">
-            <button
-              type="button"
-              aria-pressed={!muaTaiSan}
+            <SegButton
+              active={!muaTaiSan}
               onClick={() =>
                 onPatch({ assetValueMinor: 0, loanMinor: 0, loanYears: 0, assetChangeBps: 0 })
               }
-              className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                !muaTaiSan
-                  ? 'bg-accent text-fg-on-accent'
-                  : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-              }`}
             >
               Không
-            </button>
-            <button
-              type="button"
-              aria-pressed={muaTaiSan}
-              onClick={() => onPatch({ assetValueMinor: 40_000_000 })}
-              className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                muaTaiSan
-                  ? 'bg-accent text-fg-on-accent'
-                  : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-              }`}
-            >
+            </SegButton>
+            <SegButton active={muaTaiSan} onClick={() => onPatch({ assetValueMinor: 40_000_000 })}>
               Có — nhà, xe, đất
-            </button>
+            </SegButton>
           </div>
         </div>
 
@@ -586,21 +554,11 @@ export function PlanDockEvent({
               Trả thế nào
             </span>
             <div role="group" aria-labelledby={`${uid}-vay`} className="flex gap-1">
-              <button
-                type="button"
-                aria-pressed={!dangVay}
-                onClick={() => onPatch({ loanMinor: 0, loanYears: 0 })}
-                className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                  !dangVay
-                    ? 'bg-accent text-fg-on-accent'
-                    : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-                }`}
-              >
+              <SegButton active={!dangVay} onClick={() => onPatch({ loanMinor: 0, loanYears: 0 })}>
                 Trả thẳng
-              </button>
-              <button
-                type="button"
-                aria-pressed={dangVay}
+              </SegButton>
+              <SegButton
+                active={dangVay}
                 // Mặc định 80% giá và 35 năm: đúng cách vay mua nhà phổ biến ở Nhật, và
                 // 20% trả trước là mức tránh được bảo hiểm khoản vay ở nhiều nước.
                 onClick={() =>
@@ -609,14 +567,9 @@ export function PlanDockEvent({
                     loanYears: event.loanYears > 0 ? event.loanYears : 35,
                   })
                 }
-                className={`min-h-8 flex-1 rounded-full text-2xs font-medium transition active:scale-95 ${
-                  dangVay
-                    ? 'bg-accent text-fg-on-accent'
-                    : 'border border-border-strong text-fg-secondary hover:bg-surface-sunken'
-                }`}
               >
                 Vay
-              </button>
+              </SegButton>
             </div>
 
             {dangVay && (
@@ -802,14 +755,10 @@ export function PlanDockEvent({
             <Layers className="h-3 w-3" aria-hidden="true" />
             Chặng đời mới từ đây
           </ActionButton>
-          <button
-            type="button"
-            onClick={onRemove}
-            className={actionButtonClass('danger', 'ml-auto px-2 py-1 text-2xs')}
-          >
+          <ActionButton variant="danger" onClick={onRemove} className="ml-auto px-2 py-1 text-2xs">
             <Trash2 className="h-3 w-3" aria-hidden="true" />
             Xoá mốc
-          </button>
+          </ActionButton>
         </div>
       </DockPanel>
 

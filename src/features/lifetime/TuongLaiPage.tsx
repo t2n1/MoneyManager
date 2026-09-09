@@ -74,6 +74,7 @@ import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { phasePresetToDraft, type PhasePreset } from './phasePresets'
 import { PhaseRowTools } from './PhaseRowTools'
+import { PlanListDrawer } from './PlanListDrawer'
 import { PlanDock, type DockSelection } from './PlanDock'
 // `clampPhaseStartYear` KHÔNG được import ở đây: nó là luật của Ô NĂM GÕ TAY và chỉ
 // `PlanDockPhase.tsx` gọi nó. Đường kéo đi qua `dragPhase.ts` — xem Finding 1 ở đó.
@@ -295,6 +296,8 @@ function TuongLaiConsole() {
   // ở đây), và nó ghi vào bản nháp — cả hai thứ đó sống ở trang. Vùng vẽ chỉ báo ra cử
   // chỉ và chỗ bấm, vì chỉ nó biết phép chiếu năm→pixel.
   const [quick, setQuick] = useState<{ span: YearSpan; at: PlotPoint } | null>(null)
+  /** Phiếu "Danh sách đầy đủ" — chip thứ ba của hàng 11 (bản vẽ). */
+  const [drawerOpen, setDrawerOpen] = useState(false)
   /** Tay cầm của vùng vẽ — `←`/`→` khi không chọn gì dời vạch rê chuột qua đây. */
   const plotRef = useRef<TimelinePlotHandle>(null)
 
@@ -1035,7 +1038,7 @@ function TuongLaiConsole() {
       quick: quick !== null,
       pick: false,
       hints: hintsOpen,
-      drawer: false,
+      drawer: drawerOpen,
       sel: sel.type !== 'none',
     })
     if (layer === 'quick') {
@@ -1046,10 +1049,14 @@ function TuongLaiConsole() {
       setHintsOpen(false)
       return
     }
+    if (layer === 'drawer') {
+      setDrawerOpen(false)
+      return
+    }
     if (layer === 'sel') {
       setSel((cur) => (cur.type === 'none' ? cur : { type: 'none' }))
     }
-  }, [quick, hintsOpen, sel])
+  }, [quick, hintsOpen, drawerOpen, sel])
 
   /** `←`/`→` — thứ đang chọn, hoặc vạch rê chuột khi không chọn gì (README). */
   const nudge = useCallback(
@@ -1262,6 +1269,42 @@ function TuongLaiConsole() {
   }
 
   /**
+   * Thêm một mẫu MỐC ở năm mặc định — dùng bởi cả panel mốc trong dock và phiếu "Danh
+   * sách đầy đủ". Trước đây thân hàm này nằm inline trong object của dock; hoist ra vì
+   * phiếu cần đúng luật đó, và hai bản sao của luật "né năm khi mẫu sinh chặng" là hai
+   * chỗ để lệch nhau (chính là phát hiện review 2026-09-09 #2).
+   */
+  const addPresetAtDefaultYear = useCallback(
+    (preset: LifePreset) => {
+      if (!working) return
+      // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương lai, và
+      // một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ thị, chỗ khó kéo
+      // nhất. Cùng con số với màn cũ.
+      const wanted = currentYear + 2
+      const seed = ++newIdSeed.current
+      const probe = preset.build(buildPresetCtx(wanted))
+      // BA mẫu sinh CHẶNG (`cuoi`/`nghi-huu`/`chuyen-nuoc`) đều đặt `start_year: ctx.year`
+      // — bấm "Cưới" hai lần ra hai chặng cùng năm và Lưu nổ `unique (scenario_id,
+      // start_year)`. Sáu mẫu còn lại chỉ sinh SỰ KIỆN (không có ràng buộc unique theo
+      // năm), nên chỉ né năm khi mẫu THẬT SỰ sinh một chặng.
+      const nam =
+        probe.phases.length > 0
+          ? freePhaseStartYear(working.phases, wanted, currentYear, lastYear)
+          : wanted
+      const result = nam === wanted ? probe : preset.build(buildPresetCtx(nam))
+      editDraft((d) => applyPreset(d, result, seed))
+      // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng thì giữ nguyên lựa
+      // chọn — không có mốc để nhắm tới.
+      if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
+      showToast(
+        `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+        'success',
+      )
+    },
+    [working, currentYear, lastYear, buildPresetCtx, editDraft],
+  )
+
+  /**
    * "Thử nghỉ việc từ <năm FIRE>" (spec §13, tryRetire.ts) — cắm mẫu Nghỉ hưu vào năm đó
    * và kéo tuổi chiếu lên `RETIRE_TRIAL_MIN_END_AGE`, TRONG BẢN NHÁP.
    *
@@ -1420,34 +1463,7 @@ function TuongLaiConsole() {
               : { nuoc: evPhase.country, tien: currencyAt(working.phases, selEvent.startYear, currency) },
           onPatch: (patch: Parameters<typeof patchDraftEvent>[2]) =>
             editDraft((d) => patchDraftEvent(d, selEvent.id, patch)),
-          onAddPreset: (preset: LifePreset) => {
-            // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương
-            // lai, và một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ
-            // thị, chỗ khó kéo nhất. Cùng con số với màn cũ.
-            const wanted = currentYear + 2
-            const seed = ++newIdSeed.current
-            const probe = preset.build(buildPresetCtx(wanted))
-            // Phát hiện review 2026-09-09 #2: BA mẫu sinh CHẶNG (`cuoi`/`nghi-huu`/
-            // `chuyen-nuoc`) đều đặt `start_year: ctx.year`, và trước đây `nam` luôn là
-            // đúng MỘT giá trị cố định — bấm "Cưới" hai lần ra hai chặng cùng năm, Lưu nổ
-            // `unique (scenario_id, start_year)`. Sáu mẫu còn lại chỉ sinh SỰ KIỆN (không
-            // có ràng buộc unique theo năm), nên chỉ né năm khi mẫu THẬT SỰ sinh một chặng
-            // — dò năm khác cho một mẫu không đụng bảng `life_phases` là đổi hành vi không
-            // cần thiết.
-            const nam =
-              probe.phases.length > 0
-                ? freePhaseStartYear(working.phases, wanted, currentYear, lastYear)
-                : wanted
-            const result = nam === wanted ? probe : preset.build(buildPresetCtx(nam))
-            editDraft((d) => applyPreset(d, result, seed))
-            // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng (không mốc
-            // nào) thì giữ nguyên lựa chọn — không có mốc để nhắm tới.
-            if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
-            showToast(
-              `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
-              'success',
-            )
-          },
+          onAddPreset: addPresetAtDefaultYear,
           onDuplicate: () => {
             const seed = ++newIdSeed.current
             editDraft((d) => {
@@ -2031,6 +2047,17 @@ function TuongLaiConsole() {
               `onEditEvent` cũng bị mất khi màn cũ nghỉ: master truyền nó nên bấm một dòng
               mốc trong bảng là mở trình sửa; ở đây các dòng đó render thành `<div>` trơ. Nối
               lại vào chính `sel` của dock — đúng đích mà bấm icon mốc trên trục cũng tới. */}
+          {/* HÀNG 11 — chip chuyển pane. Bản vẽ có BA chip: Bảng theo năm · Bản đồ khoản
+              lớn · Danh sách đầy đủ. Hôm nay bảng và bản đồ vẫn là hai thẻ tự gập (mỗi thẻ
+              mang chip riêng), nên ở đây chỉ thêm chip thứ ba — phiếu danh sách. Gộp cả ba
+              về MỘT pane dùng chung là việc riêng: `YearTableSection` và
+              `BigExpenseMapSection` đều tự dựng chip + thân, nên phải tách thân ra trước. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ActionButton variant="outline" onClick={() => setDrawerOpen(true)}>
+              Danh sách đầy đủ
+            </ActionButton>
+          </div>
+
           <YearTableSection
             rows={shownRows}
             currency={currency}
@@ -2049,6 +2076,17 @@ function TuongLaiConsole() {
             surplus={surplusForMap}
             rows={shownRows}
             hasMissingRate={missingRateCurrencies.length > 0}
+          />
+
+          <PlanListDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            phases={working?.phases ?? []}
+            events={working?.events ?? []}
+            currency={currency}
+            onSelectPhase={(id) => setSel({ type: 'phase', id })}
+            onSelectEvent={(id) => setSel({ type: 'event', id })}
+            onAddPreset={addPresetAtDefaultYear}
           />
         </div>
       }

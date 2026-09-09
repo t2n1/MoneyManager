@@ -121,10 +121,24 @@ export interface ComparisonLine {
 // re-export ở đây để chỗ gọi cũ không phải đổi đường import.
 export type { PlotZoom }
 
-/** Chỗ BẤM/KÉO trên nền, theo pixel TRONG hộp đã đo — chỗ gọi neo bảng chọn nhanh vào. */
+/**
+ * Chỗ BẤM/KÉO trên nền, theo pixel TRONG hộp đã đo — chỗ gọi neo bảng chọn nhanh vào.
+ *
+ * `plotLeft`/`plotRight` đi kèm vì chỉ vùng vẽ này biết chúng (lề đo được của CHÍNH hộp
+ * đang mở bảng, không phải một hằng số đoán trước) — chỗ gọi cần chúng để KẸP toạ độ
+ * ngang của bảng vào lòng vùng vẽ (`clampQuickBoardLeft`, `plotFrame.ts`; Finding 2, review
+ * 2026-09-09: trước bản này không có kẹp nào, dù một dòng comment ở `TuongLaiPage.tsx` đã
+ * khẳng định sai là có).
+ *
+ * KHÔNG có `y`: bản trước có (tính ở `onBgDown`/`openAtMiddle`) nhưng không chỗ gọi nào đọc
+ * nó — bảng luôn neo THEO TRỤC DỌC ở một hằng số cố định (`QUICK_TOP_PX`), không theo chỗ
+ * bấm (xem lời ghi ở `TuongLaiPage.tsx`). Một trường không ai đọc là chỗ để lệch âm thầm
+ * (Finding 5, review 2026-09-09) — bỏ hẳn thay vì giữ lại "phòng khi cần".
+ */
 export interface PlotPoint {
   x: number
-  y: number
+  plotLeft: number
+  plotRight: number
 }
 
 /**
@@ -447,7 +461,7 @@ export function TimelinePlot({
   const [band, setBand] = useState<YearSpan | null>(null)
   /** Chỗ NHẤN, pixel trong hộp — bảng neo vào đây (không neo theo chỗ nhả chuột: kéo từ
    *  phải sang trái thì bảng sẽ nhảy sang mép kia giữa lúc đang đọc nhãn dải). */
-  const pressAtRef = useRef<PlotPoint>({ x: 0, y: 0 })
+  const pressAtRef = useRef<PlotPoint>({ x: 0, plotLeft: 0, plotRight: 0 })
 
   const bgDrag = useYearDrag<{ year: number }>({
     yearAt,
@@ -466,21 +480,27 @@ export function TimelinePlot({
 
   const onBgDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Tự NHẢ tiêu điểm khỏi ô đang gõ — TRƯỚC gate `onQuickAdd` dưới đây, không sau
+      // (phát hiện review 2026-09-09, Finding 6). Đây là việc về TIÊU ĐIỂM, không phải việc
+      // của quick-add: chính `select-none` khai trên hộp này (để `useYearDrag` kéo không
+      // bôi đen chữ) đã chặn luôn hành vi nhả tiêu điểm MẶC ĐỊNH của trình duyệt khi bấm ra
+      // ngoài một ô đang gõ — bất kể có bắt cử chỉ quick-add hay không (`bgDrag.start` ở
+      // dưới còn `preventDefault()` thêm một lần nữa, nhưng bẫy đã có từ trước đó). Đặt sau
+      // gate thì một `TimelinePlot` dựng KHÔNG có `onQuickAdd` (màn cũ, nếu còn) vẫn giữ
+      // nguyên bẫy tiêu điểm này, và cả lớp bàn phím của trang im lặng theo
+      // (`isEditableTarget` chặn đúng như phải chặn), kể cả `Esc`.
+      const dangGo = document.activeElement
+      if (isEditableTarget(dangGo)) (dangGo as HTMLElement).blur()
+
       if (!onQuickAdd) return
       const el = boxRef.current
       const r = el?.getBoundingClientRect()
-      pressAtRef.current = { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) }
+      // `plotLeft`/`plotRight` đi kèm để chỗ gọi (TuongLaiPage) kẹp toạ độ ngang của bảng
+      // vào lòng vùng vẽ — xem lời ghi ở `PlotPoint`.
+      pressAtRef.current = { x: e.clientX - (r?.left ?? 0), plotLeft, plotRight }
       bgDrag.start({ year: yearAt(e.clientX) }, e)
-      // Tự NHẢ tiêu điểm khỏi ô đang gõ. `useYearDrag.start` gọi `preventDefault()` để
-      // chặn bôi đen, và tác dụng phụ của nó là trình duyệt KHÔNG còn tự dời tiêu điểm —
-      // nên sau khi gõ một số trong dock rồi bấm ra nền, tiêu điểm vẫn nằm trong ô đó và
-      // cả lớp bàn phím im lặng (`isEditableTarget` chặn đúng như phải chặn), kể cả `Esc`
-      // để đóng bảng vừa mở. Nhả tay là trả lại đúng hành vi mà `preventDefault` lấy đi,
-      // và nó còn chốt `onBlur` của ô số (xem `YearBox`/`NumBox`).
-      const dang = document.activeElement
-      if (isEditableTarget(dang)) (dang as HTMLElement).blur()
     },
-    [onQuickAdd, boxRef, bgDrag, yearAt],
+    [onQuickAdd, boxRef, bgDrag, yearAt, plotLeft, plotRight],
   )
 
   /**
@@ -521,8 +541,8 @@ export function TimelinePlot({
   /** Năm GIỮA trục — nút "Chọn mốc từ mẫu" của trạng thái rỗng mở bảng ở đây. */
   const openAtMiddle = useCallback(() => {
     const y = middleSpanYear(x0, x1)
-    onQuickAdd?.({ startYear: y, endYear: y }, { x: xs(y), y: (plotTop + plotBottom) / 2 })
-  }, [x0, x1, xs, plotTop, plotBottom, onQuickAdd])
+    onQuickAdd?.({ startYear: y, endYear: y }, { x: xs(y), plotLeft, plotRight })
+  }, [x0, x1, xs, plotLeft, plotRight, onQuickAdd])
 
   return (
     // `h-[35rem]` = 560px của bản vẽ ở cỡ chữ Vừa (spec §5). Là `rem` nên nó co giãn

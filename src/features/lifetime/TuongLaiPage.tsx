@@ -58,13 +58,14 @@ import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
 import { blockPhaseStartYearAtNeighbours, clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
-import { PIN_TOP, viewRange } from './plotFrame'
+import { PIN_TOP, clampQuickBoardLeft, viewRange } from './plotFrame'
 import type { LifePreset, PresetContext, PresetResult } from './presets'
 import { phaseForYear, projectLifetime } from './project'
 import { QuickAddBoard } from './QuickAddBoard'
 import { applySpanToResult } from './quickAddApply'
 import type { SpanApply, YearSpan } from './quickAddRange'
 import { lifetimeVerdict } from './summary'
+import { topLayer } from './topLayer'
 import {
   TimelinePlot,
   type ComparisonLine,
@@ -561,19 +562,38 @@ function TuongLaiConsole() {
     hideUndoToast()
   }, [undo, hideUndoToast])
 
-  /** `Esc` — đóng thứ đang mở TRÊN CÙNG, một lớp mỗi lần bấm. Popover trong dock tự lo
-   *  phần của nó và `stopPropagation` (xem `PlanDockParts`), nên nó không tới được đây. */
+  /**
+   * `Esc` — đóng thứ đang mở TRÊN CÙNG, một lớp mỗi lần bấm. Thứ tự ưu tiên là MỘT hàm
+   * thuần có test (`topLayer`, `topLayer.ts`), không phải một chuỗi `if` viết tay ở đây —
+   * xem lời ghi ở đó cho lý do (Finding 3, review 2026-09-09: hai lớp từng báo "đã xử lý
+   * Esc" bằng hai cơ chế khác nhau mà không phép thử nào thấy được).
+   *
+   * Popover trong dock (`pick`) tự lo phần của nó bằng `Esc` RIÊNG, ở pha capture,
+   * `preventDefault()` TRƯỚC khi sự kiện tới được listener của trang (xem
+   * `PlanDockParts.tsx`) — nên nó không bao giờ thật sự chạy tới `closeTop`. Luôn truyền
+   * `false` ở đây là đúng: `pick` sống trong `IdentityRow`, trang không có state đó. Cùng
+   * lý do, `drawer` luôn `false` — `PlanListDrawer` chưa dựng.
+   */
   const closeTop = useCallback(() => {
-    if (quick !== null) {
+    const layer = topLayer({
+      quick: quick !== null,
+      pick: false,
+      hints: hintsOpen,
+      drawer: false,
+      sel: sel.type !== 'none',
+    })
+    if (layer === 'quick') {
       setQuick(null)
       return
     }
-    if (hintsOpen) {
+    if (layer === 'hints') {
       setHintsOpen(false)
       return
     }
-    setSel((cur) => (cur.type === 'none' ? cur : { type: 'none' }))
-  }, [quick, hintsOpen])
+    if (layer === 'sel') {
+      setSel((cur) => (cur.type === 'none' ? cur : { type: 'none' }))
+    }
+  }, [quick, hintsOpen, sel])
 
   /** `←`/`→` — thứ đang chọn, hoặc vạch rê chuột khi không chọn gì (README). */
   const nudge = useCallback(
@@ -1200,18 +1220,25 @@ function TuongLaiConsole() {
             onQuickAdd={(span, at) => setQuick({ span, at })}
           />
 
-          {/* BẢNG CHỌN NHANH. Kẹp toạ độ NGANG trong lòng vùng vẽ, đúng idiom mà chip đọc
-              số trong `TimelinePlot` dùng: ở hai mép trục, `translateX(-50%)` đẩy một nửa
-              bảng ra ngoài thẻ, và ở mép phải nó chui xuống dưới cột dock.
+          {/* BẢNG CHỌN NHANH. Kẹp toạ độ NGANG bằng `clampQuickBoardLeft` (plotFrame.ts) —
+              cùng idiom `Math.min(Math.max(x, lo), hi)` mà nhãn dải kéo và chip đọc số
+              trong `TimelinePlot` dùng, chỉ khác nửa bề rộng nhét vào là của CẢ BẢNG
+              (`QUICK_BOARD_HALF_W_PX`). KHÔNG kẹp thì ở hai mép trục, `translateX(-50%)`
+              đẩy một nửa bảng ra ngoài thẻ — `ConsoleFrame` không có `overflow-hidden` nên
+              nó lồi hẳn ra chứ không bị cắt (phát hiện review 2026-09-09, Finding 2: một
+              bản trước của comment này từng khẳng định có kẹp trong khi code không làm
+              vậy — bản này sửa CẢ HAI, code lẫn lời ghi).
 
-              Còn theo trục DỌC thì bảng neo ở TRÊN, không ở chỗ bấm — lệch bản vẽ có chủ
-              đích: bản vẽ khoá khung 1080px nên bảng mở ở đâu cũng còn chỗ, còn vùng vẽ ở
-              đây cao 35rem và bảng cao tới 18rem, nên mở ở nửa dưới là quá nửa bảng nằm
-              ngoài. Cùng lý lẽ đã dùng cho chip đọc số. */}
+              Theo trục DỌC thì bảng neo ở TRÊN, không ở chỗ bấm — lệch bản vẽ có chủ đích:
+              bản vẽ khoá khung 1080px nên bảng mở ở đâu cũng còn chỗ, còn vùng vẽ ở đây cao
+              35rem và bảng cao tới 18rem, nên mở ở nửa dưới là quá nửa bảng nằm ngoài. */}
           {quick !== null && (
             <div
               className="absolute z-40 -translate-x-1/2"
-              style={{ top: QUICK_TOP_PX, left: quick.at.x }}
+              style={{
+                top: QUICK_TOP_PX,
+                left: clampQuickBoardLeft(quick.at.x, quick.at.plotLeft, quick.at.plotRight),
+              }}
             >
               <QuickAddBoard
                 span={quick.span}

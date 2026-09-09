@@ -3,6 +3,8 @@ import { makeXScale } from './chartGeom'
 import {
   PIN_W,
   PLOT_LEFT,
+  QUICK_BOARD_HALF_W_PX,
+  clampQuickBoardLeft,
   laneBlocks,
   magnetToPhaseStart,
   pinEndX,
@@ -231,5 +233,30 @@ describe('pinEndX', () => {
 
   it('mép phải thắng cả sàn khoảng hở khi mốc bắt đầu sát mép', () => {
     expect(pinEndX(990, 995, 1000)).toBe(1000)
+  })
+})
+
+// Finding 2 (review 2026-09-09): trước bản này KHÔNG có kẹp nào — bấm gần mép trái hoặc
+// phải trục đẩy bảng chọn nhanh lồi ra ngoài `ConsoleFrame` (không `overflow-hidden`).
+describe('clampQuickBoardLeft', () => {
+  // Hộp rộng 1200px cùng bản demo ở trên: PLOT_LEFT = 52, RIGHT = plotRightOf(1200).
+  const right = plotRightOf(1200)
+
+  it('bấm sát mép TRÁI trục — bảng bị đẩy vào trong, không lồi khỏi PLOT_LEFT', () => {
+    const left = clampQuickBoardLeft(PLOT_LEFT, PLOT_LEFT, right)
+    expect(left).toBe(PLOT_LEFT + QUICK_BOARD_HALF_W_PX)
+    // Mép trái THẬT của bảng (sau `translateX(-50%)`) không được âm so với PLOT_LEFT.
+    expect(left - QUICK_BOARD_HALF_W_PX).toBeGreaterThanOrEqual(PLOT_LEFT)
+  })
+
+  it('bấm sát mép PHẢI trục — bảng bị đẩy vào trong, không lồi khỏi mép phải vùng vẽ', () => {
+    const left = clampQuickBoardLeft(right, PLOT_LEFT, right)
+    expect(left).toBe(right - QUICK_BOARD_HALF_W_PX)
+    expect(left + QUICK_BOARD_HALF_W_PX).toBeLessThanOrEqual(right)
+  })
+
+  it('bấm giữa trục — không bị kẹp, giữ đúng chỗ bấm', () => {
+    const giua = (PLOT_LEFT + right) / 2
+    expect(clampQuickBoardLeft(giua, PLOT_LEFT, right)).toBe(giua)
   })
 })

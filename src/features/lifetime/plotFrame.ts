@@ -247,3 +247,33 @@ export function pinRowCount(rows: readonly number[]): number {
   for (const r of rows) max = Math.max(max, r + 1)
   return Math.max(1, max)
 }
+
+/**
+ * Nửa bề rộng của bảng chọn nhanh (`QuickAddBoard.tsx`, `w-[26rem]`), PIXEL, ở Cỡ chữ TO
+ * NHẤT (`xl` = 1,25×, xem `fontScale.ts`): 26rem × 16px × 1,25 ÷ 2 = 260.
+ *
+ * Dùng đúng một trần này cho MỌI cỡ chữ — không đo DOM thật của bảng — là CỐ Ý: ở cỡ chữ
+ * nhỏ hơn 1,25× bảng hẹp hơn 260px thật, nên kẹp hơi rộng tay hơn mức cần, nhưng bảng
+ * KHÔNG BAO GIỜ tràn ra ngoài vùng vẽ ở bất kỳ cỡ chữ nào — đo đúng cỡ thật cần một
+ * ResizeObserver thứ hai gắn vào chính bảng (bảng là phần tử của trang, không phải của
+ * `TimelinePlot`), phức tạp hơn nhiều so với cái giá phải trả (kẹp rộng tay vài chục pixel
+ * ở Cỡ chữ Vừa).
+ */
+export const QUICK_BOARD_HALF_W_PX = 260
+
+/**
+ * Kẹp toạ độ NGANG của bảng chọn nhanh (`QuickAddBoard`) vào lòng vùng vẽ — cùng idiom
+ * `Math.min(Math.max(x, lo), hi)` mà nhãn dải kéo và chip đọc số trong `TimelinePlot` đã
+ * dùng cho chính bài toán này (đẩy tâm của một hộp `translateX(-50%)` ra khỏi hai mép),
+ * chỉ khác nửa bề rộng nhét vào là của CẢ BẢNG (`QUICK_BOARD_HALF_W_PX`) thay vì của một
+ * chip nhỏ.
+ *
+ * Phát hiện review 2026-09-09 (Finding 2): trước bản này, `left` của bảng KHÔNG được kẹp
+ * gì cả — một dòng comment ở `TuongLaiPage.tsx` từng khẳng định nó có, nhưng code thật
+ * không làm vậy, nên bấm gần mép trái/phải trục đẩy bảng lồi ra ngoài thẻ (`ConsoleFrame`
+ * không có `overflow-hidden`).
+ */
+export function clampQuickBoardLeft(x: number, plotLeft: number, plotRight: number): number {
+  const half = QUICK_BOARD_HALF_W_PX
+  return Math.min(Math.max(x, plotLeft + half), plotRight - half)
+}

@@ -25,9 +25,19 @@
 //
 // 4. `+ Mốc trống` KHÔNG dựng qua `presets.ts`. Nó cố tình không có số nào để "kiểm tra
 //    lại": người dùng chọn nó chính vì không mẫu nào khớp việc của họ.
+//
+// 5. MỖI CHIP MỘT MÀU RIÊNG (dsg-handoff/README.md §"Bảng chọn nhanh": "10 chip mẫu, mỗi
+//    chip một màu riêng"; Finding 1, review 2026-09-09). Màu tới từ `preset.color`
+//    (presets.ts) — cùng khoá bảy màu dùng chung toàn app — và tô VIVID đúng cách
+//    `EventPins` tô viền/icon một mốc đã có màu riêng (không phải nền đặc như `Swatch`
+//    "muted" của dock — đó là màu của CHẶNG, tô trầm). `presets.ts` tự gán `preset.color`
+//    làm `color` cho mọi sự kiện mà `build()` sinh ra, nên mốc bấm ra từ chip này có màu
+//    ngay lập tức — không phải người dùng tự tô tay sau khi thêm.
 import { ArrowDownCircle, ArrowUpCircle, Plus, X } from 'lucide-react'
+import { Guide } from '../../components/Guide'
 import { ActionButton, Card, IconButton, Money, Num, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
+import { TAG_HEX } from '../tags/colors'
 import { LIFE_PRESETS, type LifePreset, type PresetContext, type PresetResult } from './presets'
 import { presetWeight } from './presetWeight'
 import { applySpanToResult } from './quickAddApply'
@@ -95,11 +105,25 @@ export function QuickAddBoard({
           </IconButton>
         </div>
 
+        {/* Finding 4 (review 2026-09-09): hai nhánh này TỪNG chung một `<p>` qua một biểu
+            thức ba ngôi — guardrail `tests/designSystem.test.ts` đếm văn xuôi bằng cách
+            BÓC hết `{…}` rồi đếm ký tự còn lại, nên cả khối tính ra 0 ký tự dù có ~120 ký
+            tự chữ DẠY thật bên trong (thoát trần bằng một kỹ thuật, không phải bằng việc
+            thật sự ngắn). Tách THẬT theo đúng ranh giới `Guide.tsx` vẽ (dòng 6-10): câu
+            CHỈ ĐƯỜNG ngắn, GIỐNG NHAU cho cả hai nhánh ("chọn một mẫu"), đứng NGOÀI
+            `<Guide>` — đúng ngoại lệ trạng thái rỗng mà `Guide.tsx:12-17` ghi, và đủ ngắn
+            (<45 ký tự) nên guardrail tự bỏ qua theo đúng thiết kế của nó, không phải một kẽ
+            hở. Phần GIẢI THÍCH — mỗi mẫu HIỂU khoảng đã kéo thế nào, số là mặc định chưa
+            ghi gì — là chữ DẠY thật, bọc `<Guide>`, biến mất ở chế độ Gọn (mặc định của
+            app) đúng như mọi đoạn dạy khác. KHÔNG nâng PROSE_MAX. */}
         <p className="mt-1 text-2xs leading-relaxed text-fg-muted">
-          {years <= 1
-            ? 'Chọn một mẫu để thêm vào bản nháp — số mặc định, kiểm lại rồi kéo trên đồ thị. Chưa có gì được ghi cho tới khi bấm Lưu.'
-            : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}
+          Chọn một mẫu để thêm vào bản nháp.
         </p>
+        <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
+          {years <= 1
+            ? 'Số mặc định, kiểm lại rồi kéo trên đồ thị. Chưa có gì được ghi cho tới khi bấm Lưu.'
+            : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}
+        </Guide>
 
         {/* Vùng cuộn: mười mẫu + một nút, ở Cỡ chữ 1,25× chúng cao hơn nửa vùng vẽ. Chặn
             bằng `max-h-[18rem]` (rem, co theo Cỡ chữ) chứ không để bảng dài ra khỏi đồ thị. */}
@@ -150,9 +174,18 @@ function PresetChip({
   // Nặng cỡ nào — tính trên mẫu ĐÃ hấp thu khoảng (lời ghi 3 ở đầu file).
   const weight = presetWeight(result, currency)
   const netOut = weight === null || weight.amountMinor >= 0
+  // Màu riêng của chip (lời ghi 5 ở đầu file) — VIVID: viền + chữ, cùng cặp thuộc tính mà
+  // `EventPins` tô cho một mốc đã có màu (border-color + color, không phải nền đặc). Mũi
+  // tên Thu/Chi bên dưới giữ nguyên `text-money-out`/`text-money-in` của riêng nó — class
+  // trên chính SVG thắng `color` kế thừa từ button, nên nó không đổi màu theo preset.
+  const mau = TAG_HEX[preset.color]
 
   return (
-    <ActionButton onClick={() => onAdd(preset, apply, result)} title={preset.hint}>
+    <ActionButton
+      onClick={() => onAdd(preset, apply, result)}
+      title={preset.hint}
+      style={{ borderColor: mau, color: mau }}
+    >
       {netOut ? (
         <ArrowDownCircle className="h-3.5 w-3.5 shrink-0 text-money-out" aria-hidden="true" />
       ) : (

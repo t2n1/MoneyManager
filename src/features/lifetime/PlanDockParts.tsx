@@ -157,9 +157,26 @@ export function IdentityRow({
  * Nút 33×33 mở một popover NGAY DƯỚI nó (bản vẽ). Đóng khi: chọn xong (chỗ gọi lo),
  * `Esc`, hoặc bấm ra ngoài.
  *
- * `stopPropagation` trên `Esc`: trang Tương lai cũng bắt `Esc` để bỏ chọn (spec §11), và
- * hai lớp cùng nghe thì một cú Esc đóng cả popover LẪN cả panel — người dùng mất chỗ
- * đang sửa vì muốn đóng một bộ chọn màu. Cùng luật với `PhaseFormSheet`/`EventFormSheet`.
+ * SỬA Finding 3 (review 2026-09-09): bản trước dùng `e.stopPropagation()`, và lời ghi ở
+ * đây từng khẳng định nó chặn được lớp `Esc` của trang — SAI, vì `stopPropagation` không
+ * chặn LISTENER KHÁC trên CÙNG một target, mà cả popover này lẫn `useConsoleKeys.ts` đều
+ * nghe trên `window`. Tệ hơn: `useConsoleKeys` gắn listener ở lúc TRANG mount, tức luôn
+ * SỚM HƠN listener của popover (chỉ gắn khi `open` bật, sau khi người dùng đã chọn một mốc
+ * rồi mở bộ chọn) — mà listener trên cùng target chạy theo ĐÚNG THỨ TỰ đã gắn, nên ở pha
+ * NỔI BỌT (bubble, mặc định của `addEventListener`), listener của trang luôn chạy TRƯỚC,
+ * bất kể popover gọi gì. Một cú Esc vì vậy đóng CẢ popover LẪN cả panel chứa nó (`closeTop`
+ * xoá `sel`) — người dùng mất chỗ đang sửa vì muốn đóng một bộ chọn màu.
+ *
+ * Sửa bằng HAI thay đổi cùng lúc, thiếu một là còn bug:
+ * 1. `capture: true` khi gắn/gỡ — listener ở pha BẮT (capture) trên `window` luôn chạy
+ *    TRƯỚC mọi listener nổi bọt trên `window` (capture đi từ ngoài vào trước, bubble đi từ
+ *    trong ra sau), bất kể ai gắn trước ai. Đây là cách DUY NHẤT đảo lại đúng thứ tự "trang
+ *    gắn trước, popover gắn sau" ở trên.
+ * 2. `e.preventDefault()` thay `stopPropagation()` — `useConsoleKeys.ts` đã bắt đúng cờ này
+ *    (`if (e.defaultPrevented) return`), nên chỉ cần đặt nó trước khi trang kịp đọc.
+ *
+ * Đủ cả hai thì popover đóng, `defaultPrevented` bật ở pha capture, rồi tới lúc trang đọc
+ * ở pha bubble thì đã thấy cờ và bỏ qua — panel không bị đóng ké.
  */
 function Popover({
   open,
@@ -180,16 +197,18 @@ function Popover({
     if (!open) return
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
-      e.stopPropagation()
+      e.preventDefault()
       onOpenChange(false)
     }
     function onDown(e: MouseEvent) {
       if (!boxRef.current?.contains(e.target as Node)) onOpenChange(false)
     }
-    window.addEventListener('keydown', onKey)
+    // `true` = pha BẮT (capture) cho `keydown` — xem lời ghi ở trên cho lý do bắt buộc.
+    // `mousedown` giữ nguyên pha nổi bọt (mặc định): nó không tranh chấp với lớp nào khác.
+    window.addEventListener('keydown', onKey, true)
     window.addEventListener('mousedown', onDown)
     return () => {
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('mousedown', onDown)
     }
   }, [open, onOpenChange])

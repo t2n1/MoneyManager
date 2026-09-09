@@ -23,6 +23,7 @@
 // được, không sai âm thầm.
 import type { NewLifeEvent, NewLifePhase } from '../../data/repo'
 import type { CurrencyCode } from '../../lib/currencies'
+import type { TagColorKey } from '../tags/colors'
 
 export interface PresetContext {
   scenarioId: string
@@ -69,6 +70,21 @@ export interface LifePreset {
   hint: string
   /** UI hỏi năm nào cho mẫu này. */
   yearLabel: string
+  /**
+   * Khoá màu RIÊNG của mẫu này — một trong bảy khoá dùng chung toàn app
+   * (`features/tags/colors.ts`), không phải hex. Hai chỗ dùng nó:
+   *
+   * 1. Chip trên bảng chọn nhanh (`QuickAddBoard`) tô theo khoá này, VIVID — cùng cách
+   *    `EventPins` tô viền/icon một mốc đã có màu riêng — nên mười chip trông khác nhau
+   *    ngay trước khi bấm, đúng dsg-handoff/README.md §"Bảng chọn nhanh" ("10 chip mẫu,
+   *    mỗi chip một màu riêng").
+   * 2. `LIFE_PRESETS` (export ở cuối file) TỰ gán khoá này làm `color` cho MỌI sự kiện mà
+   *    `build()` sinh ra — mốc mới tạo từ mẫu có màu ngay, không phải người dùng tự tô tay
+   *    từng cái sau khi bấm. Đây là lý do field này nằm ở tầng `LifePreset` (một khoá cho
+   *    cả mẫu) chứ không phải trong từng lời gọi `ev()` riêng lẻ bên dưới: một chỗ khai thì
+   *    không có chỗ nào quên tô cho một sự kiện của cùng một mẫu.
+   */
+  color: TagColorKey
   build(ctx: PresetContext): PresetResult
 }
 
@@ -208,12 +224,43 @@ const FURTHER_STUDY_INCOME_CUT_ANNUAL_JPY = 1_000_000
  *  chưa tra nguồn (2026-09-09). */
 const FURTHER_STUDY_YEARS = 2
 
-export const LIFE_PRESETS: LifePreset[] = [
+/**
+ * NHÓM MÀU — chín mẫu trên bảy khoá (`TAG_COLOR_KEYS`), tra tại review 2026-09-09
+ * (Finding 1). Không có đủ khoá cho mỗi mẫu một màu riêng biệt tuyệt đối, nên việc phải
+ * làm là chọn CẶP nào được phép trùng màu — không phải cố nhét đủ chín màu khác nhau.
+ *
+ * Ba cặp bản vẽ/review nêu tên phải PHÂN BIỆT được, vì người dùng nhiều khả năng cân nhắc
+ * chúng CÙNG LÚC trong một kế hoạch (mua nhà rồi mua xe, cưới rồi sinh con, nghỉ hưu và
+ * khoản hưu trí đi kèm nó):
+ *   - `mua-nha` (amber) / `mua-xe` (sky) — hai khoản tài sản có vay, dễ đứng cạnh nhau
+ *     trên cùng một trục năm.
+ *   - `sinh-con` (green) / `cuoi` (pink) — hai mốc gia đình liền mạch theo trình tự
+ *     thường gặp (cưới rồi mới sinh con).
+ *   - `nghi-huu` (indigo) / `ho-tro-bo-me` (red) — cả hai đều là dòng tiền RA/VÀO tuổi
+ *     già (lương hưu nhận về, tiền gửi bố mẹ gửi đi), một kế hoạch nghỉ hưu nghiêm túc
+ *     thường có cả hai.
+ *
+ * Ba mẫu còn lại (`chuyen-nuoc`, `du-lich`, `hoc-them`) là ba việc THẤT THƯỜNG, ít khi ai
+ * đó lên kế hoạch cả ba cùng lúc với nhau HAY cùng lúc với đúng mẫu chúng mượn màu — nên
+ * chỗ trùng màu được đặt ở đây, không phải ở ba cặp bắt buộc phân biệt bên trên:
+ *   - `chuyen-nuoc` → gray: khoá còn lại chưa dùng, và "chưa biết nước nào" (xem hint của
+ *     chính mẫu này) hợp với một màu trung tính hơn là một màu có sắc.
+ *   - `du-lich` → sky (mượn của `mua-xe`): cả hai là chi tiêu lối sống không bắt buộc,
+ *     nhưng một cái là MỘT LẦN mua xe còn cái kia LẶP mỗi 2 năm — hình dạng trên trục đã
+ *     đủ khác (một icon có chốt dài vs nhiều icon lặp lại) nên trùng màu ít gây nhầm hơn
+ *     nếu đặt cạnh `mua-nha`/`sinh-con`.
+ *   - `hoc-them` → amber (mượn của `mua-nha`): cùng là một khoản ĐẦU TƯ dài hạn (nhà ở /
+ *     bằng cấp), nhưng khác hẳn về quy mô và tần suất xuất hiện trong một kế hoạch thật
+ *     (mua nhà là một cột mốc lớn hiếm khi lặp; học thêm là một khoá ngắn 2 năm) nên ít
+ *     khi cả hai cùng nổi bật trên trục ở gần nhau.
+ */
+const RAW_PRESETS: LifePreset[] = [
   {
     id: 'cuoi',
     label: 'Cưới',
     hint: 'Tạo một chặng đời mới (thu chi nền đổi) và một khoản chi cho đám cưới.',
     yearLabel: 'Năm cưới',
+    color: 'pink',
     build: (ctx) => ({
       phases: [
         {
@@ -249,6 +296,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Sinh con',
     hint: 'Tạo chùm sự kiện theo mốc tuổi con: trợ cấp, chi phí nuôi từng bậc, đại học.',
     yearLabel: 'Năm sinh của con',
+    color: 'green',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -304,6 +352,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Mua nhà',
     hint: 'Một khoản trả trước và một khoản trả vay hằng năm tới năm trả hết.',
     yearLabel: 'Năm mua',
+    color: 'amber',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -335,6 +384,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Mua xe',
     hint: 'Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).',
     yearLabel: 'Năm mua',
+    color: 'sky',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -390,6 +440,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Nghỉ hưu',
     hint: 'Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.',
     yearLabel: 'Năm nghỉ hưu',
+    color: 'indigo',
     build: (ctx) => ({
       phases: [
         {
@@ -434,6 +485,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     // không đoán. Nói ra đúng việc nó làm, kèm việc người dùng phải tự làm tiếp.
     hint: 'Chặng mới giữ nguyên thu chi nền và tiền hiện tại — tự sửa quốc gia, tiền và tỷ giá của chặng sau khi tạo. Kèm chi phí chuyển một lần.',
     yearLabel: 'Năm chuyển',
+    color: 'gray',
     build: (ctx) => ({
       phases: [
         {
@@ -469,6 +521,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Hỗ trợ bố mẹ ở VN',
     hint: 'Khoản gửi về hằng năm, mặc định tiền VND, có năm kết thúc.',
     yearLabel: 'Năm bắt đầu gửi',
+    color: 'red',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -493,6 +546,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Du lịch',
     hint: 'Một khoản chi lặp lại mỗi vài năm, không phải một lần.',
     yearLabel: 'Năm đầu',
+    color: 'sky',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -517,6 +571,7 @@ export const LIFE_PRESETS: LifePreset[] = [
     label: 'Học thêm',
     hint: 'Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.',
     yearLabel: 'Năm bắt đầu',
+    color: 'amber',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -554,3 +609,23 @@ export const LIFE_PRESETS: LifePreset[] = [
     }),
   },
 ]
+
+/**
+ * `LIFE_PRESETS` THẬT — bọc `RAW_PRESETS` để gán `color` của mẫu lên MỌI sự kiện mà
+ * `build()` sinh ra, một lần duy nhất ở đây thay vì ở từng lời gọi `ev()` bên trên (Finding
+ * 1, review 2026-09-09). Một chỗ gán thì không có `ev()` nào của một mẫu MỚI thêm sau này
+ * quên tô màu — thiếu field `color` ở khai báo `RAW_PRESETS` đã là lỗi biên dịch (field
+ * bắt buộc trên `LifePreset`), và có nó rồi thì build() luôn tô đúng, không cần nhớ.
+ *
+ * Không đụng tới `phases`: mốc (event) là thứ tô TƯƠI trên đồ thị (spec §8, xem
+ * `EventPins`/`TimelinePlot`); chặng (phase) tô TRẦM trong dock và đã có `color` riêng của
+ * nó do người dùng tự chọn — mẫu áp màu hộ cho chặng sẽ đè lên lựa chọn đó trước khi người
+ * dùng kịp thấy, còn mốc thì đằng nào cũng bắt đầu không màu nên áp mặc định ở đây an toàn.
+ */
+export const LIFE_PRESETS: LifePreset[] = RAW_PRESETS.map((p) => ({
+  ...p,
+  build: (ctx) => {
+    const r = p.build(ctx)
+    return { phases: r.phases, events: r.events.map((e) => ({ ...e, color: p.color })) }
+  },
+}))

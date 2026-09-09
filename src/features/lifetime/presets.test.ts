@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TAG_COLOR_KEYS } from '../tags/colors'
 import { eventAmountInYear, type EventShape } from './eventAmount'
 import { LIFE_PRESETS, PENSION_START_AGE, type PresetContext } from './presets'
 
@@ -37,6 +38,31 @@ describe('LIFE_PRESETS', () => {
         'sinh-con',
       ].sort(),
     )
+  })
+
+  // Finding 1 (review 2026-09-09): mỗi chip trên bảng chọn nhanh phải có một màu riêng
+  // (dsg-handoff/README.md §"Bảng chọn nhanh"), và mốc sinh ra từ mẫu phải mang màu đó
+  // ngay từ lúc tạo — không phải người dùng tự tô tay. Test này khoá CẢ HAI vế: field
+  // `color` phải có mặt và phải là một khoá hợp lệ của bảng bảy màu dùng chung
+  // (`TAG_COLOR_KEYS`), để một mẫu thêm sau này không lọt qua mà thiếu màu hoặc gõ nhầm
+  // một chuỗi không phải khoá (compile vẫn xanh vì `color` chỉ là string ở tầng TypeScript
+  // khi gõ tay một literal sai, nhưng test này bắt được ở runtime).
+  it('mọi mẫu đều có màu riêng, và màu đó là một khoá hợp lệ của bảng bảy màu', () => {
+    for (const p of LIFE_PRESETS) {
+      expect(p.color, p.id).toBeTruthy()
+      expect(TAG_COLOR_KEYS, p.id).toContain(p.color)
+    }
+  })
+
+  // Mốc sinh ra từ build() phải mang ĐÚNG màu của preset — không phải chỉ preset.color
+  // đúng mà build() lại quên gán (hai nửa của cùng một cam kết, xem comment tại
+  // `LIFE_PRESETS` trong presets.ts).
+  it('mọi sự kiện build() sinh ra đều mang color trùng preset.color', () => {
+    for (const p of LIFE_PRESETS) {
+      for (const e of p.build(ctx).events) {
+        expect(e.color, `${p.id}/${e.label}`).toBe(p.color)
+      }
+    }
   })
 
   it('mọi bản ghi sinh ra đều gắn đúng scenario_id', () => {

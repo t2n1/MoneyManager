@@ -64,9 +64,22 @@ Every task's requirements implicitly include this section.
 
 In `src/data/demoRepo.test.ts`:
 
+`NewLifeScenario` requires **all eight** fields — `name`, `display_currency`, `end_age`,
+`real_return_bps`, `band_spread_bps`, `starting_assets_minor`, `nominal_terms`,
+`is_primary`. A one-field literal does not compile.
+
 ```ts
 it('chặng giữ được màu và icon, không khai thì rỗng', async () => {
-  const sc = await demoRepo.createLifeScenario({ name: 'Thử màu chặng' })
+  const sc = await demoRepo.createLifeScenario({
+    name: 'Thử màu chặng',
+    display_currency: 'JPY',
+    end_age: 70,
+    real_return_bps: 300,
+    band_spread_bps: 130,
+    starting_assets_minor: 7_656_924,
+    nominal_terms: false,
+    is_primary: true,
+  })
   const coMau = await demoRepo.createLifePhase({
     scenario_id: sc.id,
     start_year: 2026,
@@ -209,8 +222,10 @@ describe('curvePath', () => {
     expect(curvePath([[10, 20]])).toBe('M10.0 20.0')
   })
 
-  it('hai điểm là một đoạn thẳng, không sinh khúc cong', () => {
-    expect(curvePath([[0, 0], [10, 10]])).toBe('M0.0 0.0 C0.0 0.0 10.0 10.0 10.0 10.0')
+  it('hai điểm: control point ở 1/6 nhịp, không phải ở hai đầu', () => {
+    // Catmull-Rom ở đầu/cuối LẶP LẠI điểm biên, nên control point rơi vào ±1/6 nhịp:
+    // c1 = 0 + (10−0)/6 = 1,667 · c2 = 10 − (10−0)/6 = 8,333. Đã tính tay để chốt.
+    expect(curvePath([[0, 0], [10, 10]])).toBe('M0.0 0.0 C1.7 1.7 8.3 8.3 10.0 10.0')
   })
 
   it('CHẶN control point trong khoảng y của hai đầu đoạn', () => {
@@ -341,9 +356,12 @@ describe('applySpanToPreset', () => {
     })
   })
   it('sinh-con lấy khoảng làm TUỔI NUÔI TỚI', () => {
+    // 21, không phải 22: `syncEnd` của bản vẽ là
+    // `endYear = min(X1, startYear + round(untilAge))`, nên 2030 + 21 = 2051 khép đúng
+    // khoảng. Lấy 22 thì kéo một khoảng rồi mở lại mốc là năm kết thúc tự nhảy thêm một.
     expect(applySpanToPreset('sinh-con', { startYear: 2030, endYear: 2051 })).toEqual({
       year: 2030,
-      untilAge: 22,
+      untilAge: 21,
     })
   })
   it('mẫu còn lại lấy nguyên hai đầu làm năm bắt đầu và năm kết thúc', () => {
@@ -420,7 +438,11 @@ export function applySpanToPreset(presetId: string, s: YearSpan): SpanApply {
 }
 ```
 
-Note `untilAge: n - 1`: a child born in 2030 and supported "until 22" is covered through age 22, i.e. 2030–2052 inclusive is 23 years. The test above uses 2030–2051 (22 years) → `untilAge: 21`… **verify this against the drawing before implementing** — open `dsg-handoff/README.md` §syncEnd, which states `endYear = min(X1, startYear + round(untilAge))`. That formula makes 2030 + 22 = 2052, so a 2030–2051 span is `untilAge: 21`. Fix the test's expectation to `untilAge: 21` and keep `n - 1`, so `applySpanToPreset` and `syncEnd` agree. Getting these two out of step means dragging a span then reopening the milestone silently moves its end year.
+`untilAge: n - 1` is settled, not open: the drawing's `syncEnd` is
+`endYear = min(X1, startYear + round(untilAge))` (`dsg-handoff/README.md` §syncEnd), so a
+2030–2051 span is `untilAge: 21` and the test above expects exactly that. Keep the two in
+step — if they disagree, dragging a span and then reopening the milestone silently moves
+its end year, with nothing on screen to explain the shift.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -445,7 +467,7 @@ Deleting a phase or milestone must be undoable for 9 seconds. The drawing scopes
 - Test: `src/features/lifetime/undoStack.test.ts`
 
 **Interfaces:**
-- Consumes: `ScenarioDraft` from `./draft` — read its exported type before writing this task and match the real field names; the snapshot stores phases and events from the draft, not from the DB.
+- Consumes: nothing. The module is generic over `<T>` — the caller supplies the snapshot type — so it imports neither `./draft` nor the repo. Keep it that way; the point is that it can be tested with plain numbers.
 - Produces:
 ```ts
 export interface UndoEntry<T> { label: string; snapshot: T; at: number }
@@ -603,7 +625,7 @@ Follow the existing assertions in `presets.test.ts` for shape, then add:
 it('ba mẫu mới đều ép cứng JPY và dán nhãn số mặc định', () => {
   const ctx = /* dựng PresetContext như các test sẵn có trong file này */
   for (const id of ['mua-xe', 'du-lich', 'hoc-them']) {
-    const p = PRESETS.find((x) => x.id === id)
+    const p = LIFE_PRESETS.find((x) => x.id === id)
     expect(p, id).toBeDefined()
     const { events } = p!.build(ctx)
     expect(events.length, id).toBeGreaterThan(0)
@@ -616,7 +638,7 @@ it('ba mẫu mới đều ép cứng JPY và dán nhãn số mặc định', () 
 
 it('mua-xe sinh khoản trả trước + trả vay, và trả vay KHÔNG phồng theo lạm phát', () => {
   const ctx = /* như trên */
-  const { events } = PRESETS.find((p) => p.id === 'mua-xe')!.build(ctx)
+  const { events } = LIFE_PRESETS.find((p) => p.id === 'mua-xe')!.build(ctx)
   const vay = events.find((e) => e.label.includes('Trả vay'))
   expect(vay).toBeDefined()
   // Khoản trả vay lãi cố định là số DANH NGHĨA — cùng lý do đã ghi ở mẫu 'mua-nha'.
@@ -626,7 +648,7 @@ it('mua-xe sinh khoản trả trước + trả vay, và trả vay KHÔNG phồng
 
 it('du-lich lặp lại, không phải một lần', () => {
   const ctx = /* như trên */
-  const { events } = PRESETS.find((p) => p.id === 'du-lich')!.build(ctx)
+  const { events } = LIFE_PRESETS.find((p) => p.id === 'du-lich')!.build(ctx)
   expect(events[0].end_year).not.toBe(events[0].start_year)
 })
 ```
@@ -780,10 +802,17 @@ into strings.
 **Files:**
 - Modify: `src/features/lifetime/TuongLaiPage.tsx`
 - Create: `src/features/lifetime/ConsoleFrame.tsx`
+- Create: `src/features/lifetime/TimelinePlot.tsx`
 
 **Interfaces:**
-- Consumes: `useLifetime()` from `./useLifetime` for scenario/draft state.
-- Produces: `<ConsoleFrame plot={…} dock={…} below={…} />` — a layout-only component: fluid plot column, fixed `24.5rem` dock column, scrolling region beneath.
+- Consumes: `useLifetime()` from `./useLifetime` for scenario/draft state; **`curvePath` from `./chartGeom`** (Task 2) for the projection line; the existing `makeXScale`, `makeYScale`, `niceYTicks`, `logYTicks`, `xTickStep`, `symlog` from the same module.
+- Produces: `<ConsoleFrame plot={…} dock={…} below={…} />` — a layout-only component: fluid plot column, fixed `24.5rem` dock column, scrolling region beneath. Plus `<TimelinePlot …>` — the SVG plus its HTML overlays, which Tasks 12–15 attach to.
+
+**Two duties this task owns beyond layout** (ruled at preflight — the plan had lost them
+between tasks):
+
+1. **Create `TimelinePlot.tsx`** and draw the projection line with `curvePath` from Task 2. Without this, Task 2's output has no consumer and Tasks 12–15 have nothing to attach to. Layer order, bottom to top, per `dsg-handoff/README.md` §"Vùng vẽ": grid · negative region · swing band · saved-plan line · comparison lines · FIRE threshold · main line · FIRE dot · milestone ticks.
+2. **Remove the temporary `<LifetimeView/>`** that Task 6 installed as scaffolding in `TuongLaiPage`. Task 16 deletes that file, and its safety grep will trip on this page if the reference survives.
 
 - [ ] **Step 1:** Read `dsg-handoff/README.md` §"Bố cục màn hình" and §"Thứ tự các hàng, từ trên xuống" — twelve rows, in order. Reproduce that order.
 - [ ] **Step 2:** Build `ConsoleFrame` with the dock column **always** present, even when nothing is selected. The drawing calls this out explicitly: the dock is reserved so the plot never resizes on select/deselect. Do not make it conditional.
@@ -866,7 +895,7 @@ into strings.
 
 ### Task 15: Empty state
 
-**Files:** Modify `src/features/lifetime/TimelinePlot.tsx` (or wherever the plot lands in Task 7)
+**Files:** Modify `src/features/lifetime/TimelinePlot.tsx` (created in Task 7)
 
 - [ ] **Step 1:** No milestones → a dashed-border card centred in the plot: title, one line of guidance, and a "Chọn mốc từ mẫu" button that opens the board at the middle of the timeline.
 - [ ] **Step 2:** This is distinct from "no scenario" and "no birth year", which already have their own states. Do not collapse them — the existing screen has three non-empty states by design (see `LifetimeView.tsx`'s header comment).

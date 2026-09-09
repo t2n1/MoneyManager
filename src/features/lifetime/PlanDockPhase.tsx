@@ -29,9 +29,7 @@ import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { ActionButton, Money, Num, Select } from '../../components/ui'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
-import { showToast } from '../../lib/dialog'
 import type { DraftPhase } from './draft'
-import { convertMinorToday, type FxOf } from './fxModel'
 import { DOCK_INPUT, DOCK_LABEL, DockPanel, IdentityRow, PhaseIcon, YearBox } from './PlanDockParts'
 import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
 import { clampPhaseStartYear } from './phaseYear'
@@ -48,15 +46,14 @@ export interface PlanDockPhaseProps {
   currentYear: number
   /** Tuổi chiếu tới — "đến năm" của chặng CUỐI là năm cuối bản chiếu. */
   lastYear: number
-  /** Tỷ giá HÔM NAY. Thiếu tỷ giá thì đổi "Tiền tệ khai" KHÔNG đổi gì cả (xem `doiTien`). */
-  fxOf: FxOf
   /** Ghi các trường đã sửa vào bản nháp (`patchDraftPhase`). */
   onPatch: (patch: Partial<Omit<DraftPhase, 'id'>>) => void
   /**
-   * Đổi ĐƠN VỊ TIỀN của chặng — chỗ gọi dùng `setPhaseCurrency` (nó còn gắn nhãn lại
-   * mọi mốc rơi vào chặng), rồi ghi kèm hai con số ĐÃ QUY ĐỔI.
+   * Đổi ĐƠN VỊ TIỀN của chặng — chỗ gọi dùng `setPhaseCurrency` (nó KHÔNG quy đổi số
+   * tiền, chỉ đổi nhãn; và gắn nhãn lại mọi mốc rơi vào chặng). Xem `doiTien` bên dưới
+   * cho lý do panel này không tự quy đổi trước khi gọi.
    */
-  onCurrency: (next: CurrencyCode, incomeMinor: number, expenseMinor: number) => void
+  onCurrency: (next: CurrencyCode) => void
   onDuplicate: () => void
   onRemove: () => void
 }
@@ -68,7 +65,6 @@ export function PlanDockPhase({
   displayCurrency,
   currentYear,
   lastYear,
-  fxOf,
   onPatch,
   onCurrency,
   onDuplicate,
@@ -87,33 +83,25 @@ export function PlanDockPhase({
   const prevPhase = idx > 0 ? resolvePhasePercents(sorted, displayCurrency)[idx - 1] : null
 
   /**
-   * Đổi "Tiền tệ khai" phải QUY ĐỔI số tiền, không chỉ đổi ký hiệu (bản vẽ 1c:
-   * `round(fromJPY(toJPY(v, cũ), mới))`). Ở repo này phép đó là `convertMinorToday` —
-   * nó đi qua `convertLifetimeMinor` nên biết USD có 2 chữ số lẻ còn JPY có 0; nhân
-   * thẳng `minor × tỷ giá` là sai 100 lần (đã bắt được trên app 2026-09-02).
+   * Đổi "Tiền tệ khai" của chặng — KHÔNG quy đổi số tiền, chỉ đổi nhãn. Số ở "Thu/năm"
+   * và "Chi/năm" giữ nguyên, chỉ ký hiệu đổi từ ¥ sang ₫; đi thẳng qua `setPhaseCurrency`
+   * (draft.ts) với đúng hành vi đã có sẵn ở đó — không dựng thêm đường thứ hai.
    *
-   * ⚠️ ĐÂY LÀ CHỖ BẢN VẼ 1c ĐẢO NGƯỢC MỘT QUYẾT ĐỊNH CŨ. `setPhaseCurrency` (draft.ts,
-   * 2026-08-24) cố ý KHÔNG quy đổi: "người dùng bấm đổi tiền của chặng thì ý họ là ĐỔI
-   * ĐƠN VỊ". Bản vẽ 1c (2026-09-09) nói ngược lại, và bản vẽ mới thắng — nhưng nói ra
-   * ở đây để không ai đọc hai chỗ rồi tưởng một trong hai là lỗi. Hàng inline cũ
-   * (`ScenarioWorkbench`) vẫn theo luật cũ cho tới khi nó nghỉ.
-   *
-   * THIẾU TỶ GIÁ THÌ KHÔNG ĐỔI GÌ CẢ — một trạng thái thay vì ba, và không có ca nào
-   * con số sai kịp xuất hiện trên màn. Quy ước `hasMissingRate` của cả repo: thà thiếu
-   * còn hơn bịa, không bao giờ quy 1:1.
+   * ⚠️ ĐÃ CÂN NHẮC VÀ BÁC BỎ hướng ngược lại. Bản trình sửa 1c (dsg-handoff, 2026-09-09)
+   * ghi "Đổi 'Tiền tệ khai' phải quy đổi số tiền, không chỉ đổi ký hiệu"
+   * (`round(fromJPY(toJPY(v, cũ), mới))`). NHƯNG ở app này đổi tiền của một chặng còn
+   * gắn nhãn lại mọi MỐC rơi vào chặng đó — vì tiền của một mốc SUY RA từ chặng phủ năm
+   * nó bắt đầu (xem JSDoc `setPhaseCurrency`, draft.ts:822). Bản vẽ 1c không có luật
+   * "mốc thừa hưởng tiền của chặng" — mỗi mốc trong bản vẽ tự mang `cur` riêng — nên góc
+   * đã gây lỗi ở app không thể xảy ra trong mô hình của bản vẽ; lời khuyên của bản vẽ
+   * được viết cho một mô hình khác, không áp dụng thẳng vào đây. Quy đổi số tiền của
+   * chặng RỒI gắn nhãn lại mốc theo tiền mới (không quy đổi mốc) từng nhân một con số
+   * lên 170 lần trong một lỗi thật trên app (bắt được 2026-08-24, xem JSDoc
+   * `setPhaseCurrency`) — ĐỪNG khôi phục lại quy đổi ở đây tưởng là "theo đúng bản vẽ".
+   * `ScenarioWorkbench` (hàng inline cũ) và dock này giờ đi cùng một luật.
    */
   function doiTien(next: CurrencyCode) {
-    if (next === phase.currency) return
-    const thu = convertMinorToday(phase.annualIncomeMinor, phase.currency, next, fxOf)
-    const chi = convertMinorToday(phase.annualExpenseMinor, phase.currency, next, fxOf)
-    if (thu === null || chi === null) {
-      showToast(
-        `Chưa có tỷ giá ${phase.currency} → ${next} nên chưa đổi được đơn vị của chặng — thu và chi sẽ sai đơn vị. Thử lại khi có mạng.`,
-        'error',
-      )
-      return
-    }
-    onCurrency(next, thu, chi)
+    onCurrency(next)
   }
 
   const sym = CURRENCIES[phase.currency].symbol

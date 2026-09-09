@@ -428,19 +428,16 @@ function TuongLaiConsole() {
           displayCurrency: currency,
           currentYear,
           lastYear,
-          fxOf: pageFxOf,
           onPatch: (patch: Parameters<typeof patchDraftPhase>[2]) =>
             editDraft((d) => patchDraftPhase(d, selPhase.id, patch)),
           // `setPhaseCurrency` (KHÔNG phải `patchDraftPhase`): đổi tiền của chặng còn
           // phải gắn nhãn lại mọi mốc rơi vào nó, không thì màn hình và bản chiếu nói
-          // hai con số khác nhau. Hai con số đã QUY ĐỔI do panel tính (xem `doiTien`).
-          onCurrency: (next: CurrencyCode, incomeMinor: number, expenseMinor: number) =>
-            editDraft((d) =>
-              patchDraftPhase(setPhaseCurrency(d, selPhase.id, next), selPhase.id, {
-                annualIncomeMinor: incomeMinor,
-                annualExpenseMinor: expenseMinor,
-              }),
-            ),
+          // hai con số khác nhau.
+          //
+          // KHÔNG quy đổi số tiền ở đây — xem JSDoc `setPhaseCurrency` (draft.ts) và
+          // comment ở `doiTien` (PlanDockPhase.tsx): quyết định đã chốt 2026-09-09, giữ
+          // nguyên luật cũ dù bản vẽ 1c đòi quy đổi.
+          onCurrency: (next: CurrencyCode) => editDraft((d) => setPhaseCurrency(d, selPhase.id, next)),
           onDuplicate: () => {
             const seed = ++newIdSeed.current
             // Năm của bản sao: ngay sau bản gốc, nhích tới năm còn trống —

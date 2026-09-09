@@ -395,6 +395,16 @@ describe('planDraftSave', () => {
       { id: 'p2', patch: { start_year: 2049 } },
     ])
   })
+
+  it('đổi CHỈ cách khai phần trăm (không đụng annualExpenseMinor) vẫn ra patch — hồi quy dấu `}` đặt sai chỗ nhốt income_pct_of_prev/expense_pct_of_prev vào TRONG nhánh annualExpenseMinor, bắt được 2026-09-09', () => {
+    const d = edit((x) => {
+      x.phases[1].incomePctOfPrev = 70
+      x.phases[1].expensePctOfPrev = 80
+    })
+    expect(planDraftSave(base(), d).phasePatches).toEqual([
+      { id: 'p2', patch: { income_pct_of_prev: 70, expense_pct_of_prev: 80 } },
+    ])
+  })
 })
 
 describe('applyPreset', () => {

@@ -50,7 +50,8 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   /**
    * Vai trợ năng. 'pressed' (mặc định) cho bật/tắt một bộ lọc; 'selected' cho chip nằm
    * trong một dải `role="tablist"`. Một nút mang cả `aria-pressed` và `aria-selected` thì
-   * trình đọc màn hình đọc ra hai điều mâu thuẫn — lời ghi này lấy từ LifetimeChartCard.
+   * trình đọc màn hình đọc ra hai điều mâu thuẫn — đã gặp thật (không phải suy đoán) ở
+   * dải tab kịch bản của màn Tương lai bản cũ (đã nghỉ, Task 16).
    */
   aria?: 'pressed' | 'selected'
 }

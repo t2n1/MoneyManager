@@ -175,8 +175,8 @@ export function useUpsertHealthSnapshot() {
  * Lịch sử kết luận tab Tương lai của một kịch bản (migration 0055), cũ → mới.
  *
  * `enabled` (mặc định true) — thêm cho `TuongLaiPage` gate theo cổng bề ngang (console chỉ
- * dùng được từ 1280px, xem `useMediaQuery`); `LifetimeView` gọi không truyền tham số này
- * nên hành vi của nó không đổi.
+ * dùng được từ 1280px, xem `useMediaQuery`); mặc định `true` giữ nguyên phòng khi có
+ * caller khác không truyền tham số này.
  */
 export function useLifetimeVerdictSnapshots(scenarioId: string | undefined, enabled = true) {
   return useQuery({

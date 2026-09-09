@@ -46,7 +46,7 @@ interface FormProps {
 
 export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
   useEscClose(onClose)
-  // `useId` chứ không phải id viết cứng — cùng lý do đã ghi ở PhaseFormSheet: id trùng thì
+  // `useId` chứ không phải id viết cứng — cùng lý do đã ghi ở PlanDockPhase: id trùng thì
   // `htmlFor` bắt vào ô ĐẦU TIÊN khớp trong cả trang, tức nhãn trỏ sai ô.
   const uid = useId()
   const create = useCreateAccount()

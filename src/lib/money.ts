@@ -143,7 +143,7 @@ function formatCompactJa(major: number, abs: number): string {
 /**
  * Từ ba chữ số trở lên thì BỎ phần lẻ. Không phải vì khó đọc mà vì nó KHÔNG VỪA:
  * cả ba biểu đồ dùng nhãn này đều đóng cứng trục tung `width={44}`
- * (MonthlyBarsCard, LifetimeChartCard, LongView), mà "1234.6万" đo được 47px ở
+ * (MonthlyBarsCard, CategoryLineChart, LongView), mà "1234.6万" đo được 47px ở
  * IBM Plex Sans 11px — nhãn tràn sang vùng vẽ. "1235万" chỉ 37px.
  *
  * 万/億 đắt chỗ hơn K/M/B: một glyph CJK rộng bằng hai chữ số, mà bậc 万 lại trải

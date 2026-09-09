@@ -76,8 +76,8 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center lg:p-6 animate-overlay-in"
       onClick={onClose}
     >
-      {/* role/aria-modal/aria-labelledby: giống các sheet khác trong app (EventFormSheet,
-          PhaseFormSheet, sheet thông báo…) — sheet dùng nhiều nhất lại là cái duy nhất
+      {/* role/aria-modal/aria-labelledby: giống các sheet khác trong app (TraSoSheet,
+          BulkEditSheet, sheet thông báo…) — sheet dùng nhiều nhất lại là cái duy nhất
           thiếu, nên trình đọc màn hình không biết đây là hộp thoại.
           tabIndex + ref focus: KHÔNG bẫy focus (cả app không bẫy), chỉ đưa điểm đọc vào
           trong sheet để người dùng bàn phím không còn đứng ở dòng phía sau. preventScroll

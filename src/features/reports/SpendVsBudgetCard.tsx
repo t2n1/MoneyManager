@@ -9,7 +9,7 @@ import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 // số JS, không dùng được biến CSS của token.
 const ACTUAL = '#ef4444'
 // var(--fg-muted) chứ không #9ca3af: gray-400 chỉ 2,54:1 trên trắng, mà đây là NÉT
-// biểu đồ (đồ hoạ mang thông tin, cần 3:1) kèm chấm chú giải. Tiền lệ: LifetimeChartCard.
+// biểu đồ (đồ hoạ mang thông tin, cần 3:1) kèm chấm chú giải. Tiền lệ: TimelinePlot.
 const BUDGET = 'var(--fg-muted)'
 
 interface Props {

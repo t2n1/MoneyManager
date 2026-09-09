@@ -24,8 +24,6 @@ const SOURCES = new Map(
  * lịch sử ở đây là sai: người dùng chưa hề rời trang nào.
  */
 const NOT_NAVIGATION = new Set([
-  // "Quay lại" ở đây = đóng bảng chọn mẫu, vẫn đứng nguyên trong tấm trượt.
-  'features/lifetime/EventFormSheet.tsx',
   // "Bỏ vai trò, quay lại giao dịch thường" = tắt một chế độ của cùng cái form.
   'features/transactions/TransactionForm.tsx',
 ])

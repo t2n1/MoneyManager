@@ -79,7 +79,7 @@ describe('bpsText', () => {
     expect(bpsText(250)).toBe('2,5%')
     expect(bpsText(0)).toBe('0,0%')
     expect(bpsText(1000)).toBe('10,0%')
-    expect(bpsText(-130)).toBe('-1,3%')
+    expect(bpsText(-130)).toBe('−1,3%')
   })
 })
 

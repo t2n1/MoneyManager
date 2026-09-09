@@ -69,15 +69,51 @@ describe('projectLifetime — không cú sốc nào bật', () => {
    * "Stress test KHÔNG sửa kế hoạch" — bản vẽ dặn vậy, và hàng 10 của console
    * (`TuongLaiPage`) dựa vào đúng tính chất này: nó chiếu bản có sốc bằng
    * `projectLifetime({ ...shownInput, stress })`, mà `shownInput.phases`/`.events` là
-   * CHÍNH những đối tượng bản nháp đang giữ (`draftToInput` không chép sâu). Nếu engine
-   * sửa tại chỗ một chặng hay một mốc thì bật một cú sốc sẽ âm thầm đổi bản nháp — và
-   * cú "Lưu vào kế hoạch" kế tiếp ghi cú sốc đó xuống DB như một dự định.
+   * CHÍNH những đối tượng bản nháp đang giữ. `draftToInput` (draft.ts:224) CÓ chép sâu —
+   * mỗi chặng và mỗi mốc được map ra một object literal mới với toàn trường vô hướng — nên
+   * về lý thuyết engine không thể chạm tới object của bản nháp qua đường đó. Phép thử này
+   * vẫn giữ lại như một lớp phòng thủ thứ hai, phòng khi `draftToInput` sau này đổi sang
+   * chia sẻ tham chiếu (hoặc một đường gọi khác của `projectLifetime` không đi qua nó): nếu
+   * engine sửa tại chỗ một chặng hay một mốc thì bật một cú sốc sẽ âm thầm đổi bản nháp —
+   * và cú "Lưu vào kế hoạch" kế tiếp ghi cú sốc đó xuống DB như một dự định.
    *
    * Chụp bằng JSON chứ không so tham chiếu: điều phải canh là NỘI DUNG không nhúc nhích,
    * kể cả ở tầng sâu (một `phase.fxToDisplay` bị nhân tại chỗ vẫn cùng tham chiếu).
    */
   it('không sửa `phases`/`events` của input — bản nháp còn nguyên sau lượt chiếu có sốc', () => {
     const input = inputOf(on({ crash: { on: true, year: 2030, dropPct: 20 }, longevity: { on: true, years: 10 } }))
+    const truoc = JSON.stringify({ phases: input.phases, events: input.events })
+    projectLifetime(input)
+    expect(JSON.stringify({ phases: input.phases, events: input.events })).toBe(truoc)
+  })
+
+  /**
+   * Phép thử trên dùng `crash` + `longevity` — cả hai đều không chạm tới `events`: mảng
+   * `events: []` của `inputOf` khiến mọi vòng lặp `for (const e of events)` trong
+   * `projectLifetime` chạy 0 lần, nên một lỗi sửa-tại-chỗ trong CHÍNH những vòng lặp đó sẽ
+   * lọt qua phép thử trên mà không ai hay. `illness` là cú sốc duy nhất sinh ra một giá trị
+   * DẠNG sự kiện (`project.ts:504`, đẩy vào `yearEvents`), nên phép thử này dựng INPUT
+   * RIÊNG — có ít nhất một mốc thật trong `events` và bật `illness.on` — thay vì sửa
+   * `inputOf` dùng chung (sửa chỗ đó sẽ đụng mọi phép thử khác trong file).
+   */
+  it('không sửa `events` khi có mốc thật trong input VÀ cú sốc bệnh nặng đang bật', () => {
+    const input: LifetimeInput = {
+      ...inputOf(),
+      events: [
+        {
+          id: 'ev1',
+          startYear: 2028,
+          endYear: null,
+          kind: 'expense',
+          amountMinor: 1_000_000,
+          currency: 'JPY',
+          label: 'Sự kiện thử',
+          fxToDisplay: 1,
+          inflate: true,
+        },
+      ],
+      stress: on({ illness: { on: true, year: 2035, amountDisplayMinor: 3_000_000 } }),
+    }
     const truoc = JSON.stringify({ phases: input.phases, events: input.events })
     projectLifetime(input)
     expect(JSON.stringify({ phases: input.phases, events: input.events })).toBe(truoc)

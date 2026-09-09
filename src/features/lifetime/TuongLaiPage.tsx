@@ -361,6 +361,21 @@ function TuongLaiConsole() {
   const dirty = changes.length > 0
 
   /**
+   * "Trước" dùng chung cho cả thanh nháp lẫn hàng 9 — MỘT phép tính, hai nơi hiện
+   * (`DraftBanner.endBeforeMinor` và tham số thứ ba của `changeParts` ở hàng 9). Từng có
+   * hai bản chép tay của đúng ba dòng này; gộp lại vì nó khoá một hợp đồng tế nhị của
+   * `changeParts`: `null` khi tiền hiển thị của nháp đã đổi so với bản đã lưu, bởi lúc đó
+   * so "3M → 299M" chỉ nói lên TỶ GIÁ chứ không phải một khoản lời/lỗ thật.
+   */
+  const endBeforeMinor = useMemo(
+    () =>
+      !working || working.displayCurrency !== savedDraft?.displayCurrency || rows.length === 0
+        ? null
+        : rows[rows.length - 1].assetsEndMinor,
+    [working, savedDraft, rows],
+  )
+
+  /**
    * Bản chiếu CÓ cú sốc — `null` khi không cú nào bật.
    *
    * Đây là chỗ chứng minh "stress không sửa kế hoạch": nó chiếu từ `shownInput` (bản
@@ -1131,13 +1146,7 @@ function TuongLaiConsole() {
               // trả về, cùng chuỗi số mà đồ thị vẽ thành đường "trước khi đổi". Không
               // chiếu lại lần thứ hai ở đây: hai phép chiếu cho cùng một câu hỏi là hai
               // chỗ để lệch nhau.
-              endBeforeMinor={
-                // `null` khi nháp vừa đổi tiền hiển thị — lúc đó "3M → 299M" là so một
-                // con số yên với một con số đô, nó chỉ nói tỷ giá. Xem `changeParts`.
-                working.displayCurrency !== savedDraft.displayCurrency || rows.length === 0
-                  ? null
-                  : rows[rows.length - 1].assetsEndMinor
-              }
+              endBeforeMinor={endBeforeMinor}
               endAfterMinor={
                 shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
               }
@@ -1510,9 +1519,7 @@ function TuongLaiConsole() {
             changeParts={changeParts(
               changes,
               currency,
-              working.displayCurrency !== savedDraft?.displayCurrency || rows.length === 0
-                ? null
-                : rows[rows.length - 1].assetsEndMinor,
+              endBeforeMinor,
               shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null,
             )}
             saving={saving}

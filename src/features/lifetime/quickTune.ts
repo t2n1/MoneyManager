@@ -62,14 +62,21 @@ export function sliderBound(
 }
 
 /**
- * bps → chữ phần trăm kiểu Việt, MỘT chữ số thập phân: 250 → "2,5%".
+ * bps → chữ phần trăm kiểu Việt, MỘT chữ số thập phân: 250 → "2,5%", −130 → "−1,3%".
  *
  * Một chữ số vì bước là 10 bps = 0,1% — đúng độ mịn của thanh trượt, không hơn không kém.
  * Dấu thập phân là PHẨY: `${250 / 100}` của JS ra "2.5" ngay trong một app mà mọi số tiền
- * khác đều dùng phẩy (cùng lý do đã ghi ở `signedPct`, Num.tsx).
+ * khác đều dùng phẩy (cùng lý do đã ghi ở `signedPct`, Num.tsx). Dấu ÂM cũng phải là dấu
+ * trừ THẬT (−, U+2212), không phải hyphen ASCII mà `toFixed` tự in ra — cùng quy ước với
+ * `signedPct` (Num.tsx) và `changeParts` (draftText.ts). Ca này có thật: ô "bi quan"
+ * (`returnBps - spreadBps`) âm bất cứ khi nào dải dao động vượt lợi suất, và readout lợi
+ * suất tự nó âm được vì DB cho `real_return_bps` xuống tới −500.
  */
 export function bpsText(bps: number): string {
-  return `${(bps / 100).toFixed(1).replace('.', ',')}%`
+  const body = Math.abs(bps / 100)
+    .toFixed(1)
+    .replace('.', ',')
+  return `${bps < 0 ? '−' : ''}${body}%`
 }
 
 /**
@@ -79,6 +86,12 @@ export function bpsText(bps: number): string {
  * sinh ra hàng chục lần gọi, và nhân dồn vào giá trị hiện tại thì kéo từ 0 lên +10 rồi về
  * 0 KHÔNG trả lại con số cũ — nó để lại một dãy sai số làm dừng (và một lệnh ghi DB cho
  * một thay đổi người dùng đã hoàn tác). Kéo về 0 ở đây trả về đúng từng đồng đã lưu.
+ *
+ * Hệ quả phải biết: vì gốc luôn là `saved`, thanh trượt này ĐÈ LÊN mọi con số chi của
+ * từng chặng đã sửa tay ở dock (hay ở panel chặng) kể từ lần lưu gần nhất — kéo thanh dù
+ * chỉ một nấc rồi lưu sẽ ghi đè khoản chi đã tinh chỉnh riêng đó bằng `saved × k`, không
+ * còn dấu vết gì trên màn hình báo trước việc này. Đây là đánh đổi đã cân nhắc (điểm trên
+ * mới là cái khiến hàm không cộng dồn), không phải lỗi.
  *
  * BỎ QUA chặng khai chi bằng % chặng trước (`expensePctOfPrev !== null`, migration 0067):
  * `resolvePhasePercents` sẽ ghi đè `annualExpenseMinor` của chúng lúc chiếu, nên nhân vào

@@ -59,8 +59,10 @@ const FIRE_FALLBACK_AGE = 65
 /** Lifetime (mục Lifetime): chiếu tài sản ròng cả đời. Ba trạng thái — chưa khai năm
  * sinh, chưa có kịch bản, có dữ liệu — không có trạng thái nào để trống.
  *
- * Là tab con "Tương lai" của Tài sản (`/assets?view=future`), không còn trang riêng: vỏ
- * AssetsPage lo nút back và padding. Xem docs/information-architecture.md §2.3.
+ * Là trang riêng `/tuong-lai` (2026-09-09, chỉ cho máy tính) — vỏ TuongLaiPage lo tiêu đề,
+ * cổng bề rộng và padding. Trước đó là tab con "Tương lai" của Tài sản
+ * (`/assets?view=future`, nay chuyển tiếp sang route mới). Xem
+ * docs/information-architecture.md §2.3.
  *
  * BẢN NHÁP là ý chính của màn này. Trước đây "vặn thử" chỉ có ba con số (thu, chi, lợi
  * suất) và mọi thứ khác — dời một mốc, thêm một mốc, đổi tuổi nghỉ hưu — bắt buộc phải

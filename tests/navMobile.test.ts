@@ -32,7 +32,7 @@ function navItems(): { to: string; onMobile: boolean }[] {
 describe('thanh tab mobile', () => {
   it('đọc được NAV_ITEMS từ nguồn', () => {
     // Regex mà trượt thì mọi phép thử dưới đây im lặng đúng. Chốt số mục trước.
-    expect(navItems()).toHaveLength(7)
+    expect(navItems()).toHaveLength(8)
   })
 
   it('đúng bốn tab', () => {
@@ -42,6 +42,16 @@ describe('thanh tab mobile', () => {
       '/budget',
       '/assets',
     ])
+  })
+
+  // Đọc bằng `navItems()` (phân tích chuỗi nguồn), KHÔNG import `NAV_ITEMS` trực tiếp —
+  // cùng lý do ở đầu file: tsconfig.node.json dùng `moduleResolution: node16`, import
+  // thiếu đuôi file là lỗi biên dịch chỉ `tsc -b` bắt được.
+  it('Tương lai chỉ có trên rail desktop, không xuống thanh tab điện thoại', () => {
+    const item = navItems().find((i) => i.to === '/tuong-lai')
+    expect(item, 'chưa thêm mục Tương lai vào NAV_ITEMS').toBeDefined()
+    // Console dòng thời gian cần 1280px; thanh tab dưới chỉ tồn tại dưới `lg`.
+    expect(item!.onMobile).toBe(false)
   })
 
   it('màn không có tab thì còn một lối vào ở Bản tin', () => {

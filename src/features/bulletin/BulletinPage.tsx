@@ -10,7 +10,7 @@
 // useBudgetReport, tài sản ròng từ assets/useAssetsData. Nó chỉ chọn khối nào đứng đâu.
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChartColumn, LineChart, Settings } from 'lucide-react'
+import { ChartColumn, LineChart, Milestone, Settings } from 'lucide-react'
 import { Card, PageHeader, SectionTitle, iconButtonClass } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { useMonthKey } from '../../hooks/useMonthKey'
@@ -457,9 +457,9 @@ export function BulletinPage() {
     <div className="flex flex-col gap-2.5 p-3 lg:p-4">
       {/* Tiêu đề màn cho MOBILE (top bar chỉ có từ lg). Bản vẽ 17a: mỗi màn mobile tự
           mang tiêu đề + một dòng meta bên phải.
-          Ba nút bên phải là ĐƯỜNG VÀO MOBILE của ba màn không có tab (§3 chốt bốn tab
+          Bốn nút bên phải là ĐƯỜNG VÀO MOBILE của bốn màn không có tab (§3 chốt bốn tab
           + "+"; xem NAV_ITEMS). Đặt ở Bản tin vì đây là màn mở đầu tiên — bỏ khỏi thanh
-          tab mà không mở lối khác thì trên mobile ba màn đó biến mất hẳn. */}
+          tab mà không mở lối khác thì trên mobile bốn màn đó biến mất hẳn. */}
       <PageHeader title="Bản tin" flush mobileOnly>
         <p aria-live="polite" className="ml-auto font-mono text-sm text-fg-muted">
           {formatMonthLabel(activeMonthKey)}
@@ -471,13 +471,20 @@ export function BulletinPage() {
             khi `hasPortfolio`, nên người chưa có tài khoản đầu tư nào thì trên mobile
             không còn lối nào. tests/navMobile.test.ts canh đúng chỗ này.
 
-            MỘT nhóm <span>, không ba ô rời trên hàng flex: ở Cỡ chữ 1,25× tại 375px cả
-            hàng vượt 345px và `flex-wrap` xuống dòng — ba ô rời thì nó cắt Ở GIỮA nhóm
-            (hai icon trên, một icon dưới, đọc thành lỗi). Bọc lại thì cả ba xuống cùng
-            nhau. Đo được: 1× một dòng, 1,25× hai dòng, không tràn ngang ở cả hai. */}
+            Tương lai (console dòng thời gian) CẦN 1280px nên bản thân màn đó tự chặn ở
+            mobile (xem TuongLaiPage.tsx) — nút này chỉ để người dùng TÌM RA nó tồn tại,
+            không hứa nó dùng được ở đây.
+
+            MỘT nhóm <span>, không bốn ô rời trên hàng flex: ở Cỡ chữ 1,25× tại 375px cả
+            hàng vượt 345px và `flex-wrap` xuống dòng — ô rời thì nó cắt Ở GIỮA nhóm (một
+            phần trên, một phần dưới, đọc thành lỗi). Bọc lại thì cả bốn xuống cùng nhau.
+            Đo được: 1× một dòng, 1,25× hai dòng, không tràn ngang ở cả hai. */}
         <span className="flex shrink-0 items-center gap-1">
           <Link to="/invest" aria-label="Đầu tư" className={iconButtonClass('ghost')}>
             <LineChart className="h-5 w-5" strokeWidth={1.6} />
+          </Link>
+          <Link to="/tuong-lai" aria-label="Tương lai" className={iconButtonClass('ghost')}>
+            <Milestone className="h-5 w-5" strokeWidth={1.6} />
           </Link>
           <Link to="/reports" aria-label="Báo cáo" className={iconButtonClass('ghost')}>
             <ChartColumn className="h-5 w-5" strokeWidth={1.6} />

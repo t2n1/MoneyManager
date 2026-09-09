@@ -1,8 +1,9 @@
-// Vỏ tab Tài sản — chia theo ba câu hỏi khác nhau mà trang này phải trả lời:
+// Vỏ tab Tài sản — chia theo hai câu hỏi khác nhau mà trang này phải trả lời:
 //   Hôm nay        — "giờ tôi có bao nhiêu"   (AssetsNowView, bản vẽ 2a)
 //   Theo thời gian — "tôi đang tiến bộ không" (AssetsTrendView, bản vẽ 2b)
-//   Tương lai      — "sau này thế nào"        (LifetimeView)
-// Xem docs/information-architecture.md §2.3.
+// Câu thứ ba — "sau này thế nào" — đã tách thành trang riêng `/tuong-lai`
+// (2026-09-09, chỉ cho máy tính): xem TuongLaiPage.tsx và AssetsRoute trong App.tsx (chặn
+// `?view=future` TRƯỚC khi trang này mount). Xem docs/information-architecture.md §2.3.
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LineChart, Settings2 } from 'lucide-react'
@@ -15,32 +16,19 @@ import { AssetsNowView } from './AssetsNowView'
 import { ASSETS_RANGES, rangeSpan, spanLabel, type AssetsRange } from './assetsRange'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
 
-// Hai màn kia ít mở hơn màn mặc định, và Lifetime kéo theo 8 module tính toán riêng →
-// lazy để mở tab Tài sản không phải tải cả ba.
+// Màn "Diễn biến" ít mở hơn màn mặc định → lazy để mở trang Tài sản không phải tải nó.
 const AssetsTrendView = lazy(() =>
   import('./AssetsTrendView').then((m) => ({ default: m.AssetsTrendView })),
 )
-const LifetimeView = lazy(() =>
-  import('../lifetime/LifetimeView').then((m) => ({ default: m.LifetimeView })),
-)
 
 /**
- * HAI tab (§4.4 của bản 1a, thiết kế chốt 20a), thay ba.
+ * Công tắc DUY NHẤT còn lại của trang (§4.4 của bản 1a, thiết kế chốt 20a).
  *
- * "Theo thời gian" không mất — nó thôi làm một TAB và thành một CÔNG TẮC cạnh tab Hiện
- * tại. Lý do: ba tab bắt người dùng chọn giữa "giờ tôi có bao nhiêu" và "tôi đang tiến
- * bộ không" trước khi biết mình cần cái nào, trong khi hai câu đó nói về CÙNG một danh
- * sách tài khoản.
- */
-type AssetsView = 'now' | 'future'
-
-const VIEW_TABS: readonly SegmentedItem<AssetsView>[] = [
-  { value: 'now', label: 'Hiện tại' },
-  { value: 'future', label: 'Tương lai' },
-]
-
-/**
- * Công tắc của tab Hiện tại (§4.4).
+ * "Theo thời gian" không phải một TAB — nó là một CÔNG TẮC cạnh "Hôm nay". Lý do: hai câu
+ * hỏi đó nói về CÙNG một danh sách tài khoản, không cần chọn trước khi biết mình cần cái
+ * nào. Trước 2026-09-09 còn có tab thứ ba "Tương lai" đứng cùng hàng; nay nó là trang
+ * riêng `/tuong-lai` nên control này không còn phải chọn GIỮA "Hiện tại" và "Tương lai"
+ * nữa — chỉ còn đúng một câu hỏi "xem hôm nay hay xem theo thời gian".
  *
  * Nhãn là "Theo thời gian", KHÔNG phải "6 tháng" và cũng không còn là "Diễn biến".
  *
@@ -64,14 +52,16 @@ const RANGE_TABS: readonly SegmentedItem<AssetsRange>[] = ASSETS_RANGES.map((r) 
 }))
 
 /**
- * Đường CŨ → tab mới. `?view=trend` (cùng mọi bookmark và lịch sử trình duyệt) phải mở
- * tab Hiện tại ở chế độ THEO THỜI GIAN — mở đúng tab mà sai chế độ là người dùng thấy
- * một màn thiếu hẳn những khối họ đang tìm, và không có gì báo.
+ * Đường CŨ → chế độ mới. `?view=trend` (cùng mọi bookmark và lịch sử trình duyệt) phải mở
+ * chế độ THEO THỜI GIAN — mở đúng trang mà sai chế độ là người dùng thấy một màn thiếu
+ * hẳn những khối họ đang tìm, và không có gì báo.
+ *
+ * `?view=future` KHÔNG xử lý ở đây nữa (2026-09-09): `AssetsRoute` trong App.tsx chặn nó
+ * TRƯỚC khi trang này mount và chuyển thẳng sang `/tuong-lai`, giữ nguyên mọi tham số
+ * khác trong query string.
  */
-export function migrateAssetsView(raw: string | null): { view: AssetsView; mode: AssetsMode } {
-  if (raw === 'trend') return { view: 'now', mode: 'trend' }
-  if (raw === 'future') return { view: 'future', mode: 'today' }
-  return { view: 'now', mode: 'today' }
+export function migrateAssetsMode(raw: string | null): AssetsMode {
+  return raw === 'trend' ? 'trend' : 'today'
 }
 
 const Loading = () => <EmptyState>Đang tải…</EmptyState>
@@ -93,8 +83,9 @@ export function AssetsPage() {
     [accounts],
   )
   // "Xem thử bằng tiền khác" — sống ở vỏ trang để hai chế độ dùng chung một lựa chọn.
-  // null = theo tiền gốc; không lưu vì chỉ là ước chừng. Tab Tương lai KHÔNG theo nút
-  // này — Lifetime có "tiền hiển thị" riêng theo kịch bản với tỷ giá giả định tự khai.
+  // null = theo tiền gốc; không lưu vì chỉ là ước chừng. Trang Tương lai (`/tuong-lai`)
+  // KHÔNG theo nút này — Lifetime có "tiền hiển thị" riêng theo kịch bản với tỷ giá giả
+  // định tự khai.
   //
   // Nút đứng ở HEADER TRANG (bản vẽ 2a), không còn trong thẻ Tổng tài sản: thẻ đó đã
   // thành một ô của dải KPI, và một ô số 26px không có chỗ cho một bộ ba nút.
@@ -104,29 +95,18 @@ export function AssetsPage() {
   // số dư — và vỏ này render lại mỗi lần gạt công tắc.
   const { base, rates } = useRates()
 
-  // Giữ tab trong URL (không phải useState) để link chia sẻ và đường chuyển tiếp
-  // `/lifetime` → `/assets?view=future` mở đúng tab.
-  const [searchParams, setSearchParams] = useSearchParams()
-  const raw = searchParams.get('view')
-  const migrated = migrateAssetsView(raw)
-  const view = migrated.view
-  // Chế độ sống ở state chứ không ở URL: nó là cách NHÌN, không phải chỗ đứng.
-  const [mode, setMode] = useState<AssetsMode>(migrated.mode)
+  // Đọc `?view=trend` MỘT LẦN lúc mount để khởi tạo chế độ (bookmark cũ, xem
+  // migrateAssetsMode) — `?view=future` không còn tới được đây, AssetsRoute (App.tsx) đã
+  // chặn từ trước. Chế độ sau đó sống ở state chứ không ở URL: nó là cách NHÌN, không
+  // phải chỗ đứng, nên không ghi ngược lại query string.
+  const [searchParams] = useSearchParams()
+  const [mode, setMode] = useState<AssetsMode>(() => migrateAssetsMode(searchParams.get('view')))
   // Khoảng thời gian mặc định là "Từ đầu": người mở màn này lần đầu chưa biết sổ mình dài
   // bao nhiêu, và một cửa sổ 12 tháng đóng sẵn sẽ CẮT MẤT phần lịch sử họ chưa biết là có.
   const [range, setRange] = useState<AssetsRange>('all')
 
   const todayISO = toISODate(new Date())
   const span = useMemo(() => rangeSpan(range, todayISO), [range, todayISO])
-
-  const setView = (v: AssetsView) =>
-    setSearchParams(
-      (prev) => {
-        prev.set('view', v)
-        return prev
-      },
-      { replace: true },
-    )
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
@@ -138,31 +118,19 @@ export function AssetsPage() {
       <PageHeader title="Tài sản" flush />
       <div className="flex flex-wrap items-center gap-2">
 
-        {/* Tab và công tắc đứng CÙNG một hàng (§4.4): chúng là hai trục của cùng một câu
-            hỏi — xem cái gì, và xem ở độ sâu nào. Xếp dọc thì trông như hai cấp điều
-            hướng lồng nhau. */}
+        {/* Chỉ còn MỘT trục kể từ khi Tương lai tách trang riêng (2026-09-09): xem cái gì
+            đã không còn là câu hỏi (chỉ còn "Hiện tại"), nên control này chỉ hỏi xem ở độ
+            sâu nào. */}
         <SegmentedControl
-          items={VIEW_TABS}
-          value={view}
-          onChange={setView}
-          label="Nội dung trang Tài sản"
+          items={MODE_TABS}
+          value={mode}
+          onChange={setMode}
+          label="Cách xem"
           stretch={false}
           size="sm"
         />
-        {/* Chỉ tab Hiện tại có trục này. Tương lai vốn đã là bản chiếu nhiều chục năm —
-            một công tắc "hôm nay / theo thời gian" ở đó không có nghĩa gì. */}
-        {view === 'now' && (
-          <SegmentedControl
-            items={MODE_TABS}
-            value={mode}
-            onChange={setMode}
-            label="Cách xem"
-            stretch={false}
-            size="sm"
-          />
-        )}
         {/* Dải khoảng chỉ có nghĩa khi đang xem một trục thời gian. */}
-        {view === 'now' && mode === 'trend' && (
+        {mode === 'trend' && (
           <>
             <SegmentedControl
               items={RANGE_TABS}
@@ -183,14 +151,12 @@ export function AssetsPage() {
         <div className="ml-auto flex items-center gap-2">
           {/* Nút ¥/₫/$ đổi mọi con số của CẢ HAI chế độ. Không phải đổi base thật: chỉ
               ước chừng theo tỷ giá cache, có ≈ đi kèm. */}
-          {view === 'now' && (
-            <CurrencyViewToggle
-              base={base}
-              rates={rates}
-              value={viewCur ?? base}
-              onChange={setViewCur}
-            />
-          )}
+          <CurrencyViewToggle
+            base={base}
+            rates={rates}
+            value={viewCur ?? base}
+            onChange={setViewCur}
+          />
           {/* `lg:hidden`: từ lg khung app đã có đúng nút này ở top bar (AppTopBar dựng
               `hidden … lg:flex`), nên để nó ở đây nữa là hai con mắt cạnh nhau làm cùng
               một việc — đo thật trên 1280 thì chúng cách nhau 12px. Dưới lg top bar không
@@ -208,28 +174,20 @@ export function AssetsPage() {
               <LineChart className="h-5 w-5" />
             </Link>
           )}
-          {/* "Quản lý nhóm" chỉ cấu hình cách cắt lát của bảng tài khoản — ở tab Tương lai
-              nó là nút không liên quan tới thứ đang xem. */}
-          {view === 'now' && (
-            <Link
-              to="/settings/asset-groups"
-              className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
-            >
-              <Settings2 className="h-4 w-4" /> Quản lý nhóm
-            </Link>
-          )}
+          {/* "Quản lý nhóm" chỉ cấu hình cách cắt lát của bảng tài khoản. */}
+          <Link
+            to="/settings/asset-groups"
+            className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
+          >
+            <Settings2 className="h-4 w-4" /> Quản lý nhóm
+          </Link>
         </div>
       </div>
 
-      {view === 'now' && mode === 'today' && <AssetsNowView viewCur={viewCur} />}
-      {view === 'now' && mode === 'trend' && (
+      {mode === 'today' && <AssetsNowView viewCur={viewCur} />}
+      {mode === 'trend' && (
         <Suspense fallback={<Loading />}>
           <AssetsTrendView viewCur={viewCur} range={range} span={span} />
-        </Suspense>
-      )}
-      {view === 'future' && (
-        <Suspense fallback={<Loading />}>
-          <LifetimeView />
         </Suspense>
       )}
     </div>

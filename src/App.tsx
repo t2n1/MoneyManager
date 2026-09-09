@@ -24,6 +24,9 @@ const SearchPage = lazy(() =>
 const AssetsPage = lazy(() =>
   import('./features/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })),
 )
+const TuongLaiPage = lazy(() =>
+  import('./features/lifetime/TuongLaiPage').then((m) => ({ default: m.TuongLaiPage })),
+)
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
 )
@@ -107,6 +110,26 @@ function ReportsRoute() {
 // bằng <Navigate> sẽ thay URL trong lịch sử, làm nút Back của trình duyệt nhảy cóc.
 // Dịch tại chỗ thì link cũ mở đúng tab, và lần bấm tab đầu tiên tự ghi khoá mới.
 
+/** Tab con "Tương lai" của Tài sản đã tách thành trang riêng `/tuong-lai` (2026-09-09).
+ *  `?view=future` — mọi bookmark, link trong thông báo Lifetime cũ (`lifetimeRules.ts`),
+ *  và liên kết "Tương lai" ở RetirementPage — phải mở đúng nơi đó, KHÔNG đi vòng qua
+ *  AssetsPage rồi mới hiện tab (tab đó không còn tồn tại trong AssetsPage nữa).
+ *
+ *  Chuyển tiếp NGAY TẠI ROUTE, giống `ClassifyRedirect` ở trên: giữ nguyên MỌI tham số
+ *  khác trong query string, chỉ bỏ đúng `view` — một bare `<Navigate to="/tuong-lai">`
+ *  sẽ nuốt mất phần còn lại. useSearchParams gọi vô điều kiện trước mọi nhánh nên thứ tự
+ *  hook không đổi giữa các lần render. */
+function AssetsRoute() {
+  const [params] = useSearchParams()
+  if (params.get('view') === 'future') {
+    const rest = new URLSearchParams(params)
+    rest.delete('view')
+    const search = rest.toString()
+    return <Navigate to={{ pathname: '/tuong-lai', search: search ? `?${search}` : '' }} replace />
+  }
+  return lazyRoute(<AssetsPage />)
+}
+
 /** `/settings/debts/:debtId` → `/debts/:debtId`: cần đọc param nên không dùng
  *  `<Navigate>` tĩnh được. */
 function LegacyDebtRedirect() {
@@ -163,8 +186,9 @@ function AppRoutes() {
           <Route path="/so" element={<LedgerPage />} />
           <Route path="/transactions" element={<Navigate to="/so" replace />} />
           <Route path="/entry" element={<EntryPage />} />
-          <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
+          <Route path="/assets" element={<AssetsRoute />} />
           <Route path="/invest" element={lazyRoute(<InvestPage />)} />
+          <Route path="/tuong-lai" element={lazyRoute(<TuongLaiPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/quyen-loi" element={lazyRoute(<QuyenLoiPage />)} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
@@ -207,7 +231,11 @@ function AppRoutes() {
               sử trình duyệt và ảnh chụp màn hình cũ đều còn trỏ vào đây — bỏ hẳn là người
               dùng gặp trang trắng. */}
           <Route path="/health" element={<Navigate to="/reports?view=health" replace />} />
-          <Route path="/lifetime" element={<Navigate to="/assets?view=future" replace />} />
+          {/* Đích cũ trước khi Tương lai có trang riêng (2026-09-09) là tab con của Tài
+              sản; nay trỏ thẳng vào `/tuong-lai`, không đi vòng qua `/assets?view=future`
+              (route đó vẫn sống, nhưng chỉ để CHÍNH `/assets?view=future` chuyển tiếp —
+              không phải để `/lifetime` chuyển tiếp hai lần). */}
+          <Route path="/lifetime" element={<Navigate to="/tuong-lai" replace />} />
           {/* Đảo chiều so với đợt IA: Nhóm tài sản quay về Cài đặt (2026-08-30).
               Lý do đưa nó ra ngoài hồi đó — "là cấu hình của trang Tài sản, vào từ
               header trang đó" — vẫn còn, và nút "Quản lý nhóm" ở header Tài sản VẪN

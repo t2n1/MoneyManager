@@ -3,7 +3,7 @@
 //
 // Tách khỏi AppLayout vì từ bản 1a có ba chỗ đọc thay vì một. Ba bản chép tay của cùng
 // danh sách này là cách chắc chắn nhất để rail và thanh tab lệch nhau sau vài lượt sửa.
-import { ChartColumn, LayoutDashboard, LineChart, NotebookText, Settings, Target, Wallet } from 'lucide-react'
+import { ChartColumn, LayoutDashboard, LineChart, Milestone, NotebookText, Settings, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface NavItem {
@@ -17,21 +17,25 @@ export interface NavItem {
 // Icon theo §2.7 của bản 1a. `ChartColumn` CHÍNH LÀ `BarChart3` mà tài liệu gọi tên —
 // lucide v1 đổi tên, cả hai còn xuất ra được, dùng tên mới cho khỏi lệ thuộc alias cũ.
 //
-// Bảy mục: Bản tin chiếm `/` (từ PR 4, Sổ dời sang `/so`), và Đầu tư vào bảng này khi
-// rail desktop có nhãn chữ — trước đó nó chỉ có lối vào từ trang Tài sản.
+// Tám mục: Bản tin chiếm `/` (từ PR 4, Sổ dời sang `/so`), Đầu tư vào bảng này khi rail
+// desktop có nhãn chữ — trước đó nó chỉ có lối vào từ trang Tài sản — và Tương lai
+// (2026-09-09) tách khỏi tab con của Tài sản thành đích riêng, CHỈ CHO MÁY TÍNH (console
+// dòng thời gian cần 1280px, xem TuongLaiPage.tsx).
 //
 // `onMobile: false` là quyết định của §3 + bản vẽ 17a: thanh tab mobile của 1a có ĐÚNG
-// BỐN tab + nút "+", không phải sáu. Sáu tab ở 320px thì mỗi ô còn ~43px, hẹp hơn chữ
+// BỐN tab + nút "+", không phải tám. Tám tab ở 320px thì mỗi ô còn ~32px, hẹp hơn chữ
 // "Ngân sách" — nhãn bị cắt là mất luôn thứ duy nhất phân biệt các tab.
 //
-// Ba mục nhường chỗ, cùng một lý do: chúng là màn vào theo CHỦ ĐÍCH, không phải màn
-// liếc hằng ngày.
+// Bốn mục nhường chỗ, không cùng một lý do:
 //   Cài đặt — vài lần một tháng.
 //   Đầu tư — giá quỹ/cổ phiếu đổi theo ngày, không theo lần tiêu tiền.
 //   Báo cáo — màn đọc sâu. Bốn số đầu tháng, dòng tiền 8 tháng và khối ngân sách đã nằm
 //     sẵn trên Bản tin, nên cái Báo cáo thêm vào là phần PHÂN TÍCH, thứ người ta ngồi
 //     xuống mới xem. Bỏ Tài sản thay nó thì sai: số dư là thứ bị liếc trước khi tiêu.
-// Cả ba đều có nút riêng ở đầu Bản tin trên mobile (xem BulletinPage) — bỏ khỏi thanh
+//   Tương lai — không phải "ít mở" như ba mục kia, mà là CẤM hẳn dưới 1280px: màn hình
+//     điện thoại/tablet không đủ chỗ cho console (rail + vùng vẽ + dock cùng lúc), nên
+//     đây không phải một lựa chọn ưu tiên mà là một ràng buộc kỹ thuật.
+// Cả bốn đều có nút riêng ở đầu Bản tin trên mobile (xem BulletinPage) — bỏ khỏi thanh
 // tab mà không mở lối khác thì trên mobile chúng biến mất hẳn. (Đầu tư còn một lối nữa
 // ở trang Tài sản, nhưng lối đó CÓ ĐIỀU KIỆN `hasPortfolio` nên không tính là lối vào.)
 //
@@ -46,6 +50,9 @@ export const NAV_ITEMS: NavItem[] = [
   // một hình, dù bấm vào từ hai chỗ. Đứng ngay sau Tài sản vì nó là lát cắt SÂU của
   // cùng một câu hỏi ("tôi đang có gì"), không phải một khu riêng.
   { to: '/invest', label: 'Đầu tư', Icon: LineChart, onMobile: false },
+  // Đứng ngay sau Đầu tư, cùng nhóm "lát cắt sâu của tài sản" — khác Đầu tư ở việc câu
+  // hỏi là "sau này" chứ không phải "đang có gì".
+  { to: '/tuong-lai', label: 'Tương lai', Icon: Milestone, onMobile: false },
   { to: '/reports', label: 'Báo cáo', Icon: ChartColumn, onMobile: false },
   { to: '/settings', label: 'Cài đặt', Icon: Settings, onMobile: false },
 ]

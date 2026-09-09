@@ -61,13 +61,26 @@ cả dải khi gạt sang Năm → layout nhảy mỗi lần đổi kỳ.
 Sổ            Ngân sách      Tài sản           Báo cáo          Cài đặt
 │             │              │                 │                │
 ├ Ngày        └ (1 màn)      ├ Hiện tại        ├ Biểu đồ        ├ Quản lý sổ
-├ Lịch                       ├ Diễn biến       ├ Xu hướng       ├ Thông báo
-├ Tháng                      └ Tương lai       ├ Thấu hiểu      ├ Giao diện
+├ Lịch                       └ Diễn biến       ├ Xu hướng       ├ Thông báo
+├ Tháng                                        ├ Thấu hiểu      ├ Giao diện
 └ Tổng hợp                                     └ Sức khỏe      ├ Dữ liệu & sao lưu
                                                                 └ Hồ sơ
+
+Tương lai · `/tuong-lai` (đích riêng, CHỈ MÁY TÍNH — xem cập nhật 2026-09-09 dưới đây)
 ```
 
 Nav dưới 5 tab là giới hạn thực dụng trên mobile — không thêm nữa.
+
+> **Cập nhật 2026-09-09.** Tab con "Tương lai" của Tài sản tách thành đích riêng
+> `/tuong-lai` — không còn nằm dưới Tài sản trong cây trên. Lý do: màn này trở thành một
+> console dòng thời gian (rail + vùng vẽ + dock vặn thử) cần ≥1280px, khác hẳn hình dạng
+> "tab cuộn dọc" của hai tab còn lại của Tài sản — nhét chung một trang là một trang
+> phải cõng hai khuôn bố cục. `onMobile: false` trong `NAV_ITEMS` (rail desktop, không
+> xuống thanh tab điện thoại), có lối vào mobile riêng ở đầu Bản tin (biết nó tồn tại,
+> dù chưa mở được ở bề ngang đó). `/assets?view=future` và `/lifetime` đều còn sống làm
+> route chuyển tiếp cho bookmark cũ. Xem
+> [spec console](superpowers/specs/2026-09-09-tuong-lai-console-design.md) và §2.3 bên
+> dưới.
 
 > **Cập nhật 2026-08-16 (PR 4).** Sáu đích, không còn năm: **Bản tin** chiếm `/`, Sổ dời
 > sang `/so`, `/transactions` thành route chuyển tiếp. Bản tin trả lời "tình hình thế
@@ -103,17 +116,27 @@ Tách `BudgetView` ra khỏi `ReportsPage`. Nội dung giữ y nguyên (`AxisTar
 ngân sách, hạn mức từng danh mục lá, `MonthPaceCharts`, `SpendPaceSection`), chỉ cần **header
 điều hướng tháng riêng** vì trước đây nó dùng chung header của Báo cáo.
 
-### 2.3 Tab 3 — Tài sản · `/assets` (3 tab con)
+### 2.3 Tab 3 — Tài sản · `/assets` (2 tab con)
 
 | Tab con | `?view=` | Nội dung |
 | --- | --- | --- |
 | **Hiện tại** | `now` (mặc định) | Tổng tài sản · Thẻ tín dụng đến hạn · Tài sản ròng · Cơ cấu tài sản (bánh) · Danh sách nhóm & tài khoản (nút 3 kiểu cắt đứng ở đây, xem `tests/assetsLayout.test.ts`) |
 | **Diễn biến** | `trend` | `NetWorthHistorySection` · `InvestmentValueHistorySection` · `InvestmentPerformanceSection` · `SavingsGoalsSection` |
-| **Tương lai** | `future` | Nội dung `LifetimePage` mount thẳng vào đây (bỏ `BackButton` của nó) |
 
 Màn con vào từ tab này: `/assets/account/:accountId` (chi tiết TK),
 `/settings/asset-groups` (nhóm tài sản — xem §3.1b), `/debts` + `/debts/:debtId`
 (Nợ/cho vay).
+
+> **Cập nhật 2026-09-09.** Tab con thứ ba, **Tương lai** (`?view=future`), đã tách khỏi
+> Tài sản — không còn là tab con nữa. Đích mới là `/tuong-lai`, một trang riêng CHỈ CHO
+> MÁY TÍNH (≥1280px, mốc `xl` mặc định của Tailwind v4 — không phải bịa số): nội dung
+> `LifetimeView` mount thẳng vào `TuongLaiPage.tsx` y nguyên như trước (chưa đổi ruột,
+> việc đó ở task kế tiếp). `AssetsRoute` (App.tsx) chặn `?view=future` TRƯỚC khi `AssetsPage` mount
+> và chuyển thẳng sang `/tuong-lai`, giữ nguyên mọi tham số khác trong query string —
+> route `/assets?view=future` không bị xoá, chỉ đổi vai trò thành chuyển tiếp. `/lifetime`
+> (route chuyển tiếp cũ hơn) nay trỏ thẳng `/tuong-lai`, không còn đi vòng qua
+> `/assets?view=future`. Xem `NAV_ITEMS` trong `src/components/navItems.ts` và
+> [spec console](superpowers/specs/2026-09-09-tuong-lai-console-design.md).
 
 Trang chi tiết tài khoản **không** hiện danh mục. Mọi câu "đang giữ gì" gom về `/invest`,
 hai tab:

@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import type { CurrencyCode } from '../../lib/currencies'
+import { inflationRow, pctPerYear } from './summary'
 
 export interface BiggestExpenseSummary {
   label: string
@@ -42,13 +43,10 @@ export interface PlanSummaryCardProps {
   realReturnBps: number
   /** `input.inflationBps`. */
   inflationBps: number
-}
-
-/** bps → "x,y%/năm" kiểu Việt (phẩy), cùng công thức đã dùng ở
- *  `assets/InvestmentPerformanceSection.tsx` và `assets/RetirementPage.tsx` — không phải
- *  công thức mới. */
-function pctPerYear(bps: number): string {
-  return `${(bps / 100).toFixed(1).replace('.', ',')}%/năm`
+  /** `input.nominalTerms` — mặc định false, và console này chưa có control nào bật nó
+   *  lên. Quyết định hàng "Lạm phát chi tiêu" hiện con số hay câu chữ, xem `inflationRow`
+   *  ở `summary.ts`. */
+  nominalTerms: boolean
 }
 
 export function PlanSummaryCard({
@@ -63,7 +61,9 @@ export function PlanSummaryCard({
   biggestExpense,
   realReturnBps,
   inflationBps,
+  nominalTerms,
 }: PlanSummaryCardProps) {
+  const inflation = inflationRow(nominalTerms, inflationBps)
   return (
     <Card as="section" padding="panel" elevation="panel">
       <SectionTitle role="micro">Tóm tắt kế hoạch</SectionTitle>
@@ -130,8 +130,21 @@ export function PlanSummaryCard({
           <Num>{pctPerYear(realReturnBps)}</Num>
         </SummaryRow>
 
+        {/* `nominalTerms` false (mặc định, console chưa có control bật nó) → `inflationBps`
+            KHÔNG được projectLifetime dùng ở đâu cả (project.ts:139 JSDoc `nominalTerms`,
+            và project.ts:361 `const inflation = nominalTerms ? inflationBps / 10_000 : 0`).
+            Hiện "%/năm" trong ca này là bịa một số có vẻ đang chạy trong khi nó không đụng
+            gì tới các hàng khác trên thẻ — cùng loại lỗi từng bị sửa ở hàng "Cần dành
+            nhiều nhất" phía trên (nhãn mô tả sai thứ con số đo). Chi tiết đầy đủ + cách
+            tính ở `inflationRow` (summary.ts). "Giữ giá hôm nay" là CHỮ, không phải số —
+            không đi qua `<Num>` (xem đầu Num.tsx: "Con số KHÔNG phải tiền"), cùng lý do
+            "chưa đạt" ở hàng Tự do tài chính phía trên cũng đứng ngoài `<Num>`. */}
         <SummaryRow label="Lạm phát chi tiêu">
-          <Num>{pctPerYear(inflationBps)}</Num>
+          {inflation.active ? (
+            <Num>{inflation.text}</Num>
+          ) : (
+            <span className="text-fg-muted">{inflation.text}</span>
+          )}
         </SummaryRow>
       </div>
 

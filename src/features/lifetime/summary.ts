@@ -1,10 +1,11 @@
-// Ba phép suy THUẦN cho phần tóm tắt của tab Tương lai — câu kết luận đầu màn, dòng
-// tóm tắt trên mỗi thẻ kịch bản, và khoảng năm + tiền để dành của chặng đang chạy.
+// Các phép suy THUẦN cho phần tóm tắt của tab Tương lai — câu kết luận đầu màn, dòng
+// tóm tắt trên mỗi thẻ kịch bản, khoảng năm + tiền để dành của chặng đang chạy, và (thêm
+// sau, review task 15b) hàng "Lạm phát chi tiêu" của PlanSummaryCard.tsx.
 //
 // VÌ SAO ĐỨNG RIÊNG MỘT FILE (quy ước "toán thuần nằm ngoài React" của CLAUDE.md):
-// cả ba đều là suy luận có nhánh biên (không có chặng nào, chặng cuối, thu bằng 0,
-// chưa đạt FIRE…) mà nhìn một component render xong thì không kiểm được nhánh nào đã
-// chạy. Ở đây mỗi nhánh có một phép thử.
+// đều là suy luận có nhánh biên (không có chặng nào, chặng cuối, thu bằng 0,
+// chưa đạt FIRE, nominalTerms tắt…) mà nhìn một component render xong thì không kiểm
+// được nhánh nào đã chạy. Ở đây mỗi nhánh có một phép thử.
 //
 // KHÔNG tự tính lại năm âm / năm FIRE ở đây — cả hai đọc từ `insights.ts`, nơi chúng
 // đã có test riêng. Lặp lại phép tính là hai chỗ cùng một khái niệm, và chúng sẽ trôi
@@ -99,4 +100,41 @@ export function phaseSavings(phase: LifetimePhase): PhaseSavings {
         ? null
         : Math.round((amountMinor / phase.annualIncomeMinor) * 1000) / 10,
   }
+}
+
+/** bps → "x,y%/năm" kiểu Việt (phẩy), cùng công thức đã dùng ở
+ *  `assets/InvestmentPerformanceSection.tsx` và `assets/RetirementPage.tsx` — không phải
+ *  công thức mới. Xuất ra để `PlanSummaryCard.tsx` dùng cho cả hàng "Lợi suất thực" (luôn
+ *  chạy) lẫn `inflationRow` bên dưới (chỉ chạy khi `nominalTerms` bật). */
+export function pctPerYear(bps: number): string {
+  return `${(bps / 100).toFixed(1).replace('.', ',')}%/năm`
+}
+
+/**
+ * Hàng "Lạm phát chi tiêu" của `PlanSummaryCard.tsx` đọc gì — quyết định bởi `nominalTerms`,
+ * KHÔNG phải một phép tính từ `inflationBps` một mình.
+ *
+ * `nominalTerms` false (mặc định, và console `TuongLaiPage.tsx` hiện chưa có control nào
+ * bật nó lên) → `inflationBps` KHÔNG được `projectLifetime` dùng ở đâu cả: xem JSDoc
+ * `nominalTerms` ở `project.ts:139` và dòng tính `const inflation = nominalTerms ? … : 0`
+ * ở `project.ts:361`. Thu, chi và sự kiện đứng yên theo giá hôm nay. Hiện "%/năm" trong ca
+ * này là bịa một số có vẻ đang ảnh hưởng tới các hàng khác trên thẻ trong khi nó không đụng
+ * gì cả — cùng kiểu sai từng bị bắt ở hàng "Cần dành nhiều nhất" (xem comment phía trên
+ * `SummaryRow` đó trong `PlanSummaryCard.tsx`). ĐỪNG khôi phục lại một con số %/năm cố định
+ * ở đây khi sửa file này lần sau — trước tiên hãy hỏi `nominalTerms` có thật bật ở đâu chưa.
+ *
+ * `nominalTerms` true → lạm phát có chạy thật trong bản chiếu (phồng dòng tiền + đổi lợi
+ * suất sang danh nghĩa), nên hiện %/năm bình thường.
+ */
+export interface InflationRow {
+  /** true = `inflationBps` có hiệu lực, `text` là "%/năm" và card phải hiện qua `<Num>`.
+   *  false = `text` là câu xác nhận giá hôm nay — chữ, không phải số, không đi qua `<Num>`
+   *  (xem đầu `Num.tsx`: "Con số KHÔNG phải tiền" — ở đây còn không phải số). */
+  active: boolean
+  text: string
+}
+
+export function inflationRow(nominalTerms: boolean, inflationBps: number): InflationRow {
+  if (!nominalTerms) return { active: false, text: 'Giữ giá hôm nay' }
+  return { active: true, text: pctPerYear(inflationBps) }
 }

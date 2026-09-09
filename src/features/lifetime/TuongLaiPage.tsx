@@ -1486,6 +1486,7 @@ function TuongLaiConsole() {
             biggestExpense,
             realReturnBps: shownInput.realReturnBps,
             inflationBps: shownInput.inflationBps,
+            nominalTerms: shownInput.nominalTerms,
           }}
         />
       }

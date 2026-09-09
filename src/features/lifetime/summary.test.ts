@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lifetimeVerdict, phaseRange, phaseSavings } from './summary'
+import { inflationRow, lifetimeVerdict, phaseRange, phaseSavings } from './summary'
 import { projectLifetime, type LifetimeInput, type LifetimePhase } from './project'
 
 function phase(over: Partial<LifetimePhase> = {}): LifetimePhase {
@@ -137,5 +137,27 @@ describe('phaseSavings', () => {
     const s = phaseSavings(phase({ annualIncomeMinor: 0, annualExpenseMinor: 2_000_000 }))
     expect(s.amountMinor).toBe(-2_000_000)
     expect(s.ratePct).toBeNull()
+  })
+})
+
+// Review task 15b (2026-09-09): hàng "Lạm phát chi tiêu" của PlanSummaryCard.tsx từng hiện
+// %/năm bất kể nominalTerms — một số bịa vì project.ts:361 chỉ dùng inflationBps khi
+// nominalTerms bật (project.ts:139). inflationRow là chỗ chứng minh nhánh đó, để không ai
+// khôi phục lại một %/năm cố định sau này mà không thấy phép thử này đỏ.
+describe('inflationRow', () => {
+  it('nominalTerms tắt (mặc định) → chữ xác nhận giá hôm nay, không phải %/năm', () => {
+    expect(inflationRow(false, 200)).toEqual({ active: false, text: 'Giữ giá hôm nay' })
+  })
+
+  it('nominalTerms tắt: inflationBps đổi không đổi được chữ hiện ra — nó không được đọc', () => {
+    expect(inflationRow(false, 900)).toEqual({ active: false, text: 'Giữ giá hôm nay' })
+  })
+
+  it('nominalTerms bật → hiện %/năm từ inflationBps, cùng công thức pctPerYear', () => {
+    expect(inflationRow(true, 200)).toEqual({ active: true, text: '2,0%/năm' })
+  })
+
+  it('nominalTerms bật, inflationBps = 0 → vẫn hiện số (0%/năm), không rơi về chữ', () => {
+    expect(inflationRow(true, 0)).toEqual({ active: true, text: '0,0%/năm' })
   })
 })

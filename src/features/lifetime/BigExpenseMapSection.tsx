@@ -6,15 +6,19 @@
 // Ba nguồn mốc được gộp: sự kiện kịch bản (chỉ có năm), Khoản sắp chi (có ngày), Mục tiêu
 // tiết kiệm (có hạn + phần đã dành). Không khử trùng lặp giữa chúng: nhìn thấy đủ rồi tự
 // dọn dễ hơn là đoán xem app đã giấu dòng nào.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Money, Num, SectionTitle } from '../../components/ui'
+import { Card, FilterChip, Money, Num, SectionTitle } from '../../components/ui'
 import { ExplainBox } from '../../components/ExplainBox'
 import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import type { FxOf } from './fxModel'
-import type { LifetimeEvent } from './project'
+import { buildLifetimeCostMap } from './lifetimeCost'
+import type { LifetimeEvent, YearRow } from './project'
+
+/** Hai câu khác nhau, xem đầu `lifetimeCost.ts`. */
+type CachXep = 'life' | 'need'
 
 interface Props {
   /** Sự kiện của bản chiếu đang xem — fx đã chuẩn hoá theo tỷ giá hôm nay. */
@@ -27,6 +31,10 @@ interface Props {
    * (suggestBaseline); false = số kế hoạch của chặng đang chạy. null = chưa tính được.
    */
   surplus: { monthlyMinor: number; real: boolean } | null
+  /** Dòng của phép chiếu đang xem — nguồn của cách xếp "Cả đời". */
+  rows: readonly YearRow[]
+  /** Thiếu tỷ giá ở đâu đó trong kế hoạch → mọi tổng cả đời hiện `≈`. */
+  hasMissingRate: boolean
 }
 
 const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
@@ -35,7 +43,19 @@ const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
   goal: 'mục tiêu',
 }
 
-export function BigExpenseMapSection({ events, displayCurrency, fxOf, todayISO, surplus }: Props) {
+export function BigExpenseMapSection({
+  events,
+  displayCurrency,
+  fxOf,
+  todayISO,
+  surplus,
+  rows,
+  hasMissingRate,
+}: Props) {
+  // Mặc định "Cả đời": hàng này tên là bản ĐỒ khoản lớn, và bản vẽ vẽ nó xếp theo tổng cả
+  // đời. Câu "cần dành mỗi tháng" là câu thứ hai, một cú bấm là tới.
+  const [mode, setMode] = useState<CachXep>('life')
+  const life = useMemo(() => buildLifetimeCostMap({ rows }), [rows])
   const { data: planned = [] } = usePlannedExpenses()
   const { data: goals = [] } = useSavingsGoals()
   const { data: balances = [] } = useAccountBalances()
@@ -64,22 +84,130 @@ export function BigExpenseMapSection({ events, displayCurrency, fxOf, todayISO, 
     })
   }, [balances, goals, planned, events, displayCurrency, fxOf, todayISO])
 
-  // Không có mốc nào phía trước thì im lặng — thẻ trống không giúp ai.
-  if (map.items.length === 0) return null
+  // Không có gì để xếp ở CẢ HAI cách thì im lặng — thẻ trống không giúp ai.
+  if (map.items.length === 0 && life.items.length === 0) return null
 
   const over = surplus !== null && map.totalMonthlyNeedMinor > surplus.monthlyMinor
   const heavy = map.heavyYears.length > 0 ? map.heavyYears[0] : null
   const heavyRow = heavy !== null ? map.yearPressure.find((y) => y.year === heavy) : null
+  const doiNhat = life.items.length > 0 ? Math.abs(life.items[0].totalMinor) : 0
 
   return (
     <Card as="section" elevation="panel" padding="panel" className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <SectionTitle>Bản đồ khoản lớn</SectionTitle>
+        {/* Hai cách xếp trả lời HAI câu khác nhau, nên là một công tắc chứ không phải hai
+            khối nối tiếp: đặt cạnh nhau thì hai bảng trông gần như nhau và người đọc lấy
+            số của bảng này gán cho câu của bảng kia. Chip co theo chữ (không `flex-1`) —
+            control nhỏ thì vừa đúng chữ, chỗ trống để cho bảng. */}
+        <span role="group" aria-label="Cách xếp khoản lớn" className="flex items-center gap-1">
+          <FilterChip
+            size="sm"
+            on={mode === 'life'}
+            onClick={() => setMode('life')}
+            title="Cả đời khoản nào ngốn nhiều tiền nhất — gộp sinh hoạt từng chặng và từng mốc"
+          >
+            Cả đời
+          </FilterChip>
+          <FilterChip
+            size="sm"
+            on={mode === 'need'}
+            onClick={() => setMode('need')}
+            title="Mỗi tháng cần để dành bao nhiêu cho các khoản sắp tới"
+          >
+            Cần dành
+          </FilterChip>
+        </span>
         <span className="text-2xs text-fg-muted">
-          cần để dành mỗi tháng, tính từ hôm nay
+          {mode === 'life'
+            ? 'tổng cả đời, gồm sinh hoạt từng chặng'
+            : 'cần để dành mỗi tháng, tính từ hôm nay'}
         </span>
       </div>
 
+      {mode === 'life' ? (
+        life.items.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">
+            Chưa có chặng đời nào để cộng — thêm một chặng thì bảng này có số.
+          </p>
+        ) : (
+          <>
+            <ul className="mt-2 divide-y divide-border-subtle">
+              {life.items.map((i) => {
+                const ra = i.totalMinor > 0
+                const pct =
+                  life.totalSpendMinor > 0 && ra ? (i.totalMinor / life.totalSpendMinor) * 100 : null
+                return (
+                  <li key={`${i.kind}:${i.id}`} className="py-2">
+                    <span className="flex items-baseline gap-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-fg-primary">{i.label}</span>
+                        <span className="block text-2xs text-fg-muted">
+                          {i.kind === 'phase' ? 'sinh hoạt' : 'mốc'} ·{' '}
+                          <Num tone="muted">{i.years} năm</Num>
+                          {pct !== null && (
+                            <>
+                              {' · '}
+                              <Num tone="muted">{Math.round(pct)}%</Num> tổng chi
+                            </>
+                          )}
+                        </span>
+                      </span>
+                      <Money
+                        amount={Math.abs(i.totalMinor)}
+                        currency={displayCurrency}
+                        tone={ra ? 'out' : 'in'}
+                        approx={hasMissingRate}
+                        className="text-sm"
+                      />
+                    </span>
+                    {/* Thanh tỉ lệ — bản vẽ §"Bản đồ khoản lớn". Bề rộng là số tính được
+                        nên đi qua `style`, không phải một class tuỳ ý. */}
+                    <span
+                      aria-hidden
+                      className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-sunken"
+                    >
+                      <span
+                        className={`block h-full rounded-full ${ra ? 'bg-money-out' : 'bg-money-in'}`}
+                        style={{
+                          width: `${doiNhat > 0 ? (Math.abs(i.totalMinor) / doiNhat) * 100 : 0}%`,
+                        }}
+                      />
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-panel pt-2">
+              <span className="text-sm font-medium text-fg-secondary">Tổng chi cả đời</span>
+              <Money
+                amount={life.totalSpendMinor}
+                currency={displayCurrency}
+                tone="out"
+                approx={hasMissingRate}
+                className="text-sm font-semibold"
+              />
+            </div>
+            <ExplainBox label="Cách tính">
+              <p>
+                <b>Cả đời</b> cộng chi nền của từng chặng và từng mốc suốt bản chiếu, lấy
+                thẳng từ phép chiếu — nên đã gồm lạm phát, tỷ giá, bốn hình dạng số tiền và
+                ô &quot;thay cho&quot; (không đếm hai lần phần đã trừ khỏi chi nền).
+              </p>
+              <p>
+                Một mốc mua tài sản gộp cả trả trước, trả nợ và chi phí giữ về MỘT dòng.
+                Cú sốc của stress test không vào bảng này — nó là &quot;nếu như&quot;, không
+                phải một khoản trong kế hoạch.
+              </p>
+            </ExplainBox>
+          </>
+        )
+      ) : map.items.length === 0 ? (
+        <p className="mt-2 text-sm text-fg-muted">
+          Không có mốc nào phía trước cần để dành từ bây giờ.
+        </p>
+      ) : (
+        <>
       <ul className="mt-2 divide-y divide-border-subtle">
         {map.items.map((i) => (
           <li key={`${i.source}:${i.id}`} className="flex items-baseline gap-2 py-2">
@@ -179,6 +307,8 @@ export function BigExpenseMapSection({ events, displayCurrency, fxOf, todayISO, 
           .
         </p>
       </ExplainBox>
+        </>
+      )}
     </Card>
   )
 }

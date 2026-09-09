@@ -1985,6 +1985,8 @@ function TuongLaiConsole() {
             fxOf={pageFxOf}
             todayISO={todayISO}
             surplus={surplusForMap}
+            rows={shownRows}
+            hasMissingRate={missingRateCurrencies.length > 0}
           />
         </div>
       }

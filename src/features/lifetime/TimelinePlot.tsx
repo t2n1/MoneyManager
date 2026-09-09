@@ -25,10 +25,12 @@
 // học đi theo thay vì bị cắt.
 import {
   useCallback,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type Ref,
 } from 'react'
 import { EmptyState, Money, Num } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
@@ -62,6 +64,7 @@ import {
   viewRange,
   type PlotZoom,
 } from './plotFrame'
+import { isEditableTarget } from './consoleKeys'
 import type { YearRow } from './project'
 import { normalizeSpan, spanYears, type YearSpan } from './quickAddRange'
 import { useBoxSize } from './useBoxSize'
@@ -122,6 +125,18 @@ export interface PlotPoint {
   y: number
 }
 
+/**
+ * Tay cầm mệnh lệnh của vùng vẽ. CHỈ có đúng một việc, và nó có lý do:
+ *
+ * `←`/`→` khi KHÔNG chọn gì phải dời vạch rê chuột (README, bảng "Bàn phím"), mà vạch đó
+ * là state RIÊNG của file này — đưa nó lên trang thì mỗi năm chuột đi qua là cả console
+ * bày lại, và nó chỉ để tô một vạch dọc 1px. Nên lớp bàn phím của trang gọi XUỐNG đây.
+ */
+export interface TimelinePlotHandle {
+  /** Dời vạch rê chuột `step` năm. Chưa có vạch thì bắt đầu từ năm đầu khung nhìn. */
+  nudgeHover: (step: number) => void
+}
+
 interface Props {
   /** Bản chiếu ĐANG XEM (nháp nếu có nháp, không thì bản đã lưu). */
   rows: YearRow[]
@@ -172,6 +187,8 @@ interface Props {
    * bấm không mở gì. Nhờ vậy màn cũ (nếu còn dựng `TimelinePlot`) không mọc thêm hành vi.
    */
   onQuickAdd?: (span: YearSpan, at: PlotPoint) => void
+  /** Xem `TimelinePlotHandle`. */
+  handleRef?: Ref<TimelinePlotHandle>
 }
 
 /** Tham chiếu ỔN ĐỊNH cho "không có" — `[]` trong JSX tạo mảng mới mỗi lần render. */
@@ -213,6 +230,7 @@ export function TimelinePlot({
   onMoveEvent,
   onMoveEventEnd,
   onQuickAdd,
+  handleRef,
 }: Props) {
   // Khởi tạo bằng một cỡ hợp lý rồi để ResizeObserver sửa ngay ở lượt bày đầu: mọi hàm
   // hình học dưới đây tự chịu được cỡ sai, còn `rows` rỗng thì chúng cũng đã canh. Hai lời
@@ -390,6 +408,29 @@ export function TimelinePlot({
     }
   }, [onHoverYear])
 
+  /** Đặt vạch rê chuột vào một năm CỤ THỂ (đường bàn phím). Kẹp trong khung nhìn — ra
+   *  ngoài thì không còn năm nào trên trục để tô. */
+  const setHoverTo = useCallback(
+    (year: number) => {
+      const y = Math.max(x0, Math.min(x1, year))
+      setHoverYear(y)
+      if (sentYearRef.current !== y) {
+        sentYearRef.current = y
+        onHoverYear?.(y)
+      }
+    },
+    [x0, x1, onHoverYear],
+  )
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      // Chưa có vạch thì bắt đầu từ MÉP TRÁI khung nhìn (năm hiện tại), không phải từ
+      // năm 0: một cú → đầu tiên phải đặt vạch vào chỗ đọc được ngay.
+      nudgeHover: (step: number) => setHoverTo((sentYearRef.current ?? x0 - step) + step),
+    }),
+    [setHoverTo, x0],
+  )
+
   // --- Bấm / kéo ngang trên NỀN đồ thị → bảng chọn nhanh -----------------------------
   //
   // Dùng CHÍNH `useYearDrag` mà khối chặng và icon mốc dùng, không viết cử chỉ thứ hai:
@@ -428,6 +469,14 @@ export function TimelinePlot({
       const r = el?.getBoundingClientRect()
       pressAtRef.current = { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) }
       bgDrag.start({ year: yearAt(e.clientX) }, e)
+      // Tự NHẢ tiêu điểm khỏi ô đang gõ. `useYearDrag.start` gọi `preventDefault()` để
+      // chặn bôi đen, và tác dụng phụ của nó là trình duyệt KHÔNG còn tự dời tiêu điểm —
+      // nên sau khi gõ một số trong dock rồi bấm ra nền, tiêu điểm vẫn nằm trong ô đó và
+      // cả lớp bàn phím im lặng (`isEditableTarget` chặn đúng như phải chặn), kể cả `Esc`
+      // để đóng bảng vừa mở. Nhả tay là trả lại đúng hành vi mà `preventDefault` lấy đi,
+      // và nó còn chốt `onBlur` của ô số (xem `YearBox`/`NumBox`).
+      const dang = document.activeElement
+      if (isEditableTarget(dang)) (dang as HTMLElement).blur()
     },
     [onQuickAdd, boxRef, bgDrag, yearAt],
   )

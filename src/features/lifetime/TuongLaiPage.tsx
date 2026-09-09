@@ -57,7 +57,7 @@ import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
-import { clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
+import { blockPhaseStartYearAtNeighbours, clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
 import { PIN_TOP, viewRange } from './plotFrame'
 import type { LifePreset, PresetContext, PresetResult } from './presets'
 import { phaseForYear, projectLifetime } from './project'
@@ -70,7 +70,10 @@ import {
   type ComparisonLine,
   type PlotPoint,
   type PlotZoom,
+  type TimelinePlotHandle,
 } from './TimelinePlot'
+import { UNDO_WINDOW_MS, makeUndo } from './undoStack'
+import { useConsoleKeys } from './useConsoleKeys'
 import { useLifetime } from './useLifetime'
 import { YearTableSection } from './YearTableView'
 
@@ -210,14 +213,40 @@ function TuongLaiConsole() {
   // ở đây), và nó ghi vào bản nháp — cả hai thứ đó sống ở trang. Vùng vẽ chỉ báo ra cử
   // chỉ và chỗ bấm, vì chỉ nó biết phép chiếu năm→pixel.
   const [quick, setQuick] = useState<{ span: YearSpan; at: PlotPoint } | null>(null)
+  /** Tay cầm của vùng vẽ — `←`/`→` khi không chọn gì dời vạch rê chuột qua đây. */
+  const plotRef = useRef<TimelinePlotHandle>(null)
+
+  // --- Hoàn tác một bậc cho việc XOÁ (Task 14) ---------------------------------------
+  //
+  // `makeUndo` (undoStack.ts, thuần, có phép thử) — một bậc, cửa sổ 9 giây, đúng thời
+  // lượng toast của bản vẽ. Không viết bản thứ hai ở đây.
+  const undo = useMemo(() => makeUndo<ScenarioDraft>(), [])
+  /** Câu trên toast, ví dụ `Đã xoá mốc "Mua nhà"`. `null` = không có toast. */
+  const [undoLabel, setUndoLabel] = useState<string | null>(null)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const hideUndoToast = useCallback(() => {
+    if (undoTimer.current !== null) {
+      clearTimeout(undoTimer.current)
+      undoTimer.current = null
+    }
+    setUndoLabel(null)
+  }, [])
+  // Dọn hẹn giờ lúc rời màn: một `setUndoLabel` gọi sau khi cây đã tháo là một cảnh báo
+  // trong console và một chỗ rò bộ nhớ nhỏ.
+  useEffect(() => () => hideUndoToast(), [hideUndoToast])
+
   // Đổi kịch bản thì nháp phải rơi: nó là bản sao của kịch bản CŨ, giữ lại là âm thầm áp
   // thu/chi/mốc của kịch bản này lên kịch bản kia. Lựa chọn cũng rơi — id không còn thuộc
-  // kịch bản đang xem.
+  // kịch bản đang xem. Bản chụp hoàn tác CŨNG rơi: nó chứa chặng/mốc của kịch bản cũ, và
+  // bấm "Hoàn tác" sau khi đổi kịch bản sẽ đổ nguyên chúng vào kịch bản mới.
   useEffect(() => {
     setDraft(null)
     setSel({ type: 'none' })
     setQuick(null)
-  }, [activeId])
+    undo.clear()
+    hideUndoToast()
+  }, [activeId, undo, hideUndoToast])
 
   /** Ảnh chụp bản ĐÃ LƯU, dạng nháp — gốc quy chiếu của mọi phép so và mọi lệnh ghi. */
   const savedDraft = useMemo(
@@ -376,11 +405,12 @@ function TuongLaiConsole() {
     }
   }, [ensureFirstScenario])
 
-  // ===== Đường GHI — khai TRƯỚC ba cổng bên dưới =====
+  // ===== Đường GHI và lớp BÀN PHÍM — khai TRƯỚC ba cổng bên dưới =====
   //
-  // Ở đây chứ không cạnh chỗ dùng vì lớp bàn phím của màn này (task kế tiếp) là một HOOK:
-  // hook phải được gọi vô điều kiện ở mọi lần render, tức TRÊN mọi `return` sớm — và kéo
-  // theo đó, mọi thứ nó cần (hai con số năm, các đường dời) cũng phải khai trên đó.
+  // Vì sao ở đây chứ không cạnh chỗ dùng: `useConsoleKeys` là một HOOK, nên nó phải được
+  // gọi vô điều kiện ở mọi lần render — sau một `return` sớm là vi phạm luật hook và React
+  // sẽ nổ khi trạng thái tải đổi. Kéo theo đó, mọi thứ nó cần cũng phải khai trên này:
+  // hai con số năm, và các đường dời/xoá.
 
   /** Năm hiện tại của bản chiếu. Rơi về năm thật của máy khi chưa tải xong — chỉ dùng cho
    *  lượt render trước cổng, lúc chưa có gì để sửa. */
@@ -403,6 +433,7 @@ function TuongLaiConsole() {
    * QUA chặng bên cạnh thì nó nhận năm trống gần nhất và hai chặng ĐỔI THỨ TỰ, chứ không
    * bị chặn lại ở sát bên — đúng như gõ năm đó vào ô.
    *
+   * ĐƯỜNG BÀN PHÍM KHÔNG ĐI QUA ĐÂY — xem `nudgePhase` ngay dưới.
    */
   const movePhaseStart = useCallback(
     (id: string, wanted: number) =>
@@ -410,6 +441,29 @@ function TuongLaiConsole() {
         patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
       ),
     [editDraft, currentYear],
+  )
+
+  /**
+   * `←`/`→` trên một chặng đang chọn: CHẶN tại chặng liền kề
+   * (`blockPhaseStartYearAtNeighbours`), KHÔNG dò-năm-trống-rồi-nhảy như `movePhaseStart`.
+   *
+   * Đây là phát hiện review 2026-09-09 Finding 2, và nó đúng với cả lớp bàn phím toàn
+   * trang: hai chặng liền năm (2035, 2036) — một cú → duy nhất trên chặng 2035 xin 2036,
+   * thấy có người, `clampPhaseStartYear` NHẢY qua 2037 và hai chặng đổi thứ tự. Một cú bấm
+   * phím còn CHỦ Ý hơn một cú kéo lỡ tay, nên nó phải là NO-OP khi sát hàng xóm. `PhaseLane`
+   * tự bắt ←/→ trên chính khối (khi khối đang có tiêu điểm) và đi qua đúng hàm này — hai
+   * đường, một luật.
+   */
+  const nudgePhase = useCallback(
+    (id: string, step: number) =>
+      editDraft((d) => {
+        const p = d.phases.find((x) => x.id === id)
+        if (!p) return d
+        return patchDraftPhase(d, id, {
+          startYear: blockPhaseStartYearAtNeighbours(d.phases, id, p.startYear + step),
+        })
+      }),
+    [editDraft],
   )
 
   /**
@@ -455,6 +509,90 @@ function TuongLaiConsole() {
       }),
     [editDraft, lastYear],
   )
+
+  /**
+   * XOÁ một chặng/mốc, có hoàn tác. MỘT đường cho cả nút "Xoá" trong dock LẪN phím
+   * `Delete`/`Backspace` — hai đường là một chỗ để nút Xoá không chụp bản hoàn tác.
+   *
+   * Chụp `working` (cả bản nháp) TRƯỚC khi xoá, không chụp riêng dòng bị xoá: xoá một chặng
+   * còn dời cả biên của chặng bên cạnh trên dải, và một bản chụp "chỉ dòng đó" phải tự dựng
+   * lại thứ tự — `makeUndo` vốn tổng quát theo kiểu bản chụp đúng để tránh việc đó.
+   *
+   * Đọc `working` thẳng (không qua mutator của `setDraft`): xoá là một thao tác RỜI, không
+   * phải chuỗi gộp theo nhịp khung hình như lượt kéo — và một tác dụng phụ (`undo.push`)
+   * đặt trong mutator sẽ chạy HAI LẦN ở chế độ Strict của React.
+   */
+  const removeWithUndo = useCallback(
+    (what: 'phase' | 'event', id: string) => {
+      const base = working
+      if (!base) return
+      const label =
+        what === 'phase'
+          ? base.phases.find((p) => p.id === id)?.label
+          : base.events.find((e) => e.id === id)?.label
+      if (label === undefined) return
+      const cau = `Đã xoá ${what === 'phase' ? 'chặng' : 'mốc'} "${label}"`
+      undo.push(cau, base)
+      setDraft(what === 'phase' ? removeDraftPhase(base, id) : removeDraftEvent(base, id))
+      // Bỏ chọn NGAY: id vừa xoá không còn dòng nào, và dock rơi về thẻ tóm tắt thay vì
+      // một panel rỗng.
+      setSel({ type: 'none' })
+      if (undoTimer.current !== null) clearTimeout(undoTimer.current)
+      setUndoLabel(cau)
+      // Toast tắt đúng lúc cửa sổ hoàn tác hết hạn — một nút "Hoàn tác" còn trên màn sau
+      // khi `makeUndo` đã coi bản chụp là hết hạn thì bấm vào không làm gì cả.
+      undoTimer.current = setTimeout(() => {
+        undoTimer.current = null
+        setUndoLabel(null)
+      }, UNDO_WINDOW_MS)
+    },
+    [working, undo],
+  )
+
+  const deleteSelected = useCallback(() => {
+    if (sel.id === undefined) return
+    if (sel.type === 'phase' || sel.type === 'event') removeWithUndo(sel.type, sel.id)
+  }, [sel, removeWithUndo])
+
+  const doUndo = useCallback(() => {
+    const e = undo.take()
+    if (e === null) return
+    setDraft(e.snapshot)
+    hideUndoToast()
+  }, [undo, hideUndoToast])
+
+  /** `Esc` — đóng thứ đang mở TRÊN CÙNG, một lớp mỗi lần bấm. Popover trong dock tự lo
+   *  phần của nó và `stopPropagation` (xem `PlanDockParts`), nên nó không tới được đây. */
+  const closeTop = useCallback(() => {
+    if (quick !== null) {
+      setQuick(null)
+      return
+    }
+    if (hintsOpen) {
+      setHintsOpen(false)
+      return
+    }
+    setSel((cur) => (cur.type === 'none' ? cur : { type: 'none' }))
+  }, [quick, hintsOpen])
+
+  /** `←`/`→` — thứ đang chọn, hoặc vạch rê chuột khi không chọn gì (README). */
+  const nudge = useCallback(
+    (step: -1 | 1) => {
+      if (sel.type === 'phase' && sel.id !== undefined) {
+        nudgePhase(sel.id, step)
+        return
+      }
+      if (sel.type === 'event' && sel.id !== undefined) {
+        const e = working?.events.find((x) => x.id === sel.id)
+        if (e) moveEventStart(sel.id, e.startYear + step)
+        return
+      }
+      plotRef.current?.nudgeHover(step)
+    },
+    [sel, working, nudgePhase, moveEventStart],
+  )
+
+  useConsoleKeys({ onClose: closeTop, onDelete: deleteSelected, onUndo: doUndo, onNudge: nudge })
 
   if (isLoading) return <EmptyState>Đang tải…</EmptyState>
 
@@ -599,12 +737,9 @@ function TuongLaiConsole() {
               ),
             )
           },
-          onRemove: () => {
-            editDraft((d) => removeDraftPhase(d, selPhase.id))
-            // Bỏ chọn NGAY: id vừa xoá không còn dòng nào, và dock rơi về thẻ tóm tắt
-            // thay vì một panel rỗng.
-            setSel({ type: 'none' })
-          },
+          // MỘT đường xoá cho cả nút này lẫn phím Delete — nút bấm phải hoàn tác được
+          // hệt như phím, không thì "có hoàn tác" là một câu chỉ đúng một nửa.
+          onRemove: () => removeWithUndo('phase', selPhase.id),
         }
 
   const selEvent = sel.type === 'event' ? working.events.find((e) => e.id === sel.id) : undefined
@@ -813,10 +948,8 @@ function TuongLaiConsole() {
             // Nhắm con trỏ vào chặng vừa sinh — người dùng bấm nút này là để sửa nó.
             setSel({ type: 'phase', id: addedPhaseId(seed) })
           },
-          onRemove: () => {
-            editDraft((d) => removeDraftEvent(d, selEvent.id))
-            setSel({ type: 'none' })
-          },
+          /** Cùng đường với phím Delete — xem `onRemove` của panel chặng. */
+          onRemove: () => removeWithUndo('event', selEvent.id),
         }
 
   return (
@@ -1040,6 +1173,7 @@ function TuongLaiConsole() {
                   nó, tức toạ độ báo ra dùng được thẳng ở đây. */}
           <div className="relative min-w-0">
           <TimelinePlot
+            handleRef={plotRef}
             rows={shownRows}
             currency={currency}
             // Đường "trước khi đổi" là bản chiếu của dữ liệu ĐÃ LƯU, và chỉ có nghĩa khi
@@ -1091,6 +1225,17 @@ function TuongLaiConsole() {
             </div>
           )}
 
+          {/* TOAST HOÀN TÁC — ở ĐÁY đồ thị, đúng chỗ bản vẽ đặt nó. Không đi qua
+              `showToast` toàn cục: toast đó không có chỗ cho một cái NÚT, mà cả điểm của
+              dải này là cái nút. */}
+          {undoLabel !== null && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-9 z-40 flex justify-center">
+              <div className="pointer-events-auto flex animate-toast-in items-center gap-2 rounded-full border border-border-strong bg-surface-chrome px-3 py-1.5 shadow-sm">
+                <span className="text-2xs text-fg-secondary">{undoLabel}</span>
+                <ActionButton onClick={doUndo}>Hoàn tác</ActionButton>
+              </div>
+            </div>
+          )}
           </div>
 
           {/* --- HÀNG 8: dải chặng đời --------------------------------------------

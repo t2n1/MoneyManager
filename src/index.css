@@ -499,6 +499,10 @@
      động": `omPop` — opacity + translateY −6px, `.16s`). Biến riêng theo VIỆC, cùng lý
      lẽ với --motion-block ngay trên. */
   --motion-popover: 160ms;
+  /* Toast hoàn tác ở đáy đồ thị lúc MỞ (bản vẽ 1c: `omToast` — opacity + translateY
+     10px, `.2s`). Trùng số với --motion-todo nhưng CỐ Ý là biến riêng: §12 đặt tên theo
+     việc, và "gạch một việc đã xong" với "một dải hoàn tác vừa nổi lên" là hai việc. */
+  --motion-toast: 200ms;
   /* KHÔNG phải một dòng của bảng §12 — bảng đó không có mục nào cho thanh tải. Đặt tên ở
      đây vì luật "không viết thời lượng bằng tay" chỉ chặt được khi nó không có ngoại lệ,
      mà vòng tải là thời lượng cuối cùng còn sót lại. 300ms giữ nguyên giá trị đang chạy:
@@ -567,6 +571,12 @@
     transform: translateY(0);
   }
 }
+/* Toast hoàn tác: trồi LÊN từ đáy đồ thị 10px (bản vẽ 1c `omToast`). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
   to {
     opacity: 1;
     transform: translateY(0);
@@ -581,6 +591,7 @@
   /* Hai animation của console Tương lai. Cả hai tự tôn trọng `prefers-reduced-motion`
      nhờ block ở cuối file (animation-duration → 0,01ms) — không khai lại ở đây. */
   --animate-pop-in: pop-in var(--motion-popover) var(--ease-out);
+  --animate-toast-in: toast-in var(--motion-toast) var(--ease-out);
 }
 
 /* Mỗi tiện ích dưới đây gói TRỌN một dòng của bảng §12: nội suy cái gì, trong bao lâu,

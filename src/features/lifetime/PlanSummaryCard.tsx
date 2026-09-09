@@ -105,7 +105,12 @@ export function PlanSummaryCard({
           )}
         </SummaryRow>
 
-        <SummaryRow label="Khoản lớn nhất">
+        {/* "Cần dành nhiều nhất" — không phải "Khoản lớn nhất" (tức "largest lifetime expense").
+            `bigExpenses.ts` chọn khoản nặng nhất bằng `remainingMinor` (số tiền còn phải
+            chuẩn bị), không phải tổng chi tiêu suốt đời. Bản đồ khoản lớn trả lời câu
+            "cần để dành mỗi tháng bao nhiêu" (savings runway), không phải "cái gì tốn
+            nhiều tiền nhất". Nhãn này sẽ misdescribe con số nếu ghi "Khoản lớn nhất". */}
+        <SummaryRow label="Cần dành nhiều nhất">
           {biggestExpense === null ? (
             <Num tone="muted">—</Num>
           ) : (

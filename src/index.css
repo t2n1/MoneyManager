@@ -473,6 +473,13 @@
   --motion-todo: 200ms; /* việc cần làm: gạch ngang rồi co chiều cao về 0 */
   --motion-drag: 120ms; /* các dòng khác nhường chỗ khi kéo–thả (DragList) */
   --motion-assume: 220ms; /* thả thanh trượt giả định 13b (recharts animationDuration) */
+  /* Khối/icon trên trục năm của console Tương lai (`left`, `width`, `top`) khi năm đổi mà
+     KHÔNG do con trỏ đang kéo: bấm ←/→, bỏ nháp, đổi zoom. Bản vẽ 1c ghi đúng con số này
+     (dsg-handoff/README.md, bảng "Chuyển động": khối trên trục `.18s`) và nó trùng
+     --motion-sheet, nhưng CỐ Ý là biến riêng — §12 đặt tên theo VIỆC, và hai việc tình cờ
+     cùng 180ms mà dùng chung một tên thì lần sau muốn tách nhịp phải đi tìm từng chỗ.
+     Lúc ĐANG KÉO thì nơi dùng BỎ class này (không đè thời lượng): xem PhaseLane.tsx. */
+  --motion-block: 180ms;
   /* KHÔNG phải một dòng của bảng §12 — bảng đó không có mục nào cho thanh tải. Đặt tên ở
      đây vì luật "không viết thời lượng bằng tay" chỉ chặt được khi nó không có ngoại lệ,
      mà vòng tải là thời lượng cuối cùng còn sót lại. 300ms giữ nguyên giá trị đang chạy:
@@ -568,6 +575,15 @@
      chữ vẫn đậm nguyên và nó đọc ra như một dòng bị cắt cụt. */
   transition-property: grid-template-rows, opacity;
   transition-duration: var(--motion-todo);
+  transition-timing-function: var(--ease-out);
+}
+@utility motion-block {
+  /* Ba thuộc tính đúng như bản vẽ khai cho `.tl-block`: khối chặng đổi `left`/`width`, icon
+     mốc đổi `left`/`top` khi nó tụt xuống hàng khác. `border-color` KHÔNG vào đây — viền
+     đổi vì CHỌN/BỎ CHỌN, mà cái đó là 120ms (`--motion-segment` lo, qua `transition`
+     trơn), không phải nhịp của một khối đang dời năm. */
+  transition-property: left, width, top;
+  transition-duration: var(--motion-block);
   transition-timing-function: var(--ease-out);
 }
 

@@ -40,25 +40,21 @@ import {
   xToYear,
 } from './chartGeom'
 import { DEFAULT_SWR_BPS, fireYear } from './insights'
+// Lề vùng vẽ và hàng icon mốc: `plotFrame.ts`. Chúng KHÔNG ở trong file này vì dải chặng
+// đời (`PhaseLane`) phải khớp đúng cùng bộ lề — một bản chép thứ hai là một chỗ để dải
+// lệch trục năm nửa năm, thứ không có phép thử nào thấy.
+import {
+  PIN_GAP,
+  PIN_ROW_H,
+  PIN_TOP,
+  PLOT_BOTTOM_GAP,
+  PLOT_LEFT,
+  plotRightOf,
+  viewRange,
+  type PlotZoom,
+} from './plotFrame'
 import type { YearRow } from './project'
-
-/**
- * Lề vùng vẽ, PIXEL trong hệ toạ độ SVG. Bản vẽ: `pl` 52 · `pbot` H−26; lề phải ở đây
- * là 12 (bản vẽ trừ cả bề rộng dock vì dock của nó là lớp phủ — ở đây dock là một cột
- * thật, xem ConsoleFrame).
- *
- * Quy đổi của spec §5: 3,25rem · 1,625rem · 0,75rem ở cỡ chữ Vừa. Giữ dạng px vì đây là
- * toạ độ TRONG SVG, không phải tiện ích bố cục — và chiều cao hộp thì đã đo thật, nên
- * tỷ lệ dọc vẫn đi theo Cỡ chữ.
- */
-const PLOT_LEFT = 52
-const PLOT_RIGHT_GAP = 12
-const PLOT_BOTTOM_GAP = 26
-
-/** Hàng chip mốc: mép trên 44px, mỗi hàng 26px (1,625rem), rồi 16px hở tới vùng vẽ. */
-const PIN_TOP = 44
-const PIN_ROW_H = 26
-const PIN_GAP = 16
+import { useBoxSize } from './useBoxSize'
 
 /** Nhãn trục tiền đặt BÊN TRONG vùng vẽ, ngay phải trục và TRÊN đường kẻ (bản vẽ:
  *  `left: 58px`, `top: y − 16`). Đặt trong nên bề rộng nhãn không cần lề trái — đó là
@@ -105,7 +101,9 @@ export interface ComparisonLine {
   color: string
 }
 
-export type PlotZoom = 10 | 20 | 'all'
+// `PlotZoom` sống ở `plotFrame.ts` cùng `viewRange` (dải chặng đời cần cả hai), và
+// re-export ở đây để chỗ gọi cũ không phải đổi đường import.
+export type { PlotZoom }
 
 interface Props {
   /** Bản chiếu ĐANG XEM (nháp nếu có nháp, không thì bản đã lưu). */
@@ -165,50 +163,28 @@ export function TimelinePlot({
   onHoverYear,
 }: Props) {
   // Khởi tạo bằng một cỡ hợp lý rồi để ResizeObserver sửa ngay ở lượt bày đầu: mọi hàm
-  // hình học dưới đây tự chịu được cỡ sai, còn `rows` rỗng thì chúng cũng đã canh.
-  const [box, setBox] = useState({ w: 900, h: 560 })
+  // hình học dưới đây tự chịu được cỡ sai, còn `rows` rỗng thì chúng cũng đã canh. Hai lời
+  // ghi về cách đo (ref callback, và vì sao KHÔNG dọn observer bằng useEffect) đã chuyển
+  // sang `useBoxSize.ts` — dải chặng đời đo bằng đúng hook đó nên hai bề ngang khớp nhau.
+  const { box, boxRef, attachBox } = useBoxSize({ w: 900, h: 560 })
   const [hoverYear, setHoverYear] = useState<number | null>(null)
-  const boxRef = useRef<HTMLDivElement | null>(null)
-  const roRef = useRef<ResizeObserver | null>(null)
   /** Nhịp khung hình đang chờ cho lượt rê chuột — spec §11 đòi throttle bằng rAF. */
   const rafRef = useRef<number | null>(null)
-
   /**
-   * Đo hộp vẽ bằng REF CALLBACK, không bằng `useEffect(…, [])`.
+   * `clientX` MỚI NHẤT, và năm ĐÃ báo ra ngoài lần gần nhất.
    *
-   * Đây là cái bẫy đã bắt được một lần ở `LifetimeChartCard`: lượt bày ĐẦU tiên có thể
-   * chưa có node này (nhánh "chưa chiếu được" return sớm), effect chạy, thấy `null`,
-   * thoát — và với mảng deps rỗng thì nó KHÔNG BAO GIỜ chạy lại, tức bề ngang kẹt ở giá
-   * trị khởi tạo mãi mãi. Ref callback chạy đúng lúc node xuất hiện.
-   *
-   * Và KHÔNG được thêm một `useEffect` dọn observer: <StrictMode> gắn hai lượt, cleanup
-   * của lượt đầu chạy SAU lần gắn thứ hai nên nó ngắt đúng observer vừa tạo — im lặng.
-   * React luôn gọi ref callback với `null` khi gỡ, nên nhánh `if (!el)` là chỗ dọn duy
-   * nhất cần có.
+   * Bản đầu của throttle này chỉ có `if (rafRef.current !== null) return` mà không lưu lại
+   * `clientX`: nó giữ MẪU ĐẦU TIÊN của khung hình rồi bỏ hết các mẫu sau, nên ở tốc độ
+   * chuột cao (~120 sự kiện/giây trên 60 khung) vạch dọc chạy sau con trỏ một quãng thấy
+   * được. Lưu mẫu mới nhất rồi đọc trong callback thì mỗi khung vẽ đúng vị trí hiện tại.
    */
-  const attachBox = useCallback((el: HTMLDivElement | null) => {
-    boxRef.current = el
-    roRef.current?.disconnect()
-    roRef.current = null
-    if (!el) return
-    const doc = () => {
-      const w = el.clientWidth
-      const h = el.clientHeight
-      if (w > 0 && h > 0) {
-        setBox((cu) => (Math.abs(cu.w - w) > 1 || Math.abs(cu.h - h) > 1 ? { w, h } : cu))
-      }
-    }
-    const ro = new ResizeObserver(doc)
-    ro.observe(el)
-    roRef.current = ro
-    doc()
-  }, [])
+  const lastXRef = useRef(0)
+  const sentYearRef = useRef<number | null>(null)
 
   // --- Khoảng năm đang xem ---------------------------------------------------------
   const currentYear = rows.length > 0 ? rows[0].year : new Date().getFullYear()
   const lastYear = rows.length > 0 ? rows[rows.length - 1].year : currentYear
-  const x0 = currentYear
-  const x1 = zoom === 'all' ? Math.max(currentYear + 1, lastYear) : Math.min(lastYear, currentYear + zoom)
+  const [x0, x1] = viewRange(currentYear, lastYear, zoom)
   const inX = useCallback((y: number) => y >= x0 && y <= x1, [x0, x1])
 
   const dRows = useMemo(() => rows.filter((r) => inX(r.year)), [rows, inX])
@@ -220,7 +196,7 @@ export function TimelinePlot({
 
   // --- Hình học -------------------------------------------------------------------
   const plotLeft = PLOT_LEFT
-  const plotRight = Math.max(plotLeft + 10, box.w - PLOT_RIGHT_GAP)
+  const plotRight = plotRightOf(box.w)
   const plotTop = PIN_TOP + Math.max(1, pinRows) * PIN_ROW_H + PIN_GAP
   const plotBottom = Math.max(plotTop + 10, box.h - PLOT_BOTTOM_GAP)
   const xs = makeXScale(x0, x1, plotLeft, plotRight)
@@ -299,17 +275,30 @@ export function TimelinePlot({
   /** Đổi năm đang rê, gộp vào MỘT nhịp khung hình (spec §11). */
   const trackHover = useCallback(
     (clientX: number) => {
+      lastXRef.current = clientX
       if (rafRef.current !== null) return
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null
         const el = boxRef.current
         if (!el) return
-        const y = xToYear(clientX - el.getBoundingClientRect().left, x0, x1, plotLeft, plotRight)
+        const y = xToYear(
+          lastXRef.current - el.getBoundingClientRect().left,
+          x0,
+          x1,
+          plotLeft,
+          plotRight,
+        )
         setHoverYear(y)
-        onHoverYear?.(y)
+        // Chỉ báo ra ngoài khi NĂM đổi thật. Rê chuột trong lòng một năm bắn ra vài chục
+        // sự kiện mà năm không đổi; gọi `onHoverYear` mỗi khung hình ở đó là bắt Bảng theo
+        // năm (và mọi thứ khác nghe nó) bày lại 60 lần/giây để tô lại đúng một dòng.
+        if (sentYearRef.current !== y) {
+          sentYearRef.current = y
+          onHoverYear?.(y)
+        }
       })
     },
-    [x0, x1, plotLeft, plotRight, onHoverYear],
+    [boxRef, x0, x1, plotLeft, plotRight, onHoverYear],
   )
 
   const clearHover = useCallback(() => {
@@ -318,7 +307,10 @@ export function TimelinePlot({
       rafRef.current = null
     }
     setHoverYear(null)
-    onHoverYear?.(null)
+    if (sentYearRef.current !== null) {
+      sentYearRef.current = null
+      onHoverYear?.(null)
+    }
   }, [onHoverYear])
 
   return (

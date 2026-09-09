@@ -55,8 +55,10 @@ import { EventIcon } from './eventIcons'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
+import { PhaseLane } from './PhaseLane'
 import { PlanDock, type DockSelection } from './PlanDock'
-import { freePhaseStartYear } from './phaseYear'
+import { clampPhaseStartYear, freePhaseStartYear } from './phaseYear'
+import { viewRange } from './plotFrame'
 import type { LifePreset, PresetContext } from './presets'
 import { phaseForYear, projectLifetime } from './project'
 import { lifetimeVerdict } from './summary'
@@ -412,6 +414,33 @@ function TuongLaiConsole() {
   const currentYear = shownInput.currentYear
   /** Năm cuối bản chiếu — "đến năm" của chặng CUỐI (chặng cuối chạy tới hết bản chiếu). */
   const lastYear = shownRows.length > 0 ? shownRows[shownRows.length - 1].year : currentYear
+
+  /**
+   * Khoảng năm ĐANG XEM. Cùng `viewRange` mà `TimelinePlot` gọi (plotFrame.ts), không phải
+   * một phép tính thứ hai: dải chặng đời phải xem đúng khoảng của đồ thị, lệch một năm là
+   * khối chặng không còn nằm dưới đúng đoạn đường của nó.
+   */
+  const [laneX0, laneX1] = viewRange(currentYear, lastYear, zoom)
+
+  /**
+   * Dời năm bắt đầu của một chặng — đường ghi DUY NHẤT của dải chặng đời (kéo khối, kéo
+   * hai mép, và ←/→ đều về đây).
+   *
+   * Chặn ngay trong mutator và chặn theo `d.phases`, không theo `working.phases`: lượt kéo
+   * gộp theo nhịp khung hình nên hai lần gọi liên tiếp có thể cùng đọc một `working` cũ,
+   * và một phép chặn tính trên mảng cũ sẽ cho ra năm trùng với chặng vừa dời
+   * (`unique (scenario_id, start_year)`, migration 0031).
+   *
+   * `clampPhaseStartYear` là chỗ DUY NHẤT khai luật này (Bất biến 1: chặng đầu khoá ở năm
+   * hiện tại; Bất biến 2: sàn và không trùng năm) — cùng hàm mà ô năm trong dock dùng, nên
+   * kéo và gõ không thể cho ra hai kết quả khác nhau. Hệ quả cần biết: kéo một chặng VƯỢT
+   * QUA chặng bên cạnh thì nó nhận năm trống gần nhất và hai chặng ĐỔI THỨ TỰ, chứ không
+   * bị chặn lại ở sát bên — đúng như gõ năm đó vào ô.
+   */
+  const movePhaseStart = (id: string, wanted: number) =>
+    editDraft((d) =>
+      patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
+    )
 
   // --- Bộ prop cho dock ---------------------------------------------------------------
   //
@@ -834,39 +863,30 @@ function TuongLaiConsole() {
             log={log}
           />
 
-          {/* --- HÀNG 8: dải chặng đời (Task 11 — PhaseLane) ------------------------
+          {/* --- HÀNG 8: dải chặng đời --------------------------------------------
 
-                  TẠM: một dải chip thay cho khối chặng kéo được. Nó tồn tại vì bảng sửa
-                  trong dock đã xong mà đường vào của bản vẽ (bấm khối chặng trên trục)
-                  thì chưa — Task 11 dựng `PhaseLane` và thay đúng chỗ này. Chip chứ không
-                  phải một khối trang trí: `<FilterChip>` là <button>, nên Tab tới được và
-                  Enter/Space bấm được, tức panel kiểm được bằng bàn phím từ hôm nay.
+                  Đây LÀ đường vào của bản vẽ: bấm một khối để mở bảng sửa trong dock, kéo
+                  để dời năm. Dải chip tạm trước đây (một `<FilterChip>` cho mỗi chặng) đã
+                  bỏ — nó chỉ tồn tại để bảng sửa có chỗ bấm trước khi dải thật xong, và
+                  giữ cả hai là hai đường vào cho cùng một việc, nằm cạnh nhau.
 
-                  Thẳng hàng với lề trái vùng vẽ (3,25rem = 52px của bản vẽ) để khối chặng
-                  khớp trục năm ngay khi Task 11 cắm vào. */}
-          <div className="ml-[3.25rem] flex min-h-[2.875rem] min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-dashed border-border-strong px-3 py-1.5">
-            <SectionTitle role="micro" className="shrink-0">
-              Chặng đời
-            </SectionTitle>
-            {working.phases.map((p) => (
-              <FilterChip
-                key={p.id}
-                on={sel.type === 'phase' && sel.id === p.id}
-                size="sm"
-                onClick={() =>
-                  setSel((cur) =>
-                    cur.type === 'phase' && cur.id === p.id
-                      ? { type: 'none' }
-                      : { type: 'phase', id: p.id },
-                  )
-                }
-                title={`Sửa chặng "${p.label}"`}
-              >
-                <Num tone="muted">{p.startYear}</Num>
-                <span className="truncate">{p.label}</span>
-              </FilterChip>
-            ))}
-          </div>
+                  KHÔNG có `ml-[3.25rem]` như dải chip cũ: lề trái của trục là 52px THẬT
+                  trong hộp đã đo, còn `3,25rem` là 65px ở Cỡ chữ 1,25× — hai hệ đo trong
+                  một phép tính. `PhaseLane` tự đo hộp và tự lấy lề từ `plotFrame.ts`, đúng
+                  bộ lề mà vùng vẽ dùng. */}
+          <PhaseLane
+            phases={working.phases}
+            x0={laneX0}
+            x1={laneX1}
+            selectedId={sel.type === 'phase' ? sel.id : undefined}
+            onSelect={(id) => setSel({ type: 'phase', id })}
+            onToggle={(id) =>
+              setSel((cur) =>
+                cur.type === 'phase' && cur.id === id ? { type: 'none' } : { type: 'phase', id },
+              )
+            }
+            onMoveStart={movePhaseStart}
+          />
 
           {/* TẠM, cùng lý do với dải chip chặng ngay trên: bảng sửa MỐC đã xong mà đường
               vào của bản vẽ (bấm icon mốc trên đường) thì chưa — Task 12 dựng `EventPins`

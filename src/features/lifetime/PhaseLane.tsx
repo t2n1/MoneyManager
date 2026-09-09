@@ -31,6 +31,7 @@ import { useCallback, useMemo, type CSSProperties, type PointerEvent as ReactPoi
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { makeXScale, xToYear } from './chartGeom'
+import { blockPhaseStartYearAtNeighbours } from './phaseYear'
 import { PhaseIcon } from './PlanDockParts'
 import { PLOT_LEFT, laneBlocks, plotRightOf, type LaneBlock } from './plotFrame'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_HEX, tagColor, type TagColorKey } from '../tags/colors'
@@ -140,27 +141,34 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
     onLift: (k) => onSelect((k.mode === 'right' ? nextIdOf(sorted, k.id) : null) ?? k.id),
     onClick: (k) => onToggle(k.id),
     onDrag: (k, year, grabYear) => {
+      // CHẶN tại chặng liền kề, không dò-năm-trống-rồi-nhảy: `blockPhaseStartYearAtNeighbours`
+      // (phaseYear.ts) — khác `clampPhaseStartYear` mà ô năm trong dock dùng, xem JSDoc ở đó
+      // cho lý do. Kéo quá tay dừng SÁT chặng bên cạnh, không đổi thứ tự hai chặng.
       if (k.mode === 'right') {
         // Mép phải = biên giữa chặng này và chặng kế, và biên đó LÀ `startYear` của chặng
-        // kế. Kéo nó là ghi vào chặng kế, không vào chặng đang cầm.
+        // kế. Kéo nó là ghi vào chặng kế, không vào chặng đang cầm — nên khoảng chặn cũng
+        // đọc theo HÀNG XÓM của chặng kế (chính chặng đang cầm, và chặng sau chặng kế),
+        // không phải hàng xóm của chặng đang cầm.
         //
         // Năm TUYỆT ĐỐI (năm dưới con trỏ), không cộng 1 như bản vẽ (dòng 1284): mép được
         // vẽ đúng tại `xs(chặng kế.startYear)` nên `+1` làm chính cú cầm vào mép đã dời
         // biên một năm trước khi người dùng kéo đi đâu cả.
         const next = nextIdOf(sorted, k.id)
-        if (next !== null) onMoveStart(next, year)
+        if (next !== null) onMoveStart(next, blockPhaseStartYearAtNeighbours(phases, next, year))
         return
       }
       if (k.mode === 'left') {
-        onMoveStart(k.id, year)
+        onMoveStart(k.id, blockPhaseStartYearAtNeighbours(phases, k.id, year))
         return
       }
       // Kéo phần GIỮA: dời theo ĐỘ LỆCH so với chỗ đã cầm, không nhảy tới năm dưới con
       // trỏ. Bản vẽ nối `onDown` của khối vào cùng handler với mép trái (dòng 1529–1530),
       // tức cầm giữa một khối rộng 14 năm rồi nhích 1px là năm bắt đầu NHẢY tới giữa khối
       // — chặng co lại còn một nửa vì một cú nhích. Ở đây khối trượt theo con trỏ và giữ
-      // đúng chỗ cầm; `from` là năm lúc NHẤN nên độ lệch không dồn sai qua từng khung.
-      onMoveStart(k.id, k.from + (year - grabYear))
+      // đúng chỗ cầm; `from` là năm lúc NHẤN nên độ lệch không dồn sai qua từng khung. Vẫn
+      // qua cùng phép chặn hàng xóm — kéo giữa một khối RỘNG tới sát chặng bên cạnh cũng
+      // phải dừng, không co khối đó về 0 hay âm.
+      onMoveStart(k.id, blockPhaseStartYearAtNeighbours(phases, k.id, k.from + (year - grabYear)))
     },
   })
 

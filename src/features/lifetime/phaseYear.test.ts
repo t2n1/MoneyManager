@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_PHASE_YEAR,
+  blockPhaseStartYearAtNeighbours,
   clampPhaseStartYear,
   freePhaseStartYear,
   type PhaseYearSlot,
@@ -166,5 +167,104 @@ describe('freePhaseStartYear', () => {
       (_, i) => ({ id: `p${i}`, startYear: san + i }),
     )
     expect(freePhaseStartYear(dacKinToiTran, san, NAY, LAST)).toBe(LAST + 1)
+  })
+})
+
+describe('blockPhaseStartYearAtNeighbours', () => {
+  // Cùng bộ ba chặng với describe('clampPhaseStartYear') ở trên, khai riêng để không phụ
+  // thuộc thứ tự chạy test.
+  const chang: PhaseYearSlot[] = [
+    { id: 'p1', startYear: 2026 },
+    { id: 'p2', startYear: 2035 },
+    { id: 'p3', startYear: 2059 },
+  ]
+
+  // Phát hiện review 2026-09-09 (finding "Important"): kéo mép chặng VƯỢT QUA chặng bên
+  // cạnh dùng `clampPhaseStartYear` (dò năm TRỐNG gần nhất) sẽ ĐỔI THỨ TỰ hai chặng thay vì
+  // dừng lại ở ranh giới — PhaseLane từng gọi thẳng đường đó (qua `onMoveStart` →
+  // `movePhaseStart` ở TuongLaiPage). Test này đối chiếu TRỰC TIẾP hai hàm trên cùng một đầu
+  // vào để đường CŨ (vẫn còn sống, ô năm trong dock đang dùng nó) và đường MỚI không bị nhầm
+  // là tương đương.
+  it('so với clampPhaseStartYear (đường ô năm trong dock, PhaseLane từng gọi thẳng khi kéo): kéo mép trái p2 vượt qua p3 — đường ĐÓ đổi thứ tự (p2 nhảy qua sau p3), đường CHẶN mới dừng lại trước p3', () => {
+    const wanted = 2070 // vượt xa p3 (2059)
+    // Đường CŨ: 2070 đang trống nên `clampPhaseStartYear` trả thẳng 2070 — LỚN HƠN
+    // p3.startYear (2059), tức nếu ghi giá trị này thì p2 xếp SAU p3: hai chặng đổi thứ tự.
+    const duongCu = clampPhaseStartYear(chang, 'p2', wanted, NAY)
+    expect(duongCu).toBe(2070)
+    expect(duongCu).toBeGreaterThan(chang[2].startYear) // xác nhận đây đúng là một cú đổi thứ tự
+
+    // Đường MỚI: dừng lại một năm TRƯỚC p3, không bao giờ chạm hay vượt qua nó.
+    const duongMoi = blockPhaseStartYearAtNeighbours(chang, 'p2', wanted)
+    expect(duongMoi).toBe(2058)
+    expect(duongMoi).toBeLessThan(chang[2].startYear)
+  })
+
+  it('kéo mép trái về phía chặng TRƯỚC thì dừng đúng một năm SAU nó, không chạm hay vượt qua', () => {
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p2', 2020)).toBe(2027) // p1.startYear + 1
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p2', 1900)).toBe(2027) // kéo cực xa vẫn dừng ở đó
+  })
+
+  it('kéo mép trái về phía chặng SAU thì dừng đúng một năm TRƯỚC nó, không chạm hay vượt qua', () => {
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p2', 2070)).toBe(2058) // p3.startYear - 1
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p2', 2200)).toBe(2058) // kéo cực xa vẫn dừng ở đó
+  })
+
+  it('chặng rộng đúng MỘT năm không thể bị ép về 0 hay âm — cả hai đầu kéo đều dừng tại đúng năm đang có', () => {
+    // p2 chỉ rộng 1 năm (2027..2027): p1 = 2026, p2 = 2027, p3 = 2028 — không còn năm nào
+    // trống ở giữa để nhích.
+    const hep: PhaseYearSlot[] = [
+      { id: 'p1', startYear: 2026 },
+      { id: 'p2', startYear: 2027 },
+      { id: 'p3', startYear: 2028 },
+    ]
+    expect(blockPhaseStartYearAtNeighbours(hep, 'p2', 2000)).toBe(2027) // kéo về p1: đứng yên
+    expect(blockPhaseStartYearAtNeighbours(hep, 'p2', 2100)).toBe(2027) // kéo về p3: đứng yên
+  })
+
+  it('mép phải dời chặng KẾ TIẾP — khoảng chặn đọc theo hàng xóm của CHÍNH chặng kế đó, không phải của chặng đang cầm hay của chặng xa hơn', () => {
+    const bon: PhaseYearSlot[] = [
+      { id: 'p1', startYear: 2026 },
+      { id: 'p2', startYear: 2035 },
+      { id: 'p3', startYear: 2059 },
+      { id: 'p4', startYear: 2080 },
+    ]
+    // Kéo mép PHẢI của p1 nghĩa là gọi hàm này cho id='p2' (chặng kế) — hàng xóm của p2 là
+    // p1 (trước) và p3 (sau), KHÔNG phải p4.
+    expect(blockPhaseStartYearAtNeighbours(bon, 'p2', 2070)).toBe(2058) // chặn bởi p3, không phải p4
+    expect(blockPhaseStartYearAtNeighbours(bon, 'p2', 1990)).toBe(2027) // chặn bởi p1
+  })
+
+  it('chặng ĐẦU không dời được qua hàm này — mép trái của nó không tồn tại (khoá ở currentYear, xem clampPhaseStartYear)', () => {
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p1', 1990)).toBe(2026)
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p1', 3000)).toBe(2026)
+  })
+
+  it('chặng CUỐI vẫn kéo được bằng mép trái/kéo giữa của chính nó — chỉ MÉP PHẢI của nó là không tồn tại (chặn ở PhaseLane.tsx, không ở đây)', () => {
+    // Không có chặng sau p3 nên biên trên là MAX_PHASE_YEAR, không phải "không cho di
+    // chuyển" — khác hẳn ca chặng đầu ở trên.
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p3', 4000)).toBe(MAX_PHASE_YEAR)
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p3', 2030)).toBe(2036) // p2.startYear + 1
+  })
+
+  it('kéo GIỮA một chặng RỘNG tới sát chặng bên cạnh thì dừng lại, không co chặng đó về 0 hay đổi thứ tự', () => {
+    // p2 rộng 30 năm (2030..2059) — kéo giữa với độ lệch đẩy startYear muốn tới quá xa
+    // (2075), vượt hẳn qua p3 (2060).
+    const rong: PhaseYearSlot[] = [
+      { id: 'p1', startYear: 2026 },
+      { id: 'p2', startYear: 2030 },
+      { id: 'p3', startYear: 2060 },
+    ]
+    const ketQua = blockPhaseStartYearAtNeighbours(rong, 'p2', 2075)
+    expect(ketQua).toBe(2059) // p3.startYear - 1
+    expect(ketQua).toBeLessThan(rong[2].startYear) // không đổi thứ tự với p3
+    expect(ketQua).toBeGreaterThan(rong[0].startYear) // và vẫn rộng hơn 0 so với p1
+  })
+
+  it('năm gõ dở (NaN) thì giữ năm đang có, không kéo về currentYear hay biên nào khác', () => {
+    expect(blockPhaseStartYearAtNeighbours(chang, 'p2', Number.NaN)).toBe(2035)
+  })
+
+  it('chặng không có trong danh sách vẫn trả một năm dùng được, không ném lỗi', () => {
+    expect(blockPhaseStartYearAtNeighbours(chang, 'khong-co', 2044)).toBe(2044)
   })
 })

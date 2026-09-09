@@ -115,6 +115,51 @@ export function freePhaseStartYear(
   return khoang(lastYear + 1, san)
 }
 
+/**
+ * Năm bắt đầu mà một cú KÉO (mép trái, mép phải — trên chặng KẾ, hoặc kéo giữa) được phép
+ * đưa chặng `id` tới, CHẶN CỨNG tại chặng liền kề — không bao giờ trùng hay vượt qua năm bắt
+ * đầu của chặng trước/sau, nên hai chặng không bao giờ ĐỔI THỨ TỰ vì một cú kéo.
+ *
+ * KHÁC `clampPhaseStartYear` (dò năm TRỐNG gần nhất — có thể nhảy qua một chặng khác và đổi
+ * thứ tự, đúng ý khi GÕ một năm cụ thể vào ô năm của dock: đó là hành động rõ ràng, có chủ
+ * đích, và người dùng thấy ngay số mới trong ô). Một cú KÉO là cử chỉ liên tục — đi quá tay
+ * một chút là chuyện thường, không phải ý muốn "đổi thứ tự hai chặng", và việc đổi thứ tự đó
+ * vô hình ngay lúc nó xảy ra (phát hiện review 2026-09-09: "dragging a phase edge past its
+ * neighbour REORDERS the phases instead of stopping at the boundary"). Đúng bản vẽ
+ * (README "Khối chặng đời": mép trái đổi `startYear` "chặn trong khoảng chặng trước/sau" —
+ * CHẶN, không dò-rồi-nhảy).
+ *
+ * KHÔNG dùng ở Ô NĂM trong dock (`PlanDockPhase.tsx` gọi thẳng `clampPhaseStartYear`) — cố
+ * tình để hai hành vi khác nhau, đừng gộp làm một ở đây hay ở đó.
+ *
+ * Khoảng cho phép là khoảng MỞ giữa hai chặng liền kề của `id` trong `phases` (sắp theo
+ * năm): chạm được năm SÁT năm bắt đầu của chặng liền kề (`± 1`), không bao giờ TRÙNG hay
+ * VƯỢT QUA nó — vừa giữ `unique (scenario_id, start_year)` (migration 0031), vừa giữ mỗi
+ * chặng liên quan rộng ít nhất 1 năm (chặng đứng trước `id`, và chính `id`).
+ *
+ * Chặng ĐẦU (`i === 0`) không có mép trái (khoá ở `currentYear`, xem Bất biến 1 của
+ * `clampPhaseStartYear`) — gọi hàm này cho nó trả nguyên năm đang có, không dời. Chặng CUỐI
+ * không có mép phải, nhưng gọi hàm này cho chính nó (mép trái hoặc kéo giữa của nó) vẫn hợp
+ * lệ: không có chặng sau nên biên trên là `MAX_PHASE_YEAR`, không phải "không cho di
+ * chuyển". "Mép phải của chặng cuối" và "mép trái của chặng đầu" không tồn tại — điều đó
+ * được `PhaseLane.tsx` chặn ở tầng UI (`!b.first` / `!b.last`), hàm thuần này không cần biết.
+ */
+export function blockPhaseStartYearAtNeighbours(
+  phases: readonly PhaseYearSlot[],
+  id: string,
+  wanted: number,
+): number {
+  const sorted = [...phases].sort((a, b) => a.startYear - b.startYear)
+  const i = sorted.findIndex((p) => p.id === id)
+  if (i === -1) return khoang(wanted, MIN_PHASE_YEAR)
+  if (i === 0) return sorted[i].startYear
+  if (!Number.isFinite(wanted)) return sorted[i].startYear
+
+  const low = sorted[i - 1].startYear + 1
+  const high = i + 1 < sorted.length ? sorted[i + 1].startYear - 1 : MAX_PHASE_YEAR
+  return Math.min(high, Math.max(low, Math.round(wanted)))
+}
+
 function khoang(y: number, san: number): number {
   return Math.min(MAX_PHASE_YEAR, Math.max(san, Math.round(y)))
 }

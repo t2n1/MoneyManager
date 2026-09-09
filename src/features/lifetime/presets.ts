@@ -179,14 +179,23 @@ const CAR_UPKEEP_ANNUAL_JPY = 300_000
 /** Chi phí một chuyến du lịch gia đình (ước tính trung bình, trong lẫn ngoài nước).
  *  Ước lượng, chưa tra nguồn (2026-09-09). */
 const TRAVEL_COST_JPY = 500_000
-/** Lặp mỗi 2 năm — giả định tần suất một gia đình đi chơi xa. Ước lượng, chưa tra
- *  nguồn (2026-09-09). */
+/** Lặp mỗi 2 năm — giả định tần suất một gia đình đi chơi xa. Đã tra
+ *  dsg-handoff/README.md:224 (bảng loại mốc "trip", tra 2026-09-09): bản vẽ cho
+ *  `everyN` 1, tức mỗi năm. CỐ Ý không theo con số đó ở đây: mục tồn tại của preset
+ *  'du-lich' trong file này là minh hoạ nhánh LẶP MỖI N NĂM (N > 1) của
+ *  `repeat_every_years` (migration 0066, xem eventAmount.ts) — hint của mẫu ("lặp lại
+ *  mỗi vài năm, không phải một lần") và bài test 'du-lich lặp lại, không phải một lần'
+ *  đều khoá vào N > 1. Đặt `everyN` 1 sẽ biến mốc thành "chi mọi năm", đúng thứ mà hint
+ *  nói KHÔNG PHẢI, và không còn mẫu nào trong file bao phủ nhánh N > 1 nữa. Giữ 2 —
+ *  đây là lệch có lý do đã ghi, không phải lệch không tra nguồn. */
 const TRAVEL_REPEAT_YEARS = 2
 
 // --- Học thêm ---
 /** Học phí một khoá học thêm/bằng cấp (cao học bán thời gian, chứng chỉ nghề...) mỗi
- *  năm. Ước lượng, chưa tra nguồn (2026-09-09). */
-const FURTHER_STUDY_TUITION_ANNUAL_JPY = 800_000
+ *  năm. Nguồn: dsg-handoff/README.md:225 (bảng loại mốc "study" — `tuition` 2.000.000),
+ *  tra 2026-09-09. Bản trước dùng 800.000 không có nguồn ("ước lượng, chưa tra nguồn");
+ *  đổi lại cho khớp bản vẽ, cùng cách với CAR_* ở trên. */
+const FURTHER_STUDY_TUITION_ANNUAL_JPY = 2_000_000
 /** Khoản thu nhập hụt đi mỗi năm khi giảm giờ làm để học. Ước lượng, chưa tra nguồn
  *  (2026-09-09) — CỐ Ý không tính theo % của `ctx.currentIncomeMinor`: con số đó theo
  *  `ctx.currency` (có thể VND/USD/bất kỳ tiền nào của chặng), còn mọi sự kiện của ba
@@ -350,6 +359,18 @@ export const LIFE_PRESETS: LifePreset[] = [
           // với xe là bảo hiểm/車検/thuế/bảo dưỡng. Để 0 sẽ hụt mất cả phần chi phí sở
           // hữu xe hằng năm, phần lớn khiến xe đắt, nên dùng CAR_UPKEEP_ANNUAL_JPY.
           amount_minor: CAR_UPKEEP_ANNUAL_JPY,
+          // `ev()` mặc định end_year = start_year (chỉ năm mua) — SAI cho mốc này. Vòng
+          // chi phí ở project.ts (~dòng 439) dừng đúng theo end_year, nhưng vòng tài
+          // sản/vay ở CÙNG project.ts (~dòng 467–474) chỉ kiểm `year < ts.startYear`,
+          // KHÔNG có biên trên — xe và khoản vay của nó chạy tới hết bản chiếu bất kể
+          // end_year của event. Để end_year mặc định (= năm mua) thì amount_minor (chi
+          // phí giữ xe hằng năm) chỉ bị tính đúng MỘT năm rồi biến mất, trong khi xe vẫn
+          // còn đó mãi mãi — hai nửa của cùng một mốc nói hai chuyện khác nhau. null =
+          // "tới hết đời" khớp đúng với vòng tài sản không có biên trên. Cắm một biên
+          // hữu hạn khác (vd +10 năm) sẽ lặp lại đúng lệch pha này ở năm +11 trở đi —
+          // không có con số hữu hạn nào đúng vì vòng tài sản vốn không có biên. Người
+          // dùng định bán xe thì tự đặt end_year sau khi tạo, mẫu không đoán hộ.
+          end_year: null,
           asset_value_minor: CAR_PRICE_JPY,
           loan_minor: CAR_LOAN_JPY,
           loan_rate_bps: CAR_LOAN_RATE_BPS,

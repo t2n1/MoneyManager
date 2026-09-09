@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { eventAmountInYear, type EventShape } from './eventAmount'
 import { LIFE_PRESETS, PENSION_START_AGE, type PresetContext } from './presets'
 
 const ctx: PresetContext = {
@@ -234,6 +235,33 @@ describe('LIFE_PRESETS', () => {
     // xem homeAsset.ts) — PHẢI > 0, để một lần sửa sau này không âm thầm trả nó về 0
     // và hụt mất chi phí sở hữu xe (bảo hiểm/車検/thuế/bảo dưỡng).
     expect(xe.amount_minor).toBeGreaterThan(0)
+  })
+
+  // Lỗi thật (review 2026-09-09): `ev()` mặc định end_year = start_year (chỉ năm mua).
+  // Vòng chi phí ở project.ts dừng đúng end_year, nhưng vòng tài sản/vay (cùng file,
+  // homeAsset.ts) chỉ xét `year < startYear` — KHÔNG có biên trên, nên xe + khoản vay
+  // chạy tới hết bản chiếu bất kể end_year của event. Để end_year mặc định thì chi phí
+  // giữ xe chỉ bị tính đúng một năm rồi biến mất trong khi xe vẫn còn đó mãi — hai nửa
+  // của cùng một mốc nói hai chuyện khác nhau. Test cũ chỉ xét `amount_minor > 0` nên
+  // không bắt được lỗi này (amount_minor > 0 đúng ngay cả khi end_year = năm mua).
+  it('mua-xe: chi phí giữ xe vẫn tính ở một năm SAU năm mua, không chỉ năm mua', () => {
+    const { events } = preset('mua-xe').build(ctx)
+    const xe = events[0]
+    // end_year null = "tới hết đời", khớp với vòng tài sản không có biên trên.
+    expect(xe.end_year).toBeNull()
+    const shape: EventShape = {
+      startYear: xe.start_year,
+      endYear: xe.end_year,
+      amountMinor: xe.amount_minor,
+      amountShape: 'per_year',
+      endAmountMinor: null,
+      growthBps: 0,
+      repeatEveryYears: null,
+    }
+    // Ba năm sau năm mua, chi phí giữ xe vẫn phải được tính — không phải 0. Với
+    // end_year mặc định (= start_year) thì eventAmountInYear ở đây trả 0 vì năm này đã
+    // ngoài khoảng [startYear, endYear], đúng lỗi mà finding này bắt.
+    expect(eventAmountInYear(shape, ctx.year + 3)).toBe(xe.amount_minor)
   })
 
   it('du-lich lặp lại, không phải một lần', () => {

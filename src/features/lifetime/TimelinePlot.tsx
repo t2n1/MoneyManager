@@ -151,6 +151,15 @@ export interface PlotPoint {
 export interface TimelinePlotHandle {
   /** Dời vạch rê chuột `step` năm. Chưa có vạch thì bắt đầu từ năm đầu khung nhìn. */
   nudgeHover: (step: number) => void
+  /**
+   * Mở bảng chọn nhanh ở năm GIỮA trục — nút "+ Mốc từ mẫu" của hàng 8 (bản vẽ) dùng
+   * đường này.
+   *
+   * Đi qua handle chứ không phải một prop `onOpenBoard`: chỗ bấm của bảng cần `xs(y)`,
+   * `plotLeft` và `plotRight`, mà ba thứ đó chỉ vùng vẽ biết (nó tự đo hộp). Cho chỗ gọi
+   * tự tính là dựng hệ đo thứ hai cạnh hệ đo thật.
+   */
+  openPresetBoard: () => void
 }
 
 interface Props {
@@ -453,15 +462,10 @@ export function TimelinePlot({
     },
     [x0, x1, onHoverYear],
   )
-  useImperativeHandle(
-    handleRef,
-    () => ({
-      // Chưa có vạch thì bắt đầu từ MÉP TRÁI khung nhìn (năm hiện tại), không phải từ
-      // năm 0: một cú → đầu tiên phải đặt vạch vào chỗ đọc được ngay.
-      nudgeHover: (step: number) => setHoverTo((sentYearRef.current ?? x0 - step) + step),
-    }),
-    [setHoverTo, x0],
-  )
+  // `useImperativeHandle` nằm DƯỚI `openAtMiddle` (cuối file), không ở đây: handle phơi
+  // ra cả `openPresetBoard`, mà `openAtMiddle` cần `xs`/`plotLeft`/`plotRight` — những
+  // thứ chỉ có sau khi hộp được đo. Đặt handle ở trên thì mảng phụ thuộc đọc một `const`
+  // chưa khởi tạo.
 
   // --- Bấm / kéo ngang trên NỀN đồ thị → bảng chọn nhanh -----------------------------
   //
@@ -559,6 +563,17 @@ export function TimelinePlot({
     const y = middleSpanYear(x0, x1)
     onQuickAdd?.({ startYear: y, endYear: y }, { x: xs(y), plotLeft, plotRight })
   }, [x0, x1, xs, plotLeft, plotRight, onQuickAdd])
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      // Chưa có vạch thì bắt đầu từ MÉP TRÁI khung nhìn (năm hiện tại), không phải từ
+      // năm 0: một cú → đầu tiên phải đặt vạch vào chỗ đọc được ngay.
+      nudgeHover: (step: number) => setHoverTo((sentYearRef.current ?? x0 - step) + step),
+      openPresetBoard: openAtMiddle,
+    }),
+    [setHoverTo, x0, openAtMiddle],
+  )
 
   return (
     // `h-[35rem]` = 560px của bản vẽ ở cỡ chữ Vừa (spec §5). Là `rem` nên nó co giãn

@@ -72,6 +72,8 @@ import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } fr
 import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
+import { phasePresetToDraft, type PhasePreset } from './phasePresets'
+import { PhaseRowTools } from './PhaseRowTools'
 import { PlanDock, type DockSelection } from './PlanDock'
 // `clampPhaseStartYear` KHÔNG được import ở đây: nó là luật của Ô NĂM GÕ TAY và chỉ
 // `PlanDockPhase.tsx` gọi nó. Đường kéo đi qua `dragPhase.ts` — xem Finding 1 ở đó.
@@ -842,6 +844,60 @@ function TuongLaiConsole() {
   const dragPhaseStartYear = useCallback(
     (id: string, wanted: number) => editDraft((d) => dragPhaseStart(d, id, wanted)),
     [editDraft],
+  )
+
+  /**
+   * "+ Chặng" của hàng 8 — thêm một chặng ở năm còn trống gần nhất sau năm nay.
+   *
+   * KẾ THỪA tiền và quốc gia của chặng đang phủ năm đó, không để trống: độ lớn thu/chi
+   * chỉ có nghĩa cùng với một đồng tiền, và một chặng mới mang đồng tiền khác chặng liền
+   * trước là cách âm thầm nhất để sai 150 lần (xem QUY ƯỚC ĐƠN VỊ ở đầu presets.ts).
+   * Thu/chi cũng copy theo, vì "giống bây giờ rồi tôi sửa" là điều người ta muốn khi bấm
+   * thêm một chặng — để 0 thì bản chiếu tụt thẳng đứng ngay lúc thêm.
+   *
+   * Khác `onDuplicate` của panel chặng ở chỗ nó KHÔNG cần chọn gì trước. Đó chính là lỗ
+   * mà nút này bịt: trước đây không chọn chặng nào thì không có đường nào thêm chặng.
+   */
+  const addBlankPhase = useCallback(() => {
+    if (!working) return
+    const seed = ++newIdSeed.current
+    const y = freePhaseStartYear(working.phases, currentYear + 1, currentYear, lastYear)
+    const sorted = [...working.phases].sort((a, b) => a.startYear - b.startYear)
+    const phu = [...sorted].reverse().find((p) => p.startYear <= y) ?? sorted[0]
+    editDraft((d) =>
+      addDraftPhase(
+        d,
+        {
+          startYear: y,
+          label: 'Chặng mới',
+          country: phu?.country ?? null,
+          currency: phu?.currency ?? ((active?.display_currency as CurrencyCode) ?? 'JPY'),
+          annualIncomeMinor: phu?.annualIncomeMinor ?? 0,
+          annualExpenseMinor: phu?.annualExpenseMinor ?? 0,
+          incomePctOfPrev: null,
+          expensePctOfPrev: null,
+          fxToDisplay: phu?.fxToDisplay ?? 1,
+          color: '',
+          icon: '',
+        },
+        seed,
+      ),
+    )
+    setSel({ type: 'phase', id: addedPhaseId(seed) })
+  }, [working, currentYear, lastYear, active?.display_currency, editDraft])
+
+  /** "+ Chặng từ mẫu" — mẫu mức sống (`phasePresets.ts`) thành một chặng nháp. */
+  const addPhaseFromPreset = useCallback(
+    (p: PhasePreset) => {
+      if (!working) return
+      const seed = ++newIdSeed.current
+      const y = freePhaseStartYear(working.phases, currentYear + 1, currentYear, lastYear)
+      // Tỷ giá tra ở ĐÂY, không trong `phasePresets.ts`: file đó thuần. Không tra được
+      // thì 1 và banner thiếu tỷ giá của trang bắt ngay — thà thiếu còn hơn bịa.
+      editDraft((d) => addDraftPhase(d, phasePresetToDraft(p, y, pageFxOf(p.currency, (active?.display_currency as CurrencyCode) ?? 'JPY') ?? 1), seed))
+      setSel({ type: 'phase', id: addedPhaseId(seed) })
+    },
+    [working, currentYear, lastYear, pageFxOf, active?.display_currency, editDraft],
   )
 
   /**
@@ -1841,6 +1897,12 @@ function TuongLaiConsole() {
                   trong hộp đã đo, còn `3,25rem` là 65px ở Cỡ chữ 1,25× — hai hệ đo trong
                   một phép tính. `PhaseLane` tự đo hộp và tự lấy lề từ `plotFrame.ts`, đúng
                   bộ lề mà vùng vẽ dùng. */}
+          <PhaseRowTools
+            onAddPhase={addBlankPhase}
+            onAddPhasePreset={addPhaseFromPreset}
+            onOpenMilestoneBoard={() => plotRef.current?.openPresetBoard()}
+          />
+
           <PhaseLane
             phases={working.phases}
             x0={laneX0}

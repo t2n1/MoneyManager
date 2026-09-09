@@ -68,7 +68,7 @@ import {
 import { DraftBanner } from './DraftBanner'
 import { dragPhaseStart } from './dragPhase'
 import { changeParts } from './draftText'
-import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { PhaseLane } from './PhaseLane'
@@ -241,6 +241,13 @@ function TuongLaiConsole() {
   const [showFire, setShowFire] = useState(true)
   const [log, setLog] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
+  /**
+   * Hàng 11 (Bảng theo năm) đang bung hay còn là chip thu gọn, VÀ năm đang rê chuột trên
+   * đồ thị — hai state đi cùng nhau vì chúng chỉ có nghĩa cùng nhau: liên kết hai chiều
+   * đồ thị ↔ bảng (spec §11) chỉ chạy khi bảng đang mở, xem chỗ dùng ở hàng 11.
+   */
+  const [yearTableOpen, setYearTableOpen] = useState(false)
+  const [hoverYear, setHoverYear] = useState<number | null>(null)
   const [compareOn, setCompareOn] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -510,8 +517,15 @@ function TuongLaiConsole() {
 
   /**
    * Có dòng nào thiếu tỷ giá không. Quy ước toàn repo: thiếu rate thì LOẠI khoản đó ra
-   * và bật cờ, KHÔNG bao giờ quy 1:1 — thà thiếu còn hơn bịa. Ở đây cờ đó thành dấu `≈`
-   * trên tiêu đề và một câu nói rõ đơn vị nào chưa tra được.
+   * và bật cờ, KHÔNG bao giờ quy 1:1 — thà thiếu còn hơn bịa.
+   *
+   * Cờ này đi tới BỐN chỗ, và bản trước của lời ghi này kể sai một chỗ (phát hiện review
+   * cuối nhánh 2026-09-09, Finding 4 — nó nói dấu `≈` nằm trên TIÊU ĐỀ hàng 3, chỗ duy
+   * nhất không có nó): hai con số của dải thống kê hàng 3 (`≈`), thẻ Tóm tắt kế hoạch
+   * trong dock (`hasMissingRate` → `≈`), Bản đồ khoản lớn (`hasMissingFx`), và một câu
+   * dưới chú giải nói rõ đơn vị nào chưa tra được. TIÊU ĐỀ hàng 3 là một câu KẾT LUẬN
+   * ("Đủ tiền tới hết đời"), không phải một con số — `≈` không gắn vào chữ được; nó dựa
+   * vào hai con số mang cờ đứng ngay cạnh nó trên cùng hàng.
    */
   const missingRateCurrencies = useMemo(() => {
     if (!shownInput) return []
@@ -713,6 +727,42 @@ function TuongLaiConsole() {
     () => (shownInput && baseline ? realityCheck(shownInput, baseline) : null),
     [shownInput, baseline],
   )
+
+  /**
+   * Phần dư mỗi tháng cho Bản đồ khoản lớn (hàng 12) — ưu tiên số THẬT 12 tháng qua, thiếu
+   * thì rơi về số kế hoạch của chặng đang chạy.
+   *
+   * Phát hiện review cuối nhánh 2026-09-09, Finding 2: console từng truyền `surplus={null}`
+   * cứng, nên NỬA "có kham được không" của bản đồ là mã chết — không có hàng "Phần dư của
+   * bạn", và câu cảnh báo vượt phần dư không bao giờ bắn được. Tức bảng đó nói người dùng
+   * phải để dành bao nhiêu mỗi tháng nhưng KHÔNG có cách nào nói rằng họ không kham nổi.
+   * Bê từ `LifetimeView` (màn cũ, đã nghỉ ở Task 16 — `git show master:` nếu cần đối chiếu);
+   * `baseline`/`baselinePhase`/`pageFxOf` đã có đủ ở đây từ Task 15c.
+   *
+   * Cả hai nguồn đều theo TIỀN CỦA CHẶNG (`suggestBaseline` không quy đổi, xem baseline.ts),
+   * nên phải quy về tiền hiển thị bằng ĐÚNG tỷ giá trang này đang dùng — `null` khi thiếu
+   * rate, không quy 1:1 (spec §14), và khi đó bản đồ lại tự ẩn nửa phần dư như trước.
+   */
+  const surplusForMap = useMemo(() => {
+    if (!baselinePhase || !shownInput) return null
+    const mk = (annualIncome: number, annualExpense: number, real: boolean) => {
+      const perMonth = Math.round((annualIncome - annualExpense) / 12)
+      const v = convertMinorToday(
+        perMonth,
+        baselinePhase.currency,
+        shownInput.displayCurrency,
+        pageFxOf,
+      )
+      return v === null ? null : { monthlyMinor: v, real }
+    }
+    // `monthsCovered > 0` chứ không chỉ `baseline !== null`: sổ rỗng cho thu 0 / chi 0, tức
+    // "phần dư thật = 0" — một con số sai dán nhãn "12 tháng qua". Thà rơi về kế hoạch.
+    if (baseline && baseline.monthsCovered > 0) {
+      const real = mk(baseline.annualIncomeMinor, baseline.annualExpenseMinor, true)
+      if (real !== null) return real
+    }
+    return mk(baselinePhase.annualIncomeMinor, baselinePhase.annualExpenseMinor, false)
+  }, [baseline, baselinePhase, shownInput, pageFxOf])
 
   // --- LỊCH SỬ KẾT LUẬN (migration 0055, spec §13) ------------------------------------
   //
@@ -1300,6 +1350,12 @@ function TuongLaiConsole() {
           event: selEvent,
           // Tiền của mốc SUY RA từ chặng, không tự khai (v5 — xem `fxModel.ts`).
           currency: currencyAt(working.phases, selEvent.startYear, currency),
+          // Cùng khoảng mà `moveEventStart`/`moveEventEnd` chặn — hai ô năm trong dock
+          // trước đây chỉ chặn theo `check` của DB, nên gõ 1900 vào là mốc rơi ra ngoài
+          // bản chiếu và thành một đối tượng vô hình (review cuối nhánh 2026-09-09,
+          // Finding 9).
+          currentYear,
+          lastYear,
           phaseLabel: evPhase?.label ?? null,
           chiTheoDanhMuc,
           chang:
@@ -1493,11 +1549,22 @@ function TuongLaiConsole() {
                 )}
               </StatCell>
 
+              {/* `approx` (dấu `≈`) trên CẢ HAI con số: chúng là bản chiếu của đúng
+                  `shownInput` mà `missingRateCurrencies` nói là còn thiếu tỷ giá — thiếu
+                  cờ ở đây là dải thống kê khẳng định một con số chắc chắn trong khi thẻ
+                  Tóm tắt kế hoạch ở dock hiện `≈` cho CÙNG con số (phát hiện review cuối
+                  nhánh 2026-09-09, Finding 4). Spec §14: thiếu rate phải THẤY ĐƯỢC. */}
               <StatCell label={`Lúc ${shownInput.endAge} tuổi`}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
-                  <Money amount={atEnd.center} currency={currency} compact tone="bySign" />
+                  <Money
+                    amount={atEnd.center}
+                    currency={currency}
+                    compact
+                    tone="bySign"
+                    approx={missingRateCurrencies.length > 0}
+                  />
                 )}
               </StatCell>
 
@@ -1505,7 +1572,13 @@ function TuongLaiConsole() {
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
-                  <Money amount={atEnd.low} currency={currency} compact tone="bySign" />
+                  <Money
+                    amount={atEnd.low}
+                    currency={currency}
+                    compact
+                    tone="bySign"
+                    approx={missingRateCurrencies.length > 0}
+                  />
                 )}
               </StatCell>
 
@@ -1706,6 +1779,10 @@ function TuongLaiConsole() {
             onMoveEvent={moveEventStart}
             onMoveEventEnd={moveEventEnd}
             onQuickAdd={(span, at) => setQuick({ span, at })}
+            // Chỉ nghe khi bảng theo năm đang MỞ: `TimelinePlot` đã gộp lại còn một lần gọi
+            // mỗi lần ĐỔI NĂM, nhưng nuôi một bảng đang gập thì mỗi năm đi qua vẫn là một
+            // lượt render lại cả console cho không.
+            onHoverYear={yearTableOpen ? setHoverYear : undefined}
           />
 
           {/* BẢNG CHỌN NHANH. Kẹp toạ độ NGANG bằng `clampQuickBoardLeft` (plotFrame.ts) —
@@ -1881,14 +1958,33 @@ function TuongLaiConsole() {
           {/* --- HÀNG 11 + 12: chip chuyển pane và pane đang mở. Hai khối dưới đây tự
                   mang chip tiêu đề của mình rồi bung nội dung ngay dưới — đúng cặp
                   "chip + pane" mà bản vẽ vẽ thành hai hàng. */}
-          <YearTableSection rows={shownRows} currency={currency} scenarioName={active.name} />
+          {/* Liên kết HAI CHIỀU đồ thị ↔ bảng theo năm (spec §11). Cả hai nửa đã có sẵn
+              trong nhánh này nhưng không có gì nối chúng: `TimelinePlot` bắn `onHoverYear`
+              (comment của chính nó nhắc "Bảng theo năm") mà không chỗ gọi nào nghe, và
+              `focusYear` của bảng không chỗ nào truyền (phát hiện review cuối nhánh
+              2026-09-09, Finding 5).
+
+              `open` do trang giữ để CHỈ nghe năm rê khi bảng đang mở — xem JSDoc `open`.
+
+              `onEditEvent` cũng bị mất khi màn cũ nghỉ: master truyền nó nên bấm một dòng
+              mốc trong bảng là mở trình sửa; ở đây các dòng đó render thành `<div>` trơ. Nối
+              lại vào chính `sel` của dock — đúng đích mà bấm icon mốc trên trục cũng tới. */}
+          <YearTableSection
+            rows={shownRows}
+            currency={currency}
+            scenarioName={active.name}
+            focusYear={yearTableOpen ? (hoverYear ?? undefined) : undefined}
+            onEditEvent={(id) => setSel({ type: 'event', id })}
+            open={yearTableOpen}
+            onOpenChange={setYearTableOpen}
+          />
 
           <BigExpenseMapSection
             events={shownInput.events}
             displayCurrency={currency}
             fxOf={pageFxOf}
             todayISO={todayISO}
-            surplus={null}
+            surplus={surplusForMap}
           />
         </div>
       }

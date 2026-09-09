@@ -294,6 +294,7 @@ function YearTableBody({
   focusYear,
   onEditEvent,
   scrollClassName,
+  scrollToFocus,
 }: {
   rows: YearRow[]
   currency: CurrencyCode
@@ -302,6 +303,17 @@ function YearTableBody({
   onEditEvent?: (eventId: string) => void
   /** Lớp CSS của vùng cuộn — sheet cần `flex-1`, khối inline thì không. */
   scrollClassName: string
+  /**
+   * Có CUỘN tới năm đang nổi hay chỉ TÔ nó.
+   *
+   * Sheet thì cuộn: nó mở ra ở một năm cụ thể ("Tự do tài chính 2060") và có vùng cuộn
+   * riêng, nên `scrollIntoView` chỉ động tới bên trong sheet. Khối inline trong console thì
+   * KHÔNG: nó không có vùng cuộn riêng (`scrollClassName=""`), nên `scrollIntoView` sẽ cuộn
+   * CẢ TRANG — mà năm đang nổi ở đó đến từ việc rê chuột trên đồ thị, tức đồ thị sẽ tự trôi
+   * ra khỏi dưới con trỏ đúng lúc người dùng đang rê. Liên kết hai chiều của spec §11 cần
+   * dòng SÁNG LÊN, không cần trang nhảy.
+   */
+  scrollToFocus: boolean
 }) {
   // Bật sẵn "hiện đủ" khi năm cần nhảy tới đang bị bộ lọc mặc định giấu: mở bảng ở một
   // năm KHÔNG có trên màn là dẫn người dùng vào một danh sách trống. Tính MỘT LẦN lúc
@@ -326,11 +338,11 @@ function YearTableBody({
   // phần dẫn.
   const focusEl = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    if (focusYear === undefined) return
+    if (focusYear === undefined || !scrollToFocus) return
     // `prefers-reduced-motion` do CSS toàn cục lo (index.css) — `scroll-behavior` là
     // thuộc tính CSS thật.
     focusEl.current?.scrollIntoView({ block: 'center' })
-  }, [focusYear])
+  }, [focusYear, scrollToFocus])
 
   const defaultIdx = useMemo(() => pickDefaultYearIdx(rows), [rows])
   const visibleRows = showAll ? rows : rows.filter((_, i) => defaultIdx.has(i))
@@ -510,6 +522,7 @@ export function YearTableView({
             focusYear={focusYear}
             onEditEvent={onEditEvent}
             scrollClassName="min-h-0 flex-1 overflow-y-auto"
+            scrollToFocus
           />
         </div>
       </div>
@@ -530,19 +543,39 @@ export function YearTableSection({
   rows,
   currency,
   scenarioName,
+  focusYear,
   onEditEvent,
+  open,
+  onOpenChange,
 }: {
   rows: YearRow[]
   currency: CurrencyCode
   scenarioName?: string
+  /**
+   * Năm đang rê chuột trên đồ thị — dòng đó SÁNG LÊN (không cuộn, xem `scrollToFocus`).
+   * Đây là nửa "bảng" của liên kết hai chiều mà spec §11 đòi.
+   *
+   * Chỉ tô được những dòng ĐANG HIỆN: ở chế độ mặc định bảng lọc còn "những năm có gì để
+   * đọc", nên rê qua một năm bị lọc thì không có dòng nào sáng. Công tắc "hiện đủ" ngay
+   * trên bảng mở hết ra.
+   */
+  focusYear?: number
   onEditEvent?: (eventId: string) => void
+  /**
+   * Gấp/mở do chỗ gọi giữ, không phải state trong này (khác bản trước).
+   *
+   * Vì sao: `focusYear` tới từ việc rê chuột, và chỗ gọi phải biết bảng có đang mở hay
+   * không để KHÔNG bơm năm rê vào khi bảng đang gập — một `setState` mỗi lần con trỏ đổi
+   * năm, chỉ để nuôi một bảng không ai thấy, là render lại cả console cho không.
+   */
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
   return (
     <Card as="section" elevation="panel" padding="panel">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onOpenChange(!open)}
         aria-expanded={open}
         className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-label text-fg-muted transition"
       >
@@ -558,8 +591,10 @@ export function YearTableSection({
             rows={rows}
             currency={currency}
             scenarioName={scenarioName}
+            focusYear={focusYear}
             onEditEvent={onEditEvent}
             scrollClassName=""
+            scrollToFocus={false}
           />
         </div>
       )}

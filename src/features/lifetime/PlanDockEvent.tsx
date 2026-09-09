@@ -77,6 +77,17 @@ export interface PlanDockEventProps {
   /** Tiền của CHẶNG phủ năm bắt đầu — mốc tính bằng đơn vị này, không tự khai (v5, xem
    *  `fxModel.ts`). Muốn mốc tính bằng đồng khác thì đổi tiền của CHẶNG. */
   currency: CurrencyCode
+  /**
+   * Khoảng năm mà một mốc được phép nằm trong — CÙNG khoảng mà mọi đường kéo và `←`/`→`
+   * đang chặn (`moveEventStart`/`moveEventEnd` ở `TuongLaiPage`).
+   *
+   * Trước bản này hai ô năm ở đây chỉ chặn theo `check` của DB (1900…2200), tức gõ 1900 vào
+   * là mốc rơi ra ngoài bản chiếu: `EventPins` lọc mốc ngoài khung nhìn nên nó không được vẽ
+   * và không được xếp hàng, chỉ còn sửa được từ dock — một đối tượng VÔ HÌNH (phát hiện
+   * review cuối nhánh 2026-09-09, Finding 9).
+   */
+  currentYear: number
+  lastYear: number
   /** Tên chặng phủ năm bắt đầu — dòng tổng của bản vẽ có "Rơi vào chặng Z". */
   phaseLabel: string | null
   /**
@@ -108,6 +119,8 @@ export interface PlanDockEventProps {
 export function PlanDockEvent({
   event,
   currency,
+  currentYear,
+  lastYear,
   phaseLabel,
   chang,
   chiTheoDanhMuc = [],
@@ -119,6 +132,17 @@ export function PlanDockEvent({
 }: PlanDockEventProps) {
   const uid = useId()
   const [advOpen, setAdvOpen] = useState(false)
+
+  /**
+   * Chặn một năm mốc vào `[currentYear, lastYear]`, rồi vào `check` của DB
+   * (`MIN_YEAR`…`MAX_YEAR`) lần nữa — bản chiếu về lý thuyết có thể dài hơn khoảng DB
+   * (năm sinh 2100 + tuổi kết thúc), và một ô nhập không được phép đề nghị một năm mà
+   * Postgres sẽ từ chối.
+   */
+  function kepNamMoc(y: number): number {
+    const trongBanChieu = Math.min(lastYear, Math.max(currentYear, Math.round(y)))
+    return Math.min(MAX_YEAR, Math.max(MIN_YEAR, trongBanChieu))
+  }
 
   const forever = event.endYear === null
   /** Chỉ 'per_year' và 'growth' còn nghĩa khi mốc chạy tới hết đời: không chia được một
@@ -243,7 +267,7 @@ export function PlanDockEvent({
    *  theo — không thì mốc mang một hình vô nghĩa và `eventSpanNote` rơi về 'per_year'
    *  trong khi ô chọn vẫn hiện 'total'. */
   function ghiEndYear(y: number | null) {
-    const kep = y === null ? null : Math.min(MAX_YEAR, Math.max(MIN_YEAR, y))
+    const kep = y === null ? null : kepNamMoc(y)
     const hetDoi = kep === null
     const canDoiHinh = hetDoi && event.amountShape !== 'per_year' && event.amountShape !== 'growth'
     onPatch({
@@ -294,7 +318,7 @@ export function PlanDockEvent({
               value={event.startYear}
               ariaLabel={`Năm bắt đầu mốc ${event.label}`}
               onCommit={(y) => {
-                const kep = Math.min(MAX_YEAR, Math.max(MIN_YEAR, y))
+                const kep = kepNamMoc(y)
                 onPatch({
                   startYear: kep,
                   // Năm kết thúc không được lùi trước năm bắt đầu (`check` của DB).

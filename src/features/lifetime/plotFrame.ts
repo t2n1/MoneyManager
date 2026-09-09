@@ -16,6 +16,7 @@
 //
 // `MIN_PHASE_YEAR`/`clampPhaseStartYear` KHÔNG ở đây: đó là luật DỮ LIỆU của chặng đời
 // (phaseYear.ts), còn đây là hình học. Hai thứ gặp nhau ở chỗ gọi, không trộn vào nhau.
+import { packRows } from './chartGeom'
 
 /**
  * Lề vùng vẽ, PIXEL trong hệ toạ độ của hộp đã đo. Bản vẽ: `pl` 52 · `pbot` H−26; lề
@@ -30,6 +31,24 @@ export const PLOT_BOTTOM_GAP = 26
 export const PIN_TOP = 44
 export const PIN_ROW_H = 26
 export const PIN_GAP = 16
+
+/**
+ * Hình của một icon mốc, PIXEL — và đây là chỗ CỐ Ý không quy về `rem`, nói ra vì spec §5
+ * quy "icon mốc 24px / chốt 18px → 1,5rem / 1,125rem".
+ *
+ * Lý do: các hàng icon cách nhau `PIN_ROW_H` = 26 PIXEL, con số nằm trong hệ toạ độ của
+ * hộp đã đo và nó vào cả `plotTop` (chừa chỗ phía trên vùng vẽ). Cho icon 1,5rem thì ở Cỡ
+ * chữ 1,25× nó cao 30px trong một hàng 26px — hai hàng icon ĐÈ lên nhau, đúng cái mà phép
+ * xếp hàng chống va chạm tồn tại để tránh. Hai đại lượng này phải cùng một hệ đo; hệ của
+ * chúng là px, giống `PLOT_LEFT`.
+ *
+ * Điều đó KHÔNG mở đường cho px ở chỗ khác: hộp bọc vẫn khai bằng `rem` (`h-[35rem]`,
+ * `h-[2.875rem]`) nên nó vẫn nở theo Cỡ chữ, và icon không chứa CHỮ nào — nó là hình vẽ
+ * trên đồ thị, cùng loại với chấm FIRE `r=5`.
+ */
+export const PIN_W = 24
+/** Chốt năm kết thúc (bản vẽ: 18px). Cùng hệ đo với `PIN_W` — xem lời ghi ở trên. */
+export const PIN_END_W = 18
 
 /** Mép phải vùng vẽ. Sàn `PLOT_LEFT + 10` để hộp hẹp bất thường không cho span âm. */
 export function plotRightOf(boxWidth: number): number {
@@ -157,4 +176,74 @@ export function magnetToPhaseStart(
     }
   }
   return best ?? year
+}
+
+/**
+ * Bề rộng CHỖ mà một icon mốc chiếm khi xếp hàng — công thức nguyên văn của bản vẽ
+ * (`max(52, xs(endYear) − xs(startYear) + 42)`).
+ *
+ * KHÔNG phải bề rộng HÌNH (icon chỉ 24px): con số này gồm cả thanh độ dài chạy tới năm
+ * kết thúc, cái chốt 18px ở đuôi nó, và một khoảng thở. Bơm bề rộng hình vào phép xếp hàng
+ * thì hai mốc dài chồng thanh lên nhau mà vẫn được coi là "không va chạm".
+ */
+export function pinSpanWidth(startX: number, endX: number): number {
+  return Math.max(52, endX - startX + 42)
+}
+
+/**
+ * Khoảng hở tối thiểu giữa icon và chốt, PIXEL. Không có nó thì mốc dài 1–2 năm có chốt
+ * rơi đúng dưới icon của chính nó — đo trên app thật ở 375px thì 2 trong 4 chốt không bấm
+ * được (lời ghi ở `LifetimeChartCard.tsx:1253`).
+ */
+export const PIN_END_MIN_GAP = 30
+
+/**
+ * Toạ độ x của CHỐT năm kết thúc: `xs(endYear)`, nhưng đẩy ra tối thiểu `PIN_END_MIN_GAP`
+ * khỏi icon VÀ kẹp trong mép phải vùng vẽ.
+ *
+ * Phần kẹp là chỗ dễ quên nhất, và nó không phải giả thuyết: ở zoom 10 năm, một mốc kết
+ * thúc năm 2053 có `xs(2053)` nằm xa BÊN NGOÀI mép phải — hộp vẽ không `overflow-hidden`
+ * nên cái chốt sẽ hiện đè lên cột dock. Mốc đó vẫn được vẽ (nó BẮT ĐẦU trong khung nhìn),
+ * nên không thể dựa vào phép lọc để tránh.
+ *
+ * Kẹp thắng cả sàn khoảng hở: mốc bắt đầu sát mép phải thì chốt nằm ngay trên icon, và đó
+ * vẫn tốt hơn một cái chốt trôi ra ngoài vùng vẽ.
+ */
+export function pinEndX(startX: number, endX: number, rightEdge: number): number {
+  return Math.min(Math.max(endX, startX + PIN_END_MIN_GAP), rightEdge)
+}
+
+/**
+ * Chỉ số HÀNG của từng icon mốc, cùng thứ tự đầu vào.
+ *
+ * Chỉ là lớp bơm bề rộng cho `packRows` (chartGeom.ts) — phép xếp hàng chống va chạm đã có
+ * ở đó và spec §10 dặn thẳng "dùng lại, KHÔNG viết bản thứ hai". Việc của hàm này là dịch
+ * mốc→hình chữ nhật: mép trái là `xs(startYear) − PIN_W/2` vì icon đặt GIỮA năm.
+ *
+ * `items` phải ĐÃ SẮP theo `startYear` tăng dần — `packRows` đòi vậy, và kết quả trả về
+ * theo chỉ số nên chỗ gọi phải sắp TRƯỚC rồi mới bơm vào.
+ *
+ * `lastYear` là năm cuối khung nhìn: mốc "tới hết đời" (`endYear === null`) chiếm chỗ tới
+ * hết trục, đúng như thanh của nó được vẽ.
+ */
+export function pinRowsOf(
+  items: readonly { startYear: number; endYear: number | null }[],
+  xs: (year: number) => number,
+  lastYear: number,
+): number[] {
+  return packRows(
+    items.map((e) => {
+      const a = xs(e.startYear)
+      const b = xs(e.endYear ?? lastYear)
+      return { left: a - PIN_W / 2, width: pinSpanWidth(a, b) }
+    }),
+  )
+}
+
+/** Số HÀNG icon mốc phải chừa chỗ. Tối thiểu 1: vạch mốc vẫn cần một hàng để không dán
+ *  vào mép trên vùng vẽ, kể cả khi không có mốc nào. */
+export function pinRowCount(rows: readonly number[]): number {
+  let max = 0
+  for (const r of rows) max = Math.max(max, r + 1)
+  return Math.max(1, max)
 }

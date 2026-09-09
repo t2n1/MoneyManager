@@ -43,12 +43,15 @@ import { DEFAULT_SWR_BPS, fireYear } from './insights'
 // Lề vùng vẽ và hàng icon mốc: `plotFrame.ts`. Chúng KHÔNG ở trong file này vì dải chặng
 // đời (`PhaseLane`) phải khớp đúng cùng bộ lề — một bản chép thứ hai là một chỗ để dải
 // lệch trục năm nửa năm, thứ không có phép thử nào thấy.
+import { EventPins } from './EventPins'
 import {
   PIN_GAP,
   PIN_ROW_H,
   PIN_TOP,
   PLOT_BOTTOM_GAP,
   PLOT_LEFT,
+  pinRowCount,
+  pinRowsOf,
   plotRightOf,
   viewRange,
   type PlotZoom,
@@ -120,18 +123,36 @@ interface Props {
   showBand?: boolean
   showFire?: boolean
   log?: boolean
-  /**
-   * Số HÀNG chip mốc phải chừa chỗ phía trên vùng vẽ. Task 12 (`EventPins`) tính số
-   * thật bằng `packRows` rồi bơm vào đây; tới lúc đó một hàng là đủ cho vạch mốc.
-   */
-  pinRows?: number
   /** Năm đang rê chuột — Bảng theo năm sáng đúng dòng đó (liên kết hai chiều). */
   onHoverYear?: (year: number | null) => void
+
+  // --- Icon mốc (`EventPins`) -------------------------------------------------------
+  //
+  // Vì sao lớp phủ icon mốc dựng TỪ TRONG file này chứ không phải một hàng riêng cạnh nó:
+  // số HÀNG icon quyết định `plotTop` (chỗ chừa phía trên vùng vẽ), mà số hàng lại suy từ
+  // `xs` — tức từ bề ngang đã đo ở đây. Đặt `EventPins` ra ngoài thì bề ngang phải đi
+  // ngược lên rồi quay xuống, và giữa hai lượt đó `plotTop` nói một con số khác.
+  //
+  // Prop `pinRows` cũ (một con số bơm từ ngoài vào) đã bỏ: nay số hàng THẬT tính bằng
+  // `pinRowsOf` ngay tại đây.
+
+  /** Các `startYear` của chặng — nam châm ±1 năm khi kéo mốc bám vào chúng. */
+  phaseStarts?: readonly number[]
+  selectedEventId?: string
+  /** Bấm một icon (không kéo) — bật/tắt lựa chọn. */
+  onToggleEvent?: (id: string) => void
+  /** Bắt đầu kéo một icon — dock đi theo thứ đang kéo. */
+  onSelectEvent?: (id: string) => void
+  /** Dời năm BẮT ĐẦU của một mốc. Chỗ gọi giữ độ dài và chặn khoảng. */
+  onMoveEvent?: (id: string, year: number) => void
+  /** Đổi năm KẾT THÚC. Chỗ gọi chặn sàn `startYear + 1`. */
+  onMoveEventEnd?: (id: string, year: number) => void
 }
 
 /** Tham chiếu ỔN ĐỊNH cho "không có" — `[]` trong JSX tạo mảng mới mỗi lần render. */
 const EMPTY_EVENTS: readonly PlotEvent[] = []
 const EMPTY_COMPARE: readonly ComparisonLine[] = []
+const EMPTY_YEARS: readonly number[] = []
 
 /** Câu mô tả cho `aria-label` — sinh từ dữ liệu THẬT, không phải câu trang trí. */
 function plotAriaLabel(rows: YearRow[], fire: number | null, eventCount: number): string {
@@ -159,8 +180,13 @@ export function TimelinePlot({
   showBand = true,
   showFire = true,
   log = false,
-  pinRows = 1,
   onHoverYear,
+  phaseStarts = EMPTY_YEARS,
+  selectedEventId,
+  onToggleEvent,
+  onSelectEvent,
+  onMoveEvent,
+  onMoveEventEnd,
 }: Props) {
   // Khởi tạo bằng một cỡ hợp lý rồi để ResizeObserver sửa ngay ở lượt bày đầu: mọi hàm
   // hình học dưới đây tự chịu được cỡ sai, còn `rows` rỗng thì chúng cũng đã canh. Hai lời
@@ -197,9 +223,25 @@ export function TimelinePlot({
   // --- Hình học -------------------------------------------------------------------
   const plotLeft = PLOT_LEFT
   const plotRight = plotRightOf(box.w)
-  const plotTop = PIN_TOP + Math.max(1, pinRows) * PIN_ROW_H + PIN_GAP
+  const xs = useMemo(() => makeXScale(x0, x1, plotLeft, plotRight), [x0, x1, plotLeft, plotRight])
+
+  /**
+   * Mốc ĐANG THẤY — dùng cho CẢ vạch mốc trong `<svg>` LẪN lớp phủ icon, một phép lọc chứ
+   * không hai. SẮP theo năm vì `pinRowsOf`/`packRows` đòi thứ tự đó.
+   *
+   * Lọc theo `startYear`: khung nhìn luôn bắt đầu ở năm hiện tại và chỉ cắt ngắn ở đầu
+   * PHẢI (xem `viewRange`), nên "ngoài khung nhìn" ở đây có nghĩa là "bắt đầu sau năm cuối
+   * khung". Cùng phép lọc mà vạch mốc đã dùng từ trước.
+   */
+  const visibleEvents = useMemo(
+    () => events.filter((e) => inX(e.startYear)).sort((a, b) => a.startYear - b.startYear),
+    [events, inX],
+  )
+  /** Hàng của từng icon, và số hàng phải chừa chỗ. Mốc ngoài khung nhìn không có mặt ở
+   *  đây, nên nó cũng không chiếm một hàng trống phía trên vùng vẽ. */
+  const pinRowIdx = useMemo(() => pinRowsOf(visibleEvents, xs, x1), [visibleEvents, xs, x1])
+  const plotTop = PIN_TOP + pinRowCount(pinRowIdx) * PIN_ROW_H + PIN_GAP
   const plotBottom = Math.max(plotTop + 10, box.h - PLOT_BOTTOM_GAP)
-  const xs = makeXScale(x0, x1, plotLeft, plotRight)
 
   const { yMin, yMax } = useMemo(() => {
     let lo = 0
@@ -260,16 +302,25 @@ export function TimelinePlot({
   const fire = useMemo(() => fireYear(rows), [rows])
   const fireRow = fire !== null && inX(fire) ? dRows.find((r) => r.year === fire) : undefined
 
-  const visibleEvents = useMemo(
-    () => events.filter((e) => inX(e.startYear)),
-    [events, inX],
-  )
-
   const hoverRow = hoverYear === null ? undefined : dRows.find((r) => r.year === hoverYear)
 
   const ariaLabel = useMemo(
     () => plotAriaLabel(rows, fire, visibleEvents.length),
     [rows, fire, visibleEvents.length],
+  )
+
+  /**
+   * `clientX` → năm trên trục. MỘT phép đổi cho cả lượt rê chuột và lượt kéo icon mốc:
+   * hai bản riêng là hai chỗ để lệch gốc toạ độ, mà lệch gốc toạ độ nghĩa là icon nhảy
+   * một quãng ngay lúc cầm vào.
+   */
+  const yearAt = useCallback(
+    (clientX: number) => {
+      const el = boxRef.current
+      const px = clientX - (el?.getBoundingClientRect().left ?? 0)
+      return xToYear(px, x0, x1, plotLeft, plotRight)
+    },
+    [boxRef, x0, x1, plotLeft, plotRight],
   )
 
   /** Đổi năm đang rê, gộp vào MỘT nhịp khung hình (spec §11). */
@@ -486,6 +537,22 @@ export function TimelinePlot({
               />
             ))}
           </svg>
+
+          {/* Icon mốc — lớp phủ HTML trên vùng vẽ. Nằm SAU `</svg>` nên nó vẽ lên trên
+              đường, và là HTML nên mỗi icon là một `<button>` thật (Tab, Enter, ←/→). */}
+          <EventPins
+            events={visibleEvents}
+            rows={pinRowIdx}
+            xs={xs}
+            x1={x1}
+            yearAt={yearAt}
+            phaseStarts={phaseStarts}
+            selectedId={selectedEventId}
+            onToggle={onToggleEvent}
+            onSelect={onSelectEvent}
+            onMoveStart={onMoveEvent}
+            onMoveEnd={onMoveEventEnd}
+          />
 
           {/* Nhãn trục tiền — HTML, qua <Money> nên nó đi qua chế độ riêng tư */}
           {yTicks.map((v) => (

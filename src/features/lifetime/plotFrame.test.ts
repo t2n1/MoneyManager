@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { makeXScale } from './chartGeom'
-import { PLOT_LEFT, laneBlocks, magnetToPhaseStart, plotRightOf } from './plotFrame'
+import {
+  PIN_W,
+  PLOT_LEFT,
+  laneBlocks,
+  magnetToPhaseStart,
+  pinEndX,
+  pinRowCount,
+  pinRowsOf,
+  pinSpanWidth,
+  plotRightOf,
+  viewRange,
+} from './plotFrame'
 
 /** Thang thật của màn: 2026–2064 trên một hộp rộng 1200px. */
 const X0 = 2026
@@ -104,5 +115,121 @@ describe('magnetToPhaseStart', () => {
 
   it('không có chặng nào thì không bám vào đâu', () => {
     expect(magnetToPhaseStart(2035, [])).toBe(2035)
+  })
+})
+
+describe('viewRange', () => {
+  it('cả đời = từ năm hiện tại tới năm cuối bản chiếu', () => {
+    expect(viewRange(2026, 2064, 'all')).toEqual([2026, 2064])
+  })
+
+  it('zoom 10/20 cắt ở năm hiện tại + n', () => {
+    expect(viewRange(2026, 2064, 10)).toEqual([2026, 2036])
+    expect(viewRange(2026, 2064, 20)).toEqual([2026, 2046])
+  })
+
+  it('bản chiếu ngắn hơn khung zoom thì dừng ở năm cuối bản chiếu', () => {
+    expect(viewRange(2026, 2030, 20)).toEqual([2026, 2030])
+  })
+
+  it('bản chiếu một năm vẫn ra một khoảng có bề rộng (không chia cho 0)', () => {
+    expect(viewRange(2026, 2026, 'all')).toEqual([2026, 2027])
+  })
+})
+
+describe('pinSpanWidth', () => {
+  it('mốc một năm vẫn chiếm sàn 52px — icon 24px cộng chỗ cho nhãn kề bên', () => {
+    expect(pinSpanWidth(300, 300)).toBe(52)
+  })
+
+  it('mốc dài thì chiếm đúng khoảng của nó cộng 42px cho chốt và khoảng thở', () => {
+    expect(pinSpanWidth(300, 500)).toBe(242)
+  })
+})
+
+describe('pinRowsOf', () => {
+  const X0 = 2026
+  const X1 = 2064
+  const xs = makeXScale(X0, X1, PLOT_LEFT, plotRightOf(1200))
+
+  it('mốc rời nhau thì cùng một hàng', () => {
+    const rows = pinRowsOf(
+      [
+        { startYear: 2029, endYear: 2029 },
+        { startYear: 2050, endYear: 2050 },
+      ],
+      xs,
+      X1,
+    )
+    expect(rows).toEqual([0, 0])
+  })
+
+  it('mốc DÀI đẩy mốc bắt đầu trong khoảng của nó xuống hàng dưới', () => {
+    // "Nuôi con 2031–2053" trùm gần hết trục; "Mua nhà 2034" phải xuống hàng.
+    const rows = pinRowsOf(
+      [
+        { startYear: 2031, endYear: 2053 },
+        { startYear: 2034, endYear: 2038 },
+      ],
+      xs,
+      X1,
+    )
+    expect(rows).toEqual([0, 1])
+  })
+
+  it('mốc tới hết đời chiếm chỗ tới hết trục', () => {
+    const rows = pinRowsOf(
+      [
+        { startYear: 2029, endYear: null },
+        { startYear: 2059, endYear: 2059 },
+      ],
+      xs,
+      X1,
+    )
+    expect(rows).toEqual([0, 1])
+  })
+
+  it('mép trái tính từ GIỮA icon, không từ điểm năm', () => {
+    // Hai mốc cách nhau đúng bằng bề rộng chỗ: mốc sau vẫn phải xuống hàng vì icon của
+    // mốc trước lấn sang trái nửa bề rộng của nó.
+    const gan = makeXScale(2026, 2028, 0, 100)
+    const rows = pinRowsOf(
+      [
+        { startYear: 2026, endYear: 2026 },
+        { startYear: 2027, endYear: 2027 },
+      ],
+      gan,
+      2028,
+    )
+    expect(rows).toEqual([0, 1])
+    expect(pinSpanWidth(gan(2026), gan(2026))).toBeGreaterThan(PIN_W)
+  })
+})
+
+describe('pinRowCount', () => {
+  it('không có mốc nào vẫn chừa một hàng', () => {
+    expect(pinRowCount([])).toBe(1)
+  })
+
+  it('đếm theo hàng CAO NHẤT, không theo số mốc', () => {
+    expect(pinRowCount([0, 1, 0, 2])).toBe(3)
+  })
+})
+
+describe('pinEndX', () => {
+  it('đẩy chốt ra tối thiểu 30px khỏi icon — mốc 1 năm không bị chốt che', () => {
+    expect(pinEndX(200, 205, 1000)).toBe(230)
+  })
+
+  it('mốc dài thì chốt đứng đúng năm kết thúc', () => {
+    expect(pinEndX(200, 500, 1000)).toBe(500)
+  })
+
+  it('kẹp trong mép phải: mốc kết thúc NGOÀI khung nhìn không đẩy chốt ra khỏi vùng vẽ', () => {
+    expect(pinEndX(200, 4000, 1000)).toBe(1000)
+  })
+
+  it('mép phải thắng cả sàn khoảng hở khi mốc bắt đầu sát mép', () => {
+    expect(pinEndX(990, 995, 1000)).toBe(1000)
   })
 })

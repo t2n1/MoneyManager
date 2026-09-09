@@ -51,7 +51,6 @@ import {
   setPhaseCurrency,
   type ScenarioDraft,
 } from './draft'
-import { EventIcon } from './eventIcons'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
@@ -441,6 +440,51 @@ function TuongLaiConsole() {
     editDraft((d) =>
       patchDraftPhase(d, id, { startYear: clampPhaseStartYear(d.phases, id, wanted, currentYear) }),
     )
+
+  /**
+   * Dời năm BẮT ĐẦU của một mốc — GIỮ NGUYÊN ĐỘ DÀI.
+   *
+   * Giữ độ dài là điều bản vẽ làm (dòng 1310) và nó đúng: kéo "Nuôi con 2031–2053" sang
+   * 2033 là dời cả quãng nuôi con, không phải cắt ngắn nó 2 năm. Mốc "tới hết đời"
+   * (`endYear === null`) không có độ dài nào để giữ, và nó phải Ở LẠI `null` — đặt một năm
+   * cho nó là lặng lẽ biến "đến hết đời" thành một khoảng có hạn.
+   *
+   * Chặn trong `[currentYear, lastYear]`: lượt KÉO đã bị `xToYear` kẹp trong khung nhìn,
+   * nhưng đường BÀN PHÍM (←/→) thì không — và một mốc lùi về trước năm hiện tại thì không
+   * còn năm nào trong bản chiếu để rơi vào.
+   */
+  const moveEventStart = (id: string, wanted: number) =>
+    editDraft((d) => {
+      const e = d.events.find((x) => x.id === id)
+      if (!e) return d
+      const sy = Math.max(currentYear, Math.min(lastYear, Math.round(wanted)))
+      const span = e.endYear === null ? null : e.endYear - e.startYear
+      return patchDraftEvent(d, id, {
+        startYear: sy,
+        endYear: span === null ? null : Math.min(lastYear, sy + span),
+      })
+    })
+
+  /**
+   * Đổi năm KẾT THÚC. Sàn là `startYear + 1` — cùng sàn mà màn cũ dùng
+   * (`LifetimeChartCard`): một mốc có `endYear === startYear` thì thanh độ dài dài 0px và
+   * cái chốt rơi đúng dưới icon của chính nó, tức kéo được vào đó rồi không kéo ra được.
+   */
+  const moveEventEnd = (id: string, wanted: number) =>
+    editDraft((d) => {
+      const e = d.events.find((x) => x.id === id)
+      if (!e) return d
+      return patchDraftEvent(d, id, {
+        endYear: Math.max(e.startYear + 1, Math.min(lastYear, Math.round(wanted))),
+      })
+    })
+
+  /**
+   * Các `startYear` của chặng — nam châm ±1 năm khi kéo mốc bám vào chúng (bản vẽ:
+   * `snapYear`). Đọc từ BẢN NHÁP: kéo một chặng rồi kéo một mốc thì nam châm phải bám vào
+   * ranh giới MỚI, không phải ranh giới đã lưu.
+   */
+  const phaseStarts = working.phases.map((p) => p.startYear).sort((a, b) => a - b)
 
   // --- Bộ prop cho dock ---------------------------------------------------------------
   //
@@ -861,6 +905,18 @@ function TuongLaiConsole() {
             showBand={showBand}
             showFire={showFire}
             log={log}
+            // Icon mốc nằm TRONG vùng vẽ (xem `TimelinePlot`): số hàng icon quyết định chỗ
+            // chừa phía trên đồ thị, nên nó phải được tính ở nơi biết bề ngang đã đo.
+            phaseStarts={phaseStarts}
+            selectedEventId={sel.type === 'event' ? sel.id : undefined}
+            onSelectEvent={(id) => setSel({ type: 'event', id })}
+            onToggleEvent={(id) =>
+              setSel((cur) =>
+                cur.type === 'event' && cur.id === id ? { type: 'none' } : { type: 'event', id },
+              )
+            }
+            onMoveEvent={moveEventStart}
+            onMoveEventEnd={moveEventEnd}
           />
 
           {/* --- HÀNG 8: dải chặng đời --------------------------------------------
@@ -888,38 +944,6 @@ function TuongLaiConsole() {
             onMoveStart={movePhaseStart}
           />
 
-          {/* TẠM, cùng lý do với dải chip chặng ngay trên: bảng sửa MỐC đã xong mà đường
-              vào của bản vẽ (bấm icon mốc trên đường) thì chưa — Task 12 dựng `EventPins`
-              và thay chỗ này. Mốc đang TẮT (0063) hiện mờ để dải chip nói đúng thứ bản
-              chiếu đang tính. */}
-          <div className="ml-[3.25rem] flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-dashed border-border-strong px-3 py-1.5">
-            <SectionTitle role="micro" className="shrink-0">
-              Mốc
-            </SectionTitle>
-            {working.events.map((e) => (
-              <FilterChip
-                key={e.id}
-                on={sel.type === 'event' && sel.id === e.id}
-                size="sm"
-                onClick={() =>
-                  setSel((cur) =>
-                    cur.type === 'event' && cur.id === e.id
-                      ? { type: 'none' }
-                      : { type: 'event', id: e.id },
-                  )
-                }
-                title={`Sửa mốc "${e.label}"${e.enabled ? '' : ' (đang tắt)'}`}
-                className={e.enabled ? '' : 'opacity-60'}
-              >
-                <EventIcon icon={e.icon} kind={e.kind} />
-                <Num tone="muted">{e.startYear}</Num>
-                <span className="truncate">{e.label}</span>
-              </FilterChip>
-            ))}
-            {working.events.length === 0 && (
-              <span className="text-2xs text-fg-muted">Chưa có mốc nào.</span>
-            )}
-          </div>
         </div>
       }
       // ===== Cột dock — LUÔN chừa sẵn, kể cả khi không chọn gì (spec §5) =====

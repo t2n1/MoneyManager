@@ -32,7 +32,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { EmptyState, Money, Num } from '../../components/ui'
+import { Guide } from '../../components/Guide'
+import { ActionButton, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
 import { TAG_HEX, tagColor } from '../tags/colors'
@@ -66,6 +67,7 @@ import {
 } from './plotFrame'
 import { isEditableTarget } from './consoleKeys'
 import type { YearRow } from './project'
+import { middleSpanYear } from './quickAddApply'
 import { normalizeSpan, spanYears, type YearSpan } from './quickAddRange'
 import { useBoxSize } from './useBoxSize'
 import { useYearDrag } from './useYearDrag'
@@ -516,6 +518,12 @@ export function TimelinePlot({
     [bgDrag, dropBand],
   )
 
+  /** Năm GIỮA trục — nút "Chọn mốc từ mẫu" của trạng thái rỗng mở bảng ở đây. */
+  const openAtMiddle = useCallback(() => {
+    const y = middleSpanYear(x0, x1)
+    onQuickAdd?.({ startYear: y, endYear: y }, { x: xs(y), y: (plotTop + plotBottom) / 2 })
+  }, [x0, x1, xs, plotTop, plotBottom, onQuickAdd])
+
   return (
     // `h-[35rem]` = 560px của bản vẽ ở cỡ chữ Vừa (spec §5). Là `rem` nên nó co giãn
     // theo Cài đặt → Cỡ chữ, và vì chiều cao được ĐO nên hình học đi theo.
@@ -784,6 +792,39 @@ export function TimelinePlot({
                 <span className="text-2xs text-fg-muted">năm</span>
               </div>
             </>
+          )}
+
+          {/* TRẠNG THÁI RỖNG: kế hoạch chưa có mốc nào (Task 15).
+              KHÁC hẳn hai trạng thái rỗng đã có của màn này (chưa có kịch bản · chưa khai
+              năm sinh, cả hai ở `TuongLaiPage`) và khác cả nhánh `rows.length === 0` ngay
+              trên: ở đây bản chiếu CHẠY ĐƯỢC và đường đồ thị đang vẽ bình thường, chỉ
+              thiếu MỐC. Gộp ba thứ đó lại là nói "chưa có gì" trong khi đồ thị đang có
+              một đường — xem lời ghi đầu `LifetimeView.tsx`. */}
+          {events.length === 0 && (
+            <div
+              className="absolute left-1/2 z-30 w-[24rem] max-w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-dashed border-border-strong bg-surface-chrome p-4 text-center"
+              style={{ top: (plotTop + plotBottom) / 2 }}
+              // Chặn cử chỉ nền: không có nó thì bấm nút bên dưới mở bảng HAI lần — một
+              // lần từ `onClick` của nút, một lần từ cú bấm nền nổi bọt lên hộp ngoài.
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <SectionTitle role="card" as="h3">
+                Kế hoạch chưa có mốc nào
+              </SectionTitle>
+              {/* Câu CHỈ ĐƯỜNG nằm NGOÀI <Guide>, phần DẠY nằm trong — đúng ngoại lệ đã
+                  ghi ở đầu `Guide.tsx`: mặc định của app là chế độ Gọn (Guide biến mất ở
+                  đó), mà ở một thẻ rỗng thì câu "bấm gì để bắt đầu" là thứ duy nhất còn
+                  lại trên màn. */}
+              <p className="mt-1 text-2xs text-fg-muted">Bấm một năm trên đồ thị để thêm mốc.</p>
+              <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
+                Đường đang vẽ chỉ tính thu chi nền của các chặng đời. Mốc cuộc đời (cưới,
+                sinh con, mua nhà, nghỉ hưu…) là thứ bẻ nó — thêm một cái để thấy đường
+                đổi hình.
+              </Guide>
+              <ActionButton onClick={openAtMiddle} className="mt-2.5">
+                Chọn mốc từ mẫu
+              </ActionButton>
+            </div>
           )}
 
           {/* Vạch rê chuột + chấm + chip đọc số. Lớp phủ HTML chứ không phải SVG: chip

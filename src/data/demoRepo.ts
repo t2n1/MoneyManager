@@ -1913,6 +1913,8 @@ export const demoRepo: Repo = {
       annual_expense_minor: input.annual_expense_minor,
       income_pct_of_prev: input.income_pct_of_prev ?? null,
       expense_pct_of_prev: input.expense_pct_of_prev ?? null,
+      color: input.color ?? '',
+      icon: input.icon ?? '',
       fx_to_display: input.fx_to_display,
       created_at: nowISO(),
     }

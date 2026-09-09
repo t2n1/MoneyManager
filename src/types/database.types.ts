@@ -748,6 +748,10 @@ export type LifePhaseRow = {
   income_pct_of_prev: number | null
   /** Như `income_pct_of_prev`, cho chi. 80 = "nghỉ hưu thì chi 80% như bây giờ". */
   expense_pct_of_prev: number | null
+  /** Khoá màu trong src/features/tags/colors.ts. '' = tô theo THỨ TỰ chặng như trước 0069. */
+  color: string
+  /** Khoá icon cho chặng. '' = không vẽ icon trong khối chặng. */
+  icon: string
   /** 1 đơn vị currency = bao nhiêu đơn vị display_currency, theo MAJOR units */
   fx_to_display: number
   created_at: string
@@ -1463,6 +1467,8 @@ export type Database = {
           | 'fx_to_display'
           | 'income_pct_of_prev'
           | 'expense_pct_of_prev'
+          | 'color'
+          | 'icon'
         >
         Update: Partial<
           Pick<
@@ -1476,6 +1482,8 @@ export type Database = {
             | 'fx_to_display'
             | 'income_pct_of_prev'
             | 'expense_pct_of_prev'
+            | 'color'
+            | 'icon'
           >
         >
         Relationships: []

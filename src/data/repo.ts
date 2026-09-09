@@ -551,6 +551,10 @@ export interface NewLifePhase {
   income_pct_of_prev?: number | null
   /** % chi của chặng LIỀN TRƯỚC. Bỏ trống = dùng số tuyệt đối. */
   expense_pct_of_prev?: number | null
+  /** Khoá màu (features/tags/colors). Bỏ trống = tô theo thứ tự chặng. */
+  color?: string
+  /** Khoá icon của chặng. Bỏ trống = không vẽ icon. */
+  icon?: string
   fx_to_display: number
 }
 

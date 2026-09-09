@@ -35,6 +35,8 @@ function phase(over: Partial<LifePhaseRow> = {}): LifePhaseRow {
     annual_expense_minor: 4_000_000,
     income_pct_of_prev: null,
     expense_pct_of_prev: null,
+    color: '',
+    icon: '',
     fx_to_display: 1,
     created_at: '2026-01-01T00:00:00Z',
     ...over,

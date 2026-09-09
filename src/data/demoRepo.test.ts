@@ -185,6 +185,48 @@ describe('lifePhases — UNIQUE (scenario_id, start_year) khớp 0031', () => {
     const other = await demoRepo.createLifePhase({ ...phase, start_year: 2040 })
     await expect(demoRepo.updateLifePhase(other.id, { start_year: 2030 })).rejects.toThrow(/2030/)
   })
+
+  it('chặng giữ được màu và icon, không khai thì rỗng', async () => {
+    const sc = await demoRepo.createLifeScenario({
+      name: 'Thử màu chặng',
+      display_currency: 'JPY',
+      end_age: 70,
+      real_return_bps: 300,
+      band_spread_bps: 130,
+      starting_assets_minor: 7_656_924,
+      nominal_terms: false,
+      is_primary: true,
+    })
+    const coMau = await demoRepo.createLifePhase({
+      scenario_id: sc.id,
+      start_year: 2026,
+      label: 'Đi làm',
+      country: 'JP',
+      currency: 'JPY',
+      annual_income_minor: 8_000_000,
+      annual_expense_minor: 3_000_000,
+      fx_to_display: 1,
+      color: 'sky',
+      icon: 'work',
+    })
+    expect(coMau.color).toBe('sky')
+    expect(coMau.icon).toBe('work')
+
+    // Không khai = rỗng, KHÔNG phải undefined: cột là `not null default ''`, nên bản demo
+    // phải trả về đúng thứ bản thật trả về, không thì bug chỉ nổ ở bản thật.
+    const khongKhai = await demoRepo.createLifePhase({
+      scenario_id: sc.id,
+      start_year: 2040,
+      label: 'Nghỉ hưu',
+      country: 'JP',
+      currency: 'JPY',
+      annual_income_minor: 0,
+      annual_expense_minor: 2_500_000,
+      fx_to_display: 1,
+    })
+    expect(khongKhai.color).toBe('')
+    expect(khongKhai.icon).toBe('')
+  })
 })
 
 describe('deleteAccount', () => {

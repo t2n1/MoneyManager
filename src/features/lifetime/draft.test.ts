@@ -47,6 +47,8 @@ const phaseRow = (over: Partial<LifePhaseRow> & Pick<LifePhaseRow, 'id' | 'start
   annual_expense_minor: 4_300_000,
   income_pct_of_prev: null,
   expense_pct_of_prev: null,
+  color: '',
+  icon: '',
   fx_to_display: 1,
   created_at: '2026-01-01',
   ...over,

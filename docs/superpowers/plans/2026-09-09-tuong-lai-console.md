@@ -901,6 +901,36 @@ between tasks):
 - [ ] **Step 2:** This is distinct from "no scenario" and "no birth year", which already have their own states. Do not collapse them — the existing screen has three non-empty states by design (see `LifetimeView.tsx`'s header comment).
 - [ ] **Step 3:** Browser check with a scenario that has phases but zero events. Commit.
 
+### Task 15b: Rows 9–10 and the draft save path
+
+**Added mid-execution (2026-09-09), ruled after Task 7 surfaced it.** The plan had no task
+for the drawing's rows 9 and 10, and no task re-homing the draft save path — yet Task 16
+deletes the only files that hold them. As originally written, this plan would have shipped
+a console where the user cannot adjust the three assumptions and **cannot save anything**.
+That contradicts spec §12 (the draft model is the point of this screen) and §13.
+
+Verified locations before writing this task:
+- The "Lợi suất thực / năm" slider is inside `ScenarioWorkbench.tsx:1318` — deleted by Task 16.
+- `DraftBanner`, `commitDraft`, `saveDraftAsNewScenario` are mounted **only** in `LifetimeView.tsx:31,39,381,402,783` — deleted by Task 16.
+- `TuongLaiPage.tsx` currently mounts none of them.
+
+**Files:**
+- Create: `src/features/lifetime/QuickTuneRow.tsx`
+- Modify: `src/features/lifetime/TuongLaiPage.tsx`
+- Test: `src/features/lifetime/quickTune.test.ts` if any pure logic falls out; otherwise rely on the existing draft tests
+
+**Interfaces:**
+- Consumes: the draft model from `./draft` (`draftChanges`, `draftToInput`), `commitDraft` and `saveDraftAsNewScenario` from `./saveDraft`, `DraftBanner`, and `StressPanel` + `defaultStress`.
+- Produces: `<QuickTuneRow …>` — the three sliders plus the difference line and the Save/Discard pair.
+
+- [ ] **Step 1:** Read how `LifetimeView.tsx` wires the draft today — `commitDraft` at :381, `saveDraftAsNewScenario` at :402, `DraftBanner` at :783. That is the working reference; do not redesign the draft model, only re-home it.
+- [ ] **Step 2:** Extract the three sliders out of `ScenarioWorkbench.tsx` into `QuickTuneRow.tsx`. Ranges and steps per the drawing: real return `returnBps` 0–1000 step 10 · expense adjustment `expenseAdj` −40…+40 step 1 · expense inflation `inflBps` 0–400 step 10. The first two take the accent colour, the third the warning colour. Do not modify `ScenarioWorkbench.tsx` — Task 16 deletes it; copy out, don't refactor in place.
+- [ ] **Step 3:** Right-hand side of the row: the difference-versus-saved line, a **Lưu vào kế hoạch** button and a **Bỏ** button, wired to `commitDraft` and the draft discard path exactly as `LifetimeView` does it.
+- [ ] **Step 4:** Mount `StressPanel` as row 10 — a collapsed chip that expands into its own row. Stress test must NOT mutate the plan; it only shows consequences. Verify that property still holds after re-homing.
+- [ ] **Step 5:** Replace the row 9 and row 10 placeholders Task 7 left in `TuongLaiPage.tsx`.
+- [ ] **Step 6:** `npm test && npx tsc -b && npm run lint`. Then report what to check in the browser — saving a draft must actually persist, which is the one thing that cannot be inferred from a screenshot.
+- [ ] **Step 7:** Commit.
+
 ### Task 16: Retire the old surfaces
 
 **Files:** Delete `LifetimeView.tsx`, `LifetimeChartCard.tsx`, `ScenarioWorkbench.tsx`, `EventFormSheet.tsx`, `PhaseFormSheet.tsx`, `PresetPanel.tsx`. Modify `src/backLink.test.ts:28`.

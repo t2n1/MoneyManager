@@ -10,7 +10,7 @@
 // trỏ vào một dòng vừa bị xoá (nút Xoá trong chính panel, hoặc một tab khác vừa ghi), và
 // lúc đó trang không dựng nổi bộ prop. Rơi về thẻ tóm tắt thay vì render một panel rỗng —
 // cột vẫn đúng bề rộng, và không có nhịp "co giãn cột" nào (spec §5).
-import { Card, SectionTitle } from '../../components/ui'
+import { PlanDockEvent, type PlanDockEventProps } from './PlanDockEvent'
 import { PlanDockPhase, type PlanDockPhaseProps } from './PlanDockPhase'
 import { PlanSummaryCard, type PlanSummaryCardProps } from './PlanSummaryCard'
 
@@ -27,30 +27,12 @@ interface Props {
   summary: PlanSummaryCardProps
   /** Dữ liệu cho nhánh `'phase'`. */
   phase?: PlanDockPhaseProps
+  /** Dữ liệu cho nhánh `'event'`. */
+  event?: PlanDockEventProps
 }
 
-export function PlanDock({ sel, summary, phase }: Props) {
+export function PlanDock({ sel, summary, phase, event }: Props) {
   if (sel.type === 'phase' && phase) return <PlanDockPhase {...phase} />
-  if (sel.type === 'event') {
-    // Task 10. Chừa chỗ đúng khuôn dock (Card panel) để không có một nhịp "co giãn cột"
-    // nào giữa hai đợt việc — xem PlaceholderRow trong TuongLaiPage.tsx, cùng lý do.
-    return (
-      <ComingSoonDock
-        label="Mốc"
-        note="Bảng sửa mốc (Task 10) sẽ nằm ở đây — loại mốc, các trường riêng, nâng cao."
-      />
-    )
-  }
+  if (sel.type === 'event' && event) return <PlanDockEvent {...event} />
   return <PlanSummaryCard {...summary} />
-}
-
-/** Thân tạm cho nhánh chưa tới lượt — CÙNG khuôn Card panel với PlanSummaryCard nên
- *  bề rộng/viền cột dock không đổi giữa ba trạng thái. */
-function ComingSoonDock({ label, note }: { label: string; note: string }) {
-  return (
-    <Card as="section" padding="panel" elevation="panel">
-      <SectionTitle role="micro">{label}</SectionTitle>
-      <p className="mt-2 text-2xs text-fg-muted">{note}</p>
-    </Card>
-  )
 }

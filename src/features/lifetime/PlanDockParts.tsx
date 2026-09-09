@@ -424,6 +424,65 @@ export function EndYearBox({
   )
 }
 
+/**
+ * Ô nhập MỘT CON SỐ không phải tiền (%/năm, số năm lặp, kỳ hạn vay).
+ *
+ * Cùng luật "prop thắng khi không gõ dở" với `YearBox`, và lý do thì mạnh hơn ở đây: các
+ * ô này nhận số thập phân, nên trong lúc gõ "3,5" người dùng đi qua trạng thái "3." — đọc
+ * lại từ prop mỗi lần nhấn phím sẽ xoá mất dấu phẩy ngay khi vừa gõ, tức không gõ nổi
+ * một số lẻ.
+ *
+ * `emptyIsNull`: ô "lặp mỗi N năm" và "kỳ hạn vay" nhận chuỗi rỗng như một GIÁ TRỊ (không
+ * lặp / trả thẳng), nên rỗng phải ghi `null` ngay. Ô phần trăm thì không — rỗng ở đó chỉ
+ * là đang gõ dở, và ghi 0 sẽ âm thầm biến "tăng 3%/năm" thành "đứng yên".
+ *
+ * Chặn khoảng là việc của chỗ gọi: mỗi ô có một trần riêng (MAX_REPEAT_YEARS,
+ * MAX_LOAN_YEARS, ±100%…), và một hàm chung đoán hộ là chỗ để lệch.
+ */
+export function NumBox({
+  id,
+  value,
+  onCommit,
+  emptyIsNull,
+  ariaLabel,
+  placeholder,
+}: {
+  id?: string
+  value: number | null
+  onCommit: (n: number | null) => void
+  emptyIsNull: boolean
+  ariaLabel: string
+  placeholder?: string
+}) {
+  const [text, setText] = useState(value === null ? '' : String(value))
+  const [editing, setEditing] = useState(false)
+  return (
+    <input
+      id={id}
+      inputMode="decimal"
+      value={editing ? text : value === null ? '' : String(value)}
+      aria-label={ariaLabel}
+      placeholder={placeholder}
+      onFocus={() => {
+        setText(value === null ? '' : String(value))
+        setEditing(true)
+      }}
+      onChange={(e) => {
+        const raw = e.target.value
+        setText(raw)
+        if (raw.trim() === '') {
+          if (emptyIsNull) onCommit(null)
+          return
+        }
+        const n = Number(raw)
+        if (Number.isFinite(n)) onCommit(n)
+      }}
+      onBlur={() => setEditing(false)}
+      className={`w-full text-right font-mono ${DOCK_INPUT}`}
+    />
+  )
+}
+
 /** Icon rơi về của CHẶNG: chặng không có Thu/Chi nên không có mũi tên nào để rơi về. */
 export function PhaseIcon({ icon }: { icon: string }) {
   const def = icon ? EVENT_ICONS[icon] : undefined

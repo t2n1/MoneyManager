@@ -29,25 +29,36 @@ import { repo } from '../../data'
 import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { toISODate } from '../../lib/dates'
+import { showToast } from '../../lib/dialog'
 import { fetchRates } from '../../lib/rates'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { ConsoleFrame } from './ConsoleFrame'
 import {
+  addDraftEvent,
   addDraftPhase,
+  addedEventId,
+  addedPhaseId,
+  applyPreset,
   draftFromRows,
+  draftPhaseIndex,
   draftToInput,
+  patchDraftEvent,
   patchDraftPhase,
+  presetEventId,
+  removeDraftEvent,
   removeDraftPhase,
   setPhaseCurrency,
   type ScenarioDraft,
 } from './draft'
-import { fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { EventIcon } from './eventIcons'
+import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge } from './insights'
 import { InsightCards } from './InsightCards'
 import { PlanDock, type DockSelection } from './PlanDock'
 import { clampPhaseStartYear } from './phaseYear'
-import { projectLifetime } from './project'
+import type { LifePreset, PresetContext } from './presets'
+import { phaseForYear, projectLifetime } from './project'
 import { lifetimeVerdict } from './summary'
 import { TimelinePlot, type ComparisonLine, type PlotZoom } from './TimelinePlot'
 import { useLifetime } from './useLifetime'
@@ -157,9 +168,10 @@ function TuongLaiConsole() {
   // Cùng khuôn với `LifetimeView` (màn cũ, sẽ nghỉ): nháp không tự biến mất khi trùng lại
   // bản gốc — `draftIsDirty` mới là thứ quyết định thanh nháp hiện hay không.
   const [draft, setDraft] = useState<ScenarioDraft | null>(null)
-  /** Bộ đếm sinh id cho chặng vừa thêm — hai chặng trùng id thì React dựng nhầm và
-   *  `planDraftSave` ghi nhầm (xem `addDraftPhase`). */
-  const phaseSeed = useRef(0)
+  /** Bộ đếm sinh id cho chặng/mốc vừa thêm — hai dòng trùng id thì React dựng nhầm và
+   *  `planDraftSave` ghi nhầm (xem `addDraftPhase`). MỘT bộ đếm cho cả ba đường thêm
+   *  (chặng, mốc, mẫu): hai bộ đếm độc lập là hai chuỗi số có thể gặp nhau. */
+  const newIdSeed = useRef(0)
   /** Đang chọn chặng/mốc nào — `pick`/`sel` của bản vẽ. Dock đọc để dispatch. */
   const [sel, setSel] = useState<DockSelection>({ type: 'none' })
 
@@ -430,7 +442,7 @@ function TuongLaiConsole() {
               }),
             ),
           onDuplicate: () => {
-            const seed = ++phaseSeed.current
+            const seed = ++newIdSeed.current
             // Năm của bản sao: ngay sau bản gốc, nhích tới năm còn trống —
             // `unique (scenario_id, start_year)` chặn năm trùng.
             const y = clampPhaseStartYear(
@@ -463,6 +475,122 @@ function TuongLaiConsole() {
             editDraft((d) => removeDraftPhase(d, selPhase.id))
             // Bỏ chọn NGAY: id vừa xoá không còn dòng nào, và dock rơi về thẻ tóm tắt
             // thay vì một panel rỗng.
+            setSel({ type: 'none' })
+          },
+        }
+
+  const selEvent = sel.type === 'event' ? working.events.find((e) => e.id === sel.id) : undefined
+  /**
+   * Chặng phủ năm bắt đầu của mốc — nguồn TÊN chặng ("Rơi vào chặng Z") và NƯỚC cho nút
+   * "Tra hộ".
+   *
+   * Luật rơi về giống `currencyAt` (fxModel.ts): một mốc nằm TRƯỚC chặng đầu tiên vẫn
+   * thuộc chặng sớm nhất — nói nó không thuộc chặng nào là bảo một khoản chi năm 2020
+   * tính bằng đơn vị khác hẳn khoản chi năm 2026 của cùng một chặng. ĐƠN VỊ TIỀN thì
+   * vẫn đi qua chính `currencyAt`, chỗ duy nhất khai luật đó.
+   */
+  const sortedPhases = [...working.phases].sort((a, b) => a.startYear - b.startYear)
+  const evPhase =
+    selEvent === undefined || sortedPhases.length === 0
+      ? null
+      : selEvent.startYear < sortedPhases[0].startYear
+        ? sortedPhases[0]
+        : phaseForYear(sortedPhases, selEvent.startYear) ?? null
+
+  /** `PresetContext` cho các chip "Thêm mốc từ mẫu" — đọc chặng ĐANG HIỆU LỰC, đúng
+   *  khuôn `buildPresetCtx` của màn cũ (LifetimeView), không dựng luật thứ hai. */
+  const buildPresetCtx = (year: number): PresetContext => {
+    const i = draftPhaseIndex(working, currentYear)
+    const p = i >= 0 ? working.phases[i] : undefined
+    return {
+      scenarioId: working.scenarioId,
+      year,
+      birthYear,
+      currency: p?.currency ?? currency,
+      country: p?.country ?? null,
+      currentIncomeMinor: p?.annualIncomeMinor ?? 0,
+      currentExpenseMinor: p?.annualExpenseMinor ?? 0,
+      fxToDisplay: p?.fxToDisplay ?? 1,
+      displayCurrency: currency,
+      fxOf: (c) => pageFxOf(c, currency),
+    }
+  }
+
+  const dockEvent =
+    selEvent === undefined
+      ? undefined
+      : {
+          event: selEvent,
+          // Tiền của mốc SUY RA từ chặng, không tự khai (v5 — xem `fxModel.ts`).
+          currency: currencyAt(working.phases, selEvent.startYear, currency),
+          phaseLabel: evPhase?.label ?? null,
+          chang:
+            evPhase === null
+              ? null
+              : { nuoc: evPhase.country, tien: currencyAt(working.phases, selEvent.startYear, currency) },
+          onPatch: (patch: Parameters<typeof patchDraftEvent>[2]) =>
+            editDraft((d) => patchDraftEvent(d, selEvent.id, patch)),
+          onAddPreset: (preset: LifePreset) => {
+            // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương
+            // lai, và một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ
+            // thị, chỗ khó kéo nhất. Cùng con số với màn cũ.
+            const nam = currentYear + 2
+            const seed = ++newIdSeed.current
+            const result = preset.build(buildPresetCtx(nam))
+            editDraft((d) => applyPreset(d, result, seed))
+            // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng (không mốc
+            // nào) thì giữ nguyên lựa chọn — không có mốc để nhắm tới.
+            if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
+            showToast(
+              `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+              'success',
+            )
+          },
+          onDuplicate: () => {
+            const seed = ++newIdSeed.current
+            editDraft((d) => {
+              const { id: _cu, ...rest } = selEvent
+              return addDraftEvent(d, { ...rest, label: `${selEvent.label} (bản sao)` }, seed).draft
+            })
+            setSel({ type: 'event', id: addedEventId(seed) })
+          },
+          onNewPhaseFromHere: () => {
+            const seed = ++newIdSeed.current
+            const y = clampPhaseStartYear(
+              [...working.phases, { id: 'moi', startYear: selEvent.startYear }],
+              'moi',
+              selEvent.startYear,
+              currentYear,
+            )
+            editDraft((d) =>
+              addDraftPhase(
+                d,
+                {
+                  startYear: y,
+                  label: `Sau "${selEvent.label}"`,
+                  // Kế thừa từ chặng phủ năm đó, KHÔNG để 0: một chặng thu 0 chi 0 làm
+                  // tài sản đứng yên, và đó là một giả định (sai) chứ không phải một ô
+                  // trống chờ điền.
+                  country: evPhase?.country ?? null,
+                  currency: evPhase?.currency ?? currency,
+                  annualIncomeMinor: evPhase?.annualIncomeMinor ?? 0,
+                  annualExpenseMinor: evPhase?.annualExpenseMinor ?? 0,
+                  // Phần trăm chặng trước KHÔNG kế thừa: chặng mới có một chặng trước
+                  // KHÁC, nên "80% chặng trước" ở đây trả lời một câu hỏi khác hẳn.
+                  incomePctOfPrev: null,
+                  expensePctOfPrev: null,
+                  color: '',
+                  icon: '',
+                  fxToDisplay: evPhase?.fxToDisplay ?? 1,
+                },
+                seed,
+              ),
+            )
+            // Nhắm con trỏ vào chặng vừa sinh — người dùng bấm nút này là để sửa nó.
+            setSel({ type: 'phase', id: addedPhaseId(seed) })
+          },
+          onRemove: () => {
+            editDraft((d) => removeDraftEvent(d, selEvent.id))
             setSel({ type: 'none' })
           },
         }
@@ -724,6 +852,39 @@ function TuongLaiConsole() {
               </FilterChip>
             ))}
           </div>
+
+          {/* TẠM, cùng lý do với dải chip chặng ngay trên: bảng sửa MỐC đã xong mà đường
+              vào của bản vẽ (bấm icon mốc trên đường) thì chưa — Task 12 dựng `EventPins`
+              và thay chỗ này. Mốc đang TẮT (0063) hiện mờ để dải chip nói đúng thứ bản
+              chiếu đang tính. */}
+          <div className="ml-[3.25rem] flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-dashed border-border-strong px-3 py-1.5">
+            <SectionTitle role="micro" className="shrink-0">
+              Mốc
+            </SectionTitle>
+            {working.events.map((e) => (
+              <FilterChip
+                key={e.id}
+                on={sel.type === 'event' && sel.id === e.id}
+                size="sm"
+                onClick={() =>
+                  setSel((cur) =>
+                    cur.type === 'event' && cur.id === e.id
+                      ? { type: 'none' }
+                      : { type: 'event', id: e.id },
+                  )
+                }
+                title={`Sửa mốc "${e.label}"${e.enabled ? '' : ' (đang tắt)'}`}
+                className={e.enabled ? '' : 'opacity-60'}
+              >
+                <EventIcon icon={e.icon} kind={e.kind} />
+                <Num tone="muted">{e.startYear}</Num>
+                <span className="truncate">{e.label}</span>
+              </FilterChip>
+            ))}
+            {working.events.length === 0 && (
+              <span className="text-2xs text-fg-muted">Chưa có mốc nào.</span>
+            )}
+          </div>
         </div>
       }
       // ===== Cột dock — LUÔN chừa sẵn, kể cả khi không chọn gì (spec §5) =====
@@ -735,6 +896,7 @@ function TuongLaiConsole() {
         <PlanDock
           sel={sel}
           phase={dockPhase}
+          event={dockEvent}
           summary={{
             currency,
             phaseCount: shownInput.phases.length,

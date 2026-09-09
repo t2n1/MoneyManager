@@ -45,6 +45,30 @@ export function isNewId(id: string): boolean {
   return id.startsWith(NEW_ID_PREFIX)
 }
 
+/**
+ * Hai công thức sinh id, EXPORT vì chỗ gọi cũng cần chúng.
+ *
+ * Vì sao không để chỗ gọi tự ghép chuỗi: sau khi thêm một chặng/mốc, con trỏ phải nhảy
+ * tới đúng thứ vừa thêm (spec §14) — mà `addDraftPhase` và `applyPreset` không trả id
+ * ra. Chỗ gọi tự ghép `'nhap:p' + seed` là một bản chép công thức, và ngày nào công
+ * thức ở đây đổi thì bản chép đó trỏ vào một id không tồn tại, âm thầm.
+ */
+export function addedPhaseId(seed: number): string {
+  return `${NEW_ID_PREFIX}p${seed}`
+}
+
+/** id của mốc vừa thêm bằng `addDraftEvent`. Hàm đó cũng TRẢ id ra, nên chỗ nào gọi
+ *  được trực tiếp thì dùng giá trị trả về; hàm này dành cho chỗ đi qua `editDraft`
+ *  (mutator chạy trong `setState`, không trả gì ra ngoài được). */
+export function addedEventId(seed: number): string {
+  return `${NEW_ID_PREFIX}e${seed}`
+}
+
+/** id của mốc thứ `i` trong một mẫu vừa áp bằng `applyPreset`. */
+export function presetEventId(seed: number, i: number): string {
+  return `${NEW_ID_PREFIX}e${seed}-${i}`
+}
+
 /** Chặng trong nháp = chặng của engine + id dòng DB (để biết ghi vào đâu). */
 export interface DraftPhase extends LifetimePhase {
   id: string
@@ -723,7 +747,7 @@ export function applyPreset(
       ...draft.events,
       ...result.events.map(
         (e, i): DraftEvent => ({
-          id: `${NEW_ID_PREFIX}e${seed}-${i}`,
+          id: presetEventId(seed, i),
           startYear: e.start_year,
           endYear: e.end_year,
           kind: e.kind,
@@ -848,7 +872,7 @@ export function addDraftPhase(
 ): ScenarioDraft {
   return {
     ...draft,
-    phases: [...draft.phases, { ...phase, id: `${NEW_ID_PREFIX}p${seed}` }].sort(
+    phases: [...draft.phases, { ...phase, id: addedPhaseId(seed) }].sort(
       (a, b) => a.startYear - b.startYear,
     ),
   }
@@ -863,7 +887,7 @@ export function addDraftEvent(
   event: Omit<DraftEvent, 'id'>,
   seed: number,
 ): { draft: ScenarioDraft; id: string } {
-  const id = `${NEW_ID_PREFIX}e${seed}`
+  const id = addedEventId(seed)
   return {
     id,
     draft: {

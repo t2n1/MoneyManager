@@ -220,21 +220,20 @@ describe('LIFE_PRESETS', () => {
     }
   })
 
-  it('mua-xe sinh khoản trả trước + trả vay, và trả vay KHÔNG phồng theo lạm phát', () => {
+  it('mua-xe sinh MỘT sự kiện tài sản có vay, số hằng năm là chi phí giữ xe > 0', () => {
     const { events } = preset('mua-xe').build(ctx)
-    const traTruoc = events.find((e) => e.label.includes('Trả trước'))
-    const vay = events.find((e) => e.label.includes('Trả vay'))
-    expect(traTruoc).toBeDefined()
-    expect(vay).toBeDefined()
-    // Khoản trả vay lãi cố định là số DANH NGHĨA — cùng lý do đã ghi ở mẫu 'mua-nha'.
-    expect(vay!.inflate).toBe(false)
-    // Xe là TÀI SẢN có vay (migration 0068): giá trị + vay + mất giá nằm trên dòng
-    // "Trả trước", còn dòng "Trả vay" chỉ là mốc đánh dấu (amount = 0) để tránh đếm
-    // hai lần khoản trả vay — xem comment tại chỗ dựng mẫu trong presets.ts.
-    expect(traTruoc!.asset_value_minor).toBeGreaterThan(0)
-    expect(traTruoc!.loan_minor).toBeGreaterThan(0)
-    expect(traTruoc!.asset_change_bps).toBeLessThan(0)
-    expect(vay!.amount_minor).toBe(0)
+    // Không còn dòng "Trả vay mua xe" đánh dấu riêng — mẫu này sinh MỘT sự kiện duy
+    // nhất, engine tự derive trả trước/trả vay từ asset_value_minor/loan_minor.
+    expect(events).toHaveLength(1)
+    const xe = events[0]
+    expect(xe.label).toContain('Mua xe')
+    expect(xe.asset_value_minor).toBeGreaterThan(0)
+    expect(xe.loan_minor).toBeGreaterThan(0)
+    expect(xe.asset_change_bps).toBeLessThan(0)
+    // amount_minor giờ mang nghĩa "chi phí giữ xe hằng năm" (vì asset_value_minor > 0,
+    // xem homeAsset.ts) — PHẢI > 0, để một lần sửa sau này không âm thầm trả nó về 0
+    // và hụt mất chi phí sở hữu xe (bảo hiểm/車検/thuế/bảo dưỡng).
+    expect(xe.amount_minor).toBeGreaterThan(0)
   })
 
   it('du-lich lặp lại, không phải một lần', () => {

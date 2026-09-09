@@ -147,21 +147,33 @@ const MOVING_COST_JPY = 2_500_000
 const PARENT_SUPPORT_ANNUAL_VND = 60_000_000
 
 // --- Mua xe (migration 0068: xe là TÀI SẢN có vay, khác nhà ở chỗ MẤT giá dần) ---
-/** Giá xe mới cỡ trung bình tại Nhật. Ước lượng, chưa tra nguồn (2026-09-09). */
+// Nguồn cho bốn số dưới: dsg-handoff/README.md dòng 223 (bảng loại mốc "car"), tra
+// 2026-09-09 — "price 3.000.000 · downPct 30 · ratePct 3.5 · termYears 5 ·
+// upkeep 300.000". Bản trước của file này lấy downPct 20/ratePct 3.0 không có nguồn
+// (chỉ là ước lượng); đổi lại cho khớp bản vẽ.
+/** Giá xe mới cỡ trung bình tại Nhật. Nguồn: dsg-handoff/README.md (2026-09-09). */
 const CAR_PRICE_JPY = 3_000_000
-/** Phần đi vay — giả định trả trước 20%, vay 80% giá xe (tỷ lệ phổ biến cho vay mua
- *  xe). Ước lượng, chưa tra nguồn (2026-09-09). */
-const CAR_LOAN_JPY = 2_400_000
-/** Lãi suất vay mua xe. Ước lượng, chưa tra nguồn (2026-09-09). */
-const CAR_LOAN_RATE_BPS = 300
+/** Phần đi vay — bản vẽ: trả trước 30%, vay 70% giá xe (3.000.000 × 0,7 = 2.100.000).
+ *  Nguồn: dsg-handoff/README.md (2026-09-09). */
+const CAR_LOAN_JPY = 2_100_000
+/** Lãi suất vay mua xe — bản vẽ ratePct 3.5. Nguồn: dsg-handoff/README.md
+ *  (2026-09-09). */
+const CAR_LOAN_RATE_BPS = 350
 /** Kỳ hạn vay 5 năm — khớp quy ước `applySpanToPreset` (quickAddRange.ts): kéo khoảng
- *  2030–2034 (5 năm, đếm cả hai đầu) trên 'mua-xe' cho `termYears: 5`. Ước lượng, chưa
- *  tra nguồn (2026-09-09). */
+ *  2030–2034 (5 năm, đếm cả hai đầu) trên 'mua-xe' cho `termYears: 5`. Cũng khớp bản
+ *  vẽ termYears 5. Nguồn: dsg-handoff/README.md (2026-09-09). */
 const CAR_LOAN_YEARS = 5
 /** Xe mất giá mỗi năm — đúng con số ví dụ đã ghi sẵn ở trường `asset_change_bps`
  *  (database.types.ts, homeAsset.ts: "Nhà +100; xe −1500"). Không phải số tra riêng
  *  cho xe, mà là số quy ước đã có sẵn trong chính migration 0068 (2026-09-09). */
 const CAR_DEPRECIATION_BPS = -1500
+/** Chi phí giữ xe mỗi năm — bảo hiểm tự nguyện (任意保険), 車検, thuế ô tô
+ *  (自動車税), bảo dưỡng. Khi `asset_value_minor > 0`, `amount_minor` đổi nghĩa
+ *  thành chi phí giữ tài sản hằng năm (xem homeAsset.ts) — đây KHÔNG phải tiền trả
+ *  trước hay trả vay, những khoản đó do engine tự sinh từ `asset_value_minor`/
+ *  `loan_minor` ở dưới. Bản vẽ: upkeep 300.000. Nguồn: dsg-handoff/README.md
+ *  (2026-09-09). */
+const CAR_UPKEEP_ANNUAL_JPY = 300_000
 
 // --- Du lịch ---
 /** Chi phí một chuyến du lịch gia đình (ước tính trung bình, trong lẫn ngoài nước).
@@ -312,50 +324,42 @@ export const LIFE_PRESETS: LifePreset[] = [
   {
     id: 'mua-xe',
     label: 'Mua xe',
-    hint: 'Một khoản trả trước và một khoản trả vay hằng năm — xe là tài sản MẤT giá dần, khác nhà.',
+    hint: 'Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).',
     yearLabel: 'Năm mua',
     build: (ctx) => ({
       phases: [],
       events: [
-        // Cả hai ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
         ev(ctx, {
-          label: 'Trả trước mua xe',
+          label: 'Mua xe',
+          // Ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
           currency: 'JPY',
-          // `asset_value_minor > 0` đổi nghĩa `amount_minor` thành CHI PHÍ GIỮ tài sản
-          // mỗi năm (bảo hiểm/bảo trì xe) — xem homeAsset.ts. Mẫu này không mô hình chi
-          // phí giữ nên để 0. Tiền trả trước THẬT (asset_value_minor − loan_minor) và
-          // tiền trả vay hằng năm do CHÍNH các trường tài sản dưới đây sinh ra TỰ ĐỘNG
-          // (migration 0068, cùng cơ chế "mua nhà" khi nối qua homeAsset.ts/project.ts,
-          // dòng ~463–496 — không phải cơ chế mà preset 'mua-nha' ở TRÊN đang dùng, vì
-          // preset đó viết trước 0068 và chưa được nối vào homeAsset.ts).
-          amount_minor: 0,
+          // MỘT dòng duy nhất, không phải hai: tiền trả trước THẬT
+          // (asset_value_minor − loan_minor) và tiền trả vay hằng năm do CHÍNH các
+          // trường tài sản dưới đây sinh ra TỰ ĐỘNG (migration 0068, cùng cơ chế "mua
+          // nhà" khi nối qua homeAsset.ts/project.ts, dòng ~463–496 — không phải cơ chế
+          // mà preset 'mua-nha' ở TRÊN đang dùng, vì preset đó viết trước 0068 và chưa
+          // được nối vào homeAsset.ts). Từng có một dòng "Trả vay mua xe" thứ hai chỉ
+          // để đánh dấu (amount_minor: 0) — đã BỎ: nó không cộng gì vào phép tính,
+          // nhưng UI vẫn cho gõ số vào bất kỳ mốc nào, nên một dòng "trông như trả vay
+          // riêng" chỉ mời gọi ai đó điền số vào và TÍNH HAI LẦN khoản vay — đúng lớp
+          // lỗi "sai âm thầm" mà đầu file này cảnh báo. Một dòng, không có chỗ để mắc
+          // bẫy đó.
+          //
+          // `asset_value_minor > 0` cũng đổi nghĩa `amount_minor`: không còn là "số
+          // tiền của sự kiện" mà là CHI PHÍ GIỮ tài sản mỗi năm (xem homeAsset.ts) —
+          // với xe là bảo hiểm/車検/thuế/bảo dưỡng. Để 0 sẽ hụt mất cả phần chi phí sở
+          // hữu xe hằng năm, phần lớn khiến xe đắt, nên dùng CAR_UPKEEP_ANNUAL_JPY.
+          amount_minor: CAR_UPKEEP_ANNUAL_JPY,
           asset_value_minor: CAR_PRICE_JPY,
           loan_minor: CAR_LOAN_JPY,
           loan_rate_bps: CAR_LOAN_RATE_BPS,
           loan_years: CAR_LOAN_YEARS,
           // Âm vì xe MẤT giá mỗi năm — ngược dấu với `asset_change_bps` dương của nhà.
           asset_change_bps: CAR_DEPRECIATION_BPS,
-          // Giữ true theo cùng lý do "Trả trước mua nhà": nếu sau này có ai điền một
-          // chi phí giữ (khác 0) vào đây, đó là giá HÔM NAY nên phải phồng theo lạm
-          // phát. Với amount = 0 hiện tại, cờ này chưa đổi số nào.
+          // Chi phí giữ xe là giá HÔM NAY cho các năm tương lai — phồng theo lạm phát,
+          // giống "Chi phí cưới"/mẫu 'mua-nha' (khoản trả vay lãi cố định do engine tự
+          // tính và tự nhân lạm phát riêng ở project.ts, không đi qua cờ này).
           inflate: true,
-        }),
-        ev(ctx, {
-          label: 'Trả vay mua xe',
-          currency: 'JPY',
-          // Mốc ĐÁNH DẤU, không mang số riêng: số trả vay THẬT được engine tự tính từ
-          // asset_value_minor/loan_minor/loan_years của dòng "Trả trước" ở trên — CÙNG
-          // một mốc "tài sản có vay", không phải hai khoản độc lập. Nếu dòng này CŨNG
-          // mang một amount_minor khác 0 thì khoản trả vay bị TÍNH HAI LẦN: một lần tự
-          // động từ dòng trên, một lần thủ công ở đây — đúng lớp lỗi "sai âm thầm" mà
-          // đầu file này đã cảnh báo. Để 0, chỉ giữ nhãn để người dùng thấy có một dòng
-          // "Trả vay" riêng biệt trong danh sách mốc.
-          amount_minor: 0,
-          end_year: ctx.year + (CAR_LOAN_YEARS - 1),
-          // Khoản trả vay lãi cố định là số DANH NGHĨA — cùng lý do đã ghi ở mẫu
-          // 'mua-nha'. Ghi lại ở đây dù amount = 0, cho đúng ý nghĩa nếu sau này ai điền
-          // số thủ công thay cho cơ chế tự động.
-          inflate: false,
         }),
       ],
     }),

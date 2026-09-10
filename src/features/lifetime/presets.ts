@@ -98,6 +98,20 @@ export interface LifePreset {
    *    gian, không phải người dùng tự chọn tay từng cái.
    */
   icon: string
+  /**
+   * NHÓM trong cửa mẫu: mẫu này trả lời CÂU HỎI nào (`planWords.ts`).
+   *
+   * `'event'` = "Năm này có việc gì" — một khoản riêng. `'living'` = "Từ năm này tôi sống
+   * thế nào", tức mẫu đứng chung nhóm với `PHASE_PRESETS`.
+   *
+   * PHẢI KHAI, không suy ra được từ `build()`. Ba mẫu sinh CẢ một chặng ('cuoi',
+   * 'nghi-huu', 'chuyen-nuoc') nhưng chỉ 'nghi-huu' thuộc nhóm mức sống: "nghỉ hưu" là một
+   * kiểu ĐỔI CÁCH SỐNG, người ta đi tìm nó dưới câu "tôi sống thế nào"; còn "cưới" và
+   * "chuyển nước" người ta đi tìm dưới "có việc gì", việc mức sống đổi theo chỉ là hệ quả
+   * kèm. Cái hệ quả đó thì chỗ vẽ tự nói ra bằng nhãn ⊕ — nhãn ấy SUY từ `build()` chứ
+   * không khai tay ở đây, nên không có bản chép thứ hai nào phải giữ cho khớp.
+   */
+  group: 'living' | 'event'
   build(ctx: PresetContext): PresetResult
 }
 
@@ -301,6 +315,7 @@ const FURTHER_STUDY_YEARS = 2
 const RAW_PRESETS: LifePreset[] = [
   {
     id: 'cuoi',
+    group: 'event',
     label: 'Cưới',
     hint: 'Tạo một chặng đời mới (thu chi nền đổi) và một khoản chi cho đám cưới.',
     yearLabel: 'Năm cưới',
@@ -338,6 +353,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'sinh-con',
+    group: 'event',
     label: 'Sinh con',
     hint: 'Tạo chùm sự kiện theo mốc tuổi con: trợ cấp, chi phí nuôi từng bậc, đại học.',
     yearLabel: 'Năm sinh của con',
@@ -395,6 +411,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'mua-nha',
+    group: 'event',
     label: 'Mua nhà',
     hint: 'Nhà là tài sản LÊN giá, mua bằng vay trả góp — số hằng năm là thuế/chi phí giữ nhà. Nhớ khai ô "thay cho" bằng tiền thuê đang trả, kẻo tính hai lần phần nhà ở.',
     yearLabel: 'Năm mua',
@@ -443,6 +460,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'mua-xe',
+    group: 'event',
     label: 'Mua xe',
     hint: 'Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).',
     yearLabel: 'Năm mua',
@@ -500,6 +518,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'nghi-huu',
+    group: 'living',
     label: 'Nghỉ hưu',
     hint: 'Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.',
     yearLabel: 'Năm nghỉ hưu',
@@ -541,6 +560,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'chuyen-nuoc',
+    group: 'event',
     label: 'Chuyển nước',
     // Câu hint cũ hứa "Chặng mới với tiền và tỷ giá giả định khác" — mẫu KHÔNG làm thế:
     // `build()` dưới đây dựng chặng với đúng `ctx.currency`/`ctx.fxToDisplay` của chặng
@@ -583,6 +603,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'ho-tro-bo-me',
+    group: 'event',
     label: 'Hỗ trợ bố mẹ ở VN',
     hint: 'Khoản gửi về hằng năm, mặc định tiền VND, có năm kết thúc.',
     yearLabel: 'Năm bắt đầu gửi',
@@ -609,6 +630,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'du-lich',
+    group: 'event',
     label: 'Du lịch',
     hint: 'Một khoản chi lặp lại mỗi vài năm, không phải một lần.',
     yearLabel: 'Năm đầu',
@@ -635,6 +657,7 @@ const RAW_PRESETS: LifePreset[] = [
   },
   {
     id: 'hoc-them',
+    group: 'event',
     label: 'Học thêm',
     hint: 'Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.',
     yearLabel: 'Năm bắt đầu',

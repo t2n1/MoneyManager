@@ -169,8 +169,8 @@ export interface TimelinePlotHandle {
   /** Dời vạch rê chuột `step` năm. Chưa có vạch thì bắt đầu từ năm đầu khung nhìn. */
   nudgeHover: (step: number) => void
   /**
-   * Mở bảng chọn nhanh ở năm GIỮA trục — nút "+ Mốc từ mẫu" của hàng 8 (bản vẽ) dùng
-   * đường này.
+   * Mở bảng chọn nhanh ở năm GIỮA trục — nút "+ Thêm từ mẫu" của hàng 8 dùng đường này
+   * (bản vẽ gọi nó "+ Mốc từ mẫu", hồi còn hai nút mẫu riêng; xem `PhaseRowTools`).
    *
    * Đi qua handle chứ không phải một prop `onOpenBoard`: chỗ bấm của bảng cần `xs(y)`,
    * `plotLeft` và `plotRight`, mà ba thứ đó chỉ vùng vẽ biết (nó tự đo hộp). Cho chỗ gọi
@@ -625,7 +625,7 @@ export function TimelinePlot({
     [bgDrag, dropBand],
   )
 
-  /** Năm GIỮA trục — nút "Chọn mốc từ mẫu" của trạng thái rỗng mở bảng ở đây. */
+  /** Năm GIỮA trục — nút "+ Thêm từ mẫu" của trạng thái rỗng mở bảng ở đây. */
   const openAtMiddle = useCallback(() => {
     const y = middleSpanYear(x0, x1)
     onQuickAdd?.({ startYear: y, endYear: y }, { x: xs(y), plotLeft, plotRight })
@@ -973,8 +973,12 @@ export function TimelinePlot({
                 sinh con, mua nhà, nghỉ hưu…) là thứ bẻ nó — thêm một cái để thấy đường
                 đổi hình.
               </Guide>
+              {/* "Thêm từ mẫu", KHÔNG phải "Chọn mốc từ mẫu" như trước 2026-09-10: cửa mở
+                  ra nay có HAI nhóm và nhóm mức sống đứng trên, nên hứa "mốc" rồi mở ra một
+                  danh sách bắt đầu bằng chặng là hứa sai. Cùng chữ với nút ở hàng 8 vì cùng
+                  một cửa — xem lời ghi 7 đầu `QuickAddBoard.tsx`. */}
               <ActionButton onClick={openAtMiddle} className="mt-2.5">
-                Chọn mốc từ mẫu
+                + Thêm từ mẫu
               </ActionButton>
             </div>
           )}

@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { CURRENCIES } from '../../lib/currencies'
 import { PHASE_PRESETS, phasePresetToDraft } from './phasePresets'
+import { LIFE_PRESETS } from './presets'
 
 describe('PHASE_PRESETS', () => {
-  // Bản vẽ (dsg-handoff/README.md hàng 8, PHASEPRESETS trong .dc.html) cho đúng 9 mẫu
-  // chặng. Đây là mẫu MỨC SỐNG (thu/chi nền của một quãng đời), khác hẳn LIFE_PRESETS —
-  // thứ sinh ra một chùm MỐC.
-  it('có đúng 9 mẫu, khoá không trùng', () => {
-    expect(PHASE_PRESETS).toHaveLength(9)
-    expect(new Set(PHASE_PRESETS.map((p) => p.key)).size).toBe(9)
+  // TÁM, không phải chín như bản vẽ: mẫu 'ret' ("Nghỉ hưu") đã bỏ ngày 2026-09-10 vì nó
+  // TRÙNG TÊN với mẫu mốc 'nghi-huu', mà từ bản đó hai bộ mẫu hiện trong CÙNG một cửa —
+  // hai dòng "Nghỉ hưu" cạnh nhau là chỗ lẫn tệ hơn hai cái nút cũ. Lý do đầy đủ (và vì
+  // sao giữ bản mốc chứ không giữ bản chặng) ở đầu `phasePresets.ts`.
+  it('có đúng 8 mẫu, khoá không trùng', () => {
+    expect(PHASE_PRESETS).toHaveLength(8)
+    expect(new Set(PHASE_PRESETS.map((p) => p.key)).size).toBe(8)
+  })
+
+  // Không mẫu chặng nào được trùng tên với một mẫu mốc: cả hai bộ nay nằm trong cùng một
+  // cửa (`QuickAddBoard`), nên một cái tên xuất hiện hai lần là người dùng phải đoán.
+  it('không trùng tên với mẫu MỐC nào', () => {
+    const tenMoc = new Set(LIFE_PRESETS.map((p) => p.label))
+    for (const p of PHASE_PRESETS) expect(tenMoc.has(p.label), p.key).toBe(false)
   })
 
   // QUY ƯỚC ĐƠN VỊ, cùng luật với presets.ts: độ lớn của mỗi mẫu được viết cho MỘT đồng

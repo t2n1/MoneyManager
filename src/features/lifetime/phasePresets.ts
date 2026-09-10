@@ -1,10 +1,23 @@
 // Mẫu CHẶNG ĐỜI — mức sống nền của một quãng thời gian. THUẦN, không React.
 //
 // Khác hẳn `presets.ts` (LIFE_PRESETS): thứ đó sinh một CHÙM MỐC ("Sinh con" ra bốn bậc
-// chi + trợ cấp), còn đây chỉ là một cặp thu/chi nền + quốc gia + đồng tiền. Bản vẽ tách
-// hai thứ thành hai nút riêng ở hàng 8 ("+ Chặng từ mẫu" và "+ Mốc từ mẫu") vì hai khái
-// niệm này là xương sống của cả màn: CHẶNG đặt mức nền, MỐC cộng thêm dòng tiền và không
-// bao giờ sửa nền (dsg-handoff/README.md, bảng đầu tài liệu).
+// chi + trợ cấp), còn đây chỉ là một cặp thu/chi nền + quốc gia + đồng tiền. Hai khái niệm
+// này là xương sống của cả màn: CHẶNG đặt mức nền, MỐC cộng thêm dòng tiền và không bao giờ
+// sửa nền (dsg-handoff/README.md, bảng đầu tài liệu).
+//
+// LỆCH BẢN VẼ HAI CHỖ, CÓ CHỦ Ý (2026-09-10, người dùng chọn sau khi xem mẫu). Bản vẽ đặt
+// hai NÚT riêng ở hàng 8 ("+ Chặng từ mẫu" và "+ Mốc từ mẫu") và cho đúng CHÍN mẫu chặng.
+// Nay chỉ còn một cửa `QuickAddBoard` chia hai nhóm đặt tên bằng câu hỏi, và tám mẫu:
+//
+//   · MỘT CỬA vì hai nút cạnh nhau buộc người dùng phải biết TRƯỚC mình cần "chặng" hay
+//     "mốc" — mà đó chính là chỗ họ lẫn (câu hỏi của người dùng: "cái chặng và cái mốc có
+//     đang bị giống nhau không?"). Một cửa hỏi bằng việc chứ không bằng loại, xem
+//     `planWords.ts`.
+//   · MẤT MẪU 'ret' ("Nghỉ hưu", 110/240万) vì nó TRÙNG TÊN với mẫu mốc 'nghi-huu' — hai
+//     dòng "Nghỉ hưu" trong cùng một cửa là chỗ lẫn tệ hơn cả hai nút cũ. Giữ bản mốc vì
+//     nó làm nhiều hơn: cũng tạo một chặng (thu nền 0, chi ~80%) NHƯNG thêm lương hưu chạy
+//     tới hết đời, bắt đầu đúng tuổi 65 kể cả khi nghỉ sớm. Bản chặng gộp lương hưu vào
+//     thu nền thành 110万/năm, tức nghỉ ở tuổi 55 cũng có "lương hưu" ngay — sai lặng lẽ.
 //
 // QUY ƯỚC ĐƠN VỊ — cùng luật với đầu `presets.ts`, và ở đây có một cái bẫy riêng:
 // `annualIncomeMinor`/`annualExpenseMinor` là MINOR UNITS. JPY và VND có 0 số lẻ nên minor
@@ -45,7 +58,6 @@ export const PHASE_PRESETS: PhasePreset[] = [
   // CHI > THU là chủ ý của bản vẽ, không phải số gõ sai: một quãng đời rút vào tiền tiết
   // kiệm (nghỉ chăm con) là tình huống thật và bản chiếu phải vẽ được nó.
   { key: 'care', label: 'Nghỉ chăm con', note: '100/300万', currency: 'JPY', country: 'JP', annualIncomeMinor: 1_000_000, annualExpenseMinor: 3_000_000 },
-  { key: 'ret', label: 'Nghỉ hưu', note: '110/240万', currency: 'JPY', country: 'JP', annualIncomeMinor: 1_100_000, annualExpenseMinor: 2_400_000 },
 ]
 
 /**

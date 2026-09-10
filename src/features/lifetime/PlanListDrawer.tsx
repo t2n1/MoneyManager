@@ -17,6 +17,7 @@ import type { CurrencyCode } from '../../lib/currencies'
 import { drawerEvents, type DrawerSort } from './drawerList'
 import type { DraftEvent, DraftPhase } from './draft'
 import { LIFE_PRESETS, type LifePreset } from './presets'
+import { EVENT_WORDS, PHASE_WORDS } from './planWords'
 
 const SORT_LABEL: Record<DrawerSort, string> = {
   year: 'Theo năm',
@@ -87,9 +88,12 @@ export function PlanListDrawer({
         </div>
 
         {/* --- Chặng đời --- */}
+        {/* Câu nghĩa dưới CẢ HAI tiêu đề (`planWords.ts`): đây là chỗ duy nhất trên app hai
+            danh sách nằm ngay dưới nhau, tức chỗ đắt nhất để nói ra chúng khác nhau ở đâu. */}
         <SectionTitle role="micro" className="mt-3">
-          Chặng đời
+          {PHASE_WORDS.name}
         </SectionTitle>
+        <p className="text-2xs font-medium text-fg-muted">{PHASE_WORDS.hint}</p>
         <ul className="divide-y divide-border-subtle">
           {sorted.map((p, i) => {
             const den = i + 1 < sorted.length ? sorted[i + 1].startYear - 1 : null
@@ -121,7 +125,10 @@ export function PlanListDrawer({
 
         {/* --- Mốc cuộc đời --- */}
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <SectionTitle role="micro">Mốc cuộc đời</SectionTitle>
+          <div className="min-w-0">
+            <SectionTitle role="micro">{EVENT_WORDS.name}</SectionTitle>
+            <p className="text-2xs font-medium text-fg-muted">{EVENT_WORDS.hint}</p>
+          </div>
           {/* Ô tìm 120px của bản vẽ → `w-30` (7,5rem). `rem` để nó co theo Cỡ chữ. */}
           <input
             type="search"

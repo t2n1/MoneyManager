@@ -61,10 +61,28 @@ export type ColorTreatment = 'vivid' | 'muted'
  * chặn theo `max-h-[42rem]` cho cả hai — một con số px cứng cho chiều cao là đúng thứ
  * spec §5 bảo đừng làm, và panel chặng ngắn hơn trần thì trần không có tác dụng gì.
  */
-export function DockPanel({ title, children }: { title: string; children: ReactNode }) {
+export function DockPanel({
+  title,
+  hint,
+  children,
+}: {
+  title: string
+  /**
+   * Một dòng nói bảng này SỬA CÁI GÌ — `planWords.ts` giữ chữ, không gõ lại ở chỗ gọi.
+   *
+   * KHÔNG bọc `<Guide>` dù nó là chữ giải thích: <Guide> ẩn ở mật độ Gọn (mặc định của
+   * app), mà cả điểm của dòng này là còn đó ĐÚNG LÚC người dùng đang sửa — "chặng" và "mốc"
+   * là hai từ chỉ thời gian, không từ nào tự nói ra mình chở cái gì. Nó ngắn (dưới 45 ký
+   * tự) và mang `font-medium` nên guardrail văn xuôi của `tests/designSystem.test.ts` xếp
+   * nó vào NHÃN chứ không vào văn xuôi — đúng chỗ nó nên ở.
+   */
+  hint?: string
+  children: ReactNode
+}) {
   return (
     <Card as="section" padding="panel" elevation="panel">
       <SectionTitle role="micro">{title}</SectionTitle>
+      {hint !== undefined && <p className="text-2xs font-medium text-fg-muted">{hint}</p>}
       <div className="mt-1.5 max-h-[42rem] overflow-y-auto overscroll-contain">{children}</div>
     </Card>
   )

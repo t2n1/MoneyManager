@@ -55,6 +55,7 @@ import {
 import type { LifePreset } from './presets'
 import { LIFE_PRESETS } from './presets'
 import { dungCauHoi } from './traSo'
+import { EVENT_WORDS } from './planWords'
 import { docKetQua, type KetQuaTra, type LoiTra } from './traSoKetQua'
 import { TraSoSheet } from './TraSoSheet'
 
@@ -278,7 +279,7 @@ export function PlanDockEvent({
 
   return (
     <>
-      <DockPanel title="Mốc cuộc đời">
+      <DockPanel title={EVENT_WORDS.name} hint={EVENT_WORDS.hint}>
         {/* --- Hàng "Loại mốc" của bản vẽ = BỘ MẪU (spec §6) --------------------- */}
         <span id={`${uid}-mau`} className={DOCK_LABEL}>
           Thêm mốc từ mẫu

@@ -43,6 +43,7 @@ import {
 import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
 import { clampPhaseStartYear } from './phaseYear'
 import { phaseColorKey } from './planColors'
+import { PHASE_WORDS } from './planWords'
 
 export interface PlanDockPhaseProps {
   /** MỌI chặng của bản nháp, đã sắp theo năm — cần cho ba việc: chặn năm trùng, biết
@@ -120,7 +121,7 @@ export function PlanDockPhase({
     phase.annualIncomeMinor === 0 ? null : Math.round((deDanh / phase.annualIncomeMinor) * 100)
 
   return (
-    <DockPanel title="Chặng đời">
+    <DockPanel title={PHASE_WORDS.name} hint={PHASE_WORDS.hint}>
       <IdentityRow
         icon={phase.icon}
         onIcon={(icon) => onPatch({ icon })}

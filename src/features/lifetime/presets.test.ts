@@ -41,6 +41,23 @@ describe('LIFE_PRESETS', () => {
     )
   })
 
+  // NHÓM trong cửa mẫu (2026-09-10). Cửa mẫu chia HAI nhóm theo câu hỏi mà mẫu trả lời, và
+  // `group` là chỗ duy nhất nói mẫu nào thuộc nhóm nào — xem `planWords.ts` và lời ghi 7 ở
+  // đầu `QuickAddBoard.tsx`. Ba mẫu sinh CẢ một chặng ('cuoi', 'nghi-huu', 'chuyen-nuoc')
+  // nhưng chỉ 'nghi-huu' đứng ở nhóm mức sống: lý do ở JSDoc của `group` trong presets.ts.
+  it('mọi mẫu đều khai nhóm, và đúng một mẫu thuộc nhóm mức sống', () => {
+    for (const p of LIFE_PRESETS) expect(['living', 'event'], p.id).toContain(p.group)
+    expect(LIFE_PRESETS.filter((p) => p.group === 'living').map((p) => p.id)).toEqual(['nghi-huu'])
+  })
+
+  // Một mẫu đứng ở nhóm "Từ năm này tôi sống thế nào" mà KHÔNG sinh chặng thì nó đứng sai
+  // chỗ: nhóm đó hứa đổi thu/chi NỀN, và cả cái cửa mẫu được dựng để lời hứa đó đúng.
+  it('mẫu nhóm mức sống phải sinh ít nhất một chặng', () => {
+    for (const p of LIFE_PRESETS.filter((x) => x.group === 'living')) {
+      expect(p.build(ctx).phases.length, p.id).toBeGreaterThan(0)
+    }
+  })
+
   // Finding 1 (review 2026-09-09): mỗi chip trên bảng chọn nhanh phải có một màu riêng
   // (dsg-handoff/README.md §"Bảng chọn nhanh"), và mốc sinh ra từ mẫu phải mang màu đó
   // ngay từ lúc tạo — không phải người dùng tự tô tay. Test này khoá CẢ HAI vế: field

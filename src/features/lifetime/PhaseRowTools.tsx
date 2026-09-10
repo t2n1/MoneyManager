@@ -1,4 +1,4 @@
-// HÀNG 8, phần điều khiển — nhãn hướng dẫn · + Chặng · + Chặng từ mẫu · + Mốc từ mẫu.
+// HÀNG 8, phần điều khiển — nhãn dải · + Chặng · + Thêm từ mẫu.
 //
 // Bản vẽ (dsg-handoff/README.md hàng 8, và markup của .dc.html) đặt BA nút ở đây. Trước
 // đó console chỉ có dải khối chặng, không có nút nào — nghĩa là thêm một chặng chỉ làm
@@ -6,86 +6,62 @@
 // panel một mốc. Ai chưa chọn gì, hoặc kế hoạch chưa có mốc nào, thì không có đường nào
 // thêm chặng cả — một lỗ chức năng, không phải chuyện thẩm mỹ.
 //
-// "+ Mốc từ mẫu" mở CHÍNH bảng chọn nhanh mà cú bấm lên nền đồ thị mở, qua handle của
+// NAY CÒN HAI NÚT (2026-09-10, người dùng chọn sau khi xem mẫu). "+ Chặng từ mẫu" và
+// "+ Mốc từ mẫu" đã nhập thành MỘT cửa "+ Thêm từ mẫu", và khay chip mẫu mức sống từng mở
+// ngay dưới hàng này thì không còn — tám mẫu đó nay là nhóm đầu của `QuickAddBoard`.
+//
+// VÌ SAO: hai nút cạnh nhau buộc người dùng biết TRƯỚC mình cần "chặng" hay "mốc", mà đó
+// đúng là chỗ họ lẫn ("cái chặng và cái mốc có đang bị giống nhau không?", 2026-09-10). Một
+// cửa chia hai nhóm mang CÂU HỎI (`planWords.ts`) thì chọn được mà không cần biết từ nào.
+// Lý do đầy đủ ở lời ghi 7 đầu `QuickAddBoard.tsx`; chỗ lệch bản vẽ ghi ở `phasePresets.ts`.
+//
+// "+ Thêm từ mẫu" mở CHÍNH bảng chọn nhanh mà cú bấm lên nền đồ thị mở, qua handle của
 // vùng vẽ — không dựng bảng thứ hai. Bản vẽ có cả hai đường vào cho cùng bảng đó.
-import { useState } from 'react'
+//
+// KHÔNG CÓ MŨI TÊN `▾` trên nút: bảng mở ra ở GIỮA vùng vẽ (nó phải neo vào một năm trên
+// trục, xem `openPresetBoard`), không rơi xuống dưới nút. Một mũi tên chỉ xuống một khay
+// không tồn tại là một lời hứa sai.
 import { ActionButton } from '../../components/ui'
 import { Guide } from '../../components/Guide'
-import { PHASE_PRESETS, type PhasePreset } from './phasePresets'
+import { EVENT_WORDS, PHASE_WORDS } from './planWords'
 
 export function PhaseRowTools({
   onAddPhase,
-  onAddPhasePreset,
-  onOpenMilestoneBoard,
+  onOpenPresetBoard,
 }: {
   onAddPhase: () => void
-  onAddPhasePreset: (p: PhasePreset) => void
-  onOpenMilestoneBoard: () => void
+  onOpenPresetBoard: () => void
 }) {
-  const [mauMo, setMauMo] = useState(false)
-
   return (
     <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
-        Chặng đời
+        {PHASE_WORDS.name}
       </span>
 
-      <ActionButton onClick={onAddPhase}>+ Chặng</ActionButton>
-
-      <ActionButton
-        variant="outline"
-        aria-expanded={mauMo}
-        onClick={() => setMauMo((v) => !v)}
-        title="Mức sống mẫu — điền sẵn thu/chi mỗi năm cho một quãng đời"
-      >
-        + Chặng từ mẫu
+      <ActionButton onClick={onAddPhase} title={`${PHASE_WORDS.question} — ${PHASE_WORDS.hint}`}>
+        + Chặng
       </ActionButton>
 
-      <ActionButton variant="outline" onClick={onOpenMilestoneBoard}>
-        + Mốc từ mẫu
+      {/* Một tiêu đề gộp CẢ HAI câu hỏi: cái người dùng cần biết trước khi bấm là "cửa này
+          có cả hai loại", không phải tên của từng nhóm bên trong. */}
+      <ActionButton
+        variant="outline"
+        onClick={onOpenPresetBoard}
+        title={`Mẫu có sẵn cho cả hai loại — "${PHASE_WORDS.question}" và "${EVENT_WORDS.question}"`}
+      >
+        + Thêm từ mẫu
       </ActionButton>
 
       {/* Câu này là thứ duy nhất trên màn nói ra luật xương sống của cả mô hình: chặng
           ĐẶT mức nền, mốc CỘNG THÊM và không bao giờ sửa nền (bản vẽ, bảng đầu tài liệu).
-          Trong <Guide> nên nó ẩn ở mật độ Gọn — người đã biết thì không cần đọc lại. */}
+          Trong <Guide> nên nó ẩn ở mật độ Gọn — người đã biết thì không cần đọc lại. Bản
+          NGẮN của cùng cặp câu này thì luôn hiện, ở chú giải đồ thị và ở tiêu đề hai nhóm
+          trong cửa mẫu (`planWords.ts`). */}
       <Guide className="basis-full">
         Chặng đặt thu/chi NỀN của một quãng đời và nối tiếp nhau kín trục. Mốc chỉ cộng
         thêm dòng tiền, không bao giờ sửa nền — thu nhập hay mức sống đổi lâu dài thì tạo
         chặng mới.
       </Guide>
-
-      {mauMo && (
-        <div className="basis-full rounded-lg border border-border-panel bg-surface-sunken p-2">
-          <p className="mb-1.5 text-2xs text-fg-muted">
-            Mức sống mẫu · thu / chi mỗi năm — <b>số mặc định, kiểm tra lại</b>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {PHASE_PRESETS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => {
-                  onAddPhasePreset(p)
-                  setMauMo(false)
-                }}
-                className="flex min-h-8 items-center gap-1.5 rounded-full border border-border-strong px-2.5 text-xs text-fg-secondary transition hover:border-accent"
-              >
-                <span>{p.label}</span>
-                {/* Ghi chú của mẫu là chữ (`470/295万`) đã gói sẵn hai số theo ĐÚNG đồng
-                    tiền của mẫu, nên nó KHÔNG đi qua <Money>: <Money> sẽ vẽ nó bằng tiền
-                    hiển thị của kịch bản và nói sai đơn vị. Hai số thật đi vào bản nháp
-                    qua `phasePresetToDraft`, ở đó đơn vị được giữ đúng. */}
-                <span className="text-2xs text-fg-muted">{p.note}</span>
-              </button>
-            ))}
-          </div>
-          <Guide>
-            Mẫu chỉ điền sẵn hai con số rồi thành một chặng thường — sửa hay xoá như mọi
-            chặng khác. Đồng tiền đi theo mẫu (Mỹ là đô, Việt Nam là đồng), không theo tiền
-            hiển thị của kịch bản: độ lớn của mỗi mẫu được viết cho đúng một đồng tiền.
-          </Guide>
-        </div>
-      )}
     </div>
   )
 }

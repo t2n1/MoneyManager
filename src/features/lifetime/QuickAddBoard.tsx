@@ -54,12 +54,33 @@
 //    (đầu file) ghi là lý do bộ icon tồn tại. Khoá đó cũng đi theo mốc lên trục thời gian
 //    (xem `LIFE_PRESETS` cuối presets.ts), nên icon trên dòng mẫu và icon trên trục là
 //    CÙNG một hình — đó là thứ nối cái vừa bấm với cái vừa hiện ra.
+//
+// 7. MỘT CỬA, HAI NHÓM ĐẶT TÊN BẰNG CÂU HỎI (2026-09-10, người dùng chọn sau khi xem mẫu).
+//
+//    Trước bản này hàng 8 có HAI nút mẫu đứng cạnh nhau: "+ Chặng từ mẫu" (mở một khay chip
+//    ngay dưới hàng) và "+ Mốc từ mẫu" (mở chính bảng này). Hai nút buộc người dùng biết
+//    TRƯỚC mình cần "chặng" hay "mốc" — mà đó đúng là chỗ họ lẫn ("cái chặng và cái mốc có
+//    đang bị giống nhau không?", 2026-09-10). Nay cả hai bộ mẫu vào đây, chia hai nhóm mang
+//    CÂU HỎI (`planWords.ts`) chứ không mang tên loại: chọn được mà không cần biết từ nào.
+//
+//    Ba thứ đi kèm, đừng bỏ đi:
+//      (a) mẫu MỐC nào sinh CẢ một chặng thì mang nhãn ⊕ — nhãn đó SUY từ `result`, không
+//          khai tay ở `presets.ts`, nên nó không thể nói sai khi `build()` đổi;
+//      (b) mẫu 'nghi-huu' đứng ở nhóm MỨC SỐNG dù nó là một `LifePreset` — lý do ở `group`
+//          trong `presets.ts`;
+//      (c) mẫu MỨC SỐNG chỉ nhận năm BẮT ĐẦU, không nhận khoảng: một chặng chạy tới khi
+//          chặng kế tiếp bắt đầu nên nó không có "năm kết thúc" để hấp thu.
+//
+//    Bản vẽ đặt HAI nút; đây là chỗ lệch bản vẽ, có chủ ý, ghi cả ở đầu `phasePresets.ts`.
 import { Plus, X } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { ActionButton, Card, IconButton, Money, Num, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { EventIcon } from './eventIcons'
 import { eventTint } from './planColors'
+import { PHASE_PRESETS, type PhasePreset } from './phasePresets'
+import { PhaseIcon } from './PlanDockParts'
+import { EVENT_WORDS, PHASE_WORDS } from './planWords'
 import { LIFE_PRESETS, type LifePreset, type PresetContext, type PresetResult } from './presets'
 import { presetWeight } from './presetWeight'
 import { applySpanToResult } from './quickAddApply'
@@ -80,6 +101,14 @@ interface Props {
    * migration 0031 — xem `freePhaseStartYear`), còn `result` để khỏi dựng lại ở ca thường.
    */
   onAddPreset: (preset: LifePreset, apply: SpanApply, result: PresetResult) => void
+  /**
+   * Chọn một mẫu MỨC SỐNG (`phasePresets.ts`) — thành một chặng nháp bắt đầu ở `year`.
+   *
+   * Nhận `year` rời chứ không tự đọc `span`: chỗ gọi phải dò một năm CHƯA có chặng nào
+   * (`unique (scenario_id, start_year)`, migration 0031), và phép dò đó cần cả danh sách
+   * chặng đang có — thứ bảng này không biết và không nên biết.
+   */
+  onAddPhasePreset: (preset: PhasePreset, year: number) => void
   /** "+ Mốc trống" — một mốc rỗng đúng khoảng này, mở ngay bảng sửa trong dock. */
   onAddBlank: (span: YearSpan) => void
   onClose: () => void
@@ -91,6 +120,7 @@ export function QuickAddBoard({
   currency,
   buildCtx,
   onAddPreset,
+  onAddPhasePreset,
   onAddBlank,
   onClose,
 }: Props) {
@@ -112,12 +142,12 @@ export function QuickAddBoard({
           <SectionTitle role="card" as="h3" className="min-w-0 flex-1">
             {years <= 1 ? (
               <>
-                Thêm mốc ở năm <Num>{span.startYear}</Num> · tuổi{' '}
+                Thêm vào năm <Num>{span.startYear}</Num> · tuổi{' '}
                 <Num>{span.startYear - birthYear}</Num>
               </>
             ) : (
               <>
-                Thêm mốc cho <Num>{`${span.startYear}–${span.endYear}`}</Num> ·{' '}
+                Thêm cho <Num>{`${span.startYear}–${span.endYear}`}</Num> ·{' '}
                 <Num>{years}</Num> năm · tuổi{' '}
                 <Num>{`${span.startYear - birthYear}–${span.endYear - birthYear}`}</Num>
               </>
@@ -145,14 +175,38 @@ export function QuickAddBoard({
         <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
           {years <= 1
             ? 'Số mặc định, kiểm lại rồi kéo trên đồ thị. Chưa có gì được ghi cho tới khi bấm Lưu.'
-            : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}
+            : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}{' '}
+          Mẫu mức sống chỉ nhận năm BẮT ĐẦU: một chặng chạy tới khi chặng kế tiếp bắt đầu,
+          nên nó không có "năm kết thúc" để nhận.
         </Guide>
 
-        {/* Vùng cuộn: chín mẫu ở Cỡ chữ 1,25× vẫn cao hơn nửa vùng vẽ. Chặn bằng
-            `max-h-[18rem]` (rem, co theo Cỡ chữ) chứ không để bảng dài ra khỏi đồ thị. */}
+        {/* Vùng cuộn: mười bảy mẫu ở Cỡ chữ 1,25× cao hơn cả vùng vẽ. Chặn bằng
+            `max-h-[18rem]` (rem, co theo Cỡ chữ) chứ không để bảng dài ra khỏi đồ thị.
+            Tiêu đề nhóm `sticky` nên cuộn tới đâu vẫn biết đang ở nhóm nào — với hai nhóm
+            trong một khung cuộn, đó là thứ giữ cho việc "chia nhóm" còn nghĩa. */}
         <div className="mt-2 max-h-[18rem] overflow-y-auto overscroll-contain rounded-md border border-border-subtle">
+          <GroupHead question={PHASE_WORDS.question} hint={PHASE_WORDS.hint} />
           <ul className="divide-y divide-border-subtle">
-            {LIFE_PRESETS.map((p) => (
+            {PHASE_PRESETS.map((p) => (
+              <PhasePresetRow key={p.key} preset={p} year={span.startYear} onAdd={onAddPhasePreset} />
+            ))}
+            {/* Mẫu MỐC thuộc nhóm mức sống — hôm nay đúng một cái ('nghi-huu'), xem `group`
+                ở `presets.ts`. Đứng SAU tám mẫu mức sống vì nó mang thêm một khoản riêng,
+                tức nhiều thứ hơn một cặp thu/chi. */}
+            {LIFE_PRESETS.filter((p) => p.group === 'living').map((p) => (
+              <PresetRow
+                key={p.id}
+                preset={p}
+                span={span}
+                currency={currency}
+                buildCtx={buildCtx}
+                onAdd={onAddPreset}
+              />
+            ))}
+          </ul>
+          <GroupHead question={EVENT_WORDS.question} hint={EVENT_WORDS.hint} />
+          <ul className="divide-y divide-border-subtle">
+            {LIFE_PRESETS.filter((p) => p.group === 'event').map((p) => (
               <PresetRow
                 key={p.id}
                 preset={p}
@@ -176,6 +230,67 @@ export function QuickAddBoard({
         </div>
       </Card>
     </div>
+  )
+}
+
+/**
+ * Tiêu đề một nhóm: CÂU HỎI mà nhóm đó trả lời, cộng một phụ đề. Cả hai chuỗi đến từ
+ * `planWords.ts` — không gõ lại ở đây (xem lời ghi ở đầu file đó).
+ *
+ * `font-semibold` trên phụ đề không phải để nhấn: guardrail văn xuôi của
+ * `tests/designSystem.test.ts` bỏ qua `<p>` mang `font-*`, và hai câu này là NHÃN chứ không
+ * phải chữ dạy — chúng phải còn ở mật độ Gọn, khác đoạn `<Guide>` ngay trên.
+ */
+function GroupHead({ question, hint }: { question: string; hint: string }) {
+  return (
+    <div className="sticky top-0 z-10 border-b border-border-subtle bg-surface px-2 py-1">
+      <p className="text-2xs font-semibold uppercase tracking-label text-fg-secondary">
+        {question}
+      </p>
+      <p className="text-2xs font-medium text-fg-muted">{hint}</p>
+    </div>
+  )
+}
+
+/**
+ * Một dòng mẫu MỨC SỐNG. Không có `onAdd(preset, apply, result)` như dòng mốc vì không có
+ * gì phải dựng trước: một mẫu mức sống LÀ một cặp thu/chi, không có `build()` nào để chạy
+ * và không có con số "nặng cỡ nào" nào để tính.
+ */
+function PhasePresetRow({
+  preset,
+  year,
+  onAdd,
+}: {
+  preset: PhasePreset
+  year: number
+  onAdd: (preset: PhasePreset, year: number) => void
+}) {
+  return (
+    <li>
+      {/* Ba cột, và ô cuối rộng đúng bằng HAI ô cuối của dòng mốc cộng khe giữa chúng
+          (4,5 + 0,5 + 3,25 = 8,25rem): `note` là một chuỗi đã gói sẵn cả thu lẫn chi nên
+          nó không chia được thành hai ô, nhưng mép PHẢI vẫn phải thẳng với cột tiền của
+          nhóm dưới — đó là thứ cho phép rê mắt dọc cả bảng. */}
+      <button
+        type="button"
+        onClick={() => onAdd(preset, year)}
+        title={`Chặng mới từ năm ${year} — thu/chi ${preset.note} mỗi năm. Số mặc định, kiểm lại.`}
+        className="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_8.25rem] items-center gap-2 px-2 py-1.5 text-left transition hover:bg-surface-sunken"
+      >
+        {/* Vòng NÉT ĐỨT, không phải một icon chủ đề: đó đúng là thứ chặng này sẽ mang trên
+            dải sau khi bấm (`phasePresetToDraft` đặt `icon: ''`), và nó tách hẳn tám dòng
+            này khỏi các dòng mốc bên dưới — nơi mỗi dòng có một icon chủ đề TÔ MÀU. */}
+        <span className="flex justify-center">
+          <PhaseIcon icon="" />
+        </span>
+        <span className="truncate text-xs text-fg-primary">{preset.label}</span>
+        {/* `note` ("470/295万") là chữ đã gói sẵn theo ĐÚNG đồng tiền của mẫu, nên nó KHÔNG
+            đi qua <Money>: <Money> sẽ vẽ nó bằng tiền hiển thị của kịch bản và nói sai đơn
+            vị. Hai số thật đi vào bản nháp qua `phasePresetToDraft`, ở đó đơn vị giữ đúng. */}
+        <span className="text-right text-2xs text-fg-muted">{preset.note}</span>
+      </button>
+    </li>
   )
 }
 
@@ -206,6 +321,21 @@ function PresetRow({
   // Giữ chính `weight` (không phải một cờ boolean): một cờ không thu hẹp kiểu, nên
   // `weight.amountMinor` phía dưới sẽ là lỗi biên dịch "possibly null".
   const so = weight !== null && weight.amountMinor !== 0 ? weight : null
+  // NHÃN ⊕ — "mẫu này còn làm thêm một việc thuộc nhóm KIA". Suy từ chính `result`, không
+  // khai tay ở `presets.ts`: một bản chép thứ hai là chỗ để nhãn nói sai sau khi `build()`
+  // đổi, và đây đúng là loại lệch mà cả màn này đã ăn một lần (Finding 6, review
+  // 2026-09-09). Không có chữ nào chứa CON SỐ: một mẫu mức sống kèm nhiều hơn một khoản thì
+  // nói "các khoản riêng" chứ không đếm — con số trong chuỗi là con số không đi qua <Num>.
+  const kem =
+    preset.group === 'event'
+      ? result.phases.length > 0
+        ? 'đổi luôn mức sống'
+        : null
+      : result.events.length === 1
+        ? `kèm "${result.events[0].label}"`
+        : result.events.length > 1
+          ? 'kèm các khoản riêng'
+          : null
 
   return (
     <li>
@@ -227,7 +357,10 @@ function PresetRow({
             className="h-4 w-4 shrink-0"
           />
         </span>
-        <span className="truncate text-xs text-fg-primary">{preset.label}</span>
+        <span className="truncate text-xs text-fg-primary">
+          {preset.label}
+          {kem !== null && <span className="ml-1.5 text-2xs text-fg-muted">⊕ {kem}</span>}
+        </span>
         {/* Hai ô cuối LUÔN được vẽ, kể cả khi rỗng: lưới tự dồn phần tử sang ô trống, nên
             một `null` ở đây làm quãng năm của dòng đó nhảy vào cột tiền. */}
         {so !== null ? (

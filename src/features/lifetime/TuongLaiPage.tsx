@@ -9,7 +9,7 @@
 // có kịch bản chưa), khung ba vùng, và THỨ TỰ MƯỜI HAI HÀNG của bản vẽ. Nó không tự vẽ
 // gì — vùng vẽ là `TimelinePlot`, bố cục là `ConsoleFrame`, còn dock / dải chặng / bảng
 // chọn nhanh (`PlanDock`/`PhaseLane`/`QuickAddBoard`) cắm vào đúng ô đã chừa.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Plus, Star } from 'lucide-react'
 import {
@@ -79,6 +79,7 @@ import { setPhaseStarts, type PhaseStart } from './phaseOrder'
 import { PhaseLane } from './PhaseLane'
 import { phasePresetToDraft, type PhasePreset } from './phasePresets'
 import { PhaseRowTools } from './PhaseRowTools'
+import { EVENT_WORDS, PHASE_WORDS } from './planWords'
 import { PlanListDrawer } from './PlanListDrawer'
 import { PlanDock, type DockSelection } from './PlanDock'
 // `clampPhaseStartYear` KHÔNG được import ở đây: nó là luật của Ô NĂM GÕ TAY và chỉ
@@ -1040,16 +1041,34 @@ function TuongLaiConsole() {
     setSel({ type: 'phase', id: addedPhaseId(seed) })
   }, [working, currentYear, lastYear, editDraft])
 
-  /** "+ Chặng từ mẫu" — mẫu mức sống (`phasePresets.ts`) thành một chặng nháp. */
+  /**
+   * Nhóm "Từ năm này tôi sống thế nào" của CỬA MẪU — một mẫu mức sống
+   * (`phasePresets.ts`) thành một chặng nháp.
+   *
+   * NĂM đến từ bảng, không còn là `currentYear + 1` như hồi mẫu mức sống có khay riêng
+   * dưới hàng 8: cửa mẫu neo vào một năm trên trục và nói năm đó ra ngay trên tiêu đề của
+   * nó, nên "thêm vào đâu" là thứ người dùng đã thấy TRƯỚC khi bấm.
+   *
+   * Vẫn qua `freePhaseStartYear` chứ không nhận thẳng: `unique (scenario_id, start_year)`
+   * (migration 0031) nổ ở Postgres, xa chỗ bấm. Cùng phép dò mà `addPresetFromBoard` dùng
+   * cho mẫu mốc có sinh chặng — một luật, hai chỗ gọi.
+   */
   const addPhaseFromPreset = useCallback(
-    (p: PhasePreset) => {
+    (p: PhasePreset, year: number) => {
       if (!working) return
       const seed = ++newIdSeed.current
-      const y = freePhaseStartYear(working.phases, currentYear + 1, currentYear, lastYear)
+      const y = freePhaseStartYear(working.phases, year, currentYear, lastYear)
       // Tỷ giá tra ở ĐÂY, không trong `phasePresets.ts`: file đó thuần. Không tra được
       // thì 1 và banner thiếu tỷ giá của trang bắt ngay — thà thiếu còn hơn bịa.
       editDraft((d) => addDraftPhase(d, phasePresetToDraft(p, y, pageFxOf(p.currency, d.displayCurrency) ?? 1), seed))
       setSel({ type: 'phase', id: addedPhaseId(seed) })
+      // Đóng cửa mẫu và nói ra năm THẬT — `freePhaseStartYear` có thể đã dời đi một năm so
+      // với năm người dùng chỉ vào, và im lặng ở đây là chặng mới nằm lệch mà không ai nói.
+      setQuick(null)
+      showToast(
+        `Đã thêm chặng "${p.label}" từ năm ${y} — kiểm lại số rồi kéo tới đúng năm.`,
+        'success',
+      )
     },
     [working, currentYear, lastYear, pageFxOf, editDraft],
   )
@@ -1994,6 +2013,22 @@ function TuongLaiConsole() {
                 Ngưỡng tự do tài chính
               </LegendItem>
             )}
+            {/* HAI LỚP TÔ — thêm 2026-09-10. Trước bản này chú giải chỉ nói các ĐƯỜNG, nên
+                hai lớp màu lớn nhất trên đồ thị (vùng chặng ở chân, ghim mốc phía trên) là
+                thứ duy nhất không có chỗ nào giới thiệu — đúng chỗ người dùng hỏi "cái chặng
+                và cái mốc có đang bị giống nhau không?".
+
+                Vùng chặng LUÔN có (kế hoạch nào cũng phải có ít nhất một chặng), còn ghim
+                mốc chỉ chú giải khi thật sự có mốc — cùng luật với `showBand`/`showFire`
+                ngay trên: chú giải một thứ không nằm trên đồ thị là một câu đố. */}
+            <LegendItem color="var(--fg-muted)" mark="band">
+              {PHASE_WORDS.legend}
+            </LegendItem>
+            {shownInput.events.length > 0 && (
+              <LegendItem color="var(--fg-muted)" mark="pin">
+                {EVENT_WORDS.legend}
+              </LegendItem>
+            )}
             {comparisons.map((c) => (
               <LegendItem key={c.id} color={c.color} dash="2 5">
                 {c.name}
@@ -2094,6 +2129,7 @@ function TuongLaiConsole() {
                 currency={currency}
                 buildCtx={buildPresetCtx}
                 onAddPreset={addPresetFromBoard}
+                onAddPhasePreset={addPhaseFromPreset}
                 onAddBlank={addBlankFromBoard}
                 onClose={() => setQuick(null)}
               />
@@ -2126,8 +2162,7 @@ function TuongLaiConsole() {
                   bộ lề mà vùng vẽ dùng. */}
           <PhaseRowTools
             onAddPhase={addBlankPhase}
-            onAddPhasePreset={addPhaseFromPreset}
-            onOpenMilestoneBoard={() => plotRef.current?.openPresetBoard()}
+            onOpenPresetBoard={() => plotRef.current?.openPresetBoard()}
           />
 
           <PhaseLane
@@ -2336,16 +2371,49 @@ function StatCell({ label, children }: { label: string; children: ReactNode }) {
 function LegendItem({
   color,
   dash,
+  mark = 'line',
   children,
 }: {
   color: string
   dash?: string
+  /**
+   * HÌNH của dấu. `'line'` (mặc định) cho mọi ĐƯỜNG của đồ thị; `'band'` và `'pin'` cho hai
+   * LỚP TÔ — vùng chặng và ghim mốc.
+   *
+   * Hai lớp đó phải khác nhau ở HÌNH, không chỉ ở màu: cả hai lấy màu từ cùng bảng bảy màu
+   * (`planColors.ts`), nên một chú giải phân biệt bằng màu thì không chú giải được gì. Vì
+   * vậy cả hai dấu này vẽ bằng `--fg-muted` — chúng nói cái HÌNH, không nói màu nào.
+   */
+  mark?: 'line' | 'band' | 'pin'
   children: ReactNode
 }) {
+  const gradId = useId()
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
       <svg width="18" height="8" aria-hidden="true" className="shrink-0">
-        <line x1="0" y1="4" x2="18" y2="4" stroke={color} strokeWidth="2" strokeDasharray={dash} />
+        {mark === 'band' ? (
+          <>
+            {/* Đậm ở CHÂN, tan lên trên — đúng hình của vùng chặng thật (`PHASE_BAND_*`).
+                Đỉnh ở đây đậm hơn 0,3 của bản thật có chủ ý: 8 pixel ở 0,3 trên nền trang
+                đọc ra thành không có gì, mà một chú giải không nhìn thấy thì vô ích. */}
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stopColor={color} stopOpacity="0.7" />
+                <stop offset="1" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="18" height="8" fill={`url(#${gradId})`} />
+          </>
+        ) : mark === 'pin' ? (
+          <>
+            {/* Ghim + viên nang, đúng bộ dấu của một mốc (`EventPins`): vòng TÔ ĐẶC, và
+                thanh độ dài mờ hơn luồn ra dưới nó. */}
+            <rect x="4" y="2" width="14" height="4" rx="2" fill={color} opacity="0.45" />
+            <circle cx="4" cy="4" r="3.5" fill={color} />
+          </>
+        ) : (
+          <line x1="0" y1="4" x2="18" y2="4" stroke={color} strokeWidth="2" strokeDasharray={dash} />
+        )}
       </svg>
       {children}
     </span>

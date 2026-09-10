@@ -445,6 +445,25 @@ export type AccountValuationRow = {
   created_at: string
 }
 
+/**
+ * Hoá đơn một kỳ do NHÀ THẺ đòi (migration 0070) — con số in trên app của nhà thẻ.
+ *
+ * Khác `cardMonthCharge()`: hàm kia cộng giao dịch TRONG SỔ. Hai số lệch nhau vì lý do
+ * cấu trúc (hoàn tiền lệch kỳ, nạp ví, ranh giới ngày), không phải vì ai ghi sai.
+ */
+export type CardBillRow = {
+  id: string
+  user_id: string
+  account_id: string
+  /** Ngày chốt kỳ — danh tính của kỳ, khớp `cardBillingRange().closeISO`. */
+  close_date: string
+  /** Ngày bị rút, đã dời T7/CN. */
+  due_date: string
+  /** minor units. Âm = kỳ được hoàn nhiều hơn tiêu. */
+  total: number
+  created_at: string
+}
+
 /** Bảng giá cổ phiếu Việt Nam (công khai, không thuộc user nào) — migration 0035. */
 export type StockPriceRow = {
   symbol: string
@@ -1291,6 +1310,16 @@ export type Database = {
           'id' | 'valued_on' | 'note' | 'source'
         >
         Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note' | 'source'>>
+        Relationships: []
+      }
+      card_bills: {
+        Row: CardBillRow
+        Insert: InsertOf<
+          CardBillRow,
+          'user_id' | 'account_id' | 'close_date' | 'due_date' | 'total',
+          'id'
+        >
+        Update: Partial<Pick<CardBillRow, 'due_date' | 'total'>>
         Relationships: []
       }
       stock_prices: {

@@ -20,12 +20,27 @@ export interface LedgerTx {
   note: string | null
 }
 
-export type ExplainedCause = 'refund-shifted' | 'wallet-topup' | 'date-edge' | 'recalculated'
+export type ExplainedCause =
+  | 'refund-shifted'
+  | 'wallet-topup'
+  | 'date-edge'
+  | 'recalculated'
+  | 'merged-rows'
 
 export interface ReconcileResult {
   matchedCount: number
   extraInLedger: { tx: LedgerTx; amount: number }[]
   missingFromLedger: StatementLine[]
+  /**
+   * Chênh lệch CHỈ liên quan tới hoàn tiền: dòng `調整額` của nhà thẻ, và dòng hoàn
+   * trong sổ, không khớp 1-1 được.
+   *
+   * Nhóm RIÊNG chứ không nhét vào `explained`: nhà thẻ GỘP nhiều khoản hoàn vào một
+   * dòng điều chỉnh (−7.951 = −961 + −6.990) nên hai bên gần như không bao giờ khớp
+   * từng dòng — nhưng một khoản hoàn người dùng QUÊN ghi cũng rơi vào đây, và giấu nó
+   * đi là phản lại lý do tồn tại của cả màn này. Hiện ra, gắn nhãn, để người đọc lướt.
+   */
+  refundDiffs: { source: 'ledger' | 'statement'; label: string; iso: string; amount: number }[]
   explained: { cause: ExplainedCause; label: string; amount: number }[]
 }
 
@@ -56,6 +71,38 @@ const inScope = (t: LedgerTx, cardId: string) =>
 const nfkc = (s: string) => s.normalize('NFKC')
 const isTopUp = (l: StatementLine) => nfkc(l.name).trim() === 'チャージ'
 const isRecalculated = (l: StatementLine) => nfkc(l.name).trim().endsWith('(再計算)')
+
+/** Mọi tổ hợp kích cỡ `size` lấy từ `arr`, không lặp phần tử, không quan tâm thứ tự. */
+function* combinations<T>(arr: T[], size: number): Generator<T[]> {
+  if (size === 0) {
+    yield []
+    return
+  }
+  for (let i = 0; i <= arr.length - size; i++) {
+    for (const rest of combinations(arr.slice(i + 1), size - 1)) {
+      yield [arr[i], ...rest]
+    }
+  }
+}
+
+/**
+ * Rule 'merged-rows': sổ ghi GỘP một dòng, nhà thẻ TÁCH ra nhiều dòng cùng ngày —
+ * cùng một khoản tiền, khác độ mịn. Vét cạn tổ hợp 2–4 (nhóm cùng ngày rất nhỏ, không
+ * làm subset-sum tổng quát) trên các dòng CHƯA khớp, KHÔNG phải điều chỉnh. Chỉ làm
+ * chiều này (sổ gộp, thẻ tách) — chiều ngược lại chưa thấy trong dữ liệu thật.
+ */
+function findMergedSubset(
+  target: number,
+  candidates: { l: StatementLine; used: boolean }[],
+): { l: StatementLine; used: boolean }[] | null {
+  const pool = candidates.filter((c) => !c.used && !c.l.isAdjustment)
+  for (let size = 2; size <= Math.min(4, pool.length); size++) {
+    for (const combo of combinations(pool, size)) {
+      if (combo.reduce((sum, c) => sum + c.l.amount, 0) === target) return combo
+    }
+  }
+  return null
+}
 
 /**
  * ĐIỀU KIỆN GỌI: `ledger` PHẢI đã lọc sẵn về đúng một thẻ (`cardId`) và đúng kỳ đang xét.
@@ -102,6 +149,7 @@ export function reconcileStatement(
   const explained: ReconcileResult['explained'] = []
   const extraInLedger: ReconcileResult['extraInLedger'] = []
   const missingFromLedger: StatementLine[] = []
+  const refundDiffs: ReconcileResult['refundDiffs'] = []
 
   // Dòng của các kỳ LIỀN KỀ, để nhận ra hai nguyên nhân "lệch một kỳ". Đây là lý do
   // màn nạp cho chọn nhiều file cùng lúc: một file lẻ không đủ dữ kiện.
@@ -129,6 +177,22 @@ export function reconcileStatement(
       explained.push({ cause: 'date-edge', label: `${edge.l.name} — thẻ ghi ${edge.l.iso}`, amount: a.amount })
       continue
     }
+    // Sổ ghi gộp một dòng, nhà thẻ tách nhiều dòng CÙNG NGÀY — cùng tiền, khác độ mịn.
+    const sameDay = stmt.filter((s) => s.l.iso === a.t.occurred_on)
+    const merged = findMergedSubset(a.amount, sameDay)
+    if (merged) {
+      merged.forEach((m) => (m.used = true))
+      explained.push({
+        cause: 'merged-rows',
+        label: `${merged.map((m) => m.l.name).join(' + ')} — sổ ghi gộp một dòng`,
+        amount: a.amount,
+      })
+      continue
+    }
+    if (a.t.is_refund) {
+      refundDiffs.push({ source: 'ledger', label: a.t.note ?? '', iso: a.t.occurred_on, amount: a.amount })
+      continue
+    }
     extraInLedger.push({ tx: a.t, amount: a.amount })
   }
 
@@ -142,8 +206,12 @@ export function reconcileStatement(
       explained.push({ cause: 'recalculated', label: `${s.l.name} — nhà thẻ tính lại`, amount: s.l.amount })
       continue
     }
+    if (s.l.isAdjustment) {
+      refundDiffs.push({ source: 'statement', label: s.l.name, iso: s.l.iso, amount: s.l.amount })
+      continue
+    }
     missingFromLedger.push(s.l)
   }
 
-  return { matchedCount, extraInLedger, missingFromLedger, explained }
+  return { matchedCount, extraInLedger, missingFromLedger, refundDiffs, explained }
 }

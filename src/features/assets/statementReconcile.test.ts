@@ -110,4 +110,40 @@ describe('reconcileStatement', () => {
     expect(r.explained).toHaveLength(0)
     expect(r.extraInLedger).toHaveLength(1)
   })
+
+  it('dong 調整額 khong khop di vao nhom hoan tien rieng, khong vao "can xem"', () => {
+    const r = reconcileStatement([line('2026-01-03', -7951, '調整額 · 極楽茶屋', true)], [], CARD, [])
+    expect(r.missingFromLedger).toHaveLength(0)
+    expect(r.refundDiffs).toEqual([
+      { source: 'statement', label: '調整額 · 極楽茶屋', iso: '2026-01-03', amount: -7951 },
+    ])
+  })
+
+  it('dong hoan tien trong so khong khop di vao nhom hoan tien rieng', () => {
+    const r = reconcileStatement([], [tx('2026-01-28', 6990, { is_refund: true, note: 'Uniqlo hoan' })], CARD, [])
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.refundDiffs).toHaveLength(1)
+    expect(r.refundDiffs[0]).toMatchObject({ source: 'ledger', amount: -6990 })
+  })
+
+  it('so ghi gop mot dong, the tach hai dong cung ngay -> giai thich duoc', () => {
+    const r = reconcileStatement(
+      [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-18', 732, 'ＴＥＭＵ')],
+      [tx('2026-06-18', 5880)],
+      CARD, [],
+    )
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.missingFromLedger).toHaveLength(0)
+    expect(r.explained.map((e) => e.cause)).toContain('merged-rows')
+  })
+
+  it('tong khop nhung KHAC NGAY thi KHONG duoc gop', () => {
+    const r = reconcileStatement(
+      [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-20', 732, 'ＴＥＭＵ')],
+      [tx('2026-06-18', 5880)],
+      CARD, [],
+    )
+    expect(r.explained.map((e) => e.cause)).not.toContain('merged-rows')
+    expect(r.extraInLedger).toHaveLength(1)
+  })
 })

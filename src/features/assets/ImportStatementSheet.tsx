@@ -196,6 +196,13 @@ export function ImportStatementSheet({ card, onClose }: Props) {
                 amount: l.amount,
               })),
             ]
+            const hoanTien = result.refundDiffs.map((d, i) => ({
+              key: `refund-${d.source}-${i}`,
+              chu: `${dayMonthLabel(d.iso)} · ${d.label || 'không ghi chú'} — ${
+                d.source === 'ledger' ? 'sổ có, thẻ không' : 'thẻ có, sổ không'
+              }`,
+              amount: d.amount,
+            }))
             const mo = moRong[p.range.closeISO] ?? false
             return (
               <section key={p.range.closeISO} className="mb-3">
@@ -230,6 +237,28 @@ export function ImportStatementSheet({ card, onClose }: Props) {
                       Cần bạn xem (<Num>{canXem.length}</Num>)
                     </p>
                     {canXem.map((d) => (
+                      <div key={d.key} className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="text-fg-muted">{d.chu}</span>
+                        <Money
+                          amount={Math.abs(d.amount)}
+                          currency={card.currency}
+                          tone={d.amount < 0 ? 'in' : 'out'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {hoanTien.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-fg-primary">
+                      Chênh lệch hoàn tiền (<Num>{hoanTien.length}</Num>)
+                    </p>
+                    <p className="text-2xs text-fg-muted">
+                      Nhà thẻ gộp nhiều khoản hoàn vào một dòng điều chỉnh nên hai bên hiếm khi
+                      khớp từng dòng.
+                    </p>
+                    {hoanTien.map((d) => (
                       <div key={d.key} className="flex items-baseline justify-between gap-2 text-sm">
                         <span className="text-fg-muted">{d.chu}</span>
                         <Money
@@ -289,7 +318,7 @@ export function ImportStatementSheet({ card, onClose }: Props) {
             <ActionButton
               variant="primary"
               onClick={luu}
-              disabled={lechNgay || upsert.isPending}
+              disabled={lechNgay || upsert.isPending || dangDocSo}
             >
               {upsert.isPending ? 'Đang lưu…' : 'Lưu'} <Num tone="onAccent">{reviewed.length}</Num>{' '}
               kỳ

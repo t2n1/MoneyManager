@@ -116,16 +116,24 @@ export function freePhaseStartYear(
 }
 
 /**
- * Năm bắt đầu mà một cú KÉO (mép trái, mép phải — trên chặng KẾ, hoặc kéo giữa) được phép
- * đưa chặng `id` tới, CHẶN CỨNG tại chặng liền kề — không bao giờ trùng hay vượt qua năm bắt
- * đầu của chặng trước/sau, nên hai chặng không bao giờ ĐỔI THỨ TỰ vì một cú kéo.
+ * Năm bắt đầu mà một cú KÉO MÉP (mép trái, và mép phải — ghi trên chặng KẾ) hoặc một cú
+ * ←/→ được phép đưa chặng `id` tới, CHẶN CỨNG tại chặng liền kề — không bao giờ trùng hay
+ * vượt qua năm bắt đầu của chặng trước/sau, nên hai chặng không bao giờ ĐỔI THỨ TỰ vì một
+ * cú dời NĂM.
+ *
+ * "Kéo GIỮA khối" từng cũng về đây (nó ghi `startYear` y như mép trái, chỉ theo độ lệch);
+ * từ 2026-09-10 cử chỉ đó là việc KHÁC — ĐỔI CHỖ hai chặng, đi qua `phaseOrder.ts` và
+ * không qua hàm này. Hai đường không được gộp: xem đầu `phaseOrder.ts`.
  *
  * KHÁC `clampPhaseStartYear` (dò năm TRỐNG gần nhất — có thể nhảy qua một chặng khác và đổi
  * thứ tự, đúng ý khi GÕ một năm cụ thể vào ô năm của dock: đó là hành động rõ ràng, có chủ
- * đích, và người dùng thấy ngay số mới trong ô). Một cú KÉO là cử chỉ liên tục — đi quá tay
+ * đích, và người dùng thấy ngay số mới trong ô). Kéo một MÉP là cử chỉ liên tục — đi quá tay
  * một chút là chuyện thường, không phải ý muốn "đổi thứ tự hai chặng", và việc đổi thứ tự đó
  * vô hình ngay lúc nó xảy ra (phát hiện review 2026-09-09: "dragging a phase edge past its
- * neighbour REORDERS the phases instead of stopping at the boundary"). Đúng bản vẽ
+ * neighbour REORDERS the phases instead of stopping at the boundary"). Bản 2026-09-10 KHÔNG
+ * lật lại điều đó: nó không mở lại đường đổi thứ tự cho cái mép, mà cho một cử chỉ RIÊNG
+ * (kéo giữa khối) — thứ chỉ có một nghĩa duy nhất, nên đi quá tay ở đó không phải là "làm
+ * hộ một việc người dùng không xin". Đúng bản vẽ
  * (README "Khối chặng đời": mép trái đổi `startYear` "chặn trong khoảng chặng trước/sau" —
  * CHẶN, không dò-rồi-nhảy).
  *

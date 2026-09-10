@@ -21,18 +21,50 @@
 //    không tắt thì khối trượt sau con trỏ. Ở đây tắt bằng cách BỎ class `motion-block` chứ
 //    không đè thời lượng — xem lời ghi ở chỗ dùng class đó.
 //
+// AI LÀM VIỆC GÌ (đổi 2026-09-10, người dùng chọn — đừng gộp lại làm một)
+//
+//   · HAI MÉP 9px → NĂM. Kéo mép trái đổi năm bắt đầu của khối này, mép phải đổi năm bắt
+//     đầu của khối kế. Chặn cứng tại hàng xóm, KHÔNG BAO GIỜ đổi thứ tự (review
+//     2026-09-09; ←/→ và ô năm trong dock cũng vậy).
+//   · GIỮA KHỐI → THỨ TỰ. Cầm giữa rồi trượt qua một chặng khác là ĐỔI CHỖ hai chặng, mỗi
+//     chặng giữ đúng số năm của mình. Phép tính ở `phaseOrder.ts`; cử chỉ ở `onDrag` dưới.
+//
+// Trước bản này, kéo GIỮA khối làm đúng cái việc mà mép trái làm (cùng ghi `startYear` của
+// chính nó, chỉ khác là theo độ lệch chứ theo vị trí tuyệt đối) — một bản trùng, và là chỗ
+// trống tự nhiên để nhận việc đổi chỗ. Hệ quả đã biết và đã cân: khối HẸP dưới
+// `EDGE_MIN_BLOCK_W` không vẽ mép, nên nó không còn đường đổi năm bằng con trỏ; năm đó vẫn
+// sửa được bằng ←/→ trên chính khối hoặc bằng ô năm trong dock — đúng lời ghi đã có ở
+// `EDGE_MIN_BLOCK_W`, không phải một miễn trừ mới.
+//
+// KHÔNG CÓ HOÀN TÁC cho việc sửa ở màn này (`undoStack.ts` chỉ lo việc XOÁ), nên đường thoát
+// của một cú đổi chỗ lỡ tay là kéo VỀ chỗ cũ trước khi nhả — và điều đó chỉ đúng nhờ ảnh
+// chụp lúc nhấn, xem đầu `phaseOrder.ts`.
+//
 // VÙNG CHẠM: khối cao 46px và hai mép chỉ rộng 9px, dưới hẳn sàn 44px của app. Miễn trừ
 // theo đúng tiền lệ đã ghi ở `AppRail.tsx`: sàn 44px là sàn cho NGÓN TAY, còn màn này bị
 // `xl:hidden` chặn dưới 1280px (spec §1 — "chỉ máy tính") nên con trỏ ở đây là chuột hoặc
 // bút, thứ trỏ đúng điểm. Và mọi năm hai cái mép sửa được đều sửa được bằng bàn phím qua
 // chính các khối (←/→) hoặc bằng ô năm trong dock, nên không có thao tác nào chỉ tồn tại
 // ở một vùng 9px.
-import { useCallback, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { makeXScale, xToYear } from './chartGeom'
 import { isActivationKey } from './keyboardActivation'
 import { blockPhaseStartYearAtNeighbours } from './phaseYear'
+import {
+  phaseDropIndex,
+  phaseSpans,
+  reorderPhaseStarts,
+  type PhaseSpan,
+  type PhaseStart,
+} from './phaseOrder'
 import { PhaseIcon } from './PlanDockParts'
 import { phaseColorKey } from './planColors'
 import { PLOT_LEFT, laneBlocks, plotRightOf, type LaneBlock } from './plotFrame'
@@ -82,6 +114,15 @@ interface Props {
   /** Khung nhìn hiện tại của đồ thị (zoom) — dải phải khớp đúng trục năm đó. */
   x0: number
   x1: number
+  /**
+   * Năm CUỐI của bản chiếu — dùng để biết chặng cuối dài bao nhiêu năm (nó không có năm
+   * kết thúc riêng, xem lời ghi 2 ở đầu file), thứ mà việc đổi chỗ bắt buộc phải biết.
+   *
+   * KHÔNG lấy `x1` thay cho nó: `x1` là mép khung nhìn và co lại khi phóng to, mà số năm
+   * của một chặng thì không được phụ thuộc mức phóng — phóng to rồi đổi chỗ sẽ ra một bố
+   * cục khác với lúc phóng nhỏ.
+   */
+  lastYear: number
   selectedId?: string
   /** Bấm (không kéo) — bật/tắt lựa chọn, tức mở/đóng bảng sửa trong dock. */
   onToggle: (id: string) => void
@@ -103,6 +144,16 @@ interface Props {
    * review cuối nhánh 2026-09-09, Finding 1).
    */
   onMoveStart: (id: string, year: number) => void
+  /**
+   * Ghi TRỌN một bố cục mới sau khi đổi chỗ — năm bắt đầu của TẤT CẢ các chặng, một lần.
+   *
+   * Không phải "đặt năm cho chặng id" như `onMoveStart`, và cố tình không dùng lại nó: đổi
+   * chỗ dời nhiều chặng cùng lúc, mà `onMoveStart` đi qua phép chặn tại hàng xóm — gọi nó
+   * từng chặng một thì chặng thứ hai bị chặn bởi chỗ mà chặng thứ nhất vừa dời tới. Lý do
+   * đầy đủ ở đầu `phaseOrder.ts`. Mảng RỖNG = không có gì để tính, chỗ ghi tự bỏ qua; còn
+   * "kéo về đúng chỗ cũ" thì KHÔNG rỗng — nó là bố cục gốc, và phải được ghi lại.
+   */
+  onReorder: (starts: readonly PhaseStart[]) => void
 }
 
 /** Bề rộng một mép kéo (bản vẽ: 9px). Vạch grip bên trong là 2×16px. */
@@ -121,9 +172,24 @@ interface DragKey {
   id: string
   mode: 'left' | 'right' | 'body'
   from: number
+  /**
+   * Bố cục các chặng LÚC NHẤN — ảnh chụp, không phải mảng sống, và `mode: 'body'` (đổi chỗ)
+   * tính hoàn toàn trên nó. Vì sao bắt buộc phải là ảnh chụp: xem đầu `phaseOrder.ts`.
+   */
+  spans: readonly PhaseSpan[]
 }
 
-export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMoveStart }: Props) {
+export function PhaseLane({
+  phases,
+  x0,
+  x1,
+  lastYear,
+  selectedId,
+  onToggle,
+  onSelect,
+  onMoveStart,
+  onReorder,
+}: Props) {
   // Đo hộp THẬT, cùng khuôn với vùng vẽ: dải này là `w-full` trong đúng cột chứa
   // `TimelinePlot`, nên hai phép đo ra cùng một bề ngang và hai trục năm khớp nhau ở mọi
   // cỡ chữ. Khai lề bằng `rem` rồi trộn với px của SVG mới là chỗ lệch (xem plotFrame.ts).
@@ -137,6 +203,18 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
   const sorted = useMemo(() => [...phases].sort((a, b) => a.startYear - b.startYear), [phases])
   const rank = useMemo(() => new Map(sorted.map((p, i) => [p.id, i])), [sorted])
   const byId = useMemo(() => new Map(phases.map((p) => [p.id, p])), [phases])
+  /** Bố cục "mỗi chặng chiếm bao nhiêu năm" — nguồn duy nhất cho cả hai đường đổi chỗ
+   *  (kéo giữa khối, và Alt+←/→). Giá trị của LƯỢT RENDER lúc nhấn chính là ảnh chụp mà
+   *  `DragKey.spans` giữ suốt lượt kéo. */
+  const spans = useMemo(() => phaseSpans(phases, lastYear), [phases, lastYear])
+
+  /**
+   * Cái đang được NHẤC, để hai chỗ dùng: (a) chỉ lượt kéo MÉP mới tắt transition — lượt đổi
+   * chỗ thì cần transition, nó là thứ làm cú tráo hai khối ĐỌC RA ĐƯỢC thay vì nhấp một
+   * cái; (b) tô nổi đúng khối đang cầm. `useYearDrag` chỉ trả một cờ `dragging` chung nên
+   * chỗ này phải tự giữ. Không cần dọn khi kéo xong: mọi chỗ đọc đều đi qua `drag.dragging`.
+   */
+  const [nhac, setNhac] = useState<DragKey | null>(null)
 
   const yearAt = useCallback(
     (clientX: number) => {
@@ -153,9 +231,25 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
     yearAt,
     // Mép phải ghi vào chặng KẾ, nên dock cũng phải nhắm vào chặng kế: không thì người
     // dùng kéo một mép rồi thấy bảng sửa của một chặng có năm đứng yên.
-    onLift: (k) => onSelect((k.mode === 'right' ? nextIdOf(sorted, k.id) : null) ?? k.id),
+    onLift: (k) => {
+      setNhac(k)
+      onSelect((k.mode === 'right' ? nextIdOf(sorted, k.id) : null) ?? k.id)
+    },
     onClick: (k) => onToggle(k.id),
     onDrag: (k, year, grabYear) => {
+      // GIỮA KHỐI = ĐỔI CHỖ, không đổi năm (người dùng chọn 2026-09-10). Phép tính thuần ở
+      // `phaseOrder.ts`, và nó chạy trên ẢNH CHỤP lúc nhấn (`k.spans`) chứ không trên
+      // `phases` của khung hình này: mỗi khung hình đều GHI vào nháp, nên đọc lại bố cục mà
+      // chính mình vừa dời là để con trỏ đứng yên gần một ranh giới mà hai chặng nhảy qua
+      // nhau liên tục.
+      if (k.mode === 'body') {
+        const to = phaseDropIndex(k.spans, k.id, year - grabYear)
+        // `-1` = chặng không còn trong ảnh chụp. Không ghi gì — đừng dựa vào việc
+        // `reorderPhaseStarts` cũng tự bỏ qua id lạ: một con số âm bơm vào chỗ nhận
+        // "vị trí" là thứ chỉ tình cờ vô hại.
+        if (to >= 0) onReorder(reorderPhaseStarts(k.spans, k.id, to))
+        return
+      }
       // CHẶN tại chặng liền kề, không dò-năm-trống-rồi-nhảy: `blockPhaseStartYearAtNeighbours`
       // (phaseYear.ts) — khác `clampPhaseStartYear` mà ô năm trong dock dùng, xem JSDoc ở đó
       // cho lý do. Kéo quá tay dừng SÁT chặng bên cạnh, không đổi thứ tự hai chặng.
@@ -172,20 +266,17 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
         if (next !== null) onMoveStart(next, blockPhaseStartYearAtNeighbours(phases, next, year))
         return
       }
-      if (k.mode === 'left') {
-        onMoveStart(k.id, blockPhaseStartYearAtNeighbours(phases, k.id, year))
-        return
-      }
-      // Kéo phần GIỮA: dời theo ĐỘ LỆCH so với chỗ đã cầm, không nhảy tới năm dưới con
-      // trỏ. Bản vẽ nối `onDown` của khối vào cùng handler với mép trái (dòng 1529–1530),
-      // tức cầm giữa một khối rộng 14 năm rồi nhích 1px là năm bắt đầu NHẢY tới giữa khối
-      // — chặng co lại còn một nửa vì một cú nhích. Ở đây khối trượt theo con trỏ và giữ
-      // đúng chỗ cầm; `from` là năm lúc NHẤN nên độ lệch không dồn sai qua từng khung. Vẫn
-      // qua cùng phép chặn hàng xóm — kéo giữa một khối RỘNG tới sát chặng bên cạnh cũng
-      // phải dừng, không co khối đó về 0 hay âm.
-      onMoveStart(k.id, blockPhaseStartYearAtNeighbours(phases, k.id, k.from + (year - grabYear)))
+      // Chỉ còn MÉP TRÁI tới được đây (mép phải đã `return` ở trên, giữa khối cũng vậy).
+      onMoveStart(k.id, blockPhaseStartYearAtNeighbours(phases, k.id, year))
     },
   })
+
+  // Chỉ lượt kéo MÉP mới tắt transition (lời ghi 4 ở đầu file): mép phải trượt SÁT con
+  // trỏ. Lượt ĐỔI CHỖ thì ngược lại — khối không đi theo con trỏ mà nhảy vào ô của nó, nên
+  // 180ms của `motion-block` là thứ duy nhất cho người dùng thấy hai khối vừa tráo nhau chứ
+  // không phải màn hình vừa nhấp một cái.
+  const keoMep = drag.dragging && nhac !== null && nhac.mode !== 'body'
+  const dangDoiCho = drag.dragging && nhac?.mode === 'body' ? nhac.id : null
 
   return (
     // `h-[2.875rem]` = 46px của bản vẽ ở cỡ chữ Vừa (spec §5), dạng `rem` nên nó co theo
@@ -194,7 +285,7 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
       ref={attachBox}
       className="relative h-[2.875rem] w-full select-none"
       role="group"
-      aria-label="Dải chặng đời — bấm một khối để sửa, kéo để dời năm, kéo mép để dài hoặc ngắn"
+      aria-label="Dải chặng đời — bấm một khối để sửa, kéo giữa khối để đổi chỗ hai chặng, kéo mép để đổi năm"
     >
       {blocks.map((b) => {
         const p = byId.get(b.id)
@@ -214,7 +305,13 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
               colorKey={k}
               selected={selectedId === b.id}
               dragging={drag.dragging}
-              onPointerDown={(e) => drag.start({ id: b.id, mode: 'body', from: b.startYear }, e)}
+              snap={keoMep}
+              carrying={dangDoiCho === b.id}
+              onPointerDown={(e) =>
+                // `spans` của LƯỢT RENDER này = ảnh chụp lúc nhấn, thứ mà cả lượt kéo sẽ
+                // tính trên đó (xem `DragKey.spans`).
+                drag.start({ id: b.id, mode: 'body', from: b.startYear, spans }, e)
+              }
               surface={drag.surface}
               onToggle={onToggle}
               // Phát hiện review 2026-09-09, Finding 2: cộng thẳng `step` rồi gọi
@@ -229,14 +326,26 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
               onNudge={(step) =>
                 onMoveStart(b.id, blockPhaseStartYearAtNeighbours(phases, b.id, b.startYear + step))
               }
+              // Đường BÀN PHÍM của việc đổi chỗ. Bắt buộc phải có: repo này coi một tương
+              // tác chỉ-dùng-chuột là một lỗi (lời ghi ở LifetimeChartCard.tsx:1358), và
+              // `onNudge` ngay trên chỉ đổi NĂM — sau bản này nó không còn là đường bàn phím
+              // của việc kéo giữa khối nữa, vì kéo giữa khối đã đổi việc.
+              //
+              // Đọc `spans` SỐNG (không ảnh chụp): một cú bấm là một việc rời, xong ngay,
+              // không có chuỗi khung hình nào để trôi — khác hẳn lượt kéo. Và `i + step` đúng
+              // là con số `reorderPhaseStarts` chờ: nó rút chặng ra rồi chèn lại ở vị trí đó.
+              onSwap={(step) => {
+                const i = spans.findIndex((sp) => sp.id === b.id)
+                if (i !== -1) onReorder(reorderPhaseStarts(spans, b.id, i + step))
+              }}
             />
             {showEdges && !b.first && (
               <EdgeHandle
                 left={b.left}
                 colorKey={k}
-                dragging={drag.dragging}
+                snap={keoMep}
                 title={`Kéo mép để đổi năm bắt đầu của "${p.label}" — đang là ${b.startYear}`}
-                onPointerDown={(e) => drag.start({ id: b.id, mode: 'left', from: b.startYear }, e)}
+                onPointerDown={(e) => drag.start({ id: b.id, mode: 'left', from: b.startYear, spans }, e)}
                 surface={drag.surface}
               />
             )}
@@ -244,9 +353,9 @@ export function PhaseLane({ phases, x0, x1, selectedId, onToggle, onSelect, onMo
               <EdgeHandle
                 left={b.left + b.width - EDGE_W}
                 colorKey={k}
-                dragging={drag.dragging}
+                snap={keoMep}
                 title={`Kéo mép để đổi năm kết thúc của "${p.label}" — đang là ${b.endYear}. Mép này dời năm bắt đầu của chặng kế tiếp.`}
-                onPointerDown={(e) => drag.start({ id: b.id, mode: 'right', from: b.startYear }, e)}
+                onPointerDown={(e) => drag.start({ id: b.id, mode: 'right', from: b.startYear, spans }, e)}
                 surface={drag.surface}
               />
             )}
@@ -268,12 +377,24 @@ interface BlockProps {
   phase: LanePhase
   colorKey: TagColorKey
   selected: boolean
+  /** Có LƯỢT KÉO nào đang chạy trên dải — chỉ dùng cho con trỏ (`grabbing`). */
   dragging: boolean
+  /**
+   * Tắt transition. CHỈ bật cho lượt kéo MÉP (lời ghi 4 ở đầu file: mép phải trượt sát con
+   * trỏ). Lượt ĐỔI CHỖ để nguyên transition — khối không đi theo con trỏ mà nhảy vào ô của
+   * nó, nên 180ms đó là thứ duy nhất cho thấy hai khối vừa TRÁO NHAU.
+   */
+  snap: boolean
+  /** Chính khối này đang được nhấc để đổi chỗ — tô nổi lên. */
+  carrying: boolean
   onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void
   surface: DragSurface
   /** Bấm (chuột) HOẶC Enter/Space (bàn phím) — bật/tắt lựa chọn. Xem Finding 1 ở `onKeyDown`. */
   onToggle: (id: string) => void
+  /** ←/→ — đổi NĂM một bước, chặn tại hàng xóm. */
   onNudge: (step: number) => void
+  /** Alt+←/→ — ĐỔI CHỖ một bậc trong thứ tự các chặng. */
+  onSwap: (step: number) => void
 }
 
 function PhaseBlock({
@@ -282,16 +403,19 @@ function PhaseBlock({
   colorKey,
   selected,
   dragging,
+  snap,
+  carrying,
   onPointerDown,
   surface,
   onToggle,
   onNudge,
+  onSwap,
 }: BlockProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
-      title={`Chặng "${phase.label}" · ${block.startYear}–${block.endYear} · bấm để sửa, kéo để dời, ←/→ dời một năm`}
+      title={`Chặng "${phase.label}" · ${block.startYear}–${block.endYear} · bấm để sửa · kéo giữa khối để đổi chỗ với chặng khác · ←/→ dời một năm · Alt+←/→ đổi chỗ`}
       style={
         {
           left: block.left,
@@ -315,9 +439,14 @@ function PhaseBlock({
       // TƯƠI — hai cách tô từ cùng bảy khoá màu là cách giữ đúng ý bản vẽ ("hai dải phải
       // khác nhau rõ rệt") mà không mở rộng bảng màu dùng chung của app.
       className={`absolute inset-y-0 flex flex-col justify-center overflow-hidden rounded-md border px-2.5 text-left ${
-        dragging ? '' : 'motion-block'
+        snap ? '' : 'motion-block'
       } ${TAG_CHIP_CLASS[colorKey]} ${
         selected ? 'border-accent ring-2 ring-accent' : 'border-border-strong'
+      } ${
+        // Đang được nhấc để đổi chỗ: nâng lên trên hai cái mép (`z-10`) và đổ bóng. Cùng
+        // dấu hiệu mà `DragList` ở Danh mục đã dùng cho hàng đang kéo (`shadow-md` + nâng
+        // lớp) — không phát minh một dấu hiệu thứ hai cho cùng một việc.
+        carrying ? 'z-20 shadow-md' : ''
       }`}
       onPointerDown={onPointerDown}
       {...surface}
@@ -337,7 +466,17 @@ function PhaseBlock({
         // ←/→ dời chặng đang chọn một năm, đúng bảng "Bàn phím" của README.
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
         e.preventDefault()
-        onNudge(e.key === 'ArrowLeft' ? -1 : 1)
+        const buoc = e.key === 'ArrowLeft' ? -1 : 1
+        // Alt = ĐỔI CHỖ (một bậc trong thứ tự), không Alt = đổi NĂM (một năm). Cùng cặp
+        // phím vì cùng một trục: người dùng đã ở trong đầu "sang trái / sang phải", chỉ
+        // khác cái được dời là THỨ TỰ hay là NĂM. Chọn Alt chứ không Shift: Shift+←/→ là
+        // bôi đen của hệ điều hành, và chọn Ctrl thì đá vào phím cuộn/thu-phóng của trình
+        // duyệt trên một số bàn phím.
+        if (e.altKey) {
+          onSwap(buoc)
+          return
+        }
+        onNudge(buoc)
       }}
     >
       <span className="flex min-w-0 items-center gap-1.5">
@@ -375,14 +514,15 @@ function PhaseBlock({
 function EdgeHandle({
   left,
   colorKey,
-  dragging,
+  snap,
   title,
   onPointerDown,
   surface,
 }: {
   left: number
   colorKey: TagColorKey
-  dragging: boolean
+  /** Tắt transition trong lúc kéo mép — xem `snap` ở `BlockProps`. */
+  snap: boolean
   title: string
   onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void
   surface: DragSurface
@@ -393,7 +533,7 @@ function EdgeHandle({
       title={title}
       style={{ left, width: EDGE_W, touchAction: 'none' } as CSSProperties}
       className={`absolute inset-y-0 z-10 flex cursor-ew-resize items-center justify-center ${
-        dragging ? '' : 'motion-block'
+        snap ? '' : 'motion-block'
       }`}
       onPointerDown={onPointerDown}
       {...surface}

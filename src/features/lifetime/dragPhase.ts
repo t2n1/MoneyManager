@@ -1,4 +1,10 @@
-// Đường GHI của một cú KÉO trên dải chặng đời — THUẦN, không React.
+// Đường GHI của một cú dời NĂM trên dải chặng đời — THUẦN, không React.
+//
+// PHẠM VI (thu lại 2026-09-10): kéo mép trái · kéo mép phải (ghi trên chặng kế) · ←/→. Kéo
+// GIỮA khối chặng KHÔNG còn về đây — cử chỉ đó nay là ĐỔI CHỖ hai chặng, một việc khác hẳn
+// (ghi năm của NHIỀU chặng một lần) và đi qua `phaseOrder.ts`. Đừng nối nó lại vào đây: hàm
+// dưới chặn tại hàng xóm, nên gọi nó lần lượt cho từng chặng của một cú đổi chỗ thì chặng
+// thứ hai bị chặn bởi chỗ mà chặng thứ nhất vừa dời tới.
 //
 // VÌ SAO CÓ FILE NÀY (phát hiện review CUỐI NHÁNH 2026-09-09, Finding 1, CRITICAL). Kéo
 // từng đi qua HAI phép chặn: `PhaseLane` chặn tại hàng xóm
@@ -35,8 +41,8 @@ import { patchDraftPhase, type ScenarioDraft } from './draft'
 import { blockPhaseStartYearAtNeighbours } from './phaseYear'
 
 /**
- * Ghi năm bắt đầu do một cú KÉO (mép trái · mép phải trên chặng kế · kéo giữa · `←`/`→`)
- * vào bản nháp, đã chặn tại hàng xóm.
+ * Ghi năm bắt đầu do một cú KÉO MÉP (mép trái · mép phải trên chặng kế) hoặc ←/→ vào bản
+ * nháp, đã chặn tại hàng xóm.
  *
  * `id` không có trong nháp thì trả nguyên bản nháp (`patchDraftPhase` tự lo) — không ném
  * lỗi: một cú kéo trên thứ vừa bị xoá không được làm sập màn hình.

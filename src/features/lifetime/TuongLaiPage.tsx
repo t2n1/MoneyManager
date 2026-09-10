@@ -75,6 +75,7 @@ import { changeParts } from './draftText'
 import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
+import { setPhaseStarts, type PhaseStart } from './phaseOrder'
 import { PhaseLane } from './PhaseLane'
 import { phasePresetToDraft, type PhasePreset } from './phasePresets'
 import { PhaseRowTools } from './PhaseRowTools'
@@ -963,8 +964,9 @@ function TuongLaiConsole() {
   )
 
   /**
-   * Dời năm bắt đầu của một chặng bằng một cú KÉO trên dải (kéo khối, kéo hai mép, và `←`/`→`
-   * bắt trên chính khối). Ô NĂM trong dock KHÔNG về đây — nó tự chặn bằng
+   * Dời năm bắt đầu của một chặng bằng một cú KÉO trên dải (kéo hai MÉP, và `←`/`→` bắt
+   * trên chính khối; kéo GIỮA khối từ 2026-09-10 là việc khác — xem `reorderPhases` ngay
+   * dưới). Ô NĂM trong dock KHÔNG về đây — nó tự chặn bằng
    * `clampPhaseStartYear` (`PlanDockPhase.tsx`), cố tình khác hành vi.
    *
    * MỘT phép chặn duy nhất, `blockPhaseStartYearAtNeighbours`, và chặn ngay trong mutator
@@ -980,6 +982,21 @@ function TuongLaiConsole() {
    */
   const dragPhaseStartYear = useCallback(
     (id: string, wanted: number) => editDraft((d) => dragPhaseStart(d, id, wanted)),
+    [editDraft],
+  )
+
+  /**
+   * ĐỔI CHỖ hai chặng (kéo GIỮA khối trên dải, hoặc Alt+←/→ trên khối đang chọn).
+   *
+   * Writer này CỐ TÌNH ngu: cả phép tính nằm ở `phaseOrder.ts` (thuần, có phép thử), chỗ đây
+   * chỉ đổ một bố cục đã tính sẵn vào nháp. Không chặn lại lần nữa — và đó là bài học đắt
+   * nhất của màn này: đường KÉO từng đi qua hai phép chặn mắc nối tiếp, hai hàm đúng ghép
+   * thành sai (review cuối nhánh 2026-09-09, Finding 1). `setPhaseStarts` tự từ chối một bố
+   * cục không phủ đủ các chặng đang có, tức phép kiểm duy nhất ở đây là "đủ bộ hay không",
+   * không phải một luật thứ hai về năm.
+   */
+  const reorderPhases = useCallback(
+    (starts: readonly PhaseStart[]) => editDraft((d) => setPhaseStarts(d, starts)),
     [editDraft],
   )
 
@@ -2117,6 +2134,7 @@ function TuongLaiConsole() {
             phases={working.phases}
             x0={laneX0}
             x1={laneX1}
+            lastYear={lastYear}
             selectedId={sel.type === 'phase' ? sel.id : undefined}
             onSelect={(id) => setSel({ type: 'phase', id })}
             onToggle={(id) =>
@@ -2125,6 +2143,7 @@ function TuongLaiConsole() {
               )
             }
             onMoveStart={dragPhaseStartYear}
+            onReorder={reorderPhases}
           />
 
         </div>

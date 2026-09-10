@@ -116,3 +116,50 @@ describe('pageOrderFor', () => {
     for (const t of stray) expect(DATA_TABLES).toContain(t as DataTable)
   })
 })
+
+// Chiều NGƯỢC của bài test trên: mọi bảng migration tạo ra mang cột `user_id` (tức dữ
+// liệu RIÊNG của một người dùng) phải nằm trong DATA_TABLES, trừ khi khai rõ lý do ở
+// allow-list dưới đây. Bắt đúng lớp lỗi Task 7: `card_bills` có user_id, ăn cascade từ
+// accounts, nhưng chưa từng lọt vào exportAll/importAll của supabaseRepo — nên restore
+// xoá accounts là xoá luôn card_bills, không gì chèn lại. `demoRepo` xuất/nhập bảng này
+// từ đầu nên demoRepo.test.ts/backupImport.test.ts xanh trong khi đường thật đã hỏng.
+describe('bảng nào có user_id cũng phải nằm trong DATA_TABLES', () => {
+  /**
+   * Bảng có `user_id` nhưng CỐ Ý không xuất/khôi phục — mỗi dòng phải nói rõ lý do, để
+   * lần thêm bảng mới không vô tình lọt qua đường sao lưu như `card_bills` đã từng.
+   */
+  const EXCLUDED_TABLES_WITH_USER_ID: readonly string[] = [
+    // profiles: đã có field `profile` riêng (số ít) trong BackupData qua getProfile(),
+    // không đi qua cơ chế DATA_TABLES/selectAll dành cho bảng nhiều-dòng.
+    'profiles',
+    // notification_state: trạng thái "đã báo hay chưa" của một THIẾT BỊ cụ thể — mang
+    // theo khi khôi phục sang máy khác là im lặng bỏ lỡ thông báo lẽ ra phải bắn lại.
+    'notification_state',
+    // fx_history: cache tỷ giá quá khứ, tự nạp lại được từ API tỷ giá — không phải dữ
+    // liệu người dùng tự tay tạo, mất thì gọi lại API là có.
+    'fx_history',
+    // push_subscriptions: gắn với TRÌNH DUYỆT/thiết bị cụ thể — mang sang máy khác là
+    // giữ một endpoint đã chết, gửi push vào đó chỉ tổ lỗi im lặng.
+    'push_subscriptions',
+  ]
+
+  it('mọi bảng có cột user_id đều xuất hiện trong DATA_TABLES hoặc allow-list', () => {
+    for (const [table, cols] of COLUMNS) {
+      if (!cols.has('user_id')) continue
+      const daXuat = (DATA_TABLES as readonly string[]).includes(table)
+      const coLoaiTru = EXCLUDED_TABLES_WITH_USER_ID.includes(table)
+      expect(
+        daXuat || coLoaiTru,
+        `${table}: có user_id nhưng không nằm trong DATA_TABLES, cũng không có trong allow-list — kiểm tra đường sao lưu supabaseRepo.exportAll/importAll`,
+      ).toBe(true)
+    }
+  })
+
+  it('allow-list không chứa bảng đã được thêm vào DATA_TABLES thật rồi', () => {
+    // Bảng nào lên DATA_TABLES thì bỏ khỏi allow-list — còn tên ở cả hai là dấu hiệu
+    // ai đó copy-paste danh sách mà quên xoá.
+    for (const table of EXCLUDED_TABLES_WITH_USER_ID) {
+      expect((DATA_TABLES as readonly string[]).includes(table), table).toBe(false)
+    }
+  })
+})

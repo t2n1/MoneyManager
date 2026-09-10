@@ -14,6 +14,7 @@ export const DATA_TABLES = [
   'debt_payments',
   'recurring_rules',
   'account_valuations',
+  'card_bills',
   'savings_goals',
   'relatives',
   'trips',

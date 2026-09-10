@@ -807,7 +807,7 @@ export function AccountDetailPage() {
               />
             )}
           </div>
-          {billGap != null && billGap !== 0 && (
+          {!isLoading && billGap != null && billGap !== 0 && (
             <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
               {/* HAI NHÃN thay vì một nhãn + dấu: `<Money showSign>` lấy dấu từ `tone`, không
                   từ con số, nên một nhãn duy nhất không thể nói đúng chiều. Tiền lệ ngay trên

@@ -771,7 +771,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
     const backup = await demoRepo.exportAll()
     // Số cứng chứ không import BACKUP_VERSION: nâng phiên bản là việc phải CỐ Ý, và
     // test này đỏ lên đúng lúc đó để nhớ kiểm cả nhánh nhập file bản cũ.
-    expect(backup.version).toBe(12)
+    expect(backup.version).toBe(13)
     expect(Array.isArray(backup.stockTrades)).toBe(true)
 
     await demoRepo.importAll(backup)

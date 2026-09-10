@@ -58,8 +58,15 @@ const dayGap = (a: string, b: string) =>
  * Dấu của một dòng sổ theo cách repo ghi tiền: hoàn tiền là `expense` + `is_refund`,
  * KHÔNG phải `income` (xem `aggregate.ts: expenseSign`). Đọc nhầm chỗ này là mọi khoản
  * hoàn đảo dấu và không dòng nào ghép được.
+ *
+ * `income` trên một tài khoản THẺ cũng mang dấu âm ở đây, dù không phải hoàn tiền: nó
+ * khớp cách `txBalanceDelta` (`lib/cardBalance.ts`) tính số dư — tiền `income` trên thẻ
+ * CỘNG vào số dư, cùng chiều với hoàn tiền, ngược chiều với một khoản chi thật. Không có
+ * gì cấm ghi `income` trên thẻ (`assertTxShape` chỉ ràng buộc transfer/category), nên bỏ
+ * qua nhánh này là một khoản `income` bị ghép nhầm với một khoản CHI thật cùng số tiền —
+ * `matchedCount` tăng sai, và khoản chi thật bị nuốt mất khỏi "Cần bạn xem".
  */
-const signedAmount = (t: LedgerTx) => (t.is_refund ? -t.amount : t.amount)
+const signedAmount = (t: LedgerTx) => (t.type === 'income' || t.is_refund ? -t.amount : t.amount)
 
 /**
  * Rổ sổ dùng để đối chiếu, loại đúng những gì `cardMonthCharge` loại — hai chỗ phải nói

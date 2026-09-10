@@ -144,9 +144,10 @@ export interface BackupData {
 
 /**
  * Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng.
- * v12: thêm fundTrades — sổ lệnh quỹ đầu tư Nhật.
+ * v12: thêm fundTrades — sổ lệnh quỹ đầu tư Nhật. v13: thêm cardBills — hoá đơn thẻ
+ * do nhà thẻ đòi (migration 0070).
  */
-export const BACKUP_VERSION = 12
+export const BACKUP_VERSION = 13
 
 export interface NewTransaction {
   type: TransactionType

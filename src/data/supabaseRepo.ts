@@ -2029,6 +2029,7 @@ export const supabaseRepo: Repo = {
       debtPayments,
       recurringRules,
       accountValuations,
+      cardBills,
       savingsGoals,
       relatives,
       trips,
@@ -2058,6 +2059,7 @@ export const supabaseRepo: Repo = {
       selectAll<DebtPaymentRow>('debt_payments'),
       selectAll<RecurringRuleRow>('recurring_rules'),
       selectAll<AccountValuationRow>('account_valuations'),
+      selectAll<CardBillRow>('card_bills'),
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<RelativeRow>('relatives'),
       selectAll<TripRow>('trips'),
@@ -2090,6 +2092,7 @@ export const supabaseRepo: Repo = {
       debtPayments,
       recurringRules,
       accountValuations,
+      cardBills,
       savingsGoals,
       relatives,
       trips,
@@ -2263,6 +2266,9 @@ export const supabaseRepo: Repo = {
     // 1) Xóa dữ liệu hiện có theo thứ tự con → cha (tránh vướng FK)
     const deleteOrder: DataTable[] = [
       'account_valuations',
+      // card_bills: composite FK tới accounts → xoá trước accounts, cùng lý do
+      // account_valuations ở trên.
+      'card_bills',
       'savings_goals',
       'networth_snapshots',
       'health_snapshots',
@@ -2520,6 +2526,22 @@ export const supabaseRepo: Repo = {
               source: v.source,
             })),
         (part) => sb.from('account_valuations').insert(part),
+      )
+    }
+
+    // card_bills: composite FK tới accounts → chèn sau accounts. Gửi rõ mọi cột thay
+    // vì trông cậy default, cùng lý do account_valuations ở trên.
+    if (data.cardBills?.length) {
+      await insertChunked(
+            data.cardBills.map((b) => ({
+              id: b.id,
+              user_id: uid,
+              account_id: b.account_id,
+              close_date: b.close_date,
+              due_date: b.due_date,
+              total: b.total,
+            })),
+        (part) => sb.from('card_bills').insert(part),
       )
     }
 

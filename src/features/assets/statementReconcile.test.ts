@@ -146,4 +146,15 @@ describe('reconcileStatement', () => {
     expect(r.explained.map((e) => e.cause)).not.toContain('merged-rows')
     expect(r.extraInLedger).toHaveLength(1)
   })
+
+  it('income tren the mang dau am, khong ghep nham voi mot khoan chi that', () => {
+    const r = reconcileStatement(
+      [line('2026-06-05', 5000, 'Mot khoan chi that')],
+      [tx('2026-06-05', 5000, { type: 'income' })],
+      CARD, [],
+    )
+    expect(r.matchedCount).toBe(0)
+    expect(r.missingFromLedger).toHaveLength(1)
+    expect(r.extraInLedger).toHaveLength(1)
+  })
 })

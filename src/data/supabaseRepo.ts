@@ -14,6 +14,7 @@ import type {
   AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
+  CardBillRow,
   CategoryRow,
   CategoryType,
   DebtPaymentRow,
@@ -61,6 +62,7 @@ import {
   type LifePhasePatch,
   type LifeScenarioPatch,
   type NewAccount,
+  type NewCardBill,
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
@@ -570,6 +572,40 @@ export const supabaseRepo: Repo = {
   async deleteValuation(id: string) {
     const { error } = await getSupabase().from('account_valuations').delete().eq('id', id)
     if (error) throw error
+  },
+
+  async getCardBills() {
+    // Phân trang: mỗi (thẻ × kỳ) một dòng. Vài thẻ × vài năm chưa chạm 1.000, nhưng
+    // đi qua fetchAllPages là luật của repo — và bị cắt ở đây thì panel im lặng rơi
+    // về "chưa có sao kê" cho các kỳ cũ, một kiểu sai không ai nhìn ra.
+    return await fetchAllPages<CardBillRow>(async (from, to) =>
+      getSupabase()
+        .from('card_bills')
+        .select('*')
+        .order('close_date', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
+  },
+
+  async upsertCardBills(rows: NewCardBill[]) {
+    if (rows.length === 0) return []
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('card_bills')
+      .upsert(
+        rows.map((r) => ({
+          user_id,
+          account_id: r.account_id,
+          close_date: r.close_date,
+          due_date: r.due_date,
+          total: r.total,
+        })),
+        { onConflict: 'account_id,close_date' },
+      )
+      .select()
+    if (error) throw error
+    return data as CardBillRow[]
   },
 
   async getStockPrices() {

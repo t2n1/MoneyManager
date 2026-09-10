@@ -19,6 +19,7 @@ import type {
   AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
+  CardBillRow,
   CategoryRow,
   CategoryKind,
   CategoryType,
@@ -74,6 +75,7 @@ import {
   type LifePhasePatch,
   type LifeScenarioPatch,
   type NewAccount,
+  type NewCardBill,
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
@@ -224,6 +226,7 @@ interface DemoDB {
   debtPayments: DebtPaymentRow[]
   recurringRules: RecurringRuleRow[]
   accountValuations: AccountValuationRow[]
+  cardBills: CardBillRow[]
   stockTrades: StockTradeRow[]
   stockPrices: StockPriceRow[]
   /**
@@ -1024,6 +1027,7 @@ function seed(): DemoDB {
     debtPayments,
     recurringRules: [luongRule],
     accountValuations,
+    cardBills: [],
     stockTrades,
     stockPrices,
     funds,
@@ -1474,6 +1478,43 @@ export const demoRepo: Repo = {
     const db = load()
     db.accountValuations = (db.accountValuations ?? []).filter((v) => v.id !== id)
     save(db)
+  },
+
+  async getCardBills() {
+    return (load().cardBills ?? [])
+      .slice()
+      .sort((a, b) => b.close_date.localeCompare(a.close_date))
+  },
+
+  async upsertCardBills(rows: NewCardBill[]) {
+    const db = load()
+    db.cardBills ??= []
+    const out: CardBillRow[] = []
+    for (const r of rows) {
+      // Đè theo (account_id, close_date) — khớp unique của Postgres
+      const existing = db.cardBills.find(
+        (b) => b.account_id === r.account_id && b.close_date === r.close_date,
+      )
+      if (existing) {
+        existing.due_date = r.due_date
+        existing.total = r.total
+        out.push(existing)
+        continue
+      }
+      const row: CardBillRow = {
+        id: uuid(),
+        user_id: DEMO_USER,
+        account_id: r.account_id,
+        close_date: r.close_date,
+        due_date: r.due_date,
+        total: r.total,
+        created_at: new Date().toISOString(),
+      }
+      db.cardBills.push(row)
+      out.push(row)
+    }
+    save(db)
+    return out
   },
 
   async getStockPrices() {
@@ -3046,6 +3087,7 @@ export const demoRepo: Repo = {
       debtPayments: db.debtPayments ?? [],
       recurringRules: db.recurringRules ?? [],
       accountValuations: db.accountValuations ?? [],
+      cardBills: db.cardBills ?? [],
       stockTrades: db.stockTrades ?? [],
       fundTrades: db.fundTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
@@ -3123,6 +3165,7 @@ export const demoRepo: Repo = {
       debtPayments: stamp(data.debtPayments ?? []),
       recurringRules: stamp(data.recurringRules ?? []),
       accountValuations: stamp(data.accountValuations ?? []),
+      cardBills: stamp(data.cardBills ?? []),
       stockTrades: stamp(data.stockTrades ?? []),
       fundTrades: stamp(data.fundTrades ?? []),
       stockPrices,

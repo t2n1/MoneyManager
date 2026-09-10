@@ -1734,3 +1734,35 @@ describe('trips (migration 0058)', () => {
     expect(starts).toEqual([...starts].sort())
   })
 })
+
+describe('card_bills', () => {
+  it('upsert nhieu ky mot lan, va de theo (account_id, close_date)', async () => {
+    const accs = await demoRepo.getAccounts()
+    const card = accs.find((a) => a.type === 'card')!
+
+    await demoRepo.upsertCardBills([
+      { account_id: card.id, close_date: '2026-06-30', due_date: '2026-07-27', total: 158429 },
+      { account_id: card.id, close_date: '2026-07-31', due_date: '2026-08-27', total: 191925 },
+    ])
+    let bills = await demoRepo.getCardBills()
+    expect(bills.filter((b) => b.account_id === card.id)).toHaveLength(2)
+
+    // Nạp lại cùng kỳ với số khác → ĐÈ, không thêm hàng mới
+    await demoRepo.upsertCardBills([
+      { account_id: card.id, close_date: '2026-06-30', due_date: '2026-07-27', total: 999 },
+    ])
+    bills = await demoRepo.getCardBills()
+    expect(bills.filter((b) => b.account_id === card.id)).toHaveLength(2)
+    expect(bills.find((b) => b.close_date === '2026-06-30')!.total).toBe(999)
+  })
+
+  it('total am duoc giu nguyen', async () => {
+    const accs = await demoRepo.getAccounts()
+    const card = accs.find((a) => a.type === 'card')!
+    await demoRepo.upsertCardBills([
+      { account_id: card.id, close_date: '2026-05-31', due_date: '2026-06-29', total: -4200 },
+    ])
+    const bills = await demoRepo.getCardBills()
+    expect(bills.find((b) => b.close_date === '2026-05-31')!.total).toBe(-4200)
+  })
+})

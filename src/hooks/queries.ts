@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { NewLifetimeVerdictSnapshot } from '../data/repo'
+import type { NewCardBill, NewLifetimeVerdictSnapshot } from '../data/repo'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   repo,
@@ -621,6 +621,26 @@ export function useDeleteValuation() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteValuation(id),
     onSettled: () => invalidateValuations(qc),
+  })
+}
+
+// --- Thẻ tín dụng: hoá đơn nhà thẻ đòi (migration 0070) ---
+
+export function useCardBills() {
+  return useQuery({
+    queryKey: ['cardBills'],
+    queryFn: () => repo.getCardBills(),
+    staleTime: 60_000,
+  })
+}
+
+export function useUpsertCardBills() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (rows: NewCardBill[]) => repo.upsertCardBills(rows),
+    // CHỈ 'cardBills': hoá đơn không đụng số dư, không đụng giao dịch. Invalidate
+    // rộng hơn là bắt cả app tải lại vì một con số chỉ panel thẻ đọc.
+    onSettled: () => qc.invalidateQueries({ queryKey: ['cardBills'] }),
   })
 }
 

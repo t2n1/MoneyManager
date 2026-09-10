@@ -8,6 +8,7 @@ import type {
   AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
+  CardBillRow,
   CategoryRow,
   CategoryKind,
   CategoryType,
@@ -88,6 +89,8 @@ export interface BackupData {
   recurringRules: RecurringRuleRow[]
   /** Đầu tư (mục AE); vắng mặt ở backup v1. */
   accountValuations?: AccountValuationRow[]
+  /** Hoá đơn thẻ do nhà thẻ đòi (migration 0070); vắng mặt ở mọi backup trước đó. */
+  cardBills?: CardBillRow[]
   /** Mục tiêu tiết kiệm (mục AD); vắng mặt ở backup v1/v2. */
   savingsGoals?: SavingsGoalRow[]
   /** Người thân nhận tiền (migration 0056); vắng mặt ở mọi backup trước đó. */
@@ -433,6 +436,17 @@ export interface NewValuation {
   note: string
 }
 
+/** Một kỳ hoá đơn thẻ do nhà thẻ đòi. `user_id` do tầng repo tự điền. */
+export interface NewCardBill {
+  account_id: string
+  /** Ngày chốt kỳ, khớp `cardBillingRange().closeISO`. */
+  close_date: string
+  /** Ngày bị rút, đã dời T7/CN. */
+  due_date: string
+  /** minor units; âm là hợp lệ. */
+  total: number
+}
+
 /** Một lệnh mua/bán/điều chỉnh cổ phiếu (migration 0035). Mọi số ở đồng. */
 export interface NewStockTrade {
   account_id: string
@@ -697,6 +711,11 @@ export interface Repo {
   /** Tạo mới hoặc đè snapshot theo (account_id, valued_on). */
   upsertValuation(input: NewValuation): Promise<AccountValuationRow>
   deleteValuation(id: string): Promise<void>
+
+  // --- Thẻ tín dụng: hoá đơn nhà thẻ đòi (migration 0070) ---
+  getCardBills(): Promise<CardBillRow[]>
+  /** Đè theo (account_id, close_date). Trả về các hàng sau khi ghi. */
+  upsertCardBills(rows: NewCardBill[]): Promise<CardBillRow[]>
 
   // --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
   /** Bảng giá công khai (mọi mã, mọi sàn). Chỉ đọc — edge function stock-refresh ghi. */

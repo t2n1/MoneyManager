@@ -807,12 +807,18 @@ export function AccountDetailPage() {
           </div>
           {billGap != null && billGap !== 0 && (
             <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
-              <span className="text-fg-muted">Lệch so với hoá đơn</span>
+              {/* HAI NHÃN thay vì một nhãn + dấu: `<Money showSign>` lấy dấu từ `tone`, không
+                  từ con số, nên một nhãn duy nhất không thể nói đúng chiều. Tiền lệ ngay trên
+                  panel này: `carried` cũng dùng hai nhãn vì đúng lý do đó.
+                  `tone="warn"` chứ không `in`/`out`: đây là TÌNH TRẠNG đối chiếu, không phải
+                  một lần tiền vào hay ra — xem ghi chú ở `TONE_CLASS` của Money.tsx. */}
+              <span className="text-fg-muted">
+                {billGap > 0 ? 'Lệch — sổ ghi thừa' : 'Lệch — sổ ghi thiếu'}
+              </span>
               <Money
                 amount={Math.abs(billGap)}
                 currency={currency}
-                tone={billGap > 0 ? 'out' : 'in'}
-                showSign
+                tone="warn"
                 className="font-medium"
               />
             </div>

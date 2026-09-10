@@ -225,3 +225,81 @@ describe('asTrade — dùng lại, không chép tay', () => {
     expect(t.tradedOn).toBe('2026-01-05')
   })
 })
+
+// Chuỗi giá lịch sử của dchart ĐÃ ĐIỀU CHỈNH cổ tức/chia tách (dchart.ts nói thẳng, cột
+// `stock_price_history.close` cũng có comment đó), còn sổ lệnh ghi GIÁ THẬT đã trả và SỐ
+// CỔ THẬT lúc đó. Trộn hai thang là cái đã làm khu Hiệu quả in "Tổng lợi nhuận −77,5%"
+// cho một danh mục đang lời (sổ thật 10/09/2026): mỗi lệnh mua bơm tiền mặt theo giá
+// thật nhưng cổ phiếu vào sổ theo giá đã điều chỉnh (thấp hơn), và TWR đọc khoảng chênh
+// đó thành lỗ — hai mươi lệnh mua thì lỗ giả nhân lên.
+describe('navSeries — dòng tiền của lệnh đo cùng thang với giá', () => {
+  it('mua: flow là giá trị cổ phiếu THEO CHUỖI, không phải tiền đã trả', () => {
+    const r = chay({
+      sessions: ['2026-01-05', '2026-01-06'],
+      trades: [
+        mua({ tradedOn: '2026-01-05', quantity: 100, price: 8_000 }),
+        mua({ tradedOn: '2026-01-06', quantity: 100, price: 10_000 }),
+      ],
+      prices: bangGia([
+        ['HPG', '2026-01-05', 8_000],
+        ['HPG', '2026-01-06', 8_000],
+      ]),
+      ledger: [nap('2026-01-05', 800_000), nap('2026-01-06', 1_000_000)],
+    })
+    expect(r.points[1].nav).toBe(1_600_000)
+    expect(r.points[1].flow).toBe(800_000)
+    // Hệ quả là điều duy nhất người dùng thấy: một phiên chỉ có lệnh mua thì lợi suất = 0.
+    expect((r.points[1].nav - r.points[1].flow) / r.points[0].nav).toBe(1)
+  })
+
+  it('cổ phiếu thưởng: số cổ tăng mà chuỗi giá KHÔNG rơi ngày chốt → phải bóc ra, không thì lãi hai lần', () => {
+    const r = chay({
+      sessions: ['2026-01-05', '2026-01-06'],
+      trades: [
+        mua({ tradedOn: '2026-01-05', quantity: 100, price: 10_000 }),
+        mua({ tradedOn: '2026-01-06', kind: 'adjust', quantity: 10, price: 0 }),
+      ],
+      prices: bangGia([
+        ['HPG', '2026-01-05', 10_000],
+        ['HPG', '2026-01-06', 10_000],
+      ]),
+      ledger: [nap('2026-01-05', 1_000_000)],
+    })
+    expect(r.points[1].nav).toBe(1_100_000)
+    expect(r.points[1].flow).toBe(100_000)
+  })
+
+  it('bán trên giá đóng cửa: phần chênh là may rủi khớp lệnh, không phải lợi suất danh mục', () => {
+    const r = chay({
+      sessions: ['2026-01-05', '2026-01-06'],
+      trades: [
+        mua({ tradedOn: '2026-01-05', quantity: 100, price: 10_000 }),
+        mua({ tradedOn: '2026-01-06', kind: 'sell', quantity: 100, price: 12_000 }),
+      ],
+      prices: bangGia([
+        ['HPG', '2026-01-05', 10_000],
+        ['HPG', '2026-01-06', 10_000],
+      ]),
+      ledger: [nap('2026-01-05', 1_000_000)],
+    })
+    expect(r.points[1].nav).toBe(1_200_000) // đã bán sạch, tất cả về tiền mặt
+    expect(r.points[1].flow).toBe(200_000)
+  })
+
+  it('mã chưa có giá: đang tạm tính theo giá vốn nên lệnh mua vẫn không sinh lợi suất', () => {
+    const r = chay({
+      sessions: ['2026-01-05', '2026-01-06'],
+      trades: [
+        mua({ tradedOn: '2026-01-05', quantity: 100, price: 10_000 }),
+        mua({ symbol: 'MBB', tradedOn: '2026-01-06', quantity: 100, price: 13_000 }),
+      ],
+      prices: bangGia([
+        ['HPG', '2026-01-05', 10_000],
+        ['HPG', '2026-01-06', 10_000],
+      ]),
+      ledger: [nap('2026-01-05', 1_000_000), nap('2026-01-06', 1_300_000)],
+    })
+    expect(r.points[1].nav).toBe(2_300_000) // 1.000.000 HPG + 1.300.000 giá vốn MBB
+    expect(r.points[1].flow).toBe(1_300_000)
+  })
+})

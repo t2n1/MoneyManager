@@ -7,6 +7,23 @@
 // `investHistory` gộp mọi tài khoản đầu tư (cả quỹ JPY) cho trang Tài sản; file này chỉ cổ
 // phiếu VN, cho trang Đầu tư.
 //
+// HAI THANG GIÁ, và trộn chúng là cái bẫy đắt nhất ở file này. `stock_price_history.close`
+// là giá ĐÃ ĐIỀU CHỈNH cổ tức/chia tách (dchart.ts và comment cột đều nói thẳng): mọi phiên
+// cũ bị chia lùi theo những lần chia tách SAU đó. Còn `stock_trades` ghi GIÁ THẬT đã trả và
+// SỐ CỔ THẬT lúc ấy, rồi cổ phiếu thưởng vào sổ thành một lệnh `adjust` riêng. Nên cùng một
+// đợt chia thưởng được đếm hai lần: một lần nằm sẵn trong giá, một lần là số cổ thêm vào.
+//
+// Hệ quả nếu `flow` chỉ lấy tiền mặt từ sổ: một lệnh mua bơm vào theo giá THẬT nhưng cổ
+// phiếu vào `nav` theo giá ĐÃ ĐIỀU CHỈNH (thấp hơn), TWR đọc khoảng chênh thành lỗ ngay
+// trong phiên mua. Sổ thật (10/09/2026) có hơn hai mươi lệnh mua, và khu Hiệu quả in
+// "Tổng lợi nhuận −77,5%" cho một danh mục đang lời +38%. Không màn nào báo, không test
+// nào bắt — hai con số đều là số thật, chỉ khác thang.
+//
+// Chữa bằng cách đo phần lệnh dời đi BẰNG CHÍNH GIÁ CỦA CHUỖI: định giá danh mục trước và
+// sau lệnh bằng giá cùng một phiên, hiệu số đó vào `flow`, rồi trừ đi tiền mặt lệnh ăn
+// (phần ấy đã nằm trong `cash`). Đợt chia thưởng vì thế cũng tự bị bóc: số cổ tăng mà giá
+// không rơi, nên chênh lệch rơi hết vào `flow` thay vì thành lãi.
+//
 // KHÔNG chép lại phép cộng dồn giá vốn. `holdingsFromTrades` và `brokerCash` được gọi lại
 // trên từng tiền tố sổ lệnh. Chậm hơn một chút (2.500 phiên × vài chục lệnh) nhưng đổi lại
 // mép phải của chuỗi này KHÔNG THỂ lệch với con số khu Giá trị đang in — một bản phép tính
@@ -20,7 +37,17 @@
 // y hệt nhau. Nên `stockValue` khi có giá và `cash` luôn khớp `buildPortfolio` (có test đối
 // chiếu). Điều kiện để lệch: cùng một mã nằm ở hai tài khoản, ĐÃ bán một phần, VÀ phiên đó
 // thiếu giá — lúc đó con số đã là số tạm và đã có tên mã trong `missingPrices`.
-import { brokerCash, holdingsFromTrades, type Trade } from './holdings'
+import { brokerCash, holdingsFromTrades, type Holding, type Trade } from './holdings'
+
+/**
+ * Tiền mặt một lệnh ăn vào (dương) hoặc nhả ra (âm) — ĐÚNG phép mà `brokerCash` trừ đi,
+ * viết lại ở đây chỉ để lấy phần của MỘT lệnh thay vì của cả sổ.
+ */
+function tienMatLenhAn(t: Trade): number {
+  if (t.kind === 'buy') return t.quantity * t.price + t.fee
+  if (t.kind === 'sell') return -(t.quantity * t.price - t.fee - t.tax)
+  return 0
+}
 
 /**
  * Một lần số dư sổ của danh mục thay đổi.
@@ -49,7 +76,11 @@ export interface NavPoint {
   cash: number
   /** stockValue + cash */
   nav: number
-  /** đồng — tiền từ NGOÀI vào (dương) / ra (âm), dồn từ sau phiên trước tới hết phiên này */
+  /**
+   * đồng — phần `nav` đổi mà KHÔNG phải lợi nhuận, dồn từ sau phiên trước tới hết phiên
+   * này. Hai nguồn: tiền từ ngoài nạp vào / rút ra, và giá trị cổ phiếu mà lệnh trong
+   * phiên dời vào/ra danh mục.
+   */
   flow: number
 }
 
@@ -138,9 +169,19 @@ export function navSeries(input: {
   let iLenh = 0
   let iSo = 0
   let soDu = openingBalance
+  /** Danh mục ở phiên TRƯỚC — để đo phần `nav` mà lệnh trong phiên này dời đi. */
+  let giuTruoc: Holding[] = []
 
   const points: NavPoint[] = sessions.map((date) => {
-    while (iLenh < lenhTheoNgay.length && lenhTheoNgay[iLenh].tradedOn <= date) iLenh++
+    for (const [symbol, theoNgay] of prices) {
+      const p = theoNgay.get(date)
+      if (p != null) giaGanNhat.set(symbol, p)
+    }
+
+    let tienLenhAn = 0
+    while (iLenh < lenhTheoNgay.length && lenhTheoNgay[iLenh].tradedOn <= date) {
+      tienLenhAn += tienMatLenhAn(lenhTheoNgay[iLenh++])
+    }
 
     let flow = 0
     while (iSo < soTheoNgay.length && soTheoNgay[iSo].date <= date) {
@@ -149,26 +190,30 @@ export function navSeries(input: {
       if (e.external) flow += e.delta
     }
 
-    for (const [symbol, theoNgay] of prices) {
-      const p = theoNgay.get(date)
-      if (p != null) giaGanNhat.set(symbol, p)
-    }
-
     const daMua = lenhTheoNgay.slice(0, iLenh)
     const { holdings } = holdingsFromTrades(daMua)
 
-    let stockValue = 0
-    for (const h of holdings) {
-      const gia = giaGanNhat.get(h.symbol)
-      if (gia == null) {
-        // Cùng cách app đang xử lý thiếu giá ở `portfolioValue`: tạm tính theo giá vốn và
-        // nói ra tên mã, thay vì âm thầm bỏ mã đó khỏi tổng.
-        thieuGia.add(h.symbol)
-        stockValue += h.costBasis
-      } else {
-        stockValue += h.quantity * gia
+    // Cùng cách app đang xử lý thiếu giá ở `portfolioValue`: tạm tính theo giá vốn và
+    // nói ra tên mã, thay vì âm thầm bỏ mã đó khỏi tổng.
+    const dinhGia = (hs: Holding[]) => {
+      let tong = 0
+      for (const h of hs) {
+        const gia = giaGanNhat.get(h.symbol)
+        if (gia == null) {
+          thieuGia.add(h.symbol)
+          tong += h.costBasis
+        } else {
+          tong += h.quantity * gia
+        }
       }
+      return tong
     }
+
+    // Định giá danh mục CŨ bằng giá HÔM NAY: hiệu số hai bên là đúng phần mà lệnh dời
+    // đi, đã bóc sạch biến động giá trong phiên.
+    const stockValue = dinhGia(holdings)
+    flow += stockValue - dinhGia(giuTruoc) - tienLenhAn
+    giuTruoc = holdings
 
     const cash = brokerCash(soDu, daMua)
     return { date, stockValue, cash, nav: stockValue + cash, flow }

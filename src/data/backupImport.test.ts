@@ -491,6 +491,16 @@ describe('validateBackupPayload', () => {
     expect(await demoRepo.getFundTrades()).toEqual([])
   })
 
+  it('bắt hoá đơn thẻ trỏ tới tài khoản không có trong file', () => {
+    const data = base()
+    data.cardBills = [
+      { id: 'b1', user_id: 'u', account_id: 'khong-ton-tai', close_date: '2026-06-30',
+        due_date: '2026-07-27', total: 158429, created_at: '' },
+    ] as unknown as BackupData['cardBills']
+    const problems = validateBackupPayload(data)
+    expect(problems.some((p) => p.includes('Hoá đơn thẻ'))).toBe(true)
+  })
+
   it('gom lỗi cùng loại lại, không in ra 14.000 dòng', () => {
     const d = base()
     d.transactions = Array.from({ length: 300 }, (_, i) => ({

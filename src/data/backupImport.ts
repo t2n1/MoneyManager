@@ -197,6 +197,13 @@ export function validateBackupPayload(data: BackupData): string[] {
     valKey(`${v.account_id}|${v.valued_on}`, v.valued_on)
   }
 
+  const billKey = uniques('hoá đơn thẻ (thẻ × ngày chốt)')
+  for (const b of data.cardBills ?? []) {
+    if (!accountIds.has(b.account_id))
+      p.add('Hoá đơn thẻ trỏ tới tài khoản không có trong file', b.account_id)
+    billKey(`${b.account_id}|${b.close_date}`, b.close_date)
+  }
+
   const snapKey = uniques('snapshot tài sản (ngày)')
   for (const s of data.networthSnapshots ?? []) snapKey(s.snapshot_on, s.snapshot_on)
 

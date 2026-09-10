@@ -19,6 +19,7 @@ import {
   useAccountBalances,
   useAccounts,
   useAccountValuations,
+  useCardBills,
   useCategories,
   useDeleteValuation,
   useProfile,
@@ -42,6 +43,7 @@ import type { TransactionRow } from '../../types/database.types'
 import { AccountFormSheet } from '../accounts/AccountFormSheet'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
+import { billForRange } from './billForRange'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
 import {
   cardBillingRange,
@@ -288,6 +290,12 @@ export function AccountDetailPage() {
   // Nợ các kỳ trước còn dồn trong số bị rút. Có dòng này thì ba dòng tiền trên
   // panel cộng đúng ra số bị rút, người đọc kiểm lại được bằng tay.
   const carried = carriedDebt({ dueAmount, charged: monthCharged, reconcileNet: monthReconcileNet })
+
+  // Hoá đơn NHÀ THẺ đòi cho kỳ đang xem. Khác `monthCharged` (app tự cộng từ sổ) vì
+  // lý do cấu trúc, không phải vì ai ghi sai — xem spec 2026-09-10 §2.
+  const { data: cardBills = [] } = useCardBills()
+  const bill = isCard ? billForRange(cardBills, accountId, billing) : null
+  const billGap = bill ? monthCharged - bill.total : null
 
   return (
     <div className="p-3 lg:p-6">
@@ -769,6 +777,17 @@ export function AccountDetailPage() {
           là thấy cùng danh sách), kèm nút bù chênh lệch ghi vào chính kỳ đó. */}
       {isCard && account && (
         <Card as="section" padding="lg" className="mb-3">
+          {bill && (
+            <div className="mb-2 flex items-center justify-between gap-2 border-b border-border-subtle pb-2 text-sm">
+              <span className="text-fg-muted">Hoá đơn nhà thẻ</span>
+              <Money
+                amount={bill.total}
+                currency={currency}
+                tone={bill.total > 0 ? 'out' : 'neutral'}
+                className="text-base font-bold"
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-fg-muted">
               {billing
@@ -786,6 +805,18 @@ export function AccountDetailPage() {
               />
             )}
           </div>
+          {billGap != null && billGap !== 0 && (
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
+              <span className="text-fg-muted">Lệch so với hoá đơn</span>
+              <Money
+                amount={Math.abs(billGap)}
+                currency={currency}
+                tone={billGap > 0 ? 'out' : 'in'}
+                showSign
+                className="font-medium"
+              />
+            </div>
+          )}
           {monthReconcileNet !== 0 && (
             <div className="mt-1.5 flex items-center justify-between gap-2 text-sm text-fg-muted">
               {/* Khoản bù không phải tiền quẹt nên không nằm trong tổng trên —

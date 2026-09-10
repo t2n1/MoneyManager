@@ -85,6 +85,19 @@ export interface LifePreset {
    *    không có chỗ nào quên tô cho một sự kiện của cùng một mẫu.
    */
   color: TagColorKey
+  /**
+   * Khoá icon RIÊNG của mẫu này — một khoá trong `eventIcons.tsx`, không phải component.
+   * Đi đúng cặp với `color` ngay trên và vì đúng hai lý do đó:
+   *
+   * 1. Dòng mẫu trên bảng chọn nhanh (`QuickAddBoard`) vẽ icon này. Trước bản này cả chín
+   *    mẫu chung MỘT mũi tên xuống, nên chín dòng chỉ khác nhau ở chữ — đúng cái mà
+   *    `eventIcons.tsx` (đầu file) đã ghi là lý do bộ icon tồn tại, chỉ là chưa ai nối nó
+   *    vào đây.
+   * 2. `LIFE_PRESETS` (cuối file) gán khoá này làm `icon` cho mọi sự kiện `build()` sinh
+   *    ra, cùng cách nó gán `color` — nên mốc bấm ra từ mẫu hiện icon NGAY trên trục thời
+   *    gian, không phải người dùng tự chọn tay từng cái.
+   */
+  icon: string
   build(ctx: PresetContext): PresetResult
 }
 
@@ -292,6 +305,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Tạo một chặng đời mới (thu chi nền đổi) và một khoản chi cho đám cưới.',
     yearLabel: 'Năm cưới',
     color: 'pink',
+    icon: 'cuoi-hoi',
     build: (ctx) => ({
       phases: [
         {
@@ -328,6 +342,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Tạo chùm sự kiện theo mốc tuổi con: trợ cấp, chi phí nuôi từng bậc, đại học.',
     yearLabel: 'Năm sinh của con',
     color: 'green',
+    icon: 'sinh-con',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -384,6 +399,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Nhà là tài sản LÊN giá, mua bằng vay trả góp — số hằng năm là thuế/chi phí giữ nhà. Nhớ khai ô "thay cho" bằng tiền thuê đang trả, kẻo tính hai lần phần nhà ở.',
     yearLabel: 'Năm mua',
     color: 'amber',
+    icon: 'mua-nha',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -431,6 +447,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).',
     yearLabel: 'Năm mua',
     color: 'sky',
+    icon: 'xe-hoi',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -487,6 +504,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.',
     yearLabel: 'Năm nghỉ hưu',
     color: 'indigo',
+    icon: 'nghi-huu',
     build: (ctx) => ({
       phases: [
         {
@@ -532,6 +550,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Chặng mới giữ nguyên thu chi nền và tiền hiện tại — tự sửa quốc gia, tiền và tỷ giá của chặng sau khi tạo. Kèm chi phí chuyển một lần.',
     yearLabel: 'Năm chuyển',
     color: 'gray',
+    icon: 'may-bay',
     build: (ctx) => ({
       phases: [
         {
@@ -568,6 +587,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Khoản gửi về hằng năm, mặc định tiền VND, có năm kết thúc.',
     yearLabel: 'Năm bắt đầu gửi',
     color: 'red',
+    icon: 'cham-cha-me',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -593,6 +613,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Một khoản chi lặp lại mỗi vài năm, không phải một lần.',
     yearLabel: 'Năm đầu',
     color: 'sky',
+    icon: 'du-lich',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -618,6 +639,7 @@ const RAW_PRESETS: LifePreset[] = [
     hint: 'Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.',
     yearLabel: 'Năm bắt đầu',
     color: 'amber',
+    icon: 'hoc-phi',
     build: (ctx) => ({
       phases: [],
       events: [
@@ -672,6 +694,13 @@ export const LIFE_PRESETS: LifePreset[] = RAW_PRESETS.map((p) => ({
   ...p,
   build: (ctx) => {
     const r = p.build(ctx)
-    return { phases: r.phases, events: r.events.map((e) => ({ ...e, color: p.color })) }
+    // `e.icon ||` chứ không đè thẳng như `color`: hôm nay không `ev()` nào khai icon
+    // riêng, nhưng một mẫu sau này muốn một sự kiện mang icon khác cả chùm (ví dụ "Con vào
+    // đại học" mang mũ tốt nghiệp trong chùm "Sinh con") thì khai tại chỗ là đủ, không phải
+    // sửa lại chỗ này.
+    return {
+      phases: r.phases,
+      events: r.events.map((e) => ({ ...e, color: p.color, icon: e.icon || p.icon })),
+    }
   },
 }))

@@ -249,17 +249,17 @@ export function pinRowCount(rows: readonly number[]): number {
 }
 
 /**
- * Nửa bề rộng của bảng chọn nhanh (`QuickAddBoard.tsx`, `w-[26rem]`), PIXEL, ở Cỡ chữ TO
- * NHẤT (`xl` = 1,25×, xem `fontScale.ts`): 26rem × 16px × 1,25 ÷ 2 = 260.
+ * Nửa bề rộng của bảng chọn nhanh (`QuickAddBoard.tsx`, `w-[24rem]`), PIXEL, ở Cỡ chữ TO
+ * NHẤT (`xl` = 1,25×, xem `fontScale.ts`): 24rem × 16px × 1,25 ÷ 2 = 240.
  *
  * Dùng đúng một trần này cho MỌI cỡ chữ — không đo DOM thật của bảng — là CỐ Ý: ở cỡ chữ
- * nhỏ hơn 1,25× bảng hẹp hơn 260px thật, nên kẹp hơi rộng tay hơn mức cần, nhưng bảng
+ * nhỏ hơn 1,25× bảng hẹp hơn 240px thật, nên kẹp hơi rộng tay hơn mức cần, nhưng bảng
  * KHÔNG BAO GIỜ tràn ra ngoài vùng vẽ ở bất kỳ cỡ chữ nào — đo đúng cỡ thật cần một
  * ResizeObserver thứ hai gắn vào chính bảng (bảng là phần tử của trang, không phải của
  * `TimelinePlot`), phức tạp hơn nhiều so với cái giá phải trả (kẹp rộng tay vài chục pixel
  * ở Cỡ chữ Vừa).
  */
-export const QUICK_BOARD_HALF_W_PX = 260
+export const QUICK_BOARD_HALF_W_PX = 240
 
 /**
  * Kẹp toạ độ NGANG của bảng chọn nhanh (`QuickAddBoard`) vào lòng vùng vẽ — cùng idiom

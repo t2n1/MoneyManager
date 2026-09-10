@@ -4,7 +4,7 @@
 // còn bảng này là đường THÊM MỚI, và nó bắt đầu từ chỗ người dùng vừa chỉ vào — không phải
 // từ một nút "+ Mốc" ở đâu đó rồi mới gõ năm.
 //
-// BỐN THỨ ĐÃ GHI SẴN, ĐỪNG LÀM NGƯỢC LẠI
+// NĂM THỨ ĐÃ GHI SẴN, ĐỪNG LÀM NGƯỢC LẠI
 //
 // 1. KHOẢNG NĂM ĐI QUA `applySpanToPreset` (quickAddRange.ts) → `applySpanToResult`
 //    (quickAddApply.ts). Mỗi mẫu hấp thu khoảng theo nghĩa RIÊNG: kéo 35 năm trên "Mua
@@ -13,30 +13,52 @@
 //    KHÔNG có tiền trả trước — sai hẳn hình dạng dòng tiền. Cả hai hàm đều thuần và có
 //    phép thử; file này không được có bản chép thứ hai của luật đó.
 //
-// 2. CHIP MANG "NẶNG CỠ NÀO" (`presetWeight`). Con số đó là thứ duy nhất trả lời "bấm cái
-//    này thì kế hoạch của tôi đổi bao nhiêu" TRƯỚC khi bấm, và nó không phải tổng các
+// 2. DÒNG MẪU MANG "NẶNG CỠ NÀO" (`presetWeight`). Con số đó là thứ duy nhất trả lời "bấm
+//    cái này thì kế hoạch của tôi đổi bao nhiêu" TRƯỚC khi bấm, và nó không phải tổng các
 //    khoản mỗi năm cộng lại (xem presetWeight.ts, lỗi "Sinh con 436万" bắt được trên app
 //    2026-09-02). Nó vào đây từ `PresetPanel.tsx` — màn cũ, đã nghỉ ở Task 16 — nên nếu
 //    không mang theo thì nó đã chết cùng file đó.
 //
 // 3. TÍNH NẶNG TRÊN MẪU ĐÃ HẤP THU KHOẢNG, không trên mẫu mặc định: kéo 20 năm trên "Mua
-//    nhà" thì con số phải là trả trước + 20 năm trả vay, không phải + 35 năm. Chip nói một
-//    số rồi bấm vào ra một số khác là tệ hơn không có số nào.
+//    nhà" thì con số phải là trả trước + 20 năm trả vay, không phải + 35 năm. Một dòng nói
+//    một số rồi bấm vào ra một số khác là tệ hơn không có số nào.
 //
 // 4. `+ Mốc trống` KHÔNG dựng qua `presets.ts`. Nó cố tình không có số nào để "kiểm tra
 //    lại": người dùng chọn nó chính vì không mẫu nào khớp việc của họ.
 //
-// 5. MỖI CHIP MỘT MÀU RIÊNG (dsg-handoff/README.md §"Bảng chọn nhanh": "10 chip mẫu, mỗi
-//    chip một màu riêng"; Finding 1, review 2026-09-09). Màu tới từ `preset.color`
-//    (presets.ts) — cùng khoá bảy màu dùng chung toàn app — và tô VIVID đúng cách
-//    `EventPins` tô viền/icon một mốc đã có màu riêng (không phải nền đặc như `Swatch`
-//    "muted" của dock — đó là màu của CHẶNG, tô trầm). `presets.ts` tự gán `preset.color`
-//    làm `color` cho mọi sự kiện mà `build()` sinh ra, nên mốc bấm ra từ chip này có màu
-//    ngay lập tức — không phải người dùng tự tô tay sau khi thêm.
-import { ArrowDownCircle, ArrowUpCircle, Plus, X } from 'lucide-react'
+// 5. DANH SÁCH MỘT CỘT, MÀU RÚT VỀ ICON (người dùng chọn, 2026-09-10).
+//
+//    Bản trước dựng mỗi mẫu bằng một `ActionButton` — nút chữ dùng chung của cả app: cao
+//    44px, bo tròn hết cạnh, và tô VIỀN + CHỮ theo `preset.color`. Chín nút như thế, bảy
+//    màu khác nhau, tự xếp so le hai cột. Người dùng xem trên app gọi đúng ba thứ: "to",
+//    "thô kệch", "màu sắc không đồng nhất ở mỗi cục".
+//
+//    Cả ba đều là hệ quả của một quyết định: chở thông tin bằng KÍCH CỠ và MÀU NỀN/VIỀN.
+//    Bản này chở bằng VỊ TRÍ — một cột, số tiền thẳng cột nên đọc được "cái nào nặng nhất"
+//    chỉ bằng cách rê mắt xuống, việc mà chín cái pill xếp so le không làm được vì con số
+//    của mỗi cái nằm ở một hoành độ khác nhau.
+//
+//    `preset.color` KHÔNG bị xoá — nó vẫn là màu mà mốc sẽ mang sau khi bấm (bản vẽ
+//    dsg-handoff/README.md §"Bảng chọn nhanh": "10 chip mẫu, mỗi chip một màu riêng"), chỉ
+//    thu về đúng cái ICON thay vì tô cả viền lẫn chữ. Vẫn qua `eventTint` (planColors.ts)
+//    chứ không tra `TAG_HEX` tay: dòng này SINH ra một mốc mang đúng khoá màu đó, nên nó
+//    phải tô bằng chính hàm sẽ tô cái mốc ấy (Finding 6, review 2026-09-09).
+//
+//    CHIỀU TIỀN (Thu/Chi) trước do một mũi tên lên/xuống nói; giờ do `tone` của `<Money>`
+//    nói — đỏ/xanh đúng cách mọi con số khác trong app nói chiều tiền. Đổi vậy vì mũi tên
+//    đã phải nhường ô icon cho `preset.icon` (lời ghi 6), và một dòng có HAI icon là quay
+//    lại đúng chỗ rậm rạp vừa dọn.
+//
+// 6. ICON LẤY TỪ `preset.icon`, không phải mũi tên Thu/Chi. Chín mẫu trước đây chung đúng
+//    một mũi tên xuống — tức chín dòng chỉ khác nhau ở chữ, đúng cái mà `eventIcons.tsx`
+//    (đầu file) ghi là lý do bộ icon tồn tại. Khoá đó cũng đi theo mốc lên trục thời gian
+//    (xem `LIFE_PRESETS` cuối presets.ts), nên icon trên dòng mẫu và icon trên trục là
+//    CÙNG một hình — đó là thứ nối cái vừa bấm với cái vừa hiện ra.
+import { Plus, X } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { ActionButton, Card, IconButton, Money, Num, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
+import { EventIcon } from './eventIcons'
 import { eventTint } from './planColors'
 import { LIFE_PRESETS, type LifePreset, type PresetContext, type PresetResult } from './presets'
 import { presetWeight } from './presetWeight'
@@ -48,7 +70,7 @@ interface Props {
   span: YearSpan
   /** Năm sinh — để nói tuổi cạnh năm, đúng cách cả màn này đọc trục thời gian. */
   birthYear: number
-  /** Tiền hiển thị của kịch bản — đơn vị của con số "nặng cỡ nào" trên chip. */
+  /** Tiền hiển thị của kịch bản — đơn vị của con số "nặng cỡ nào" trên mỗi dòng. */
   currency: CurrencyCode
   /** Dựng ngữ cảnh mẫu ở một năm. Chỗ gọi biết chặng đang hiệu lực và tỷ giá. */
   buildCtx: (year: number) => PresetContext
@@ -75,12 +97,13 @@ export function QuickAddBoard({
   const years = spanYears(span)
 
   return (
-    // `w-[26rem]` là `rem` nên bảng nở theo Cài đặt → Cỡ chữ; chỗ gọi kẹp toạ độ NGANG
-    // bằng px trong hộp đã đo (xem `TimelinePlot`), đúng cách chip đọc số đang làm.
+    // `w-[24rem]` là `rem` nên bảng nở theo Cài đặt → Cỡ chữ; chỗ gọi kẹp toạ độ NGANG
+    // bằng px trong hộp đã đo (`QUICK_BOARD_HALF_W_PX` ở plotFrame.ts — đổi bề rộng ở đây
+    // thì đổi cả hằng số đó, nó tính từ chính con số này).
     //
     // `animate-pop-in` = `omPop` của bản vẽ (opacity + translateY −6px, 160ms). Qua token
     // nên nó tự tắt ở `prefers-reduced-motion: reduce` (index.css).
-    <div className="w-[26rem] max-w-full animate-pop-in">
+    <div className="w-[24rem] max-w-full animate-pop-in">
       <Card as="section" padding="panel" elevation="panel">
         <div className="flex items-start gap-2">
           {/* `role="card"` chứ không `micro`: `micro` là VIẾT HOA + giãn chữ, dùng cho
@@ -125,22 +148,27 @@ export function QuickAddBoard({
             : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}
         </Guide>
 
-        {/* Vùng cuộn: mười mẫu + một nút, ở Cỡ chữ 1,25× chúng cao hơn nửa vùng vẽ. Chặn
-            bằng `max-h-[18rem]` (rem, co theo Cỡ chữ) chứ không để bảng dài ra khỏi đồ thị. */}
-        <div className="mt-2 flex max-h-[18rem] flex-wrap gap-1.5 overflow-y-auto overscroll-contain">
-          {LIFE_PRESETS.map((p) => (
-            <PresetChip
-              key={p.id}
-              preset={p}
-              span={span}
-              currency={currency}
-              buildCtx={buildCtx}
-              onAdd={onAddPreset}
-            />
-          ))}
+        {/* Vùng cuộn: chín mẫu ở Cỡ chữ 1,25× vẫn cao hơn nửa vùng vẽ. Chặn bằng
+            `max-h-[18rem]` (rem, co theo Cỡ chữ) chứ không để bảng dài ra khỏi đồ thị. */}
+        <div className="mt-2 max-h-[18rem] overflow-y-auto overscroll-contain rounded-md border border-border-subtle">
+          <ul className="divide-y divide-border-subtle">
+            {LIFE_PRESETS.map((p) => (
+              <PresetRow
+                key={p.id}
+                preset={p}
+                span={span}
+                currency={currency}
+                buildCtx={buildCtx}
+                onAdd={onAddPreset}
+              />
+            ))}
+          </ul>
+        </div>
 
-          {/* Mốc trống — không mẫu nào khớp thì tự khai từ đầu. Đứng CUỐI dải chứ không
-              đầu: nó là đường thoát, không phải lựa chọn mặc định. */}
+        {/* Mốc trống — không mẫu nào khớp thì tự khai từ đầu. Đứng NGOÀI danh sách và DƯỚI
+            nó: nó không phải một mẫu (lời ghi 4), và nó là đường thoát chứ không phải lựa
+            chọn mặc định. */}
+        <div className="mt-2">
           <ActionButton onClick={() => onAddBlank(span)} title="Một mốc rỗng, tự khai tên và số">
             <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             Mốc trống
@@ -152,10 +180,10 @@ export function QuickAddBoard({
 }
 
 /**
- * Một chip mẫu. Dựng mẫu NGAY TẠI ĐÂY để hiện được con số "nặng cỡ nào" — `build` thuần
+ * Một dòng mẫu. Dựng mẫu NGAY TẠI ĐÂY để hiện được con số "nặng cỡ nào" — `build` thuần
  * và rẻ, cùng cách `PresetPanel` đã làm từ trước.
  */
-function PresetChip({
+function PresetRow({
   preset,
   span,
   currency,
@@ -174,42 +202,55 @@ function PresetChip({
   // Nặng cỡ nào — tính trên mẫu ĐÃ hấp thu khoảng (lời ghi 3 ở đầu file).
   const weight = presetWeight(result, currency)
   const netOut = weight === null || weight.amountMinor >= 0
-  // Màu riêng của chip (lời ghi 5 ở đầu file) — VIVID: viền + chữ, cùng cặp thuộc tính mà
-  // `EventPins` tô cho một mốc đã có màu (border-color + color, không phải nền đặc). Mũi
-  // tên Thu/Chi bên dưới giữ nguyên `text-money-out`/`text-money-in` của riêng nó — class
-  // trên chính SVG thắng `color` kế thừa từ button, nên nó không đổi màu theo preset.
-  //
-  // Qua `eventTint` (planColors.ts) chứ không tra `TAG_HEX` tay: chip này SINH ra một mốc
-  // mang đúng khoá màu đó, nên nó phải tô bằng chính hàm sẽ tô cái mốc ấy (review cuối
-  // nhánh 2026-09-09, Finding 6 — chỗ này là bản chép thứ ba, và lời ghi của nó tự thú là
-  // chép từ `EventPins`). Chip luôn bật nên phần `opacity` của kết quả không dùng tới.
   const mau = eventTint(preset.color, netOut ? 'expense' : 'income').color
+  // Giữ chính `weight` (không phải một cờ boolean): một cờ không thu hẹp kiểu, nên
+  // `weight.amountMinor` phía dưới sẽ là lỗi biên dịch "possibly null".
+  const so = weight !== null && weight.amountMinor !== 0 ? weight : null
 
   return (
-    <ActionButton
-      onClick={() => onAdd(preset, apply, result)}
-      title={preset.hint}
-      style={{ borderColor: mau, color: mau }}
-    >
-      {netOut ? (
-        <ArrowDownCircle className="h-3.5 w-3.5 shrink-0 text-money-out" aria-hidden="true" />
-      ) : (
-        <ArrowUpCircle className="h-3.5 w-3.5 shrink-0 text-money-in" aria-hidden="true" />
-      )}
-      {preset.label}
-      {weight !== null && weight.amountMinor !== 0 && (
-        <span className="font-mono text-2xs text-fg-muted">
-          <Money amount={Math.abs(weight.amountMinor)} currency={currency} compact tone="muted" />
-          {weight.kind === 'perYear' ? (
+    <li>
+      {/* Bốn cột bề rộng CỐ ĐỊNH (rem, không px — chúng phải co theo Cỡ chữ): icon · tên ·
+          tiền · quãng. Cố định là chủ ý duy nhất của cả bản này — số tiền của chín mẫu
+          nằm trên cùng một hoành độ thì so được với nhau bằng mắt (lời ghi 5). */}
+      <button
+        type="button"
+        onClick={() => onAdd(preset, apply, result)}
+        title={preset.hint}
+        className="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_3.25rem] items-center gap-2 px-2 py-1.5 text-left transition hover:bg-surface-sunken"
+      >
+        {/* Icon kế thừa `currentColor` (lucide), nên tô màu mẫu bằng `color` trên thẻ bọc
+            là đủ — không cần `EventIcon` nhận thêm prop style. */}
+        <span className="flex justify-center" style={{ color: mau }}>
+          <EventIcon
+            icon={preset.icon}
+            kind={netOut ? 'expense' : 'income'}
+            className="h-4 w-4 shrink-0"
+          />
+        </span>
+        <span className="truncate text-xs text-fg-primary">{preset.label}</span>
+        {/* Hai ô cuối LUÔN được vẽ, kể cả khi rỗng: lưới tự dồn phần tử sang ô trống, nên
+            một `null` ở đây làm quãng năm của dòng đó nhảy vào cột tiền. */}
+        {so !== null ? (
+          <Money
+            amount={Math.abs(so.amountMinor)}
+            currency={currency}
+            compact
+            tone={netOut ? 'out' : 'in'}
+            className="text-right text-2xs"
+          />
+        ) : (
+          <span />
+        )}
+        <span className="text-right text-2xs text-fg-muted">
+          {so === null ? null : so.kind === 'perYear' ? (
             '/năm'
-          ) : weight.years > 1 ? (
+          ) : so.years > 1 ? (
             <>
-              {' · '}
-              <Num tone="muted">{weight.years}</Num> năm
+              <Num tone="muted">{so.years}</Num> năm
             </>
           ) : null}
         </span>
-      )}
-    </ActionButton>
+      </button>
+    </li>
   )
 }

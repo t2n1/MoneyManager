@@ -1,38 +1,34 @@
-// Bản đồ khoản lớn — bảng dưới đồ thị Trọn đời (Chặng 19 của giáo trình đã đối chiếu).
+// Bản đồ khoản lớn — PANE của hàng 11/12 (bản vẽ). Toán ở `bigExpenses.ts` +
+// `lifetimeCost.ts` (thuần, có test), dữ liệu ở `useBigExpenseMap` (hook) — file này chỉ
+// render.
 //
-// Mỗi mốc phía trước sinh một dòng "cần để dành mỗi tháng"; tổng của chúng đặt cạnh phần
-// dư THẬT mỗi tháng. Toán nằm ở bigExpenses.ts (thuần, có test) — component này chỉ render.
+// KHÔNG có tiêu đề khối ở đây: chip chuyển pane ngay trên đã nói "Bản đồ khoản lớn ·
+// N khoản", và bản vẽ (dòng 699-705 của .dc.html) đặt ở đầu pane một dòng HƯỚNG DẪN chứ
+// không phải một tiêu đề thứ hai. Lặp lại tên ngay dưới cái chip vừa bấm là một dòng
+// không mang thông tin nào.
 //
 // Ba nguồn mốc được gộp: sự kiện kịch bản (chỉ có năm), Khoản sắp chi (có ngày), Mục tiêu
 // tiết kiệm (có hạn + phần đã dành). Không khử trùng lặp giữa chúng: nhìn thấy đủ rồi tự
 // dọn dễ hơn là đoán xem app đã giấu dòng nào.
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, FilterChip, Money, Num, SectionTitle } from '../../components/ui'
+import { Card, FilterChip, Money, Num } from '../../components/ui'
 import { ExplainBox } from '../../components/ExplainBox'
-import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
-import { buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
-import type { FxOf } from './fxModel'
-import { buildLifetimeCostMap } from './lifetimeCost'
-import type { LifetimeEvent, YearRow } from './project'
+import type { BigExpenseMapData } from './useBigExpenseMap'
 
 /** Hai câu khác nhau, xem đầu `lifetimeCost.ts`. */
 type CachXep = 'life' | 'need'
 
 interface Props {
-  /** Sự kiện của bản chiếu đang xem — fx đã chuẩn hoá theo tỷ giá hôm nay. */
-  events: LifetimeEvent[]
+  /** Đã tính ở trang (chip chuyển pane cũng đọc nó) — xem `useBigExpenseMap`. */
+  data: BigExpenseMapData
   displayCurrency: CurrencyCode
-  fxOf: FxOf
-  todayISO: string
   /**
    * Phần dư mỗi tháng để so với tổng "cần để dành". `real` = số THẬT 12 tháng qua
    * (suggestBaseline); false = số kế hoạch của chặng đang chạy. null = chưa tính được.
    */
   surplus: { monthlyMinor: number; real: boolean } | null
-  /** Dòng của phép chiếu đang xem — nguồn của cách xếp "Cả đời". */
-  rows: readonly YearRow[]
   /** Thiếu tỷ giá ở đâu đó trong kế hoạch → mọi tổng cả đời hiện `≈`. */
   hasMissingRate: boolean
 }
@@ -43,49 +39,11 @@ const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
   goal: 'mục tiêu',
 }
 
-export function BigExpenseMapSection({
-  events,
-  displayCurrency,
-  fxOf,
-  todayISO,
-  surplus,
-  rows,
-  hasMissingRate,
-}: Props) {
+export function BigExpenseMapPane({ data, displayCurrency, surplus, hasMissingRate }: Props) {
+  const { map, life } = data
   // Mặc định "Cả đời": hàng này tên là bản ĐỒ khoản lớn, và bản vẽ vẽ nó xếp theo tổng cả
   // đời. Câu "cần dành mỗi tháng" là câu thứ hai, một cú bấm là tới.
   const [mode, setMode] = useState<CachXep>('life')
-  const life = useMemo(() => buildLifetimeCostMap({ rows }), [rows])
-  const { data: planned = [] } = usePlannedExpenses()
-  const { data: goals = [] } = useSavingsGoals()
-  const { data: balances = [] } = useAccountBalances()
-
-  const map = useMemo(() => {
-    const balanceById = new Map(balances.map((b) => [b.id, b]))
-    const goalInputs: GoalLikeInput[] = goals.map((g) => {
-      const acc = balanceById.get(g.account_id)
-      return {
-        id: g.id,
-        name: g.name,
-        targetMinor: g.target_amount,
-        // Đầu tư đọc định giá, còn lại đọc số dư — đúng thứ tự của assets/aggregate.ts.
-        progressMinor: acc ? (acc.market_value ?? acc.balance) : 0,
-        currency: (acc?.currency ?? displayCurrency) as CurrencyCode,
-        targetDate: g.target_date,
-      }
-    })
-    return buildBigExpenseMap({
-      todayISO,
-      displayCurrency,
-      events,
-      planned: planned.filter((p) => p.status === 'planned'),
-      goals: goalInputs,
-      fxOf,
-    })
-  }, [balances, goals, planned, events, displayCurrency, fxOf, todayISO])
-
-  // Không có gì để xếp ở CẢ HAI cách thì im lặng — thẻ trống không giúp ai.
-  if (map.items.length === 0 && life.items.length === 0) return null
 
   const over = surplus !== null && map.totalMonthlyNeedMinor > surplus.monthlyMinor
   const heavy = map.heavyYears.length > 0 ? map.heavyYears[0] : null
@@ -95,7 +53,11 @@ export function BigExpenseMapSection({
   return (
     <Card as="section" elevation="panel" padding="panel" className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-        <SectionTitle>Bản đồ khoản lớn</SectionTitle>
+        <p className="min-w-0 flex-1 text-2xs text-fg-muted">
+          {mode === 'life'
+            ? 'Xếp theo tổng tiền cả đời, gồm sinh hoạt từng chặng'
+            : 'Cần để dành mỗi tháng, tính từ hôm nay'}
+        </p>
         {/* Hai cách xếp trả lời HAI câu khác nhau, nên là một công tắc chứ không phải hai
             khối nối tiếp: đặt cạnh nhau thì hai bảng trông gần như nhau và người đọc lấy
             số của bảng này gán cho câu của bảng kia. Chip co theo chữ (không `flex-1`) —
@@ -117,11 +79,6 @@ export function BigExpenseMapSection({
           >
             Cần dành
           </FilterChip>
-        </span>
-        <span className="text-2xs text-fg-muted">
-          {mode === 'life'
-            ? 'tổng cả đời, gồm sinh hoạt từng chặng'
-            : 'cần để dành mỗi tháng, tính từ hôm nay'}
         </span>
       </div>
 

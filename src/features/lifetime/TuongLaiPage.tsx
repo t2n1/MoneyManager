@@ -23,6 +23,7 @@ import {
   SectionTitle,
   SegmentedControl,
   actionButtonClass,
+  type SegmentedItem,
 } from '../../components/ui'
 import { EstimateMark } from '../../components/EstimateMark'
 import { repo } from '../../data'
@@ -40,11 +41,13 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 import type { CurrencyCode } from '../../lib/currencies'
 import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
-import { fetchRates } from '../../lib/rates'
+import { fetchRates, formatRateLine } from '../../lib/rates'
 import { suggestBaseline } from './baseline'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
-import { BigExpenseMapSection } from './BigExpenseMapSection'
+import { BigExpenseMapPane } from './BigExpenseMapPane'
 import { ConsoleFrame } from './ConsoleFrame'
+import { PaneSwitchRow, type ConsolePane } from './PaneSwitchRow'
+import { changeDisplayCurrency } from './draftCurrency'
 import { countCompareSkipped } from './compareSkip'
 import {
   addDraftEvent,
@@ -61,6 +64,7 @@ import {
   presetEventId,
   removeDraftEvent,
   removeDraftPhase,
+  setDraftName,
   setPhaseCurrency,
   type DraftPhase,
   type ScenarioDraft,
@@ -81,7 +85,14 @@ import { PlanDock, type DockSelection } from './PlanDock'
 import { blockPhaseStartYearAtNeighbours, freePhaseStartYear } from './phaseYear'
 import { PIN_TOP, clampQuickBoardLeft, viewRange } from './plotFrame'
 import type { LifePreset, PresetContext, PresetResult } from './presets'
-import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
+import {
+  hasStress,
+  NO_STRESS,
+  phaseForYear,
+  projectLifetime,
+  type LifetimeEvent,
+  type StressConfig,
+} from './project'
 import { QuickAddBoard } from './QuickAddBoard'
 import { applySpanToResult } from './quickAddApply'
 import type { SpanApply, YearSpan } from './quickAddRange'
@@ -101,10 +112,29 @@ import {
 } from './TimelinePlot'
 import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
 import { UNDO_WINDOW_MS, makeUndo } from './undoStack'
+import { useBigExpenseMap } from './useBigExpenseMap'
 import { useConsoleKeys } from './useConsoleKeys'
 import { baselineRange, makeCurrencyOf, useLifetime } from './useLifetime'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
-import { YearTableSection } from './YearTableView'
+import { YearTablePane } from './YearTableView'
+
+/**
+ * Nhóm ¥/$/₫ ở hàng 5 — TIỀN HIỂN THỊ của kịch bản.
+ *
+ * Đúng ba mục vì app có đúng ba đồng tiền (`CURRENCIES` ở lib/currencies.ts). Nhãn là
+ * KÝ HIỆU chứ không phải mã ba chữ, theo bản vẽ (dòng 1960): ba ô cạnh nhau trong một
+ * dải hẹp, mà "JPY/USD/VND" thì dài gấp ba mà không nói thêm gì — mã ba chữ đã có ở
+ * cuối hàng 2 ("Sinh 1994 · chiếu đến tuổi 70 · JPY").
+ */
+const CURRENCY_ITEMS: SegmentedItem<CurrencyCode>[] = [
+  { value: 'JPY', label: '¥' },
+  { value: 'USD', label: '$' },
+  { value: 'VND', label: '₫' },
+]
+
+/** Mảng rỗng DÙNG CHUNG cho lúc chưa tải xong. `[]` viết tại chỗ là một tham chiếu mới
+ *  mỗi lượt render, nên mọi `useMemo` nhận nó làm phụ thuộc sẽ tính lại vô ích mỗi lượt. */
+const NO_EVENTS: LifetimeEvent[] = []
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
 const MIN_BIRTH_YEAR = 1900
@@ -245,11 +275,13 @@ function TuongLaiConsole() {
   const [log, setLog] = useState(false)
   const [hintsOpen, setHintsOpen] = useState(false)
   /**
-   * Hàng 11 (Bảng theo năm) đang bung hay còn là chip thu gọn, VÀ năm đang rê chuột trên
-   * đồ thị — hai state đi cùng nhau vì chúng chỉ có nghĩa cùng nhau: liên kết hai chiều
-   * đồ thị ↔ bảng (spec §11) chỉ chạy khi bảng đang mở, xem chỗ dùng ở hàng 11.
+   * Pane nào đang mở dưới hàng chip (hàng 11 của bản vẽ), VÀ năm đang rê chuột trên đồ
+   * thị — hai state đi cùng nhau vì chúng chỉ có nghĩa cùng nhau: liên kết hai chiều đồ
+   * thị ↔ bảng (spec §11) chỉ chạy khi pane bảng đang mở, xem chỗ dùng ở hàng 11.
+   *
+   * MỘT pane, không phải hai cờ gấp/mở: xem đầu `PaneSwitchRow.tsx`.
    */
-  const [yearTableOpen, setYearTableOpen] = useState(false)
+  const [pane, setPane] = useState<ConsolePane>(null)
   const [hoverYear, setHoverYear] = useState<number | null>(null)
   const [compareOn, setCompareOn] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -392,6 +424,91 @@ function TuongLaiConsole() {
     () => fxOfRates((active?.display_currency as CurrencyCode) ?? 'JPY', ratesQ.data ?? {}),
     [active?.display_currency, ratesQ.data],
   )
+
+  /**
+   * Đổi TÊN kịch bản — hàng 2 của bản vẽ (dòng 104), ô viền gạch nối 132px.
+   *
+   * Đi qua BẢN NHÁP như mọi thao tác khác, không ghi thẳng DB: `DraftChange` đã có
+   * `kind:'name'`, `draftText` đã in nó, `planDraftSave` đã ghi cột `name` — cả ba đầu
+   * dây có sẵn từ trước, chỉ thiếu đúng cái ô. Ghi thẳng thì "Bỏ thay đổi" hoàn tác
+   * được mọi thứ TRỪ cái tên, và dòng "đang đổi gì" không kể tên trong danh sách.
+   */
+  const renameScenario = useCallback(
+    (name: string) => editDraft((d) => setDraftName(d, name)),
+    [editDraft],
+  )
+
+  /**
+   * Rời ô đổi tên với ô TRỐNG thì trả về tên đã lưu.
+   *
+   * Chặn ở lúc RỜI ô, không chặn lúc gõ: tên rỗng khi đang gõ là trạng thái bình thường
+   * (xoá hết để viết lại), còn một kịch bản KHÔNG có tên thì chip của nó ở hàng 2 thành
+   * một ô trống không bấm được đúng nghĩa nào — nó là thứ duy nhất phân biệt kịch bản
+   * này với kịch bản khác.
+   */
+  const renameBlur = useCallback(() => {
+    if (!working || working.name.trim() !== '') return
+    const daLuu = savedDraft?.name
+    if (daLuu !== undefined) renameScenario(daLuu)
+  }, [working, savedDraft, renameScenario])
+
+  /**
+   * Đổi TIỀN HIỂN THỊ — nhóm ¥/$/₫ ở hàng 5.
+   *
+   * Không tính trong `setDraft`: khi thiếu tỷ giá thì phải nói ra bằng một toast, mà một
+   * hàm cập nhật state phải THUẦN (React gọi nó hai lần ở StrictMode, tức hai toast).
+   * Tính trước, quyết định trước, rồi mới đặt.
+   */
+  const switchCurrency = useCallback(
+    (next: CurrencyCode) => {
+      if (!working) return
+      // Neo về bản ĐÃ LƯU: bấm ₫ rồi bấm ¥ lại phải trả về đúng con số cũ, không để
+      // lại một chênh lệch làm tròn 1 yên rồi bắt Lưu. Xem `SavedAnchor`.
+      const neo =
+        savedDraft === null
+          ? undefined
+          : {
+              currency: savedDraft.displayCurrency,
+              startingAssetsMinor: savedDraft.startingAssetsMinor,
+            }
+      const out = changeDisplayCurrency(working, next, pageFxOf, neo)
+      if (out === null) {
+        showToast(
+          `Chưa có tỷ giá ${working.displayCurrency} → ${next} nên chưa đổi được tiền ` +
+            `hiển thị. Đổi nhãn mà không quy đổi tài sản khởi điểm là sai ngay từ điểm ` +
+            `đầu bản chiếu — thà chưa đổi.`,
+          'error',
+        )
+        return
+      }
+      if (out === working) return
+      editDraft(() => out)
+    },
+    [working, savedDraft, pageFxOf, editDraft],
+  )
+
+  /**
+   * Dòng tỷ giá của hàng 5 ("$1 = ¥150") — chỉ hiện khi kế hoạch THẬT SỰ có đồng tiền
+   * khác tiền hiển thị.
+   *
+   * Bản vẽ (dòng 1964) luôn hiện một dòng, và khi trùng đơn vị thì dòng đó chỉ ghi lại
+   * mã tiền — mà mã tiền đã có ở cuối hàng 2. Thứ đáng chỗ là TỶ GIÁ ĐANG DÙNG, và nó
+   * chỉ có nghĩa khi có gì để quy đổi. Thiếu tỷ giá thì hàng 6 đã có câu cảnh báo riêng,
+   * không nhắc lại ở đây.
+   */
+  const rateLines = useMemo(() => {
+    if (!working) return []
+    const khac = [...new Set(working.phases.map((p) => p.currency))].filter(
+      (c) => c !== working.displayCurrency,
+    )
+    return khac
+      .map((c) => {
+        const fx = pageFxOf(working.displayCurrency, c)
+        return fx === null ? null : formatRateLine(working.displayCurrency, c, fx)
+      })
+      .filter((x): x is string => x !== null)
+  }, [working, pageFxOf])
+
 
   /**
    * Bản chiếu ĐANG XEM — từ bản NHÁP, không từ dòng đã lưu. Đây là điều làm dock có
@@ -599,10 +716,14 @@ function TuongLaiConsole() {
   const compareCandidates = useMemo(() => {
     if (!compareOn || !active) return []
     let matchedIdx = 0
+    // Đối chiếu với đơn vị của BẢN NHÁP, không của bản đã lưu: trục tiền vẽ theo nháp
+    // (hàng 5 đổi được đơn vị), nên so với bản đã lưu là đúng cái "chuỗi số USD vẽ lên
+    // trục ¥" mà khối này tồn tại để chặn.
+    const truc = working?.displayCurrency ?? (active.display_currency as CurrencyCode)
     return scenarios
       .filter((s) => s.id !== active.id)
       .map((s) => {
-        const currencyMismatch = s.display_currency !== active.display_currency
+        const currencyMismatch = s.display_currency !== truc
         return {
           id: s.id,
           name: s.name,
@@ -612,7 +733,7 @@ function TuongLaiConsole() {
           color: currencyMismatch ? '' : COMPARE_COLORS[matchedIdx++ % COMPARE_COLORS.length],
         }
       })
-  }, [compareOn, active, scenarios, projectScenario])
+  }, [compareOn, active, scenarios, projectScenario, working?.displayCurrency])
 
   const comparisons = useMemo<ComparisonLine[]>(
     () =>
@@ -769,6 +890,19 @@ function TuongLaiConsole() {
     return mk(baselinePhase.annualIncomeMinor, baselinePhase.annualExpenseMinor, false)
   }, [baseline, baselinePhase, shownInput, pageFxOf])
 
+  /**
+   * Dữ liệu của pane "Bản đồ khoản lớn" — tính Ở ĐÂY, không trong pane, vì CHIP của hàng
+   * 11 cũng đọc nó (nhãn chip là "Bản đồ khoản lớn · N khoản · ¥X/tháng"). Xem đầu
+   * `useBigExpenseMap.ts`.
+   */
+  const bigMap = useBigExpenseMap({
+    events: shownInput?.events ?? NO_EVENTS,
+    displayCurrency: shownInput?.displayCurrency ?? 'JPY',
+    fxOf: pageFxOf,
+    todayISO,
+    rows: shownRows,
+  })
+
   // --- LỊCH SỬ KẾT LUẬN (migration 0055, spec §13) ------------------------------------
   //
   // Đây là NGOẠI LỆ DUY NHẤT của luật "mọi lệnh ghi đi qua bản nháp" trên màn này: một
@@ -874,7 +1008,7 @@ function TuongLaiConsole() {
           startYear: y,
           label: 'Chặng mới',
           country: phu?.country ?? null,
-          currency: phu?.currency ?? ((active?.display_currency as CurrencyCode) ?? 'JPY'),
+          currency: phu?.currency ?? working?.displayCurrency ?? 'JPY',
           annualIncomeMinor: phu?.annualIncomeMinor ?? 0,
           annualExpenseMinor: phu?.annualExpenseMinor ?? 0,
           incomePctOfPrev: null,
@@ -887,7 +1021,7 @@ function TuongLaiConsole() {
       ),
     )
     setSel({ type: 'phase', id: addedPhaseId(seed) })
-  }, [working, currentYear, lastYear, active?.display_currency, editDraft])
+  }, [working, currentYear, lastYear, editDraft])
 
   /** "+ Chặng từ mẫu" — mẫu mức sống (`phasePresets.ts`) thành một chặng nháp. */
   const addPhaseFromPreset = useCallback(
@@ -897,10 +1031,10 @@ function TuongLaiConsole() {
       const y = freePhaseStartYear(working.phases, currentYear + 1, currentYear, lastYear)
       // Tỷ giá tra ở ĐÂY, không trong `phasePresets.ts`: file đó thuần. Không tra được
       // thì 1 và banner thiếu tỷ giá của trang bắt ngay — thà thiếu còn hơn bịa.
-      editDraft((d) => addDraftPhase(d, phasePresetToDraft(p, y, pageFxOf(p.currency, (active?.display_currency as CurrencyCode) ?? 'JPY') ?? 1), seed))
+      editDraft((d) => addDraftPhase(d, phasePresetToDraft(p, y, pageFxOf(p.currency, d.displayCurrency) ?? 1), seed))
       setSel({ type: 'phase', id: addedPhaseId(seed) })
     },
-    [working, currentYear, lastYear, pageFxOf, active?.display_currency, editDraft],
+    [working, currentYear, lastYear, pageFxOf, editDraft],
   )
 
   /**
@@ -1144,7 +1278,17 @@ function TuongLaiConsole() {
   // hẹp kiểu cho phần JSX bên dưới, không phải một trạng thái thật sẽ xảy ra.
   if (!active || !input || !shownInput || !working) return <EmptyState>Đang tải…</EmptyState>
 
-  const currency = active.display_currency as CurrencyCode
+  /**
+   * Đơn vị của MỌI con số trên màn — lấy từ bản NHÁP, không từ bản đã lưu.
+   *
+   * Trước khi hàng 5 có nhóm ¥/$/₫ thì không gì sửa được `displayCurrency` của nháp, nên
+   * hai nguồn này không bao giờ lệch và đọc từ `active` là vô hại. Nay chúng lệch được:
+   * bản chiếu (`shownInput`) chạy theo nháp, nên đọc đơn vị từ bản đã lưu là vẽ dãy số
+   * USD rồi dán nhãn ¥ lên — đo được trên app 2026-09-10: $940.727,93 hiện ra thành
+   * "¥94,072,793", đúng lớp sai 100 lần mà cả `convertMinorToday` và `planDraftSave`
+   * đều có JSDoc cảnh báo.
+   */
+  const currency = working.displayCurrency
   const birthYear = shownInput.birthYear
   /** Bao nhiêu cú sốc đang bật — huy hiệu trên chip hàng 10 khi nó còn thu gọn. */
   const stressCount = Object.values(stress).filter((v) => v.on).length
@@ -1565,6 +1709,31 @@ function TuongLaiConsole() {
               )
             })}
 
+            {/* Ô ĐỔI TÊN — bản vẽ dòng 104: 132px, bo tròn hết, viền GẠCH NỐI, nền
+                trong suốt. Viền gạch nối là tín hiệu "chữ này sửa được tại chỗ", khác
+                với ô nhập nền đặc của một form; nền trong suốt để nó không đọc thành
+                một chip thứ N trong dải chip kịch bản ngay bên trái.
+
+                Ghi vào bản NHÁP (xem `renameScenario`), nên chip bên trái vẫn hiện tên
+                ĐÃ LƯU cho tới khi bấm Lưu — hai con chữ khác nhau ở đây là đúng: một
+                cái là kịch bản trên đĩa, một cái là điều bạn đang định đổi, và thanh
+                nháp ở trên nói ra chênh lệch đó bằng chữ. */}
+            <input
+              type="text"
+              aria-label="Tên kịch bản"
+              title="Đổi tên kịch bản đang mở"
+              value={working.name}
+              onChange={(ev) => renameScenario(ev.target.value)}
+              onBlur={renameBlur}
+              // Enter = "xong", nên nó RỜI ô — cũng là cú chạy `renameBlur`, tức đường
+              // duy nhất mà một ô trống được trả về tên cũ. Không có nó thì gõ xoá hết
+              // rồi bấm Lưu bằng bàn phím là lưu một kịch bản không tên.
+              onKeyDown={(ev) => {
+                if (ev.key === 'Enter') ev.currentTarget.blur()
+              }}
+              className="w-33 min-w-0 rounded-full border border-dashed border-border-strong bg-transparent px-3 py-1.5 text-sm text-fg-secondary"
+            />
+
             {scenarios.length > 1 && (
               <FilterChip
                 on={compareOn}
@@ -1734,6 +1903,26 @@ function TuongLaiConsole() {
             <span className="min-w-0 flex-1 truncate text-2xs uppercase tracking-label text-fg-muted">
               Rê chuột trên đồ thị để đọc số theo từng năm
             </span>
+            {rateLines.length > 0 && (
+              <span className="shrink-0 font-mono text-2xs text-fg-muted">
+                {rateLines.join(' · ')}
+              </span>
+            )}
+
+            {/* Nhóm ¥/$/₫ — TIỀN HIỂN THỊ của kịch bản, không phải một cách xem tạm.
+                Nó ghi vào bản nháp (`switchCurrency`) vì đó là một cột thật của kịch
+                bản: đổi nó là quy đổi lại tài sản khởi điểm và đặt lại tỷ giá giả định
+                của mọi dòng không còn khớp. Vì vậy nó cũng vào dòng "đang đổi gì" và
+                cần bấm Lưu — thấy được, hoàn tác được. */}
+            <SegmentedControl
+              items={CURRENCY_ITEMS}
+              value={currency}
+              onChange={switchCurrency}
+              label="Tiền hiển thị của kịch bản"
+              size="sm"
+              stretch={false}
+            />
+
             <SegmentedControl
               items={ZOOM_ITEMS}
               value={zoom === 'all' ? 'all' : String(zoom)}
@@ -1854,7 +2043,7 @@ function TuongLaiConsole() {
             // Chỉ nghe khi bảng theo năm đang MỞ: `TimelinePlot` đã gộp lại còn một lần gọi
             // mỗi lần ĐỔI NĂM, nhưng nuôi một bảng đang gập thì mỗi năm đi qua vẫn là một
             // lượt render lại cả console cho không.
-            onHoverYear={yearTableOpen ? setHoverYear : undefined}
+            onHoverYear={pane === 'table' ? setHoverYear : undefined}
           />
 
           {/* BẢNG CHỌN NHANH. Kẹp toạ độ NGANG bằng `clampQuickBoardLeft` (plotFrame.ts) —
@@ -2033,50 +2222,53 @@ function TuongLaiConsole() {
             )}
           </Card>
 
-          {/* --- HÀNG 11 + 12: chip chuyển pane và pane đang mở. Hai khối dưới đây tự
-                  mang chip tiêu đề của mình rồi bung nội dung ngay dưới — đúng cặp
-                  "chip + pane" mà bản vẽ vẽ thành hai hàng. */}
-          {/* Liên kết HAI CHIỀU đồ thị ↔ bảng theo năm (spec §11). Cả hai nửa đã có sẵn
-              trong nhánh này nhưng không có gì nối chúng: `TimelinePlot` bắn `onHoverYear`
-              (comment của chính nó nhắc "Bảng theo năm") mà không chỗ gọi nào nghe, và
-              `focusYear` của bảng không chỗ nào truyền (phát hiện review cuối nhánh
-              2026-09-09, Finding 5).
+          {/* --- HÀNG 11: chip chuyển pane ------------------------------------------
 
-              `open` do trang giữ để CHỈ nghe năm rê khi bảng đang mở — xem JSDoc `open`.
+                  BA chip, MỘT pane (bản vẽ mục 11 + markup .dc.html dòng 641-651). Trước
+                  bản này bảng và bản đồ là hai thẻ TỰ GẬP, mỗi thẻ mang chip riêng, nên
+                  hai bảng số dài mở được cùng lúc và chip thứ ba không có hàng nào để
+                  chen vào. Chip nay ở `PaneSwitchRow`, thân ở `YearTablePane` /
+                  `BigExpenseMapPane` — xem đầu hai file đó.
 
-              `onEditEvent` cũng bị mất khi màn cũ nghỉ: master truyền nó nên bấm một dòng
-              mốc trong bảng là mở trình sửa; ở đây các dòng đó render thành `<div>` trơ. Nối
-              lại vào chính `sel` của dock — đúng đích mà bấm icon mốc trên trục cũng tới. */}
-          {/* HÀNG 11 — chip chuyển pane. Bản vẽ có BA chip: Bảng theo năm · Bản đồ khoản
-              lớn · Danh sách đầy đủ. Hôm nay bảng và bản đồ vẫn là hai thẻ tự gập (mỗi thẻ
-              mang chip riêng), nên ở đây chỉ thêm chip thứ ba — phiếu danh sách. Gộp cả ba
-              về MỘT pane dùng chung là việc riêng: `YearTableSection` và
-              `BigExpenseMapSection` đều tự dựng chip + thân, nên phải tách thân ra trước. */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <ActionButton variant="outline" onClick={() => setDrawerOpen(true)}>
-              Danh sách đầy đủ
-            </ActionButton>
-          </div>
+                  Liên kết HAI CHIỀU đồ thị ↔ bảng theo năm (spec §11): `TimelinePlot` bắn
+                  `onHoverYear` và bảng nhận `focusYear`. Trang giữ `pane` để CHỈ nghe năm
+                  rê khi pane bảng đang mở — một `setState` mỗi lần con trỏ đổi năm, chỉ
+                  để nuôi một bảng không ai thấy, là render lại cả console cho không.
 
-          <YearTableSection
-            rows={shownRows}
+                  `onEditEvent` nối vào chính `sel` của dock — đúng đích mà bấm icon mốc
+                  trên trục cũng tới. */}
+          <PaneSwitchRow
+            pane={pane}
+            onPane={setPane}
+            onOpenDrawer={() => setDrawerOpen(true)}
+            yearCount={shownRows.length}
+            bigCount={bigMap.life.items.length}
+            lifetimeSpendMinor={bigMap.life.totalSpendMinor}
+            phaseCount={working.phases.length}
+            eventCount={working.events.length}
             currency={currency}
-            scenarioName={active.name}
-            focusYear={yearTableOpen ? (hoverYear ?? undefined) : undefined}
-            onEditEvent={(id) => setSel({ type: 'event', id })}
-            open={yearTableOpen}
-            onOpenChange={setYearTableOpen}
+            approx={missingRateCurrencies.length > 0}
           />
 
-          <BigExpenseMapSection
-            events={shownInput.events}
-            displayCurrency={currency}
-            fxOf={pageFxOf}
-            todayISO={todayISO}
-            surplus={surplusForMap}
-            rows={shownRows}
-            hasMissingRate={missingRateCurrencies.length > 0}
-          />
+          {/* --- HÀNG 12: pane đang mở --------------------------------------------- */}
+          {pane === 'table' && (
+            <YearTablePane
+              rows={shownRows}
+              currency={currency}
+              scenarioName={active.name}
+              focusYear={hoverYear ?? undefined}
+              onEditEvent={(id) => setSel({ type: 'event', id })}
+            />
+          )}
+
+          {pane === 'map' && (
+            <BigExpenseMapPane
+              data={bigMap}
+              displayCurrency={currency}
+              surplus={surplusForMap}
+              hasMissingRate={missingRateCurrencies.length > 0}
+            />
+          )}
 
           <PlanListDrawer
             open={drawerOpen}

@@ -12,7 +12,7 @@
 
 import type { ReactNode } from 'react'
 
-export type NumTone = 'neutral' | 'muted' | 'in' | 'out' | 'warn'
+export type NumTone = 'neutral' | 'muted' | 'in' | 'out' | 'warn' | 'onAccent'
 
 const TONE: Record<NumTone, string> = {
   neutral: 'text-fg-primary',
@@ -20,6 +20,11 @@ const TONE: Record<NumTone, string> = {
   in: 'text-money-in',
   out: 'text-money-out',
   warn: 'text-fg-warn',
+  // Số nằm TRÊN nền --accent (chip pane đang mở ở hàng 11, ô đang chọn của một dải).
+  // <Money> đã có đúng tone này với đúng lý do đó; thiếu nó ở đây thì một con số trong
+  // chip đang bật phải rơi về 'muted' — chữ xám trên nền xanh accent, và đó là con số
+  // duy nhất trên chip mà người ta bấm vào chip để đọc.
+  onAccent: 'text-fg-on-accent',
 }
 
 interface Props {

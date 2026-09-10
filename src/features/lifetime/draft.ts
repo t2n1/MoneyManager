@@ -782,6 +782,20 @@ export function applyPreset(
 }
 
 /**
+ * Đổi TÊN kịch bản trong bản nháp.
+ *
+ * Chữ THÔ, không `trim`: ô ở hàng 2 là ô người dùng đang gõ, và cắt khoảng trắng ở đây
+ * thì gõ "Về " để viết tiếp chữ sau là mất luôn dấu cách vừa gõ. Tên rỗng bị chặn lúc
+ * RỜI ô (component trả về tên đã lưu) — chỗ đó biết tên cũ là gì, hàm này thì không.
+ *
+ * Trả về chính `draft` khi không có gì đổi, cùng quy ước với `setDraftCurrency`.
+ */
+export function setDraftName(draft: ScenarioDraft, name: string): ScenarioDraft {
+  if (draft.name === name) return draft
+  return { ...draft, name }
+}
+
+/**
  * Đổi TIỀN HIỂN THỊ của bản nháp — và đặt lại tỷ giá giả định của mọi dòng không còn
  * khớp nó.
  *

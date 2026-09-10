@@ -16,6 +16,7 @@ import {
   removeDraftPhase,
   savePlanIsEmpty,
   setDraftCurrency,
+  setDraftName,
   setPhaseCurrency,
   type ScenarioDraft,
 } from './draft'
@@ -496,6 +497,42 @@ describe('applyPreset', () => {
       { kind: 'phasesAdded', count: 1 },
       { kind: 'eventsAdded', count: 1 },
     ])
+  })
+})
+
+describe('setDraftName', () => {
+  it('đặt tên mới', () => {
+    expect(setDraftName(base(), 'Về Việt Nam 2035').name).toBe('Về Việt Nam 2035')
+  })
+
+  // Chữ THÔ, không cắt khoảng trắng: ô đổi tên là ô người dùng đang GÕ, và cắt ở đây
+  // thì gõ "Về " để viết tiếp chữ thứ hai là mất luôn dấu cách vừa gõ. Chỗ chặn tên
+  // trống nằm ở lúc rời ô (component), không nằm trong hàm đặt giá trị.
+  it('giữ nguyên khoảng trắng người dùng đang gõ', () => {
+    expect(setDraftName(base(), 'Về ').name).toBe('Về ')
+  })
+
+  it('đặt lại đúng tên đang có thì trả về nguyên bản nháp', () => {
+    const b = base()
+    expect(setDraftName(b, b.name)).toBe(b)
+  })
+
+  it('không đụng gì khác trong nháp', () => {
+    const b = base()
+    const d = setDraftName(b, 'Tên khác')
+    expect(d.phases).toBe(b.phases)
+    expect(d.events).toBe(b.events)
+    expect(d.startingAssetsMinor).toBe(b.startingAssetsMinor)
+  })
+
+  // Tên là thứ `draftChanges` in ra ở dòng "đang đổi gì", và `planDraftSave` ghi xuống
+  // cột `name`. Nối được tới cả hai đầu mới là xong, không chỉ đặt được field.
+  it('đi tới cả dòng tóm tắt và cả lệnh ghi', () => {
+    const d = setDraftName(base(), 'Tên khác')
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'name', from: 'Hiện tại', to: 'Tên khác' },
+    ])
+    expect(planDraftSave(base(), d).scenarioPatch).toEqual({ name: 'Tên khác' })
   })
 })
 

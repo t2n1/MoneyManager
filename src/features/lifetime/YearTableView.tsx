@@ -3,7 +3,7 @@
 // bảng này liệt kê ĐÚNG những con số đã vẽ, dạng đọc được bằng bàn phím/screen reader.
 // Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem `TuongLaiPage.tsx`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ArrowDownCircle, ArrowUpCircle, ChevronDown, Download, X } from 'lucide-react'
+import { AlertCircle, ArrowDownCircle, ArrowUpCircle, Download, X } from 'lucide-react'
 import { Card, EmptyState, SectionTitle } from '../../components/ui'
 import { downloadTextFile } from '../../lib/download'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -531,22 +531,26 @@ export function YearTableView({
 }
 
 /**
- * Bảng theo năm dạng KHỐI GẤP MỞ trong cột trái, ngay dưới đồ thị.
+ * Bảng theo năm dạng PANE trong cột trái, ngay dưới đồ thị.
  *
- * Vì sao thêm vỏ thứ hai thay vì giữ mỗi sheet: bảng này là bản đọc-được-bằng-chữ của
+ * Vì sao có vỏ thứ hai thay vì giữ mỗi sheet: bảng này là bản đọc-được-bằng-chữ của
  * đúng cái đồ thị ngay trên nó, và một sheet toàn màn thì CHE MẤT đồ thị — người dùng
  * không đối chiếu được hai thứ, phải nhớ. Sheet vẫn giữ cho đường vào từ ô kết luận
  * ("Tự do tài chính 2060" → mở thẳng ở năm 2060), nơi việc cần làm là soi MỘT năm chứ
  * không phải so bảng với hình.
+ *
+ * KHÔNG còn tự mang chip gấp/mở: hàng 11 của bản vẽ có BA chip chọn MỘT pane dùng chung
+ * (Bảng theo năm · Bản đồ khoản lớn · Danh sách đầy đủ), nên chip là việc của
+ * `PaneSwitchRow` và trang chỉ dựng pane nào đang mở. Trước bản này mỗi khối tự gập lấy,
+ * nên hai khối mở được CÙNG LÚC — hai bảng số dài xếp nối nhau, và cái chip thứ ba của
+ * bản vẽ không có chỗ nào để chen vào.
  */
-export function YearTableSection({
+export function YearTablePane({
   rows,
   currency,
   scenarioName,
   focusYear,
   onEditEvent,
-  open,
-  onOpenChange,
 }: {
   rows: YearRow[]
   currency: CurrencyCode
@@ -558,46 +562,25 @@ export function YearTableSection({
    * Chỉ tô được những dòng ĐANG HIỆN: ở chế độ mặc định bảng lọc còn "những năm có gì để
    * đọc", nên rê qua một năm bị lọc thì không có dòng nào sáng. Công tắc "hiện đủ" ngay
    * trên bảng mở hết ra.
+   *
+   * Trang chỉ bơm năm rê vào khi pane này ĐANG mở (`pane === 'table'`): một `setState`
+   * mỗi lần con trỏ đổi năm, chỉ để nuôi một bảng không ai thấy, là render lại cả console
+   * cho không.
    */
   focusYear?: number
   onEditEvent?: (eventId: string) => void
-  /**
-   * Gấp/mở do chỗ gọi giữ, không phải state trong này (khác bản trước).
-   *
-   * Vì sao: `focusYear` tới từ việc rê chuột, và chỗ gọi phải biết bảng có đang mở hay
-   * không để KHÔNG bơm năm rê vào khi bảng đang gập — một `setState` mỗi lần con trỏ đổi
-   * năm, chỉ để nuôi một bảng không ai thấy, là render lại cả console cho không.
-   */
-  open: boolean
-  onOpenChange: (open: boolean) => void
 }) {
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        aria-expanded={open}
-        className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-label text-fg-muted transition"
-      >
-        Bảng theo năm
-        <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
-          aria-hidden="true"
-        />
-      </button>
-      {open && (
-        <div className="mt-2">
-          <YearTableBody
-            rows={rows}
-            currency={currency}
-            scenarioName={scenarioName}
-            focusYear={focusYear}
-            onEditEvent={onEditEvent}
-            scrollClassName=""
-            scrollToFocus={false}
-          />
-        </div>
-      )}
+      <YearTableBody
+        rows={rows}
+        currency={currency}
+        scenarioName={scenarioName}
+        focusYear={focusYear}
+        onEditEvent={onEditEvent}
+        scrollClassName=""
+        scrollToFocus={false}
+      />
     </Card>
   )
 }

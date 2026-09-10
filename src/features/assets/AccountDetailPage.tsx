@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LineChart, Pencil, Scale, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileUp, LineChart, Pencil, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { AccountTypeIcon } from '../../components/icons'
 import {
@@ -38,13 +38,14 @@ import {
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import { AccountFormSheet } from '../accounts/AccountFormSheet'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { billForRange } from './billForRange'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
+import { ImportStatementSheet } from './ImportStatementSheet'
 import {
   cardBillingRange,
   cardMonthCharge,
@@ -86,6 +87,7 @@ export function AccountDetailPage() {
   const [searchParams] = useSearchParams()
   const [showReconcile, setShowReconcile] = useState(() => searchParams.get('doi-chieu') === '1')
   const [showMonthAdjust, setShowMonthAdjust] = useState(false)
+  const [showImportStatement, setShowImportStatement] = useState(false)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -891,9 +893,17 @@ export function AccountDetailPage() {
               tài khoản để xem đúng kỳ như app thẻ.
             </p>
           )}
-          <ActionButton onClick={() => setShowMonthAdjust(true)} className="mt-3">
-            <Scale className="h-3.5 w-3.5" /> Chỉnh cho khớp
-          </ActionButton>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {/* Hai nút CỐ Ý đứng cạnh nhau và làm hai việc trái nhau: "Nạp sao kê" chỉ
+                CHỈ RA dòng nào lệch (không đụng giao dịch), còn "Chỉnh cho khớp" đẻ một
+                khoản bù làm số khớp ngay — tiện, nhưng chôn luôn dòng ghi sai. */}
+            <ActionButton onClick={() => setShowImportStatement(true)}>
+              <FileUp className="h-3.5 w-3.5" /> Nạp sao kê
+            </ActionButton>
+            <ActionButton onClick={() => setShowMonthAdjust(true)}>
+              <Scale className="h-3.5 w-3.5" /> Chỉnh cho khớp
+            </ActionButton>
+          </div>
         </Card>
       )}
 
@@ -958,6 +968,18 @@ export function AccountDetailPage() {
           rangeStartISO={range.start}
           rangeEndISO={range.end}
           onClose={() => setShowMonthAdjust(false)}
+        />
+      )}
+      {showImportStatement && account && (
+        <ImportStatementSheet
+          card={{
+            id: account.id,
+            name: account.name,
+            currency: account.currency as CurrencyCode,
+            statementDay: account.statement_day,
+            paymentDueDay: account.payment_due_day,
+          }}
+          onClose={() => setShowImportStatement(false)}
         />
       )}
     </div>

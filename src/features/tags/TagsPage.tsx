@@ -325,12 +325,21 @@ export function TagsPage() {
         <span className="shrink-0 text-2xs text-fg-muted">
           <Num tone="muted">{s.rows.length}</Num> nhãn
         </span>
+        {/* Để nguyên 44×44 của IconButton, KHÔNG bó nhỏ lại. Bản trước nối thêm
+            `min-h-9 min-w-9 px-0` cho khỏi cao hơn ô tên 36px bên cạnh — cả BA class đó
+            đều KHÔNG ăn: đo trong trình duyệt ra `minHeight/minWidth: 44px`,
+            `paddingLeft: 12px`. Tailwind xếp thang số TĂNG DẦN trong CSS sinh ra
+            (.min-h-9 trước .min-h-11, .px-0 trước .px-3), nên giá trị LỚN HƠN trong
+            `BASE` của IconButton luôn thắng, bất kể thứ tự viết trong className.
+            Và 44 mới đúng ngưỡng vùng chạm mà IconButton tồn tại để bảo vệ. Guardrail:
+            designSystem.test.ts → "IconButton không nhận tiện ích hộp … ở chỗ dùng".
+            Cùng kết luận đã ghi tại nút xoá kịch bản (TuongLaiPage). */}
         {s.groupId && (
           <IconButton
             variant="ghost"
             aria-label={`Xóa nhóm ${s.title}`}
             onClick={() => removeGroup(s.groupId!, s.title)}
-            className="min-h-9 min-w-9 px-0 text-fg-muted hover:text-money-out"
+            className="hover:text-money-out"
           >
             <Trash2 className="h-4 w-4" />
           </IconButton>

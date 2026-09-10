@@ -1076,6 +1076,88 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     ).toEqual([])
   })
 
+  /**
+   * CÙNG KHUÔN với luật bề rộng ở trên, cho một primitive cụ thể: `<IconButton>` sở hữu
+   * cái HỘP của nó (`min-h-11 min-w-11 … px-3` trong hằng `BASE`). Nối thêm tiện ích hộp
+   * ở chỗ dùng thì hoặc nó CHẾT, hoặc nó phá đúng thứ primitive tồn tại để bảo vệ.
+   *
+   * Đo 2026-09-10 trên nút xoá nhóm nhãn (TagsPage) ở màn /settings/tags: className mang
+   * `min-h-9 min-w-9 px-0` mà `getComputedStyle` ra `minHeight: 44px`, `minWidth: 44px`,
+   * `paddingLeft: 12px` — CẢ BA class chết. Lý do nằm trong CSS Tailwind SINH RA, không
+   * nằm trong chuỗi className: thang số xếp TĂNG DẦN (`.min-h-9` @21184 trước `.min-h-11`
+   * @21243, `.px-0` @54750 trước `.px-3` @55027), nên giá trị LỚN HƠN ở `BASE` luôn thắng
+   * bất kể viết trước hay sau. Cùng lớp bẫy với luật bề rộng: Tailwind sinh CSS cho CẢ HAI
+   * class, không cảnh báo gì, và với tsc thì đây chỉ là một chuỗi.
+   *
+   * `h-*`/`w-*` cũng bị chặn dù `BASE` không khai chúng: theo CSS, `min-height` thắng
+   * `height` khi height nhỏ hơn — KHÔNG phụ thuộc thứ tự trong CSS, nên `h-9` ở đây còn
+   * chết chắc chắn hơn cả `min-h-9`.
+   *
+   * Cần một cỡ NHỎ HƠN thật thì thêm một cỡ CÓ TÊN vào IconButton (prop `size`), đừng dán
+   * class ở chỗ dùng: 44×44 là ngưỡng vùng chạm Apple HIG mà primitive này tồn tại để giữ,
+   * nên bó nhỏ phải là một quyết định có tên và đọc được, không phải hai class lẫn trong
+   * một chuỗi. Hai chỗ ĐÃ xét và cùng kết luận "giữ 44": nút xoá nhóm nhãn (TagsPage) và
+   * nút xoá kịch bản (TuongLaiPage) — lý do ghi tại chỗ ở cả hai file.
+   *
+   * KHÔNG chặn màu: `hover:text-money-out` ở ba nút xoá là override CỐ Ý và nó THẮNG
+   * (`.hover:text-money-out` @82267 nằm sau `.hover:text-fg-primary` @81889 của dáng
+   * ghost). Màu xếp theo thứ tự khai trong `@theme`, không theo trị số, nên không suy ra
+   * được từ nguồn — luật này chỉ nhận những họ tiện ích mà primitive chắc chắn thắng.
+   */
+  it('IconButton không nhận tiện ích hộp (min-h/min-w/h/w/size/p*) ở chỗ dùng', () => {
+    // Bỏ tiền tố biến thể (`md:`, `hover:`) rồi mới xét: `md:px-2` cũng là tiện ích hộp.
+    const BOX = (t: string) => {
+      const bare = t.slice(t.lastIndexOf(':') + 1)
+      return (
+        /^(?:min-|max-)?[hw]-/.test(bare) || /^size-/.test(bare) || /^p[xytrbles]?-/.test(bare)
+      )
+    }
+    const boxTokens = (cn: string) =>
+      cn
+        .replace(/\$\{[^}]*\}/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 0 && BOX(t))
+
+    const hits: string[] = []
+    for (const f of FILES) {
+      const at = (i: number) => f.text.slice(0, i).split('\n').length
+
+      // `<IconButton …>` — quét tới dấu `>` đóng thẻ MỞ, đếm ngoặc nhọn để không dừng ở
+      // dấu `>` nằm trong một biểu thức JSX (`{a > b}`).
+      for (const m of f.text.matchAll(/<IconButton\b/g)) {
+        let i = m.index + '<IconButton'.length
+        let brace = 0
+        for (; i < f.text.length; i++) {
+          const c = f.text[i]
+          if (c === '{') brace++
+          else if (c === '}') brace--
+          else if (c === '>' && brace === 0) break
+        }
+        const tag = f.text.slice(m.index, i + 1)
+        const cn = tag.match(/className=(?:"([^"]*)"|\{`([^`]*)`\})/)
+        if (!cn) continue
+        const bad = boxTokens(cn[1] ?? cn[2] ?? '')
+        if (bad.length > 0) hits.push(`${f.path.replace(SRC, '')}:${at(m.index)} — ${bad.join(' ')}`)
+      }
+
+      // `iconButtonClass(variant, 'extra')` — cùng hằng `BASE`, cùng cái bẫy.
+      for (const m of f.text.matchAll(
+        /iconButtonClass\(\s*(?:'[^']*'|"[^"]*")?\s*,\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)/g,
+      )) {
+        const bad = boxTokens(m[1] ?? m[2] ?? m[3] ?? '')
+        if (bad.length > 0) hits.push(`${f.path.replace(SRC, '')}:${at(m.index)} — ${bad.join(' ')}`)
+      }
+    }
+
+    expect(
+      hits,
+      `IconButton sở hữu hộp của nó (min-h-11 min-w-11 px-3 trong BASE). Class hộp dán ở ` +
+        `chỗ dùng thường CHẾT — Tailwind xếp thang số tăng dần nên giá trị lớn hơn ở BASE ` +
+        `thắng, bất kể thứ tự trong chuỗi. Bỏ chúng đi (giữ 44×44), hoặc nếu thật cần nhỏ ` +
+        `hơn thì thêm một cỡ CÓ TÊN vào IconButton (prop \`size\`).\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
+
   it('không đặt bề rộng cột bằng px (không co theo Cỡ chữ)', () => {
     const hits: string[] = []
     const RE = /\b(?:w|min-w|max-w|basis|grid-cols)-\[([^\]]*)\]/g

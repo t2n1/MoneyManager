@@ -1847,9 +1847,10 @@ function TuongLaiConsole() {
                 `hover:text-money-out` là đúng cặp mà nút xoá nhóm nhãn (TagsPage) dùng.
 
                 Để nguyên 44×44 của `IconButton`, KHÔNG bó nhỏ lại. Bản đầu có thêm
-                `min-h-9 min-w-9` chép từ TagsPage cho khỏi cao hơn dải chip 32px bên cạnh
-                — đo trong trình duyệt thì `minHeight` vẫn ra 44px: hai class đó không ăn.
-                Tailwind xếp `min-h-9` trước `min-h-11` trong CSS sinh ra, nên thứ tự viết
+                `min-h-9 min-w-9 px-0` chép từ TagsPage cho khỏi cao hơn dải chip 32px bên cạnh
+                — đo trong trình duyệt thì `minHeight` vẫn ra 44px và `paddingLeft` vẫn
+                12px: CẢ BA class đó không ăn. Tailwind xếp thang số TĂNG DẦN trong CSS sinh
+                ra (`min-h-9` trước `min-h-11`, `px-0` trước `px-3`), nên thứ tự viết
                 trong `className` không quyết định gì — một class có mặt trong DOM không có nghĩa
                 là nó ăn. Và 44 cũng đúng ngưỡng vùng chạm mà `IconButton` tồn tại để bảo vệ; nó
                 bằng chằn chặn nút "+ Kịch bản mới" ngay cạnh, nên hàng vẫn thẳng. */}
@@ -1860,7 +1861,7 @@ function TuongLaiConsole() {
                 title="Xoá kịch bản đang mở"
                 disabled={deletingScenario}
                 onClick={() => void handleDeleteScenario()}
-                className="shrink-0 px-0 text-fg-muted hover:text-money-out"
+                className="shrink-0 hover:text-money-out"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </IconButton>

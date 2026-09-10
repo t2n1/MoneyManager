@@ -18,7 +18,19 @@ import type { ButtonHTMLAttributes } from 'react'
  * nhạt lên một nút icon. Không gộp được vào <ActionButton>: nó khai `px-4 py-2` cho nút
  * CÓ CHỮ, còn nút icon cần vuông 44×44.
  */
-export type IconButtonVariant = 'surface' | 'ghost' | 'accent'
+/**
+ * 'ghost-accent' thêm 2026-09-10: trong suốt như `ghost` nhưng icon mang màu nhấn, cho
+ * hành động CHÍNH của một dòng (nút "Ghi khoản" ở màn Sắp chi, đứng cạnh nút X bỏ khoản
+ * — hai việc không cùng trọng lượng nên không được trông giống nhau).
+ *
+ * Vì sao phải là một dáng CÓ TÊN chứ không phải `iconButtonClass('ghost', 'text-fg-accent')`:
+ * `ghost` đã khai `text-fg-muted`, mà `.text-fg-muted` nằm SAU `.text-fg-accent` trong CSS
+ * Tailwind sinh ra (@64278 vs @64042 — màu xếp theo thứ tự khai trong `@theme`, không theo
+ * trị số), nên class dán ở chỗ dùng CHẾT lặng lẽ. Đó đúng là lỗi bản trước: icon Check ra
+ * xám #9aa69b suốt, không ai thấy. Không có `hover:text-*` ở đây là CỐ Ý — thiếu nó thì
+ * màu nhấn ở lại khi trỏ chuột lên, chứ `ghost` sẽ kéo về `hover:text-fg-primary`.
+ */
+export type IconButtonVariant = 'surface' | 'ghost' | 'accent' | 'ghost-accent'
 
 // 'surface' ở dark: bỏ bóng, thay bằng viền control — 1a không có shadow, và trên nền
 // #0e1014 thì shadow-sm chỉ còn là một vệt tối bẩn quanh nút. Light giữ nguyên.
@@ -30,6 +42,7 @@ const VARIANT: Record<IconButtonVariant, string> = {
   surface:
     'border border-border-panel bg-surface shadow-sm hover:bg-surface-sunken dark:border-border-strong dark:shadow-none',
   ghost: 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary',
+  'ghost-accent': 'text-fg-accent hover:bg-surface-sunken',
   // Nền xanh NHẠT, không phải nền xanh đặc: nút này lặp trên mỗi dòng danh mục cha, một
   // dãy nút xanh đặc xếp dọc thì thành bức tường màu và không còn là "hành động phụ".
   accent: 'bg-accent-muted-bg text-fg-accent hover:opacity-90',

@@ -218,7 +218,7 @@ export function PlannedPage() {
                         to={`/entry?planned=${p.id}`}
                         aria-label={`Ghi khoản ${p.title}`}
                         title="Đã chi — ghi vào sổ"
-                        className={iconButtonClass('ghost', 'shrink-0 text-fg-accent')}
+                        className={iconButtonClass('ghost-accent', 'shrink-0')}
                       >
                         <Check className="h-5 w-5" />
                       </Link>

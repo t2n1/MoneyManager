@@ -338,7 +338,7 @@ Cộng `--motion-progress` 300ms cho vòng tải. **Đừng viết thời lượ
 | `Money` | `amount` `currency` `tone` `showSign` `compact` `approx` | 43 |
 | `Num` | `tone` — cho số KHÔNG phải tiền (đếm, %, số tháng) | 10 |
 | `ActionButton` | `variant` (`outline`\|`primary`\|`danger`) · `actionButtonClass()` cho `<Link>` | 21 |
-| `IconButton` | `variant` (`surface`\|`ghost`\|`accent`) · `aria-label` **bắt buộc** · `iconButtonClass()` | 12 |
+| `IconButton` | `variant` (`surface`\|`ghost`\|`accent`\|`ghost-accent`) · `aria-label` **bắt buộc** · `iconButtonClass()` | 13 |
 | `SegmentedControl` | `items` `value` `onChange` `label` **bắt buộc** `size` `stretch` | 16 |
 | `FilterChip` | `on` · `size` (`md`\|`sm`) · `aria` (`pressed`\|`selected`) · `filterChipClass()` | 5 |
 | `Select` | mọi prop của `<select>` + `wrapClassName` (bề rộng/lề cho khung bao) | 17 |

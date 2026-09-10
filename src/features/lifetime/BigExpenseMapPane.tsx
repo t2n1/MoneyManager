@@ -10,11 +10,16 @@
 // Ba nguồn mốc được gộp: sự kiện kịch bản (chỉ có năm), Khoản sắp chi (có ngày), Mục tiêu
 // tiết kiệm (có hạn + phần đã dành). Không khử trùng lặp giữa chúng: nhìn thấy đủ rồi tự
 // dọn dễ hơn là đoán xem app đã giấu dòng nào.
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, FilterChip, Money, Num } from '../../components/ui'
+import { ActionButton, Card, FilterChip, Money, Num } from '../../components/ui'
 import { ExplainBox } from '../../components/ExplainBox'
 import type { CurrencyCode } from '../../lib/currencies'
+import { MAP_TOP_N, costRowLook, costRowViews } from './costItemView'
+import { EventIcon } from './eventIcons'
+import { PhaseIcon } from './PlanDockParts'
+import type { DraftEvent, DraftPhase } from './draft'
+import type { LifetimeCostItem } from './lifetimeCost'
 import type { BigExpenseMapData } from './useBigExpenseMap'
 
 /** Hai câu khác nhau, xem đầu `lifetimeCost.ts`. */
@@ -31,6 +36,14 @@ interface Props {
   surplus: { monthlyMinor: number; real: boolean } | null
   /** Thiếu tỷ giá ở đâu đó trong kế hoạch → mọi tổng cả đời hiện `≈`. */
   hasMissingRate: boolean
+  /**
+   * Chặng và mốc của BẢN NHÁP — để mỗi dòng lấy đúng icon và màu mà trục đang vẽ, và để
+   * bấm một dòng mở được đúng đối tượng đó. Xem `costRowLook`.
+   */
+  phases: readonly DraftPhase[]
+  events: readonly DraftEvent[]
+  /** Bấm một dòng → chọn chặng/mốc đó trong dock, đúng đích mà bấm trên trục cũng tới. */
+  onPick: (item: LifetimeCostItem) => void
 }
 
 const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
@@ -39,16 +52,26 @@ const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
   goal: 'mục tiêu',
 }
 
-export function BigExpenseMapPane({ data, displayCurrency, surplus, hasMissingRate }: Props) {
+export function BigExpenseMapPane({
+  data,
+  displayCurrency,
+  surplus,
+  hasMissingRate,
+  phases,
+  events,
+  onPick,
+}: Props) {
   const { map, life } = data
   // Mặc định "Cả đời": hàng này tên là bản ĐỒ khoản lớn, và bản vẽ vẽ nó xếp theo tổng cả
   // đời. Câu "cần dành mỗi tháng" là câu thứ hai, một cú bấm là tới.
   const [mode, setMode] = useState<CachXep>('life')
+  /** Bản vẽ giấu bớt còn 9 khoản lớn nhất (dòng 1809), có nút mở hết. */
+  const [showAll, setShowAll] = useState(false)
+  const lifeRows = useMemo(() => costRowViews(life, { showAll }), [life, showAll])
 
   const over = surplus !== null && map.totalMonthlyNeedMinor > surplus.monthlyMinor
   const heavy = map.heavyYears.length > 0 ? map.heavyYears[0] : null
   const heavyRow = heavy !== null ? map.yearPressure.find((y) => y.year === heavy) : null
-  const doiNhat = life.items.length > 0 ? Math.abs(life.items[0].totalMinor) : 0
 
   return (
     <Card as="section" elevation="panel" padding="panel" className="min-w-0">
@@ -89,52 +112,113 @@ export function BigExpenseMapPane({ data, displayCurrency, surplus, hasMissingRa
           </p>
         ) : (
           <>
-            <ul className="mt-2 divide-y divide-border-subtle">
-              {life.items.map((i) => {
+            {/* Vùng cuộn 340px của bản vẽ (dòng 706) → `21.25rem`, rem để nó co theo Cỡ
+                chữ: một chiều cao px cứng ở nấc "Rất lớn" chỉ còn chứa nổi ba dòng. */}
+            <ul className="mt-2 max-h-[21.25rem] space-y-1.5 overflow-y-auto overscroll-contain">
+              {lifeRows.rows.map(({ item: i, monthlyMinor, sharePct, barPct }) => {
                 const ra = i.totalMinor > 0
-                const pct =
-                  life.totalSpendMinor > 0 && ra ? (i.totalMinor / life.totalSpendMinor) * 100 : null
+                const look = costRowLook(i, phases, events)
                 return (
-                  <li key={`${i.kind}:${i.id}`} className="py-2">
-                    <span className="flex items-baseline gap-2">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-fg-primary">{i.label}</span>
-                        <span className="block text-2xs text-fg-muted">
+                  <li key={`${i.kind}:${i.id}`}>
+                    {/* Cả dòng là MỘT nút: bản vẽ ghi "bấm một khoản để mở nó ra sửa"
+                        (dòng 701), và đích đến đúng bằng đích mà bấm icon mốc trên trục
+                        hay bấm khối chặng cũng tới — cùng một `sel` của dock. Trước bản
+                        này bảng này là ngõ cụt: nó nói "nhà ngốn 4.700万" rồi để người
+                        dùng tự đi tìm cái mốc đó trên trục. */}
+                    <button
+                      type="button"
+                      onClick={() => onPick(i)}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_5.75rem_3.5rem] items-center gap-x-3 rounded-md border border-border-subtle bg-surface px-2.5 py-2 text-left transition hover:border-border-strong sm:grid-cols-[minmax(0,1fr)_5.75rem_5.75rem_3.5rem]"
+                    >
+                      <span className="min-w-0">
+                        <span className="flex items-baseline gap-1.5">
+                          {/* Icon tô ĐÚNG màu mà trục đang tô chặng/mốc đó — xem
+                              `costRowLook`. Màu là số tính được nên đi qua `style`. */}
+                          <span className="flex shrink-0 self-center" style={{ color: look.color }}>
+                            {i.kind === 'phase' ? (
+                              <PhaseIcon icon={look.icon} />
+                            ) : (
+                              <EventIcon
+                                icon={look.icon}
+                                kind={look.kind ?? 'expense'}
+                                className="h-4 w-4 shrink-0"
+                              />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm text-fg-primary">
+                            {i.label}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-2xs text-fg-muted">
                           {i.kind === 'phase' ? 'sinh hoạt' : 'mốc'} ·{' '}
-                          <Num tone="muted">{i.years} năm</Num>
-                          {pct !== null && (
+                          <Num tone="muted">{i.startYear}</Num>
+                          {i.endYear !== i.startYear && (
                             <>
-                              {' · '}
-                              <Num tone="muted">{Math.round(pct)}%</Num> tổng chi
+                              –<Num tone="muted">{i.endYear}</Num>
                             </>
-                          )}
+                          )}{' '}
+                          · <Num tone="muted">{i.years}</Num> năm
+                        </span>
+                        {/* Thanh tỉ lệ — bản vẽ §"Bản đồ khoản lớn". Bề rộng là số tính
+                            được nên đi qua `style`, không phải một class tuỳ ý. */}
+                        <span
+                          aria-hidden
+                          className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-sunken"
+                        >
+                          <span
+                            className="block h-full rounded-full"
+                            style={{ width: `${barPct}%`, backgroundColor: look.color }}
+                          />
                         </span>
                       </span>
+
                       <Money
                         amount={Math.abs(i.totalMinor)}
                         currency={displayCurrency}
                         tone={ra ? 'out' : 'in'}
                         approx={hasMissingRate}
-                        className="text-sm"
+                        className="text-right text-sm font-semibold"
                       />
-                    </span>
-                    {/* Thanh tỉ lệ — bản vẽ §"Bản đồ khoản lớn". Bề rộng là số tính được
-                        nên đi qua `style`, không phải một class tuỳ ý. */}
-                    <span
-                      aria-hidden
-                      className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-sunken"
-                    >
+
+                      {/* Cột ≈/tháng ẩn ở bề ngang hẹp: bốn cột số cạnh nhau ở 1024px thì
+                          cột tên chỉ còn vài chữ. Nó là con số PHỤ (tổng và % mới là câu
+                          trả lời), nên nó là cột nhường chỗ. */}
+                      <span className="hidden text-right text-2xs text-fg-muted sm:block">
+                        ≈
+                        <Money amount={monthlyMinor} currency={displayCurrency} tone="muted" />
+                        /tháng
+                      </span>
+
+                      {/* Bản vẽ ghi chữ "thu vào" ở cột % cho dòng THU — một khoản thu
+                          không có phần nào trong TỔNG CHI, in "12%" ở đó là nói ngược. */}
                       <span
-                        className={`block h-full rounded-full ${ra ? 'bg-money-out' : 'bg-money-in'}`}
-                        style={{
-                          width: `${doiNhat > 0 ? (Math.abs(i.totalMinor) / doiNhat) * 100 : 0}%`,
-                        }}
-                      />
-                    </span>
+                        className="text-right text-2xs tabular-nums"
+                        style={{ color: look.color }}
+                      >
+                        {sharePct === null ? 'thu vào' : `${Math.round(sharePct)}%`}
+                      </span>
+                    </button>
                   </li>
                 )
               })}
             </ul>
+
+            {lifeRows.hiddenCount > 0 && (
+              <ActionButton
+                variant="outline"
+                onClick={() => setShowAll(true)}
+                className="mt-1.5"
+                title="Bảng đang xếp theo tổng cả đời, nên phần bị giấu là những khoản nhỏ nhất"
+              >
+                Xem tất cả <Num tone="muted">{life.items.length}</Num> khoản
+              </ActionButton>
+            )}
+            {showAll && life.items.length > MAP_TOP_N && (
+              <ActionButton variant="outline" onClick={() => setShowAll(false)} className="mt-1.5">
+                Thu gọn · chỉ <Num tone="muted">{MAP_TOP_N}</Num> khoản lớn nhất
+              </ActionButton>
+            )}
+
             <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-panel pt-2">
               <span className="text-sm font-medium text-fg-secondary">Tổng chi cả đời</span>
               <Money

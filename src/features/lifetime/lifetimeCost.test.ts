@@ -35,6 +35,106 @@ function find(items: ReturnType<typeof buildLifetimeCostMap>['items'], label: st
   return it
 }
 
+// ĐO TRÊN APP 10/09/2026: thêm hơn hai chục mốc từ bộ mẫu, bảng chỉ hiện MỘT dòng mốc
+// mang ¥185.855.462 — tổng của tất cả, dán nhãn của cái đầu tiên gặp. Nguyên nhân: id của
+// một dòng CHƯA LƯU là `nhap:e3` (`NEW_ID_PREFIX`), và cắt ở ':' ĐẦU TIÊN cho ra `nhap`
+// cho mọi dòng chưa lưu. Lời ghi cũ ở đây ("id thật là uuid, không chứa ':'") chỉ đúng cho
+// dòng ĐÃ LƯU — mà bảng này chạy trên BẢN NHÁP, nơi phần lớn dòng mới còn mang tiền tố đó.
+describe('buildLifetimeCostMap — id của dòng chưa lưu', () => {
+  it('hai mốc CHƯA LƯU khác nhau là hai dòng, không gộp theo tiền tố "nhap:"', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2030, 'Đi làm ở Nhật', 0, [
+          ev('nhap:e1', 'Cưới', 3_000_000),
+          ev('nhap:e2', 'Du lịch', 500_000),
+        ]),
+      ],
+    })
+    expect(map.items.map((x) => x.label).sort()).toEqual(['Cưới', 'Du lịch'])
+    expect(find(map.items, 'Cưới').totalMinor).toBe(3_000_000)
+    expect(find(map.items, 'Du lịch').totalMinor).toBe(500_000)
+  })
+
+  it('vẫn gộp ba dòng cơ chế của một mốc chưa lưu', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2034, 'Đi làm ở Nhật', 0, [
+          ev('nhap:e1', 'Mua nhà', 658_000),
+          ev('nhap:e1:tratruoc', 'Mua nhà — trả trước', 9_400_000),
+          ev('nhap:e1:trano', 'Mua nhà — trả nợ', 1_300_000),
+        ]),
+      ],
+    })
+    expect(map.items).toHaveLength(1)
+    expect(find(map.items, 'Mua nhà').totalMinor).toBe(658_000 + 9_400_000 + 1_300_000)
+  })
+})
+
+describe('buildLifetimeCostMap — quãng năm của mỗi mục', () => {
+  // `startYear` là thứ duy nhất nối một dòng CHẶNG về lại chặng thật: id của nó là
+  // `phase:${label}:${runStart}` (tổng hợp), vì `YearRow` không mang id chặng — và
+  // `YearRow` bị gói vào `_rules.js` của edge function nên thêm trường vào đó là đổi cả
+  // phía server. Có `startYear` thì `phaseForYear(phases, startYear)` cho lại đúng chặng
+  // đã sinh ra quãng đó, không phải dò theo tên (hai chặng trùng tên là chuyện hợp lệ).
+  it('chặng: quãng liền nhau cho ra năm đầu và năm cuối của chính quãng đó', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2026, 'Đi làm ở Nhật', 100),
+        row(2027, 'Đi làm ở Nhật', 100),
+        row(2028, 'Về Việt Nam', 100),
+      ],
+    })
+    const nhat = find(map.items, 'Đi làm ở Nhật')
+    expect([nhat.startYear, nhat.endYear]).toEqual([2026, 2027])
+    const vn = find(map.items, 'Về Việt Nam')
+    expect([vn.startYear, vn.endYear]).toEqual([2028, 2028])
+  })
+
+  // Hai chặng TRÙNG TÊN là hai quãng khác nhau (đã có phép kiểm riêng ở dưới) — nên quãng
+  // năm phải theo từng quãng, không gộp về một khoảng bao trùm cả hai.
+  it('hai quãng trùng tên giữ hai quãng năm riêng', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2026, 'Đi làm ở Nhật', 100),
+        row(2027, 'Nghỉ một năm', 100),
+        row(2028, 'Đi làm ở Nhật', 100),
+      ],
+    })
+    const hai = map.items.filter((x) => x.label === 'Đi làm ở Nhật')
+    expect(hai).toHaveLength(2)
+    expect(hai.map((x) => [x.startYear, x.endYear]).sort()).toEqual([[2026, 2026], [2028, 2028]])
+  })
+
+  // Mốc lặp (mua xe mỗi 8 năm) chạm những năm RỜI NHAU. `years` là số năm chạm, còn
+  // `startYear`/`endYear` là năm đầu và năm cuối — ba con số khác nhau, và dòng phụ đề
+  // "2030–2054 · 4 năm" cần cả ba.
+  it('mốc lặp: năm đầu và năm cuối, dù các năm chạm không liền nhau', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2030, 'Đi làm ở Nhật', 0, [ev('xe', 'Mua xe', 3_000_000)]),
+        row(2031, 'Đi làm ở Nhật', 0),
+        row(2038, 'Đi làm ở Nhật', 0, [ev('xe', 'Mua xe', 3_000_000)]),
+      ],
+    })
+    const xe = find(map.items, 'Mua xe')
+    expect([xe.startYear, xe.endYear, xe.years]).toEqual([2030, 2038, 2])
+  })
+
+  // Ba dòng của một mốc mua tài sản gộp về một mục, nên quãng năm phải là quãng của CẢ
+  // ba: trả trước ở năm mua, trả nợ kéo dài nhiều năm sau.
+  it('mốc mua tài sản: quãng năm trải hết cả ba dòng cơ chế', () => {
+    const map = buildLifetimeCostMap({
+      rows: [
+        row(2034, 'Đi làm ở Nhật', 0, [ev('nha:tratruoc', 'Mua nhà — trả trước', 9_400_000)]),
+        row(2035, 'Đi làm ở Nhật', 0, [ev('nha:trano', 'Mua nhà — trả nợ', 1_300_000)]),
+        row(2036, 'Đi làm ở Nhật', 0, [ev('nha', 'Mua nhà', 658_000)]),
+      ],
+    })
+    const nha = find(map.items, 'Mua nhà')
+    expect([nha.startYear, nha.endYear]).toEqual([2034, 2036])
+  })
+})
+
 describe('buildLifetimeCostMap', () => {
   // Engine sinh BA dòng cho một mốc mua nhà: chi phí giữ (`id`), trả trước
   // (`id:tratruoc`) và trả nợ (`id:trano`) — xem project.ts. Xếp hạng "cả đời cái gì ngốn

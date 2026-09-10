@@ -2267,6 +2267,19 @@ function TuongLaiConsole() {
               displayCurrency={currency}
               surplus={surplusForMap}
               hasMissingRate={missingRateCurrencies.length > 0}
+              phases={working.phases}
+              events={working.events}
+              // Bấm một dòng trong bảng = chọn chính chặng/mốc đó trong dock — đúng đích
+              // mà bấm icon trên trục hay bấm khối chặng cũng tới. Dòng CHẶNG mang id
+              // tổng hợp nên phải tra lại theo năm (xem `LifetimeCostItem.startYear`).
+              onPick={(item) => {
+                if (item.kind === 'event') {
+                  setSel({ type: 'event', id: item.id })
+                  return
+                }
+                const ph = phaseCovering(working.phases, item.startYear)
+                if (ph) setSel({ type: 'phase', id: ph.id })
+              }}
             />
           )}
 

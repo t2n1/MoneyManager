@@ -23,6 +23,18 @@ export interface LifetimeCostItem {
   totalMinor: number
   /** Số năm khoản này chạm tới. */
   years: number
+  /**
+   * Năm ĐẦU và năm CUỐI mà khoản này chạm. KHÁC `years` khi các năm không liền nhau —
+   * một mốc lặp (mua xe mỗi 8 năm) chạm 2030 và 2038 nhưng chỉ `years === 2`.
+   *
+   * `startYear` cũng là thứ duy nhất nối một dòng CHẶNG về lại chặng thật: id của dòng
+   * chặng là tổng hợp (`phase:${label}:${runStart}`) vì `YearRow` không mang id chặng, và
+   * thêm trường vào `YearRow` là đổi cả bundle `_rules.js` của edge function. Chỗ gọi
+   * dùng `phaseForYear(phases, startYear)` — đúng chặng đã sinh ra quãng đó, không phải
+   * dò theo tên (hai chặng trùng tên là chuyện hợp lệ).
+   */
+  startYear: number
+  endYear: number
 }
 
 export interface LifetimeCostMap {
@@ -44,6 +56,29 @@ export interface LifetimeCostMap {
 function labelOfMechanismHalf(label: string): string {
   const cut = label.indexOf(' — ')
   return cut === -1 ? label : label.slice(0, cut)
+}
+
+/** Hậu tố mà engine gắn cho hai nửa cơ chế của một mốc mua tài sản (project.ts ~482). */
+const MECHANISM_SUFFIXES = [':tratruoc', ':trano'] as const
+
+/**
+ * Mốc THẬT đứng sau một dòng của bản chiếu — cắt đúng hậu tố cơ chế, không cắt ở ':' đầu
+ * tiên.
+ *
+ * BẢN TRƯỚC CẮT Ở ':' ĐẦU TIÊN, với lời ghi "id thật là uuid, không chứa ':'". Đúng cho
+ * dòng ĐÃ LƯU — nhưng bảng này chạy trên BẢN NHÁP, và một dòng chưa lưu mang id
+ * `nhap:e3` (`NEW_ID_PREFIX` ở draft.ts). Cắt ở ':' đầu cho ra `nhap` cho MỌI dòng chưa
+ * lưu, tức mọi mốc mới gộp thành MỘT dòng.
+ *
+ * Đo trên app 10/09/2026: thêm hơn hai chục mốc từ bộ mẫu, bảng hiện đúng một dòng mốc
+ * ¥185.855.462 — tổng của tất cả, dán nhãn của cái đầu tiên gặp. Không có gì trên màn nói
+ * ra rằng hai chục khoản vừa bị nhập một.
+ */
+function baseEventId(id: string): string {
+  for (const suf of MECHANISM_SUFFIXES) {
+    if (id.endsWith(suf)) return id.slice(0, -suf.length)
+  }
+  return id
 }
 
 export function buildLifetimeCostMap({ rows }: { rows: readonly YearRow[] }): LifetimeCostMap {
@@ -79,10 +114,8 @@ export function buildLifetimeCostMap({ rows }: { rows: readonly YearRow[] }): Li
       // Stress test là "nếu như", không phải một khoản trong kế hoạch.
       if (e.id === STRESS_ILLNESS_EVENT_ID) continue
       // Một mốc mua tài sản sinh BA dòng (`id`, `id:tratruoc`, `id:trano`) — gộp về mốc.
-      // id thật là uuid, không chứa ':', nên cắt ở ':' đầu tiên là an toàn.
-      const colon = e.id.indexOf(':')
-      const baseId = colon === -1 ? e.id : e.id.slice(0, colon)
-      const exact = colon === -1
+      const baseId = baseEventId(e.id)
+      const exact = baseId === e.id
       bump(
         `event:${baseId}`,
         {
@@ -120,7 +153,15 @@ export function buildLifetimeCostMap({ rows }: { rows: readonly YearRow[] }): Li
 
   const items: LifetimeCostItem[] = [...acc.values()]
     .filter((a) => a.totalMinor !== 0)
-    .map((a) => ({ kind: a.kind, id: a.id, label: a.label, totalMinor: a.totalMinor, years: a.years.size }))
+    .map((a) => ({
+      kind: a.kind,
+      id: a.id,
+      label: a.label,
+      totalMinor: a.totalMinor,
+      years: a.years.size,
+      startYear: Math.min(...a.years),
+      endYear: Math.max(...a.years),
+    }))
     .sort((x, y) => Math.abs(y.totalMinor) - Math.abs(x.totalMinor))
 
   const totalSpendMinor = items.reduce((s, i) => s + (i.totalMinor > 0 ? i.totalMinor : 0), 0)

@@ -179,6 +179,27 @@ describe('toLedger', () => {
     expect(r[0].delta).toBe(8_250_000)
   })
 
+  // Khoan bu cua ReconcileSheet mang `exclude_from_stats: true` — no la loi thu nhan
+  // "so ghi sai", khong phai mot khoan lai/lo. Quy no thanh loi suat la do loi so sach
+  // len thanh tich dau tu: so that 10/09/2026 bu 9.059.506 d (co tuc da dung mua co
+  // phieu ma mo hinh khong dien ta duoc) va khu Hieu qua in ngay "1 tuan −2,9%" cho mot
+  // phien chang co gi xay ra.
+  it('khoan bu so du la tien vao/ra, KHONG phai lai lo', () => {
+    const r = toLedger(
+      [gd({ type: 'expense', account_id: 'a1', to_account_id: null, exclude_from_stats: true })],
+      new Set(['a1']),
+    )
+    expect(r[0]).toEqual({ date: '2026-01-05', delta: -1_000_000, external: true })
+  })
+
+  it('phi luu ky ghi binh thuong VAN la lo — chi khoan bu moi duoc boc ra', () => {
+    const r = toLedger(
+      [gd({ type: 'expense', account_id: 'a1', to_account_id: null })],
+      new Set(['a1']),
+    )
+    expect(r[0].external).toBe(false)
+  })
+
   it('rút tiền khỏi tài khoản là dòng tiền ngoài, dấu âm', () => {
     const r = toLedger([gd({ account_id: 'a1', to_account_id: 'vi' })], new Set(['a1']))
     expect(r[0]).toEqual({ date: '2026-01-05', delta: -1_000_000, external: true })

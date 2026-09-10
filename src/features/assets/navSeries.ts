@@ -113,6 +113,17 @@ function delta(
  * Chuyển khoản GIỮA hai tài khoản trong danh mục ra hai dòng triệt tiêu nhau và cả hai đều
  * `external: false`. Không phải tiền mới — chỉ là tiền đổi chỗ trong cùng danh mục; đánh
  * dấu `true` sẽ làm phép tính lợi nhuận bóc ra một dòng tiền không hề tồn tại.
+ *
+ * KHOẢN BÙ SỐ DƯ (`exclude_from_stats`) cũng là `external`, dù nó là thu/chi. Nó không
+ * phải lãi hay lỗ — nó là câu "sổ ghi sai, đây là số thật", và quy một lời thú nhận sổ
+ * sách thành lợi suất là đổ lỗi ghi chép lên thành tích đầu tư. Đã xảy ra trên sổ thật
+ * (10/09/2026): một khoản bù 9.059.506 đ — phần cổ tức đã dùng mua cổ phiếu mà mô hình
+ * "mỗi lệnh mua được nạp tiền mới từ ví" không diễn tả nổi — làm khu Hiệu quả in ngay
+ * "1 tuần −2,9%" cho một phiên chẳng có gì xảy ra.
+ *
+ * Đánh đổi đã cân: phí lưu ký quên ghi rồi bù bằng đối chiếu cũng thôi bị tính là lỗ.
+ * Chấp nhận được — phí ghi đúng chỗ (một dòng chi bình thường) thì vẫn vào lỗ như cũ,
+ * còn khoản bù vốn đã mang cờ "không tính vào Thu/Chi" ở mọi màn khác.
  */
 export function toLedger(
   transactions: {
@@ -122,6 +133,8 @@ export function toLedger(
     account_id: string
     to_account_id: string | null
     occurred_on: string
+    /** Khoản bù của `ReconcileSheet` mang `true` — xem lý lẽ ở chú thích hàm. */
+    exclude_from_stats?: boolean | null
   }[],
   accountIds: Set<string>,
 ): LedgerEntry[] {
@@ -139,7 +152,11 @@ export function toLedger(
       out.push({
         date: t.occurred_on,
         delta: d,
-        external: t.type === 'transfer' && !caHaiChan,
+        // `caHaiChan` thắng trước: tiền đổi chỗ trong cùng danh mục không bao giờ là
+        // tiền ngoài, dù dòng đó có cờ gì.
+        external: caHaiChan
+          ? false
+          : t.type === 'transfer' || t.exclude_from_stats === true,
       })
     }
   }

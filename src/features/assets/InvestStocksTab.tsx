@@ -15,6 +15,7 @@ import {
   useStockPrices,
   useStockTradesWithoutTransfer,
 } from '../../hooks/queries'
+import { confirmDialog } from '../../lib/dialog'
 import { convertToBase } from '../../lib/rates'
 import { concentrationVerdict } from './concentration'
 import { HOSE_SYMBOLS } from './hoseSymbols'
@@ -27,6 +28,7 @@ import { useInvestChartData } from './useInvestChartData'
 import { dividendsBySymbol, positionTable, taggableCashflows } from './positionTable'
 import { investTxRange } from './investHistory'
 import { toISODate } from '../../lib/dates'
+import { handWrittenFunding } from './stockTradePosting'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
 import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
@@ -105,6 +107,35 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   const todayISO = toISODate(new Date())
   const accountIds = useMemo(() => new Set(shown.map((a) => a.id)), [shown])
   const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
+
+  /**
+   * Nạp/rút người dùng tự ghi — đọc lại đúng `txs` ở trên, không thêm lượt đọc nào.
+   *
+   * Hỏi `shown` chứ không `accounts`: câu này đi kèm nút "Ghi bù", mà nút đó ghi cho MỌI
+   * tài khoản. Nhưng dải chỉ hiện trên tập đang xem, và nói về một tài khoản người dùng
+   * đang không nhìn thì không giúp được gì — `soLenhThieu` cũng đã là con số toàn sổ.
+   */
+  const napGhiTay = useMemo(() => handWrittenFunding(shown, txs), [shown, txs])
+
+  /**
+   * Có bộ tự ghi thì hỏi lại một lần nữa. Không CHẶN: hai bộ cùng tồn tại vẫn có thể
+   * đúng (bộ tự ghi cho giai đoạn cũ, lệnh mới thì chưa có dòng nào), và app không biết
+   * được điều đó thay người dùng. Nhưng bấm nhầm ở đây là hai mươi phút dọn sổ, nên một
+   * câu hỏi rẻ hơn nhiều.
+   */
+  async function ghiBuCoHoi() {
+    if (
+      napGhiTay.count > 0 &&
+      !(await confirmDialog({
+        title: 'Ghi bù dù sổ đã có nạp/rút tự ghi?',
+        message: `Sổ đang có ${napGhiTay.count} dòng nạp/rút tự ghi giữa tài khoản chứng khoán và ví. Ghi bù sẽ thêm một dòng cho từng lệnh, và tiền nạp có thể bị đếm hai lần.`,
+        danger: true,
+        confirmLabel: 'Vẫn ghi bù',
+      }))
+    )
+      return
+    ghiBu.mutate()
+  }
 
   const bangCoCau = useMemo(
     () =>
@@ -188,7 +219,19 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
             <Num>{soLenhThieu}</Num> lệnh chưa có dòng chuyển tiền, nên số dư ví đang cao
             hơn tiền thật. Ghi bù để ví về đúng số — Tổng tài sản có thể đổi theo.
           </p>
-          <ActionButton onClick={() => ghiBu.mutate()} disabled={ghiBu.isPending} className="mt-2">
+          {/* Bộ nạp/rút tự ghi là thứ "Ghi bù" KHÔNG thấy — nó dò dòng đã có bằng cột
+              `stock_trade_id`. Không nói ra thì nút này nhân đôi tiền nạp trong im lặng,
+              đúng như đã xảy ra với sổ thật (xem handWrittenFunding). */}
+          {napGhiTay.count > 0 && (
+            <p className="mt-1.5">
+              Nhưng sổ đã có <Num>{napGhiTay.count}</Num> dòng nạp/rút tự ghi giữa tài khoản
+              chứng khoán và ví (ròng{' '}
+              <Money amount={napGhiTay.net} currency={VND} showSign />
+              ). Ghi bù sẽ cộng THÊM một bộ nữa cho từng lệnh, nên tiền nạp bị đếm hai lần
+              và phần thừa nổi lên ở ô “Tiền chưa mua”. Xoá bộ tự ghi trước thì hãy bấm.
+            </p>
+          )}
+          <ActionButton onClick={ghiBuCoHoi} disabled={ghiBu.isPending} className="mt-2">
             {ghiBu.isPending ? 'Đang ghi…' : 'Ghi bù'}
           </ActionButton>
         </div>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { missingTradeTransfers, stockTradeCashFlow } from './stockTradePosting'
+import {
+  handWrittenFunding,
+  missingTradeTransfers,
+  stockTradeCashFlow,
+} from './stockTradePosting'
 import type { StockTradeRow } from '../../types/database.types'
 
 const CK = 'tk-chung-khoan'
@@ -114,5 +118,67 @@ describe('missingTradeTransfers', () => {
     expect(
       missingTradeTransfers(viDaKhai, [lenh({ id: 'l1', account_id: 'tk-khac' })], new Set()),
     ).toEqual([])
+  })
+})
+
+describe('handWrittenFunding', () => {
+  const viDaKhai = [{ id: CK, cash_account_id: NH }]
+  const chuyen = (
+    from: string,
+    to: string,
+    amount: number,
+    stock_trade_id: string | null = null,
+  ) => ({ type: 'transfer', amount, to_amount: null, account_id: from, to_account_id: to, stock_trade_id })
+
+  it('nạp tay và rút tay ra số ròng vào tài khoản đầu tư', () => {
+    expect(
+      handWrittenFunding(viDaKhai, [chuyen(NH, CK, 30_000_000), chuyen(CK, NH, 10_000_000)]),
+    ).toEqual({ count: 2, net: 20_000_000 })
+  })
+
+  it('dòng do lệnh sinh ra KHÔNG tính — đó là bộ mà Ghi bù đã biết', () => {
+    expect(handWrittenFunding(viDaKhai, [chuyen(NH, CK, 5_000_000, 'l1')])).toEqual({
+      count: 0,
+      net: 0,
+    })
+  })
+
+  it('chuyển khoản với tài khoản KHÁC ví đã khai thì không tính', () => {
+    expect(handWrittenFunding(viDaKhai, [chuyen('tk-khac', CK, 7_000_000)])).toEqual({
+      count: 0,
+      net: 0,
+    })
+  })
+
+  it('chưa khai ví thì không có gì để nhận ra', () => {
+    expect(
+      handWrittenFunding([{ id: CK, cash_account_id: null }], [chuyen(NH, CK, 7_000_000)]),
+    ).toEqual({ count: 0, net: 0 })
+  })
+
+  it('hai tài khoản chung một ví: mỗi dòng chỉ đếm MỘT lần', () => {
+    const haiTaiKhoan = [
+      { id: CK, cash_account_id: NH },
+      { id: 'tk-ck-2', cash_account_id: NH },
+    ]
+    expect(
+      handWrittenFunding(haiTaiKhoan, [chuyen(NH, CK, 1_000_000), chuyen(NH, 'tk-ck-2', 2_000_000)]),
+    ).toEqual({ count: 2, net: 3_000_000 })
+  })
+
+  it('xuyên tệ: chân nhận lấy to_amount, không lấy amount', () => {
+    expect(
+      handWrittenFunding(viDaKhai, [
+        { type: 'transfer', amount: 100, to_amount: 17_000_000, account_id: NH, to_account_id: CK, stock_trade_id: null },
+      ]),
+    ).toEqual({ count: 1, net: 17_000_000 })
+  })
+
+  it('thu/chi thường không phải nạp rút — cổ tức tiền vào tài khoản đầu tư đứng ngoài', () => {
+    expect(
+      handWrittenFunding(viDaKhai, [
+        { type: 'income', amount: 500_000, to_amount: null, account_id: CK, to_account_id: null, stock_trade_id: null },
+      ]),
+    ).toEqual({ count: 0, net: 0 })
   })
 })

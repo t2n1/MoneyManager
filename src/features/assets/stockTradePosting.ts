@@ -104,3 +104,69 @@ export function missingTradeTransfers(
   }
   return ra
 }
+
+/**
+ * Đúng những cột cần để nhận ra một dòng nạp/rút tự ghi. Khai theo HÌNH DẠNG, cùng lý do
+ * đã ghi ở `StockTradeCash`.
+ */
+export interface FundingTx {
+  type: string
+  amount: number
+  to_amount: number | null
+  account_id: string
+  to_account_id: string | null
+  /** `undefined` cũng được: hàng từ backup cũ chưa có cột này (migration 0054). */
+  stock_trade_id?: string | null
+}
+
+/** Tiền nạp/rút mà NGƯỜI DÙNG tự ghi giữa tài khoản đầu tư và ví của nó. */
+export interface HandWrittenFunding {
+  /** Số dòng. 0 = sổ chỉ có dòng do lệnh sinh ra. */
+  count: number
+  /** đồng — ròng vào tài khoản đầu tư (nạp − rút). */
+  net: number
+}
+
+/**
+ * Sổ đã có bộ nạp/rút tự ghi nào chưa?
+ *
+ * Đây là cái mà "Ghi bù" KHÔNG thấy, và là lý do nút đó từng nhân đôi 208 triệu tiền nạp
+ * trong sổ thật (10/09/2026). `thieuDongTien` dò dòng đã có bằng cột
+ * `transactions.stock_trade_id`; dòng người dùng tự ghi không mang cột đó, nên nút coi
+ * như chưa có gì và ghi thêm một bộ nữa. Tài khoản đầu tư nhận tiền hai lần, và phần thừa
+ * nổi lên ở ô "Tiền chưa mua" — trông y như tiền thật đang nằm ở công ty chứng khoán.
+ *
+ * KHÔNG dò trùng theo (ngày, số tiền): bộ tự ghi là một lần chuyển tiền THẬT gộp nhiều
+ * lệnh, ngày và số tiền đều không khớp lệnh nào (sổ thật: nạp 114.904.969 cho hai lệnh
+ * tổng 116.089.500). Dò kiểu đó vừa bỏ sót vừa dễ khớp nhầm. Cái chắc chắn đúng là dấu
+ * hiệu CẤU TRÚC: một chuyển khoản giữa tài khoản đầu tư và đúng cái ví nó đã khai mà
+ * không do lệnh nào sinh ra thì chỉ có thể là người dùng tự ghi.
+ *
+ * Đếm theo GIAO DỊCH chứ không theo từng tài khoản: hai tài khoản chứng khoán trỏ chung
+ * một ví là chuyện bình thường, mà một dòng chuyển khoản chỉ thuộc đúng một cặp — cộng
+ * theo tài khoản là đếm hai lần đúng cái lỗi file này sinh ra để chặn.
+ */
+export function handWrittenFunding(
+  accounts: WalletAccount[],
+  transactions: FundingTx[],
+): HandWrittenFunding {
+  const capVi = new Map<string, string>()
+  for (const a of accounts) {
+    if (a.cash_account_id && a.cash_account_id !== a.id) capVi.set(a.id, a.cash_account_id)
+  }
+  let count = 0
+  let net = 0
+  for (const t of transactions) {
+    if (t.type !== 'transfer' || t.stock_trade_id || !t.to_account_id) continue
+    // Ví → đầu tư: nạp. Số cộng vào là số TỚI NƠI (`to_amount`), cùng nhánh mà view
+    // `account_balances` dùng cho chân nhận.
+    if (capVi.get(t.to_account_id) === t.account_id) {
+      count++
+      net += t.to_amount ?? t.amount
+    } else if (capVi.get(t.account_id) === t.to_account_id) {
+      count++
+      net -= t.amount
+    }
+  }
+  return { count, net }
+}

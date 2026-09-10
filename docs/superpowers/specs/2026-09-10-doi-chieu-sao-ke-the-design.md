@@ -60,10 +60,10 @@ Số dùng được lấy bằng text search:
   `runCardAutopayCatchUp`. Chữ ký giữ nguyên ⇒ **không cần** `npm run bundle:rules`.
 - Không đụng `src/mcp/` ⇒ **không cần** `npm run bundle:mcp`.
 
-## 4. Bảng mới — migration `0070_card_statements.sql`
+## 4. Bảng mới — migration `0070_card_bills.sql`
 
 ```sql
-create table public.card_statements (
+create table public.card_bills (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references auth.users(id) on delete cascade,
   account_id uuid not null references public.accounts(id) on delete cascade,
@@ -78,10 +78,18 @@ create table public.card_statements (
 RLS đúng khuôn `0058_trips.sql`:
 
 ```sql
-alter table public.card_statements enable row level security;
-create policy "own rows" on public.card_statements
+alter table public.card_bills enable row level security;
+create policy "own rows" on public.card_bills
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
+
+**Vì sao tên là `card_bills` chứ không `card_statements`:** repo ĐÃ có
+[`useCardStatements`](../../../src/features/assets/useCardStatements.ts) và
+[`cardStatement.ts`](../../../src/features/assets/cardStatement.ts), mang nghĩa hoàn toàn
+khác — chia dư nợ hôm nay thành "đã chốt / chưa chốt". Dùng lại chữ `statement` cho khái niệm
+mới là gài một nhầm lẫn vĩnh viễn vào codebase. Thứ ta lưu là **số tiền bị đòi** = hoá đơn,
+nên `bill` vừa tránh trùng vừa đúng nghĩa hơn. File đọc CSV vẫn tên `paypayStatement.ts` vì
+nó đọc *bản sao kê*; thứ nó sinh ra là một *hoá đơn*.
 
 **Vì sao khoá theo `close_date` chứ không theo tháng:** `cardBillingRange` đã trả `closeISO`
 cho mỗi tháng, nên panel tra một phát là ra. Tháng là khái niệm của màn hình; ngày chốt là
@@ -98,12 +106,12 @@ commit**, vì file types viết tay, không codegen.
 
 | File | Thêm gì |
 |---|---|
-| `src/types/database.types.ts` | `CardStatementRow` + nhánh trong `Database` |
-| `src/data/repo.ts` | `getCardStatements(): Promise<CardStatementRow[]>`, `upsertCardStatements(rows: NewCardStatement[]): Promise<CardStatementRow[]>`, với `NewCardStatement = Pick<CardStatementRow, 'account_id' \| 'close_date' \| 'due_date' \| 'total'>` — `user_id` do tầng repo tự điền, feature không truyền |
+| `src/types/database.types.ts` | `CardBillRow` + nhánh trong `Database` |
+| `src/data/repo.ts` | `getCardBills(): Promise<CardBillRow[]>`, `upsertCardBills(rows: NewCardBill[]): Promise<CardBillRow[]>`, với `NewCardBill = Pick<CardBillRow, 'account_id' \| 'close_date' \| 'due_date' \| 'total'>` — `user_id` do tầng repo tự điền, feature không truyền |
 | `src/data/supabaseRepo.ts` | Hai method thật. Đọc trọn bảng qua `fetchAllPages` |
 | `src/data/demoRepo.ts` | Hai method bản demo |
-| `src/hooks/queries.ts` | `useCardStatements()` + `useUpsertCardStatements()`, **invalidation nằm ngay cạnh `mutationFn`** |
-| `src/data/backupImport.ts` | `cardStatements` vào cả xuất lẫn nhập |
+| `src/hooks/queries.ts` | `useCardBills()` + `useUpsertCardBills()`, **invalidation nằm ngay cạnh `mutationFn`** |
+| `src/data/backupImport.ts` | `cardBills` vào cả xuất lẫn nhập |
 
 Feature code gọi qua hook, không gọi `repo` trực tiếp.
 
@@ -175,7 +183,7 @@ Ba trong bốn luật cần nhìn **kỳ liền kề** ⇒ màn nạp phải cho
 Kỳ **đã có** sao kê (số thật của 7月):
 
 ```
-Hoá đơn PayPay                  ¥158.429     ← từ card_statements
+Hoá đơn PayPay                  ¥158.429     ← từ card_bills
 Bị rút 27/07
 ────────────────────────────────────────
 Sổ tính được                    ¥214.439     ← cardMonthCharge, như hiện nay
@@ -204,7 +212,7 @@ detail202607  →  kỳ 01/06–30/06, bị rút 27/07,  hoá đơn ¥158.429
       TEMU tính lại:       ¥5.148 + ¥732 → sổ ghi gộp ¥5.880
 ```
 
-Bấm lưu → chỉ ghi `card_statements`. **Không** tự sửa/xoá giao dịch nào.
+Bấm lưu → chỉ ghi `card_bills`. **Không** tự sửa/xoá giao dịch nào.
 
 ## 8. Ngoài phạm vi (nói rõ để khỏi hiểu nhầm)
 

@@ -36,7 +36,8 @@ import { Guide } from '../../components/Guide'
 import { ActionButton, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
-import { eventTint } from './planColors'
+import { PHASE_BAND_FADE, PHASE_BAND_OPACITY, eventTint, phaseColorKey } from './planColors'
+import { TAG_HEX, type TagColorKey } from '../tags/colors'
 import {
   bandPath,
   curvePath,
@@ -59,6 +60,7 @@ import {
   PIN_TOP,
   PLOT_BOTTOM_GAP,
   PLOT_LEFT,
+  laneBlocks,
   pinRowCount,
   pinRowsOf,
   plotRightOf,
@@ -106,6 +108,21 @@ export interface PlotEvent {
   color?: string
   /** `false` = mốc đang tắt, không tính vào phép chiếu (migration 0063). */
   enabled?: boolean
+}
+
+/**
+ * Chặng đời, ở dạng TỐI THIỂU mà nền đồ thị thật sự đọc — chỉ để TÔ VÙNG, không sửa được.
+ *
+ * Cùng lối với `PlotEvent`: `DraftPhase` và `LanePhase` (dải khối bên dưới) đều thoả hình
+ * dạng này, nên `TuongLaiPage` bơm thẳng đúng mảng nó đã bơm cho `PhaseLane` — hai chỗ
+ * đọc CÙNG một mảng là cách duy nhất bảo đảm vùng màu và khối chặng không nói hai điều
+ * khác nhau khi người dùng đang kéo.
+ */
+export interface PlotPhase {
+  id: string
+  startYear: number
+  /** Khoá màu (features/tags/colors.ts). `''` = tô theo THỨ TỰ chặng — `phaseColorKey`. */
+  color: string
 }
 
 /** Một kịch bản đang được so sánh — một nét đứt `2 5` trên cùng trục. */
@@ -192,6 +209,16 @@ interface Props {
 
   /** Các `startYear` của chặng — nam châm ±1 năm khi kéo mốc bám vào chúng. */
   phaseStarts?: readonly number[]
+
+  /**
+   * Chặng đời để TÔ VÙNG nền (lớp 0). Không truyền thì nền không có vùng màu nào — màn cũ
+   * và mọi phép thử dựng `TimelinePlot` không mọc thêm lớp vẽ.
+   *
+   * Tách khỏi `phaseStarts` (chỉ là mảng năm) chứ không mở rộng nó: nam châm cần ĐÚNG các
+   * năm, còn tô vùng cần thêm `id` và khoá màu. Gộp lại thành một prop là buộc chỗ gọi
+   * dựng một mảng thứ ba chỉ để hai việc khác nhau dùng chung một cái tên.
+   */
+  phases?: readonly PlotPhase[]
   selectedEventId?: string
   /** Bấm một icon (không kéo) — bật/tắt lựa chọn. */
   onToggleEvent?: (id: string) => void
@@ -220,6 +247,19 @@ interface Props {
 const EMPTY_EVENTS: readonly PlotEvent[] = []
 const EMPTY_COMPARE: readonly ComparisonLine[] = []
 const EMPTY_YEARS: readonly number[] = []
+const EMPTY_PHASES: readonly PlotPhase[] = []
+
+/**
+ * `id` của gradient tô vùng chặng — MỘT cái cho mỗi khoá màu, không phải mỗi chặng.
+ *
+ * Theo KHOÁ MÀU chứ không theo `id` chặng vì gradient chỉ phụ thuộc màu: một kế hoạch mười
+ * chặng dùng ba màu thì ba `<linearGradient>`, và `id` không đổi khi người dùng kéo chặng.
+ * Tiền tố dài để không đụng `id` nào khác trong tài liệu — `url(#…)` trong SVG tra theo cả
+ * trang, không theo từng `<svg>`.
+ */
+function phaseGradId(key: TagColorKey): string {
+  return `tl-phase-band-${key}`
+}
 
 /** Câu mô tả cho `aria-label` — sinh từ dữ liệu THẬT, không phải câu trang trí. */
 function plotAriaLabel(rows: YearRow[], fire: number | null, eventCount: number): string {
@@ -249,6 +289,7 @@ export function TimelinePlot({
   log = false,
   onHoverYear,
   phaseStarts = EMPTY_YEARS,
+  phases = EMPTY_PHASES,
   selectedEventId,
   onToggleEvent,
   onSelectEvent,
@@ -311,6 +352,31 @@ export function TimelinePlot({
   const pinRowIdx = useMemo(() => pinRowsOf(visibleEvents, xs, x1), [visibleEvents, xs, x1])
   const plotTop = PIN_TOP + pinRowCount(pinRowIdx) * PIN_ROW_H + PIN_GAP
   const plotBottom = Math.max(plotTop + 10, box.h - PLOT_BOTTOM_GAP)
+
+  /**
+   * VÙNG chặng đời trên nền — CÙNG hàm hình học với dải khối bên dưới (`laneBlocks`,
+   * plotFrame.ts), không phải một phép tính thứ hai. Nhờ vậy vùng màu kín trục, không hở
+   * không chồng, và mép vùng nằm đúng trên mép khối: một đoạn đường tài sản luôn ở trên
+   * đúng vùng của chặng đã sinh ra nó, kể cả giữa lúc kéo.
+   */
+  const phaseBands = useMemo(() => laneBlocks(phases, x0, x1, xs), [phases, x0, x1, xs])
+  /**
+   * Khoá màu của từng chặng, tra theo `id`.
+   *
+   * Thứ hạng phải đếm trên MẢNG ĐẦY ĐỦ đã sắp, không phải trên `phaseBands`: `laneBlocks`
+   * bỏ chặng nằm ngoài khung nhìn, nên chỉ số trong mảng nó trả về không phải thứ hạng —
+   * mà `phaseColorKey` rơi về màu xoay theo đúng thứ hạng đó. Đọc theo mảng đã lọc thì
+   * bấm "10 năm" là cả dải đổi màu. `PhaseLane` dựng bảng này y hệt, nên hai chỗ cùng màu.
+   */
+  const phaseKeys = useMemo(() => {
+    const sorted = [...phases].sort((a, b) => a.startYear - b.startYear)
+    return new Map(sorted.map((p, i) => [p.id, phaseColorKey(p.color, i)]))
+  }, [phases])
+  /** Các khoá THẬT SỰ đang vẽ — mỗi khoá một `<linearGradient>`, không hơn. */
+  const phaseGradKeys = useMemo(
+    () => [...new Set(phaseBands.map((b) => phaseKeys.get(b.id) ?? 'gray'))],
+    [phaseBands, phaseKeys],
+  )
 
   const { yMin, yMax } = useMemo(() => {
     let lo = 0
@@ -604,9 +670,56 @@ export function TimelinePlot({
         <>
           <svg width="100%" height="100%" role="img" aria-label={ariaLabel} className="block">
             {/* THỨ TỰ VẼ, từ dưới lên, đúng bảng "Vùng vẽ" của dsg-handoff/README.md:
-                lưới ngang · vùng âm · dải lạc quan–bi quan · đường bản đã lưu · đường so
-                sánh · ngưỡng FIRE · đường chính · chấm FIRE · vạch mốc.
+                vùng chặng đời · lưới ngang · vùng âm · dải lạc quan–bi quan · đường bản đã
+                lưu · đường so sánh · ngưỡng FIRE · đường chính · chấm FIRE · vạch mốc.
                 Trong SVG thứ tự trong DOM LÀ thứ tự lớp, nên đừng sắp lại cho gọn mắt. */}
+
+            {/* 0. VÙNG CHẶNG ĐỜI — dưới CÙNG, kể cả dưới lưới ngang. Nó là cái NỀN mà mọi
+                thứ khác vẽ lên; đặt trên lưới thì lưới bị vùng màu ăn mất ở nửa dưới, và
+                lưới là thứ người dùng dùng để ướm một điểm vào mốc tiền.
+                Độ đậm + chỗ tan: `PHASE_BAND_*` (planColors.ts), có ghi lý do. */}
+            {phaseBands.length > 0 && (
+              <>
+                <defs>
+                  {phaseGradKeys.map((k) => (
+                    <linearGradient key={k} id={phaseGradId(k)} x1="0" y1="1" x2="0" y2="0">
+                      <stop offset="0" stopColor={TAG_HEX[k]} stopOpacity={PHASE_BAND_OPACITY} />
+                      <stop offset={PHASE_BAND_FADE} stopColor={TAG_HEX[k]} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                {phaseBands.map((b) => {
+                  const k = phaseKeys.get(b.id) ?? 'gray'
+                  return (
+                    <g key={b.id}>
+                      <rect
+                        x={b.left}
+                        y={plotTop}
+                        width={b.width}
+                        height={plotBottom - plotTop}
+                        fill={`url(#${phaseGradId(k)})`}
+                      />
+                      {/* Vạch RANH GIỚI: gradient tan dần nên hai chặng cùng họ màu (đỏ
+                          cạnh hồng) chỉ đổi sắc rất nhẹ ở chỗ giáp nhau — vạch này là thứ
+                          nói ra "chặng đổi ĐÚNG ở năm này". Chặng đầu không có: mép trái
+                          của nó LÀ mép trục, không phải một ranh giới giữa hai chặng. */}
+                      {!b.first && (
+                        <line
+                          x1={b.left}
+                          y1={plotTop}
+                          x2={b.left}
+                          y2={plotBottom}
+                          stroke={TAG_HEX[k]}
+                          strokeDasharray="2 3"
+                          strokeWidth={1}
+                          opacity={0.35}
+                        />
+                      )}
+                    </g>
+                  )
+                })}
+              </>
+            )}
 
             {/* 1. Lưới ngang + đường 0 */}
             {yTicks.map((v) => (

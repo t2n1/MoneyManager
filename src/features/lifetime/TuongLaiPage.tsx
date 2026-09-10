@@ -2030,6 +2030,11 @@ function TuongLaiConsole() {
             // Icon mốc nằm TRONG vùng vẽ (xem `TimelinePlot`): số hàng icon quyết định chỗ
             // chừa phía trên đồ thị, nên nó phải được tính ở nơi biết bề ngang đã đo.
             phaseStarts={phaseStarts}
+            // Vùng màu chặng trên nền đồ thị — ĐÚNG mảng mà `PhaseLane` ở dưới đang đọc
+            // (`working.phases`, tức BẢN NHÁP), không phải `shownInput.phases`: kéo một
+            // khối chặng thì vùng màu phải chạy theo cùng một khung hình với khối, không
+            // thì màu và khối lệch nhau đúng lúc người dùng đang nhìn vào cả hai.
+            phases={working.phases}
             selectedEventId={sel.type === 'event' ? sel.id : undefined}
             onSelectEvent={(id) => setSel({ type: 'event', id })}
             onToggleEvent={(id) =>

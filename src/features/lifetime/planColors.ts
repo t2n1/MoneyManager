@@ -66,6 +66,25 @@ export const PHASE_FALLBACK_KEYS: readonly TagColorKey[] = TAG_COLOR_KEYS.filter
 )
 
 /**
+ * VÙNG chặng đời trên nền đồ thị (`TimelinePlot`, lớp 0): màu ĐẬM ở sát chân vùng vẽ rồi
+ * TAN DẦN lên, tắt hẳn ở `PHASE_BAND_FADE` (tỷ lệ chiều cao vùng vẽ, tính từ chân).
+ *
+ * VÌ SAO GRADIENT chứ không phải một khối màu đều — đây là phương án người dùng chọn giữa
+ * ba bản mẫu (2026-09-10). Nền đồ thị này ĐÃ có ba lớp tô: dải lạc quan–bi quan (0,13),
+ * vùng âm (0,1) và các vạch mốc dọc. Một khối màu đều chạy hết chiều cao thì đúng chỗ
+ * đường tài sản chạy — thứ người dùng tới đây để đọc — lại là chỗ màu đậm nhất, tức vùng
+ * chặng tranh chỗ với chính dữ liệu nó đang chú giải. Tắt dần lên thì màu nằm ở nửa dưới,
+ * nơi thường trống, mà mắt vẫn đọc ra "đoạn trục này thuộc chặng nào".
+ *
+ * 0,3 nghe cao so với 0,13 của dải: nó là đỉnh của một gradient tan về 0, không phải độ
+ * mờ của cả khối, nên diện tích đậm thật sự chỉ là một vạch mỏng ở chân. Và bảy màu chặng
+ * (`TAG_HEX`) là màu ĐẶC, cần đủ đậm để phân biệt được nhau trên nền gần đen của chế độ Tối.
+ */
+export const PHASE_BAND_OPACITY = 0.3
+/** Xem `PHASE_BAND_OPACITY`. 0,65 = gradient tắt hẳn ở khoảng hai phần ba chiều cao. */
+export const PHASE_BAND_FADE = 0.65
+
+/**
  * Khoá màu mà một chặng THẬT SỰ được vẽ bằng: khoá riêng của nó nếu có, không thì màu xoay
  * theo `index` (thứ hạng theo năm trong dải).
  *

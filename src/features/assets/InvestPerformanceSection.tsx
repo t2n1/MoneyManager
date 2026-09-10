@@ -125,11 +125,7 @@ export function InvestPerformanceSection({
 
       {rows.length < 2 ? (
         <p className="mt-3 text-sm text-fg-muted">
-          {dangTai
-            ? 'Đang tải lịch sử giá…'
-            : !hasTrades
-              ? 'Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.'
-              : 'Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.'}
+          {lyDoChuaVe({ dangTai, hasTrades, noPrices: data.noPrices })}
         </p>
       ) : (
         <>
@@ -192,6 +188,19 @@ export function InvestPerformanceSection({
         </>
       )}
 
+      {/* Thiếu giá MỘT PHẦN thì vẫn vẽ — cùng cách app xử lý thiếu tỷ giá (`hasMissingRate`)
+          và thiếu giá ở khu Giá trị: ra số gần đúng KÈM lời nói thẳng, thay vì âm thầm.
+          Là một câu tự đủ nghĩa chứ không phải dấu `≈` của <EstimateMark>: trên điện thoại
+          `title` không hiện, mà thứ bị ảnh hưởng ở đây không phải một con số — nó là cả
+          đoạn đầu của đường xanh lá cộng hai con số tính trên trọn chuỗi. */}
+      {data.missingPrices.length > 0 && (
+        <p className="mt-2 text-2xs text-state-warn-fg">
+          {data.missingPrices.join(', ')} chưa có giá ở những phiên đầu — đoạn đó tạm tính
+          theo giá vốn, tức đường xanh lá đi ngang trong khi giá thật có thể đã chạy. Tổng
+          lợi nhuận và Lãi kép/năm tính cả đoạn ấy.
+        </p>
+      )}
+
       {chiSoTrong && (
         <p className="mt-2 text-2xs text-state-warn-fg">
           Chưa có dữ liệu VN-Index cho khoảng này — app tự tải mỗi chiều sau khi sàn đóng cửa.
@@ -217,6 +226,31 @@ export function InvestPerformanceSection({
       </ExplainBox>
     </Card>
   )
+}
+
+/**
+ * Vì sao biểu đồ đang trống — bốn lý do khác nhau, và nói nhầm là hướng người dùng đi sai.
+ *
+ * Thứ tự có ý: `dangTai` đứng trước `noPrices` vì trong 1,2 giây chờ `stockPriceHistory`
+ * thì cả hai đều đúng, mà "đang tải" mới là câu người ta cần. Chỉ khi đã tải xong mà vẫn
+ * không có giá thì mới nói tới chuyện chờ cron chiều — trước đó, câu cũ ở chỗ này là
+ * "chọn khoảng rộng hơn", tức bảo người dùng đi bấm một cái chip không giúp được gì.
+ */
+function lyDoChuaVe({
+  dangTai,
+  hasTrades,
+  noPrices,
+}: {
+  dangTai: boolean
+  hasTrades: boolean
+  noPrices: boolean
+}): string {
+  if (dangTai) return 'Đang tải lịch sử giá…'
+  if (!hasTrades)
+    return 'Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.'
+  if (noPrices)
+    return 'Chưa có lịch sử giá cho mã nào trong sổ lệnh — app tự tải mỗi chiều sau khi sàn đóng cửa.'
+  return 'Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.'
 }
 
 function SoLoi({ nhan, pct }: { nhan: string; pct: number | null }) {

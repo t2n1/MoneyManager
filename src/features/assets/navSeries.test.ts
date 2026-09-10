@@ -95,6 +95,19 @@ describe('navSeries', () => {
     expect(r.missingPrices).toEqual(['HPG'])
   })
 
+  // Khác ca trên: mã CÓ giá, nhưng bar đầu tiên tới MUỘN hơn phiên mua. Đoạn đầu tạm
+  // tính theo giá vốn (đường đi ngang) rồi mới nhập vào giá thật — và tên mã phải được
+  // nêu, vì hai con số Tổng lợi nhuận / Lãi kép/năm tính cả đoạn ấy.
+  it('mã có giá muộn hơn phiên mua thì đoạn đầu là giá vốn, và vẫn báo tên mã', () => {
+    const r = chay({
+      sessions: ['2026-01-05', '2026-01-06', '2026-01-07'],
+      trades: [mua()], // mua phiên 05, giá vốn 20.000/cổ
+      prices: bangGia([['HPG', '2026-01-07', 25_000]]),
+    })
+    expect(r.points.map((p) => p.stockValue)).toEqual([2_000_000, 2_000_000, 2_500_000])
+    expect(r.missingPrices).toEqual(['HPG'])
+  })
+
   it('chuyển khoản nạp tiền vào flow; cổ tức thì KHÔNG — cổ tức là lợi nhuận, không phải tiền mới', () => {
     const r = chay({
       sessions: ['2026-01-05', '2026-01-06'],

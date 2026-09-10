@@ -42,6 +42,31 @@ export function buildPriceMap(
 }
 
 /**
+ * Có đủ giá để chuỗi NAV nói được điều gì chưa?
+ *
+ * `false` KHÔNG phải "hơi thiếu dữ liệu" — nó là một cái bẫy im lặng. `navSeries` tạm
+ * tính mã thiếu giá theo GIÁ VỐN (nhánh cứu hộ đó viết cho ca thiếu VÀI mã), nên khi
+ * thiếu HẾT thì `nav = giá vốn + tiền mặt`: mua cổ phiếu chỉ đổi tiền mặt thành giá vốn
+ * 1:1, hai vế triệt tiêu, và đường còn lại chỉ là bậc thang những lần ĐÃ thực hiện —
+ * bán chốt lời, cổ tức, phí. Nó trông y như một danh mục thật, `trimLeadingEmpty` còn
+ * cắt đầu cho gọn gàng, nên không có gì để người xem nghi ngờ.
+ *
+ * Đã thấy trên app: `indexPrices` (~2.200 dòng) về trước `stockPriceHistory` (~10.000
+ * dòng) chừng 1,2 giây, và trong 1,2 giây đó khu Hiệu quả in "+56,4% · 180 phiên" phẳng
+ * lì rồi tự đổi thành "+3,1% · 248 phiên". Cả hai truy vấn đều KHÔNG persist (main.tsx),
+ * nên mỗi lần mở trang Đầu tư là một lần nháy như vậy.
+ *
+ * `symbols` rỗng thì trả `true`: chưa có mã nào thì không có gì để mà thiếu giá, và
+ * chuỗi rỗng lúc đó đã được nhánh "chưa có lệnh nào" nói đúng.
+ */
+export function hasUsablePrices(
+  priceMap: Map<string, Map<string, number>>,
+  symbols: string[],
+): boolean {
+  return symbols.length === 0 || priceMap.size > 0
+}
+
+/**
  * Bỏ những phiên ĐẦU mà danh mục còn trống.
  *
  * Chọn khung 5 năm cho một danh mục sáu tháng tuổi thì 90% biểu đồ là một đường 0% phẳng

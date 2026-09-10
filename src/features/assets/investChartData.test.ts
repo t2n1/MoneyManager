@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   buildPriceMap,
   chartRows,
+  hasUsablePrices,
   investPerformance,
   rangeFrom,
   trimLeadingEmpty,
   type ChartRange,
 } from './investChartData'
+import type { Trade } from './holdings'
+import { navSeries } from './navSeries'
 
 describe('rangeFrom', () => {
   it('3M lùi đúng ba tháng', () => {
@@ -166,5 +169,70 @@ describe('investPerformance', () => {
     const { rows, returns } = investPerformance([], chiSo)
     expect(rows).toEqual([])
     expect(returns.total).toBeNull()
+  })
+})
+
+describe('hasUsablePrices — cửa chặn chuỗi "giá vốn" đi ra biểu đồ', () => {
+  const gia = buildPriceMap([{ symbol: 'HPG', trading_date: '2026-01-05', close: 21_000 }])
+
+  it('có giá thì đi qua', () => {
+    expect(hasUsablePrices(gia, ['HPG'])).toBe(true)
+  })
+
+  it('THIẾU HẾT giá thì chặn — dù sổ lệnh đầy', () => {
+    expect(hasUsablePrices(new Map(), ['HPG', 'MBB'])).toBe(false)
+  })
+
+  it('chưa có mã nào thì không chặn: không có gì để thiếu giá', () => {
+    expect(hasUsablePrices(new Map(), [])).toBe(true)
+  })
+
+  // Vì sao phải chặn, nói bằng số: cùng một sổ lệnh, chỉ bỏ bảng giá đi.
+  it('thiếu hết giá thì chuỗi NAV chỉ còn bậc thang những lần ĐÃ thực hiện', () => {
+    const sessions = [
+      '2026-01-05',
+      '2026-01-06',
+      '2026-01-07',
+      '2026-01-08',
+      '2026-01-09',
+      '2026-01-12',
+    ]
+    const trades: Trade[] = [
+      {
+        symbol: 'HPG',
+        kind: 'buy',
+        tradedOn: '2026-01-05',
+        quantity: 100,
+        price: 20_000,
+        fee: 0,
+        tax: 0,
+      },
+      {
+        symbol: 'HPG',
+        kind: 'sell',
+        tradedOn: '2026-01-08',
+        quantity: 50,
+        price: 30_000,
+        fee: 0,
+        tax: 0,
+      },
+    ]
+    const ledger = [{ date: '2026-01-05', delta: 2_000_000, external: true }]
+    const chay = (prices: Map<string, Map<string, number>>) =>
+      navSeries({ sessions, trades, prices, ledger, openingBalance: 0 })
+
+    const coGia = chay(
+      buildPriceMap(
+        sessions.map((d, i) => ({ symbol: 'HPG', trading_date: d, close: 20_000 + i * 2_000 })),
+      ),
+    )
+    const khongGia = chay(new Map())
+
+    // Có giá: mỗi phiên một mức giá trị khác nhau — đó là một danh mục thật.
+    expect(new Set(coGia.points.map((p) => p.nav)).size).toBe(sessions.length)
+    // Không giá: giá vốn và tiền mặt triệt tiêu nhau nên chỉ còn ĐÚNG hai mức — trước và
+    // sau lần bán chốt lời. Đó là đường "phẳng, một bậc dựng đứng, phẳng" đã thấy trên app.
+    expect(new Set(khongGia.points.map((p) => p.nav)).size).toBe(2)
+    expect(khongGia.missingPrices).toEqual(['HPG'])
   })
 })

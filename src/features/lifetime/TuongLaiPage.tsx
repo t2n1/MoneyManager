@@ -1746,26 +1746,38 @@ function TuongLaiConsole() {
                   trên trục, kéo khối chặng, gõ trong dock, ba thanh trượt hàng 9) — một
                   thanh nằm cạnh riêng một trong số đó sẽ nói về ít hơn phần nó cai.
                   Đây cũng là đường DUY NHẤT tới "Lưu thành kịch bản mới"; hàng 9 chỉ có
-                  Lưu và Bỏ. */}
-          {dirty && savedDraft && (
-            <DraftBanner
-              scenarioName={active.name}
-              changes={changes}
-              // "Trước" là bản chiếu của DỮ LIỆU ĐÃ LƯU — chính `rows` mà `useLifetime`
-              // trả về, cùng chuỗi số mà đồ thị vẽ thành đường "trước khi đổi". Không
-              // chiếu lại lần thứ hai ở đây: hai phép chiếu cho cùng một câu hỏi là hai
-              // chỗ để lệch nhau.
-              endBeforeMinor={endBeforeMinor}
-              endAfterMinor={
-                shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
-              }
-              currency={currency}
-              onCommit={() => void handleCommit()}
-              onSaveAsNew={() => void handleSaveAsNew()}
-              onDiscard={discardDraft}
-              saving={saving}
-            />
-          )}
+                  Lưu và Bỏ.
+
+                  KHÔNG bọc trong `dirty &&` nữa (đổi 2026-09-10, người dùng báo "dòng
+                  chữ này hiện ra làm cái graph bị nhảy xuống khi tôi bắt đầu chỉnh
+                  sửa"): thanh này đứng TRÊN chip kịch bản, dải thống kê và vùng vẽ, nên
+                  mọc ra giữa lượt vặn là đẩy cả ba xuống 72px — ngay dưới ngón tay đang
+                  kéo một mốc trên trục. Nó tự đổi màu và mờ ba nút khi `dirty` tắt, và
+                  `DraftBanner` khoá chiều cao cho hai trạng thái bằng nhau (xem đầu file
+                  đó: không `flex-wrap`, `line-clamp-2`, `leading-snug`).
+
+                  Cùng luật với cột dock — `ConsoleFrame` ghi rõ nó LUÔN được dựng để đồ
+                  thị không co giãn mỗi lần chọn/bỏ chọn một mốc — và với cặp Lưu/Bỏ ở
+                  hàng 9. `savedDraft` cũng rời khỏi điều kiện: nó chỉ cần cho `changes`,
+                  và `changes` rỗng thì thanh vào đúng trạng thái "đã lưu". */}
+          <DraftBanner
+            dirty={dirty}
+            scenarioName={active.name}
+            changes={changes}
+            // "Trước" là bản chiếu của DỮ LIỆU ĐÃ LƯU — chính `rows` mà `useLifetime`
+            // trả về, cùng chuỗi số mà đồ thị vẽ thành đường "trước khi đổi". Không
+            // chiếu lại lần thứ hai ở đây: hai phép chiếu cho cùng một câu hỏi là hai
+            // chỗ để lệch nhau.
+            endBeforeMinor={endBeforeMinor}
+            endAfterMinor={
+              shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
+            }
+            currency={currency}
+            onCommit={() => void handleCommit()}
+            onSaveAsNew={() => void handleSaveAsNew()}
+            onDiscard={discardDraft}
+            saving={saving}
+          />
 
           {/* --- HÀNG 2: thanh kịch bản --------------------------------------------- */}
           <div className="flex min-w-0 flex-wrap items-center gap-2">

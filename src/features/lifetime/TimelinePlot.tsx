@@ -36,7 +36,7 @@ import { Guide } from '../../components/Guide'
 import { ActionButton, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
-import { PHASE_BAND_FADE, PHASE_BAND_OPACITY, eventTint, phaseColorKey } from './planColors'
+import { PHASE_BAND_FADE, PHASE_BAND_OPACITY, phaseColorKey } from './planColors'
 import { TAG_HEX, type TagColorKey } from '../tags/colors'
 import {
   bandPath,
@@ -336,12 +336,13 @@ export function TimelinePlot({
   const xs = useMemo(() => makeXScale(x0, x1, plotLeft, plotRight), [x0, x1, plotLeft, plotRight])
 
   /**
-   * Mốc ĐANG THẤY — dùng cho CẢ vạch mốc trong `<svg>` LẪN lớp phủ icon, một phép lọc chứ
-   * không hai. SẮP theo năm vì `pinRowsOf`/`packRows` đòi thứ tự đó.
+   * Mốc ĐANG THẤY — dùng cho CẢ phép xếp hàng (`pinRowsOf`, và qua đó là `plotTop`) LẪN
+   * lớp phủ `EventPins`, một phép lọc chứ không hai. SẮP theo năm vì `pinRowsOf`/`packRows`
+   * đòi thứ tự đó.
    *
    * Lọc theo `startYear`: khung nhìn luôn bắt đầu ở năm hiện tại và chỉ cắt ngắn ở đầu
    * PHẢI (xem `viewRange`), nên "ngoài khung nhìn" ở đây có nghĩa là "bắt đầu sau năm cuối
-   * khung". Cùng phép lọc mà vạch mốc đã dùng từ trước.
+   * khung". Cùng phép lọc mà lớp phủ icon đã dùng từ trước.
    */
   const visibleEvents = useMemo(
     () => events.filter((e) => inX(e.startYear)).sort((a, b) => a.startYear - b.startYear),
@@ -671,8 +672,14 @@ export function TimelinePlot({
           <svg width="100%" height="100%" role="img" aria-label={ariaLabel} className="block">
             {/* THỨ TỰ VẼ, từ dưới lên, đúng bảng "Vùng vẽ" của dsg-handoff/README.md:
                 vùng chặng đời · lưới ngang · vùng âm · dải lạc quan–bi quan · đường bản đã
-                lưu · đường so sánh · ngưỡng FIRE · đường chính · chấm FIRE · vạch mốc.
-                Trong SVG thứ tự trong DOM LÀ thứ tự lớp, nên đừng sắp lại cho gọn mắt. */}
+                lưu · đường so sánh · ngưỡng FIRE · đường chính · chấm FIRE.
+                Trong SVG thứ tự trong DOM LÀ thứ tự lớp, nên đừng sắp lại cho gọn mắt.
+
+                LỚP 9 CŨ (vạch gạch dọc của từng mốc, chạy suốt chiều cao) ĐÃ BỎ 2026-09-10:
+                người dùng chọn kiểu ghim cắm trục, trong đó dấu chỉ năm của mốc là một cuống
+                ngắn cộng một vạch đặc ở CHÂN vùng vẽ — cả hai vẽ trong `EventPins` (lớp phủ
+                HTML ngay dưới đây), nên nay `<svg>` này không vẽ mốc nào. Lý do đầy đủ ở đầu
+                `EventPins.tsx`; chỗ này chỉ nói để đừng ai đi tìm một lớp 9 không có. */}
 
             {/* 0. VÙNG CHẶNG ĐỜI — dưới CÙNG, kể cả dưới lưới ngang. Nó là cái NỀN mà mọi
                 thứ khác vẽ lên; đặt trên lưới thì lưới bị vùng màu ăn mất ở nửa dưới, và
@@ -850,29 +857,6 @@ export function TimelinePlot({
               <circle cx={xs(fireRow.year)} cy={ys(fireRow.assetsEndMinor)} r={5} fill="var(--money-in)" />
             )}
 
-            {/* 9. Vạch mốc — vạch dọc mảnh tại `startYear` từng mốc, màu của mốc.
-
-                `eventTint` (planColors.ts) là chỗ DUY NHẤT khai màu và độ mờ của một mốc.
-                Vạch này từng giữ một bản chép riêng, và cặp độ mờ của nó đã trôi khỏi cặp
-                mà `EventPins` dùng — 0,5 / 0,22 ở đây so với 0,45 / 0,2 ở thanh độ dài, hai
-                lớp KỀ NHAU của cùng đồ thị (review cuối nhánh 2026-09-09, Finding 6). Cặp
-                đã chốt là 0,45 / 0,2; lý do chọn cặp thấp nằm ở đầu `planColors.ts`. */}
-            {visibleEvents.map((e) => {
-              const tint = eventTint(e.color, e.kind, e.enabled)
-              return (
-                <line
-                  key={`m${e.id}`}
-                  x1={xs(e.startYear)}
-                  y1={0}
-                  x2={xs(e.startYear)}
-                  y2={plotBottom}
-                  stroke={tint.color}
-                  strokeDasharray="3 3"
-                  strokeWidth={1}
-                  opacity={tint.opacity}
-                />
-              )
-            })}
           </svg>
 
           {/* Icon mốc — lớp phủ HTML trên vùng vẽ. Nằm SAU `</svg>` nên nó vẽ lên trên
@@ -882,6 +866,7 @@ export function TimelinePlot({
             rows={pinRowIdx}
             xs={xs}
             x1={x1}
+            plotBottom={plotBottom}
             yearAt={yearAt}
             phaseStarts={phaseStarts}
             selectedId={selectedEventId}

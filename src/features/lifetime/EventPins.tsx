@@ -1,6 +1,22 @@
-// ICON MỐC TRÊN ĐỒ THỊ — lớp phủ của bản vẽ 1c ("Icon mốc trên đồ thị"): vòng tròn 24px
-// đặt đúng năm bắt đầu, một thanh 2px chạy tới năm kết thúc, và một chốt 18px ở đuôi thanh
-// để kéo năm kết thúc.
+// ICON MỐC TRÊN ĐỒ THỊ — lớp phủ của bản vẽ 1c ("Icon mốc trên đồ thị"), vẽ theo kiểu
+// "ghim cắm trục + nhãn khi chọn" (người dùng chọn giữa bốn bản mẫu, 2026-09-10). Một mốc
+// gồm SÁU dấu, tất cả nằm trong file này: vòng 24px TÔ ĐẶC màu của mốc với icon đục ngược
+// ra, một CUỐNG ngắn dưới vòng, một VẠCH ĐẶC ở chân vùng vẽ đúng năm đó, một VIÊN NANG chạy
+// tới năm kết thúc, một NẮM KÉO ở đuôi nang, và NHÃN tên — chỉ ở mốc đang chọn.
+//
+// ĐÃ ĐỔI GÌ VÀ VÌ SAO (2026-09-10). Trước bản này: vòng tròn RỖNG (viền 1px trên nền đặc),
+// thanh 2px, và một VẠCH GẠCH DỌC chạy suốt chiều cao vùng vẽ — vạch đó vẽ trong `<svg>`
+// của `TimelinePlot` (lớp 9). Hai chỗ yếu người dùng chỉ ra khi xem ảnh màn hình thật:
+//   · vòng RỖNG ở cỡ 24px chỉ còn là một nét viền mảnh, nên màu của mốc gần như không đọc
+//     ra — mà màu chính là thứ phân biệt mốc này với mốc kia;
+//   · vạch dọc CẮT NGANG đường tài sản, thứ người ta tới trang này để đọc, và một kế hoạch
+//     mười mốc là mười vạch cắt. Cuống ngắn + vạch chân trục nói đúng một năm y như vậy mà
+//     không một pixel nào đi qua chỗ đường chạy.
+//
+// HỆ QUẢ VỀ FILE: lớp 9 của `TimelinePlot` KHÔNG CÒN, và `plotBottom` bơm vào đây thay cho
+// nó. Cả sáu dấu của một mốc giờ ở cùng một chỗ — chia dấu của cùng một mốc ra hai file đúng
+// là cái đã làm hai lớp KỀ NHAU của cùng đồ thị trôi khỏi nhau về độ mờ (Finding 6, review
+// cuối nhánh 2026-09-09).
 //
 // ĐÂY LÀ ĐƯỜNG VÀO CHÍNH của mốc cuộc đời: bấm mở bảng sửa trong dock, kéo dời năm. Không
 // có form nào phải mở trước.
@@ -13,7 +29,7 @@
 //
 // 2. MỐC NGOÀI KHUNG NHÌN bị loại khỏi CẢ việc vẽ LẪN việc xếp hàng. Loại khỏi vẽ mà vẫn
 //    tính vào xếp hàng thì zoom 10 năm vẫn chừa bốn hàng trống phía trên vùng vẽ. Phép lọc
-//    nằm ở `TimelinePlot` (một chỗ, dùng cho cả vạch mốc và icon).
+//    nằm ở `TimelinePlot` (`visibleEvents`, một chỗ duy nhất).
 //
 // 3. MỐC ĐANG TẮT (`enabled: false`, migration 0063) VẪN VẼ, chỉ mờ đi và có vạch gạch
 //    ngang. Lời ghi này lấy nguyên từ `LifetimeChartCard.tsx:1340`: giấu hẳn thì "bật lại"
@@ -24,12 +40,44 @@
 //    (`hasSpan: true` vô điều kiện, dòng 1560) và đó là chỗ bản vẽ sai: tự đặt một năm khi
 //    người dùng chạm vào là lặng lẽ biến "đến hết đời" thành một khoảng có hạn. Cùng quyết
 //    định đã ghi ở `LifetimeChartCard.tsx:1177`.
+//
+// 5. NHÃN CHỈ HIỆN Ở MỐC ĐANG CHỌN. Bản mẫu C (nhãn ở MỌI mốc) đọc được tên mà không phải
+//    trỏ chuột, nhưng mười mốc là mười nhãn chồng lên nhau và phải đẩy thêm hàng icon, tức
+//    vùng vẽ tụt xuống. Người dùng chọn "B kết hợp C": lấy cái nhãn, nhưng đúng một cái tại
+//    một thời điểm. Nhãn `aria-hidden` và `pointer-events-none` — tên đã nằm trong
+//    `aria-label` của chính cái ghim, và nó không được đứng chắn cử chỉ kéo.
 import type { CSSProperties } from 'react'
 import { EventIcon } from './eventIcons'
 import { isActivationKey } from './keyboardActivation'
 import { eventTint } from './planColors'
 import { PIN_END_W, PIN_ROW_H, PIN_TOP, PIN_W, magnetToPhaseStart, pinEndX } from './plotFrame'
 import { useYearDrag } from './useYearDrag'
+
+/**
+ * HÌNH của các dấu, PIXEL — cùng hệ đo với `PIN_W`/`PIN_END_W` ở `plotFrame.ts` (lời ghi ở
+ * đó nói vì sao bộ dấu trên đồ thị CỐ Ý không quy ra `rem`).
+ *
+ * Vì sao khai ở đây mà không ở `plotFrame.ts`: file đó giữ hình của cái KHUNG, tức những số
+ * mà `TimelinePlot` và `PhaseLane` cũng phải đo để khớp với nhau. Sáu số dưới đây không ai
+ * ngoài file này đọc; đẩy sang `plotFrame` là thêm sáu cái núm vào một file mà hai component
+ * khác đang phải đọc, và `plotFrame` càng rộng thì càng khó thấy phần thật sự dùng chung.
+ */
+const SPAN_H = 10
+const GRIP_W = 6
+const GRIP_H = 16
+const STEM_H = 14
+const ANCHOR_W = 2
+const ANCHOR_H = 8
+/**
+ * Bề rộng TỐI ĐA của nhãn mốc đang chọn — và cũng là ngưỡng lật nhãn sang bên trái.
+ *
+ * Hai việc CÙNG một con số là cố ý: hộp vẽ không `overflow-hidden` (xem `pinEndX` ở
+ * `plotFrame.ts`), nên một nhãn dài ở mốc sát mép phải sẽ hiện đè lên cột dock. Nhãn bị cắt
+ * ở đúng con số dùng để quyết định lật thì phép lật ĐÚNG TUYỆT ĐỐI, không phải một phỏng
+ * đoán về chiều dài chữ — thứ vốn không đo được trước khi trình duyệt vẽ, và còn đổi theo
+ * Cỡ chữ ở Cài đặt.
+ */
+const LABEL_MAX_W = 160
 
 /**
  * Mốc ở dạng TỐI THIỂU mà lớp phủ này đọc — cùng hình dạng với `PlotEvent` của
@@ -55,6 +103,14 @@ interface Props {
   xs: (year: number) => number
   /** Năm cuối khung nhìn — thanh của mốc "tới hết đời" chạy tới đây. */
   x1: number
+  /**
+   * Đáy vùng vẽ, PIXEL trong hộp đã đo — vạch chân trục của mỗi mốc dựng lên từ đây.
+   *
+   * Bơm vào chứ không tự tính lại: `plotBottom` suy từ SỐ HÀNG ICON, mà số hàng lại do
+   * chính lớp phủ này quyết định, nên `TimelinePlot` là chỗ duy nhất biết cả hai đầu (xem
+   * lời ghi "Icon mốc" trong `Props` của nó).
+   */
+  plotBottom: number
   /** `clientX` → năm. Chỗ gọi biết mình đo trong hộp nào, xem `useYearDrag`. */
   yearAt: (clientX: number) => number
   /** Các `startYear` của chặng — nam châm ±1 năm bám vào chúng (bản vẽ). */
@@ -75,6 +131,7 @@ export function EventPins({
   rows,
   xs,
   x1,
+  plotBottom,
   yearAt,
   phaseStarts,
   selectedId,
@@ -128,26 +185,78 @@ export function EventPins({
 
         return (
           <div key={e.id}>
+            {/* CUỐNG GHIM — nét 1px thõng xuống dưới vòng tròn, dài `STEM_H`, không chạm tới
+                đâu cả. Việc của nó là làm cái ghim trông như đang CẮM vào trục chứ không
+                phải nổi lơ lửng; mắt tự nối tiếp xuống vạch chân cùng màu bên dưới.
+
+                Cuống của một mốc hàng trên có thể đi ngang qua chỗ icon của mốc hàng dưới
+                (hai hàng chỉ cách nhau `PIN_ROW_H` = 26px cho icon 24px, nên mọi cuống đều
+                lấn sang hàng sau). Không sao: từ bản này icon là vòng TÔ ĐẶC và nằm ở
+                `z-20`, còn cuống ở `z-10` — nó bị che, không lòi ra giữa icon.
+
+                `motion-block` (và `drag.dragging ? '' :`) giống HỆT cái ghim, và bốn dấu
+                dưới đây đều phải mang nó. Đo được lúc kiểm bản này: ghim có chuyển động
+                180ms trên `left`, nên khi dời năm bằng ←/→ nó TRƯỢT tới chỗ mới, còn cuống
+                /vạch chân/nang không có `transition` thì NHẢY — giữa hai thứ đó là 180ms
+                mà một cái mốc bị xé làm hai chỗ. (Thanh 2px cũ cũng đã sai như vậy, chỉ là
+                một sợi chỉ mảnh thì không ai thấy.) */}
+            <div
+              aria-hidden
+              className={`absolute z-10 ${drag.dragging ? '' : 'motion-block'}`}
+              style={{
+                top: top + PIN_W,
+                left: cx,
+                marginLeft: -0.5,
+                width: 1,
+                height: STEM_H,
+                background: mau,
+                opacity: tint.opacity,
+              }}
+            />
+
+            {/* VẠCH CHÂN TRỤC — dấu DUY NHẤT nói chính xác "mốc này ở năm nào" sau khi vạch
+                gạch dọc suốt chiều cao bị bỏ. Vì thế nó tô ĐẶC (`anchorOpacity`), khác mọi
+                dấu còn lại: 8 pixel mà còn mờ nữa, lại nằm trên vùng màu chặng ở chân đồ
+                thị, thì không đọc được.
+
+                Dựng LÊN từ `plotBottom` chứ không thõng xuống từ vùng vẽ: `plotBottom` là
+                đúng đường trục, nên vạch nằm gọn TRONG vùng vẽ và không bao giờ đè lên nhãn
+                năm phía dưới. */}
+            <div
+              aria-hidden
+              className={`absolute z-10 ${drag.dragging ? '' : 'motion-block'}`}
+              style={{
+                top: plotBottom - ANCHOR_H,
+                left: cx,
+                marginLeft: -ANCHOR_W / 2,
+                width: ANCHOR_W,
+                height: ANCHOR_H,
+                background: mau,
+                opacity: tint.anchorOpacity,
+              }}
+            />
+
             {/* Thanh độ dài. `aria-hidden` vì khoảng năm đã nằm trong tên của chính icon —
                 đọc lại bằng một phần tử riêng là nghe hai lần cùng một thứ.
                 Vẽ cho CẢ mốc tới hết đời (chạy tới mép phải), chỉ cái CHỐT là không có. */}
             {(coChot || e.endYear === null) && (
               <div
                 aria-hidden
-                className="absolute z-10"
+                className={`absolute z-10 rounded-full ${drag.dragging ? '' : 'motion-block'}`}
                 style={{
-                  top: top + PIN_W / 2 - 1,
-                  left: cx + PIN_W / 2 + 1,
+                  top: top + (PIN_W - SPAN_H) / 2,
+                  // BẮT ĐẦU ở `cx`, tức LUỒN vào dưới cái ghim (ghim `z-20`, nang `z-10`)
+                  // chứ không nối vào mép phải của nó như thanh 2px cũ. Nang dày 10px thì
+                  // một khe hở 1px giữa nó và ghim đọc thành hai vật rời nhau; luồn vào
+                  // dưới thì ghim và nang là MỘT hình, đúng ý "ghim có đuôi".
+                  left: cx,
                   width: Math.max(
-                    2,
-                    (e.endYear === null ? rightEdge : endX) -
-                      cx -
-                      PIN_W / 2 -
-                      (coChot ? PIN_END_W / 2 : 0),
+                    SPAN_H,
+                    (e.endYear === null ? rightEdge : endX) - cx,
                   ),
-                  height: 2,
+                  height: SPAN_H,
                   background: mau,
-                  opacity: tint.opacity,
+                  opacity: tint.spanOpacity,
                   ...(e.endYear === null && {
                     // Mờ dần ở mép phải: một đầu cắt vuông ở đúng mép vùng vẽ đọc như "kết
                     // thúc ở năm cuối đồ thị", mà không phải (LifetimeChartCard:1207).
@@ -179,22 +288,25 @@ export function EventPins({
                   left: cx,
                   width: PIN_W,
                   height: PIN_W,
-                  borderColor: mau,
-                  color: mau,
+                  background: mau,
+                  color: tint.ink,
                   // Bắt buộc cho bút và cảm ứng: không có nó thì cử chỉ kéo bị trình duyệt
                   // nuốt thành cuộn trang trước khi `pointermove` kịp chạy.
                   touchAction: 'none',
                 } as CSSProperties
               }
-              // Nền ĐẶC (`bg-surface-chrome`) chứ không phải màu của mốc pha 14% như bản
-              // vẽ: bảng màu của app lưu KHOÁ rồi tra ra biến CSS, mà `var()` thì không
-              // ghép được alpha vào — và pha alpha lên đường đồ thị đang chạy ngay dưới sẽ
-              // cho ra một màu thứ ba không ai đo. Viền và icon mang màu của mốc, đủ để
-              // nhận ra nó là mốc nào.
+              // TÔ ĐẶC bằng chính màu của mốc, icon ĐỤC NGƯỢC ra bằng `tint.ink` (2026-09-10).
+              // Bản trước là vòng RỖNG: viền 1px màu mốc trên nền `bg-surface-chrome`, và ở
+              // 24px cái viền đó mảnh tới mức màu gần như không đọc ra — chỗ yếu người dùng
+              // chỉ thẳng ra khi xem ảnh màn hình. Không dùng "màu mốc pha 14%" như bản vẽ vì
+              // bảng màu của app lưu KHOÁ rồi tra ra biến CSS, mà `var()` không ghép được
+              // alpha vào; pha alpha lên đường đồ thị chạy ngay dưới thì ra một màu thứ ba
+              // không ai đo. Nền đặc thì không có màu thứ ba nào, và `tint.ink` đã được đo
+              // tương phản cho CẢ bảy màu ở cả hai chế độ (xem `planColors.ts`).
               //
               // `motion-block` chỉ khi KHÔNG kéo: bỏ class chứ không đè thời lượng, nên nó
               // không đá nhau với `prefers-reduced-motion` (xem index.css và PhaseLane).
-              className={`absolute z-20 flex -translate-x-1/2 items-center justify-center rounded-full border bg-surface-chrome shadow-sm ${
+              className={`absolute z-20 flex -translate-x-1/2 items-center justify-center rounded-full shadow-sm ${
                 drag.dragging ? '' : 'motion-block'
               } ${selectedId === e.id ? 'ring-2 ring-accent' : ''} ${off ? 'opacity-50' : ''}`}
               onPointerDown={(ev) => drag.start({ id: e.id, mode: 'pin' }, ev)}
@@ -226,10 +338,43 @@ export function EventPins({
               {off && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-fg-muted"
+                  className="pointer-events-none absolute inset-x-1 top-1/2 h-px -translate-y-1/2"
+                  // Cùng MỰC với icon, không phải `bg-fg-muted` như trước: nền của vòng nay
+                  // là màu đặc của mốc, và một vạch xám trên nền đó thì chìm mất.
+                  style={{ background: tint.ink }}
                 />
               )}
             </button>
+
+            {/* NHÃN — chỉ ở mốc ĐANG CHỌN (luật 5 ở đầu file). Nền `bg-surface-chrome` đặc
+                vì nó nằm ngay trên đường tài sản và trên viên nang; nền trong suốt thì chữ
+                11px đọc trên một cái đường gạch đứt là không đọc được.
+
+                LẬT sang trái khi nhãn (rộng tối đa `LABEL_MAX_W`) không còn đủ chỗ tới mép
+                phải vùng vẽ — xem lời ghi ở `LABEL_MAX_W` về việc vì sao cắt chữ và ngưỡng
+                lật phải là CÙNG một con số. */}
+            {selectedId === e.id &&
+              (() => {
+                const traiPhai = cx + PIN_W / 2 + 4
+                const lat = traiPhai + LABEL_MAX_W > rightEdge
+                return (
+                  <span
+                    aria-hidden
+                    className={`pointer-events-none absolute z-20 overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-surface-chrome px-1.5 py-0.5 text-2xs ${
+                      drag.dragging ? '' : 'motion-block'
+                    }`}
+                    style={{
+                      top: top + PIN_W / 2,
+                      left: lat ? cx - PIN_W / 2 - 4 : traiPhai,
+                      maxWidth: LABEL_MAX_W,
+                      transform: lat ? 'translate(-100%, -50%)' : 'translateY(-50%)',
+                      color: mau,
+                    }}
+                  >
+                    {e.label} · {khoang}
+                  </span>
+                )
+              })()}
 
             {/* Chốt năm kết thúc. CÓ trong vòng Tab, khác hai mép của khối chặng
                 (`PhaseLane` để chúng `aria-hidden`) — và lý do khác nhau thật: mép của chặng
@@ -246,13 +391,15 @@ export function EventPins({
                     left: endX,
                     width: PIN_END_W,
                     height: PIN_END_W,
-                    borderColor: mau,
-                    color: mau,
                     touchAction: 'none',
                     cursor: 'ew-resize',
                   } as CSSProperties
                 }
-                className={`absolute z-20 flex -translate-x-1/2 items-center justify-center rounded-full border bg-surface-chrome ${
+                // HỘP BẤM vẫn 18×18 và vẫn trong suốt hoàn toàn — chỉ cái NẮM 6×16 bên
+                // trong là thấy được. Giữ hộp to hơn hình là cố ý: một mục tiêu 6px ngang
+                // thì gần như không kéo nổi bằng bút hay ngón tay, mà 18×18 đúng bằng vùng
+                // bấm đã có từ trước nên không ai mất cái gì.
+                className={`absolute z-20 flex -translate-x-1/2 items-center justify-center ${
                   drag.dragging ? '' : 'motion-block'
                 } ${off ? 'opacity-50' : ''}`}
                 onPointerDown={(ev) => drag.start({ id: e.id, mode: 'end' }, ev)}
@@ -279,9 +426,15 @@ export function EventPins({
                   onMoveEnd?.(e.id, (e.endYear as number) + (ev.key === 'ArrowLeft' ? -1 : 1))
                 }}
               >
-                {/* Vạch dọc 2×9px giữa chốt — đúng hình của bản vẽ, và nó nói "kéo ngang"
-                    rõ hơn một vòng tròn rỗng. */}
-                <span aria-hidden className="h-2 w-0.5 rounded-sm" style={{ background: mau }} />
+                {/* NẮM KÉO 6×16px tô đặc — bản trước là một vòng tròn rỗng 18px có vạch
+                    2×9 ở giữa. Cùng lý do với cái ghim: viền 1px không đọc ra màu. Hình dẹt
+                    và dựng đứng nói "kéo ngang" rõ hơn một vòng tròn, và nó ngồi đúng lên
+                    đuôi viên nang nên hai thứ đọc thành một. */}
+                <span
+                  aria-hidden
+                  className="rounded-full"
+                  style={{ width: GRIP_W, height: GRIP_H, background: mau }}
+                />
               </button>
             )}
           </div>

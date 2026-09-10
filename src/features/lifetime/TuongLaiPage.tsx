@@ -1650,15 +1650,19 @@ function TuongLaiConsole() {
    *
    * Chỉ truyền khi ĐƠN VỊ TIỀN của mốc trùng đơn vị mà `baseline` được tính bằng:
    * `suggestBaseline` lọc giao dịch theo tiền của CHẶNG ĐANG CHẠY và không quy đổi, nên
-   * với một mốc ở chặng dùng đồng khác thì mọi con số này sai đơn vị — thà không gợi ý
-   * còn hơn gợi ý một số sai 165 lần. Danh mục có chi ≤ 0 (chỉ toàn hoàn tiền) bị loại:
+   * với một mốc khai bằng đồng khác thì mọi con số này sai đơn vị — thà không gợi ý còn
+   * hơn gợi ý một số sai 165 lần. Danh mục có chi ≤ 0 (chỉ toàn hoàn tiền) bị loại:
    * "thay cho 0 đồng" không phải một lựa chọn có nghĩa.
+   *
+   * So `selEvent.currency` chứ không `currencyAt(...)` (sửa 2026-09-10): mốc khai được
+   * đơn vị riêng rồi, nên đơn vị của chặng không còn trả lời được câu "ô này đang tính
+   * bằng gì".
    */
   const chiTheoDanhMuc =
     selEvent !== undefined &&
     baseline !== null &&
     baselinePhase !== null &&
-    currencyAt(working.phases, selEvent.startYear, currency) === baselinePhase.currency
+    selEvent.currency === baselinePhase.currency
       ? baseline.byCategory
           .filter((c) => c.annualMinor > 0)
           .map((c) => ({ name: c.name, annualMinor: c.annualMinor }))
@@ -1669,8 +1673,10 @@ function TuongLaiConsole() {
       ? undefined
       : {
           event: selEvent,
-          // Tiền của mốc SUY RA từ chặng, không tự khai (v5 — xem `fxModel.ts`).
-          currency: currencyAt(working.phases, selEvent.startYear, currency),
+          // KHÔNG truyền đơn vị tiền: bảng mốc đọc `event.currency` của chính bản ghi
+          // (sửa 2026-09-10 — xem `fxModel.ts` và JSDoc trong `PlanDockEvent`). Tiền của
+          // chặng chỉ còn là MẶC ĐỊNH lúc sinh ra một mốc mới, không phải câu trả lời cho
+          // "mốc này đang tính bằng gì".
           // Cùng khoảng mà `moveEventStart`/`moveEventEnd` chặn — hai ô năm trong dock
           // trước đây chỉ chặn theo `check` của DB, nên gõ 1900 vào là mốc rơi ra ngoài
           // bản chiếu và thành một đối tượng vô hình (review cuối nhánh 2026-09-09,
@@ -1679,10 +1685,9 @@ function TuongLaiConsole() {
           lastYear,
           phaseLabel: evPhase?.label ?? null,
           chiTheoDanhMuc,
-          chang:
-            evPhase === null
-              ? null
-              : { nuoc: evPhase.country, tien: currencyAt(working.phases, selEvent.startYear, currency) },
+          // Chỉ NƯỚC: "Tra hộ" hỏi giá ở nước của chặng nhưng trả lời bằng đơn vị của
+          // chính mốc, vì con số tra về đi thẳng vào ô số tiền của mốc.
+          chang: evPhase === null ? null : { nuoc: evPhase.country },
           onPatch: (patch: Parameters<typeof patchDraftEvent>[2]) =>
             editDraft((d) => patchDraftEvent(d, selEvent.id, patch)),
           onAddPreset: addPresetAtDefaultYear,
@@ -2438,7 +2443,6 @@ function TuongLaiConsole() {
             onClose={() => setDrawerOpen(false)}
             phases={working?.phases ?? []}
             events={working?.events ?? []}
-            currency={currency}
             onSelectPhase={(id) => setSel({ type: 'phase', id })}
             onSelectEvent={(id) => setSel({ type: 'event', id })}
             onAddPreset={addPresetAtDefaultYear}

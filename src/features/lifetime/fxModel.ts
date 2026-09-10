@@ -1,9 +1,23 @@
 // Mô hình tiền tệ của bản chiếu Tương lai — THUẦN, không React, không mạng.
 //
-// LUẬT (bản vẽ v5, chốt 2026-08-24): **tiền nằm trên CHẶNG, không nằm trên mốc.**
-// Mỗi chặng khai bằng tiền của nước đó; một mốc cuộc đời tính bằng tiền của chặng chứa
-// năm nó bắt đầu; và mọi phép quy đổi dùng TỶ GIÁ HÔM NAY của app, coi như giữ nguyên
+// LUẬT (bản vẽ v5, chốt 2026-08-24; sửa 2026-09-10): **tiền của một CHẶNG là đơn vị MẶC
+// ĐỊNH của mọi mốc rơi vào nó — và mốc khai được đơn vị riêng.** Mỗi chặng khai bằng tiền
+// của nước đó; một mốc mới sinh ra mang tiền của chặng chứa năm nó bắt đầu nhưng đổi được
+// ngay ở bảng sửa mốc; và mọi phép quy đổi dùng TỶ GIÁ HÔM NAY của app, coi như giữ nguyên
 // suốt bản chiếu.
+//
+// VÌ SAO MỞ LẠI ĐƠN VỊ RIÊNG CHO MỐC (2026-09-10, người dùng yêu cầu: "phần mốc cuộc đời
+// tôi có thể chọn Số tiền mỗi năm là yen, đô, và vnđ"). v5 bỏ đơn vị riêng của mốc CÙNG
+// LÚC với ô `fx_to_display` gõ tay, nhưng cái đắt nằm ở ô tỷ giá đó — gõ 150 thay vì
+// 0,0067 là sai hàng chục nghìn lần. Ô ấy đã chết hẳn: tỷ giá nay lấy tự động (`fxOf`).
+// Còn thứ bị bỏ theo thì có giá thật: ở chặng Nhật mà vẫn "gửi bố mẹ ở VN ₫100tr/năm" hay
+// "học phí Mỹ $50k/năm" là chuyện thường, và buộc khai bằng ¥ là buộc người dùng tự nhân
+// tỷ giá bằng tay — đúng loại việc app này tồn tại để khỏi phải làm.
+//
+// HỆ QUẢ, chỗ nào cũng phải theo: số THÔ của một mốc hiện ra bằng `event.currency`, không
+// phải bằng tiền của chặng hay tiền hiển thị (`PlanDockEvent`, `PlanListDrawer`). Phần
+// dưới bản chiếu không đổi gì — mỗi dòng vẫn mang cặp (`currency`, `fxToDisplay`) và mọi
+// phép tính vẫn đi qua `convertLifetimeMinor` với cặp đó.
 //
 // ĐỔI GÌ SO VỚI TRƯỚC. Trước bản này mỗi dòng (chặng lẫn mốc) tự khai `currency` VÀ một
 // `fx_to_display` — một tỷ giá GIẢ ĐỊNH dài hạn người dùng gõ tay. Ý tưởng hay nhưng
@@ -11,13 +25,11 @@
 // vì 0,0067) thì sai hàng chục nghìn lần và chỉ có một dòng xem trước bắt được, còn để
 // nguyên 1 thì hai đồng tiền khác nhau bị coi là bằng nhau. v5 bỏ hẳn ô đó.
 //
-// KHÔNG XOÁ DỮ LIỆU CŨ, KHÔNG CÓ MIGRATION MÙ. Cột `life_events.currency` và cả hai cột
-// `fx_to_display` vẫn còn nguyên dưới DB. Chuẩn hoá xảy ra lúc ĐỌC: một mốc còn mang
-// tiền khác chặng của nó được quy về tiền của chặng ngay tại đây, và chỉ khi người dùng
-// SỬA dòng đó thì bản ghi mới được viết lại theo mô hình mới. Lý do không viết một lệnh
-// UPDATE hàng loạt: nó phải nhét một tỷ giá cứng vào file SQL rồi ghi đè số tiền thật
-// của người dùng, không hoàn tác được, trong khi cách này cho ra ĐÚNG cùng con số trên
-// màn hình mà không đụng một dòng nào cho tới lúc chính người dùng sửa nó.
+// DỮ LIỆU CŨ TỰ ĐÚNG, KHÔNG CÓ MIGRATION NÀO. Cột `life_events.currency` chưa bao giờ bị
+// xoá, nên một mốc khai từ trước v5 bằng ₫ trong chặng ¥ nay đọc ra đúng ₫ — trước bản
+// này nó bị quy về ¥ ngay lúc đọc (cùng số tiền, khác nhãn) trong khi dock lại hiện chữ
+// số ₫ thô cạnh ký hiệu của chặng, tức sai nhãn. Hai cột `fx_to_display` vẫn còn nhưng
+// chỉ là dấu vết: giá trị nào cũng bị đè ở đây bằng tỷ giá hôm nay.
 import type { CurrencyCode } from '../../lib/currencies'
 import { convertLifetimeMinor, phaseForYear } from './project'
 import type { LifetimeEvent, LifetimePhase } from './project'
@@ -30,7 +42,11 @@ import type { LifetimeEvent, LifetimePhase } from './project'
 export type FxOf = (from: CurrencyCode, to: CurrencyCode) => number | null
 
 /**
- * Tiền của chặng phủ `year` — tiền mà một mốc bắt đầu năm đó được tính bằng.
+ * Tiền của chặng phủ `year` — đơn vị MẶC ĐỊNH cho một mốc MỚI bắt đầu năm đó.
+ *
+ * Không phải câu trả lời cho "mốc này đang tính bằng gì": mốc đã có thì đọc
+ * `event.currency` của chính nó (sửa 2026-09-10, xem đầu file). Hàm này dùng lúc SINH ra
+ * một mốc — bấm nền bảng thêm nhanh, thêm từ mẫu — và lúc đổi tiền của cả chặng.
  *
  * Dùng `phaseForYear` của engine chứ không tự dò lại: chặng nào "đang hiệu lực" là một
  * khái niệm của bản chiếu, và hai bản chép của nó sẽ trôi lệch (JSDoc ở đó đã ghi rõ,
@@ -65,13 +81,16 @@ export interface NormalizedScenario {
 /**
  * Đưa một kịch bản về mô hình v5 trước khi chiếu.
  *
- * Hai việc:
- *   1. `fxToDisplay` của CHẶNG lấy theo tỷ giá hôm nay, không lấy con số người dùng
- *      từng gõ. Đây là điểm mấu chốt của v5 — người dùng không còn phải khai tỷ giá.
- *   2. Mốc mang tiền khác chặng của nó được QUY VỀ tiền của chặng, rồi mang luôn tỷ
- *      giá của chặng.
+ * MỘT việc, cho cả chặng lẫn mốc: `fxToDisplay` lấy theo tỷ giá HÔM NAY, không lấy con
+ * số người dùng từng gõ. Đây là điểm mấu chốt của v5 — không còn ô tỷ giá nào phải khai.
  *
- * Thiếu tỷ giá thì để NGUYÊN dòng đó (giữ đơn vị cũ và `fx_to_display` đã lưu) và bật
+ * KHÔNG quy đổi số tiền của mốc nữa (đổi 2026-09-10 — xem đầu file). Trước đây mốc mang
+ * đơn vị khác chặng bị quy về đơn vị của chặng ngay tại đây; nay đơn vị của mốc là thứ
+ * người dùng CHỌN, nên quy đổi nó là ghi đè lựa chọn đó. Tiền trên bản chiếu không xê
+ * dịch vì việc này: quy ₫ về ¥ rồi nhân tỷ giá ¥→hiển thị cho ra cùng con số với nhân
+ * thẳng ₫→hiển thị, chỉ khác phần làm tròn — và bỏ một lần làm tròn là bớt một lần lệch.
+ *
+ * Thiếu tỷ giá thì để NGUYÊN dòng đó (giữ `fx_to_display` đã lưu) và bật
  * `hasMissingRate`. Rơi về 1:1 ở đây là biến ₫4.200.000 thành ¥4.200.000 — sai 172 lần,
  * ngay giữa bản chiếu, không có gì nói ra.
  *
@@ -97,34 +116,21 @@ export function normalizeToPhaseCurrency(
     return { ...p, fxToDisplay: fx }
   })
 
+  // Mốc giữ ĐƠN VỊ CỦA CHÍNH NÓ — ở đây chỉ làm mới tỷ giá, đúng một việc như với chặng.
+  //
+  // Nhờ thế mọi số tiền khác của cùng dòng (`endAmountMinor` của hình 'ramp',
+  // `assetValueMinor`/`loanMinor` của mốc mua tài sản, `replacesMinor` của ô chống đếm
+  // hai lần) không cần quy đổi gì: chúng vốn cùng một đơn vị với `amountMinor`, và đơn vị
+  // đó nay không bị đổi dưới chân chúng. Bản cũ phải quy đổi TỪNG số một, và `endAmountMinor`
+  // đã từng bị bỏ sót — một mốc "từ ¥1M tới ¥5M" đọc ra "từ ₫165tr tới ₫5tr", bản chiếu đi
+  // xuống trong khi lẽ ra đi lên.
   const outEvents = events.map((e): LifetimeEvent => {
-    const target = currencyAt(outPhases, e.startYear, displayCurrency)
-    const targetFx = fxOf(target, displayCurrency)
-    if (targetFx === null) {
+    const fx = fxOf(e.currency, displayCurrency)
+    if (fx === null) {
       hasMissingRate = true
       return e
     }
-    if (e.currency === target) return { ...e, fxToDisplay: targetFx }
-
-    const toTarget = fxOf(e.currency, target)
-    if (toTarget === null) {
-      hasMissingRate = true
-      return e
-    }
-    return {
-      ...e,
-      amountMinor: convertLifetimeMinor(e.amountMinor, e.currency, target, toTarget),
-      // `endAmountMinor` là MỘT SỐ TIỀN nữa của cùng dòng (hình 'ramp', migration
-      // 0066) — quên quy đổi nó thì đổi tiền hiển thị làm đoạn nội suy chạy từ số đã
-      // đổi tới số CHƯA đổi: một mốc "từ ¥1M tới ¥5M" thành "từ ₫165tr tới ₫5tr", và
-      // bản chiếu đi xuống trong khi lẽ ra đi lên.
-      endAmountMinor:
-        e.endAmountMinor == null
-          ? e.endAmountMinor
-          : convertLifetimeMinor(e.endAmountMinor, e.currency, target, toTarget),
-      currency: target,
-      fxToDisplay: targetFx,
-    }
+    return { ...e, fxToDisplay: fx }
   })
 
   return { phases: outPhases, events: outEvents, hasMissingRate }

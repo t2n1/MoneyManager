@@ -13,7 +13,6 @@
 import { useState } from 'react'
 import { ActionButton, FilterChip, Money, Num, SectionTitle } from '../../components/ui'
 import { Guide } from '../../components/Guide'
-import type { CurrencyCode } from '../../lib/currencies'
 import { drawerEvents, type DrawerSort } from './drawerList'
 import type { DraftEvent, DraftPhase } from './draft'
 import { LIFE_PRESETS, type LifePreset } from './presets'
@@ -30,7 +29,6 @@ export function PlanListDrawer({
   onClose,
   phases,
   events,
-  currency,
   onSelectPhase,
   onSelectEvent,
   onAddPreset,
@@ -39,7 +37,6 @@ export function PlanListDrawer({
   onClose: () => void
   phases: readonly DraftPhase[]
   events: readonly DraftEvent[]
-  currency: CurrencyCode
   onSelectPhase: (id: string) => void
   onSelectEvent: (id: string) => void
   onAddPreset: (p: LifePreset) => void
@@ -58,6 +55,12 @@ export function PlanListDrawer({
       endYear: e.endYear,
       kind: e.kind,
       amountMinor: e.amountMinor,
+      // Đơn vị đi KÈM con số xuống tận hàng danh sách: từ 2026-09-10 mỗi mốc khai được
+      // đơn vị riêng (`fxModel.ts`), nên một danh sách tô cùng một ký hiệu cho mọi hàng
+      // sẽ đọc "₫100.000.000" thành "¥100.000.000" — sai 172 lần, đúng ở chỗ dễ tin nhất.
+      // `drawerEvents` chỉ đọc sáu trường và trả về nguyên `T`, nên trường này đi qua nó
+      // mà không cần sửa `DrawerEventLike`.
+      currency: e.currency,
       icon: e.icon,
     })),
     { q, sort },
@@ -172,7 +175,7 @@ export function PlanListDrawer({
                   </span>
                   <Money
                     amount={e.amountMinor}
-                    currency={currency}
+                    currency={e.currency}
                     tone={e.kind === 'income' ? 'in' : 'out'}
                     className="text-sm"
                   />

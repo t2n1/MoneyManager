@@ -628,12 +628,23 @@ describe('setPhaseCurrency', () => {
   // Hồi quy: không gắn nhãn lại mốc thì màn hình hiện ₫3.000.000 trong khi bản chiếu
   // (qua `normalizeToPhaseCurrency`) nhân lên thành ₫516.000.000. Bắt được khi chạy app
   // thật, 2026-08-24.
-  it('đổi tiền chặng thì gắn nhãn lại MỌI mốc rơi vào chặng đó', () => {
+  it('đổi tiền chặng thì gắn nhãn lại mốc ĐANG THEO chặng đó', () => {
     const d = setPhaseCurrency(base(), 'p2', 'VND')
     expect(d.phases.find((p) => p.id === 'p2')!.currency).toBe('VND')
     // e1 (2028) và e2 (2031) thuộc chặng p1 (2024) → không đụng.
     expect(d.events.find((e) => e.id === 'e1')!.currency).toBe('JPY')
     expect(d.events.find((e) => e.id === 'e2')!.currency).toBe('JPY')
+  })
+
+  // Sửa 2026-09-10: mốc khai được đơn vị riêng, nên gắn nhãn lại nó là ghi đè một lựa
+  // chọn của người dùng — ₫100tr hoá $100tr, sai 6.000 lần và không có gì nói ra.
+  it('mốc đã tự khai đơn vị khác thì KHÔNG bị gắn nhãn lại', () => {
+    const rieng = patchDraftEvent(base(), 'e1', { currency: 'VND', amountMinor: 100_000_000 })
+    const d = setPhaseCurrency(rieng, 'p1', 'USD')
+    // e1 tự khai ₫ → giữ ₫ và giữ số. e2 còn theo chặng (¥) → đi theo sang $.
+    expect(d.events.find((e) => e.id === 'e1')!.currency).toBe('VND')
+    expect(d.events.find((e) => e.id === 'e1')!.amountMinor).toBe(100_000_000)
+    expect(d.events.find((e) => e.id === 'e2')!.currency).toBe('USD')
   })
 
   it('chặng ĐẦU TIÊN nuốt luôn mốc nằm trước nó', () => {

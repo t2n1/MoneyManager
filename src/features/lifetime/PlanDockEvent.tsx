@@ -75,9 +75,6 @@ const SHAPE_LABELS: Record<AmountShape, string> = {
 export interface PlanDockEventProps {
   /** Mốc đang sửa, lấy từ BẢN NHÁP. */
   event: DraftEvent
-  /** Tiền của CHẶNG phủ năm bắt đầu — mốc tính bằng đơn vị này, không tự khai (v5, xem
-   *  `fxModel.ts`). Muốn mốc tính bằng đồng khác thì đổi tiền của CHẶNG. */
-  currency: CurrencyCode
   /**
    * Khoảng năm mà một mốc được phép nằm trong — CÙNG khoảng mà mọi đường kéo và `←`/`→`
    * đang chặn (`moveEventStart`/`moveEventEnd` ở `TuongLaiPage`).
@@ -92,10 +89,14 @@ export interface PlanDockEventProps {
   /** Tên chặng phủ năm bắt đầu — dòng tổng của bản vẽ có "Rơi vào chặng Z". */
   phaseLabel: string | null
   /**
-   * Chặng phủ năm bắt đầu — nguồn NƯỚC và TIỀN cho nút "Tra hộ". `null` thì ẩn nút đó
-   * (không biết hỏi giá ở nước nào, bằng đồng nào).
+   * Chặng phủ năm bắt đầu — nguồn NƯỚC cho nút "Tra hộ". `null` thì ẩn nút đó (không biết
+   * hỏi giá ở nước nào).
+   *
+   * TIỀN thì KHÔNG lấy từ đây nữa (2026-09-10): con số tra về được ghi thẳng vào ô số
+   * tiền, nên nó phải tính bằng đơn vị của CHÍNH mốc (`event.currency`). Hỏi giá bằng ¥
+   * rồi ghi vào một ô đang khai ₫ là sai 172 lần mà không có gì trên màn hình nói ra.
    */
-  chang: { nuoc: string | null; tien: CurrencyCode } | null
+  chang: { nuoc: string | null } | null
   /**
    * Chi THẬT theo danh mục, đã quy năm hoá, theo `currency` — để ô "thay cho khoản nào"
    * (chống đếm hai lần, migration 0067) điền sẵn một con số CÓ THẬT thay vì bắt người
@@ -119,7 +120,6 @@ export interface PlanDockEventProps {
 /** Bảng sửa mốc cuộc đời trong dock. */
 export function PlanDockEvent({
   event,
-  currency,
   currentYear,
   lastYear,
   phaseLabel,
@@ -133,6 +133,31 @@ export function PlanDockEvent({
 }: PlanDockEventProps) {
   const uid = useId()
   const [advOpen, setAdvOpen] = useState(false)
+
+  /**
+   * Đơn vị tiền của mốc — đọc từ CHÍNH bản ghi, không nhận qua prop.
+   *
+   * Từ 2026-09-10 người dùng chọn được đơn vị ngay ở đây (xem `fxModel.ts`), nên nếu chỗ
+   * gọi vẫn truyền tiền của chặng vào thì có hai câu trả lời cho cùng một câu hỏi — và
+   * cái sai sẽ là cái hiện trên nhãn ô số tiền, tức chữ số nói một đồng mà ký hiệu nói
+   * một đồng khác. Một nguồn thì không có ca đó.
+   */
+  const currency = event.currency
+
+  /**
+   * Đổi đơn vị của mốc. KHÔNG quy đổi con số — đúng như ô tiền tệ của chặng
+   * (`setPhaseCurrency`): người bấm đổi đơn vị là người muốn đổi ĐƠN VỊ, còn nếu quy đổi
+   * hộ thì con số họ vừa gõ bị viết lại ngay dưới con trỏ, và không có nút Hoàn tác nào
+   * trong dock để lấy lại.
+   *
+   * `fxToDisplay` về 1 = "tỷ giá coi như chưa khai lại", cùng bất biến mà
+   * `setDraftCurrency`/`setPhaseCurrency` giữ. Con số này chỉ là dấu vết dưới DB:
+   * `normalizeToPhaseCurrency` đè nó bằng tỷ giá hôm nay trước mọi phép chiếu.
+   */
+  function doiTien(next: CurrencyCode) {
+    if (next === currency) return
+    onPatch({ currency: next, fxToDisplay: 1 })
+  }
 
   /**
    * Chặn một năm mốc vào `[currentYear, lastYear]`, rồi vào `check` của DB
@@ -209,7 +234,7 @@ export function PlanDockEvent({
           namBatDau: event.startYear,
           namKetThuc: event.endYear,
           nuoc: chang.nuoc,
-          tien: chang.tien,
+          tien: currency,
         })
 
   /**
@@ -238,11 +263,11 @@ export function PlanDockEvent({
     // Truyền cả `tien`: bản demo dội lại đúng đồng đó, nếu không `docKetQua` sẽ từ chối
     // với 'sai-tien' ở mọi chặng không phải JPY. Xem JSDoc `Repo.traSo`.
     traSo.mutate(
-      { van: cauHoi.van, tien: chang.tien },
+      { van: cauHoi.van, tien: currency },
       {
         onSuccess: (tho) => {
           if (luot !== luotRef.current) return
-          setKetQua(docKetQua(tho, chang.tien))
+          setKetQua(docKetQua(tho, currency))
         },
         // Mất mạng / function lỗi / hết hạn mức đều dừng ở đây — dùng 'khong-goi-duoc',
         // KHÔNG dùng 'doc-khong-ra' (đó là mã cho kết quả đọc không ra, nói sai chỗ hỏng).
@@ -380,16 +405,44 @@ export function PlanDockEvent({
             cơ trỏ vào ô đang bị CSS ẩn. Tên đọc được đã do `ariaLabel` lo. */}
         <div className="mt-2">
           <span className={DOCK_LABEL}>{amountLabel}</span>
-          <MoneyField
-            value={event.amountMinor}
-            currency={currency}
-            autoOpen={false}
-            ariaLabel={amountLabel}
-            // Kẹp về 0: dock không có nút Xong nào để tắt, và MoneyField cho gõ biểu
-            // thức nên "5 − 9" ra số âm là đường có thật.
-            onChange={(v) => onPatch({ amountMinor: Math.max(0, v) })}
-            className={`w-full text-right font-semibold ${DOCK_INPUT}`}
-          />
+          {/* ĐƠN VỊ đứng ngay cạnh con số, không nằm dưới "Nâng cao" (đổi 2026-09-10 theo
+              yêu cầu "phần mốc cuộc đời tôi có thể chọn Số tiền mỗi năm là yen, đô, và
+              vnđ"): đơn vị là một nửa nghĩa của con số, và chôn nó một lớp gập đi là để
+              người dùng gõ 100.000.000 xong mới biết mình vừa gõ bằng ¥.
+
+              `MoneyField` phải nằm trong một `div` riêng mang `flex-1 min-w-0`: gốc của
+              nó là `flex flex-col` không có class bề rộng, còn `className` truyền vào thì
+              đi xuống hai ô con (nút chạm và input desktop). Đặt `flex-1` vào `className`
+              là đặt sai chỗ — nó sẽ co theo chữ. */}
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <MoneyField
+                value={event.amountMinor}
+                currency={currency}
+                autoOpen={false}
+                ariaLabel={amountLabel}
+                // Kẹp về 0: dock không có nút Xong nào để tắt, và MoneyField cho gõ biểu
+                // thức nên "5 − 9" ra số âm là đường có thật.
+                onChange={(v) => onPatch({ amountMinor: Math.max(0, v) })}
+                className={`w-full text-right font-semibold ${DOCK_INPUT}`}
+              />
+            </div>
+            {/* KHÔNG bóp chiều cao `Select` bằng className — lý do đầy đủ ở ô tiền tệ của
+                `PlanDockPhase` (`min-h-11` của primitive và một `min-h-8` chêm ngoài là
+                hai class cùng hạng, Tailwind quyết theo thứ tự trong CSS). */}
+            <Select
+              value={currency}
+              aria-label="Tiền tệ khai của mốc"
+              wrapClassName="w-24 shrink-0"
+              onChange={(e) => doiTien(e.target.value as CurrencyCode)}
+            >
+              {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
+                <option key={c} value={c}>
+                  {CURRENCIES[c].symbol} {c}
+                </option>
+              ))}
+            </Select>
+          </div>
           {cauHoi !== null && (
             <div className="mt-1 flex justify-end">
               <ActionButton onClick={batDauTra} className="px-2 py-1 text-2xs">
@@ -774,15 +827,14 @@ export function PlanDockEvent({
         </button>
         <Collapse open={advOpen} id={`${uid}-adv`}>
           <div className="pt-1">
-            {/* TIỀN TỆ KHAI là CHỮ, không phải ô chọn — và đó là chỗ cố ý lệch bản vẽ.
-                Từ bản vẽ v5 (fxModel.ts) một mốc KHÔNG còn tiền riêng: nó tính bằng tiền
-                của chặng phủ năm nó bắt đầu. Cho gõ một đồng khác ở đây là dựng lại đúng
-                cái ô đã bỏ, và `normalizeToPhaseCurrency` sẽ quy đổi nó ngược lại ngay
-                lần đọc sau — tức ô đó không giữ được giá trị nào. */}
+            {/* Ô CHỌN đã lên trên, cạnh ô số tiền (2026-09-10). Dòng này ở lại vì nó
+                trả lời một câu hỏi khác: đơn vị đang thấy ĐẾN TỪ ĐÂU. Mốc mới sinh ra
+                mang tiền của chặng (`currencyAt`), nên thấy một đơn vị không ngờ tới thì
+                biết ngay là do chặng hay do chính mình đã đổi. */}
             <span className={DOCK_LABEL}>Tiền tệ khai</span>
             <p className="mb-2 text-2xs text-fg-secondary">
-              {CURRENCIES[currency].label} — theo chặng
-              {phaseLabel === null ? '' : ` "${phaseLabel}"`}. Đổi ở bảng chặng.
+              {CURRENCIES[currency].label} — chọn ở ô cạnh số tiền. Mốc mới mặc định theo
+              chặng{phaseLabel === null ? '' : ` "${phaseLabel}"`}.
             </p>
 
             <label className="mb-2 flex min-h-8 items-center gap-2 text-2xs text-fg-secondary">
@@ -834,7 +886,7 @@ export function PlanDockEvent({
         <TraSoSheet
           dangChay={traSo.isPending}
           ketQua={ketQua}
-          tien={chang.tien}
+          tien={currency}
           choXacNhan={choXacNhan}
           canhBaoRiengTu={!cauHoi.laMocCoSan}
           onXacNhan={guiTraSo}

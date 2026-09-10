@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { convertLifetimeMinor } from './project'
 import type { LifetimeEvent, LifetimePhase } from './project'
 
 const phase = (over: Partial<LifetimePhase> & Pick<LifetimePhase, 'startYear'>): LifetimePhase => ({
@@ -93,33 +94,52 @@ describe('normalizeToPhaseCurrency', () => {
     expect(out.hasMissingRate).toBe(false)
   })
 
-  it('mốc mang tiền khác chặng thì quy về tiền của chặng', () => {
-    // ₫4.200.000 trong một chặng ¥ → ¥24.418
+  it('mốc GIỮ đơn vị của chính nó, chỉ tỷ giá được làm mới', () => {
+    // ₫4.200.000 khai trong một chặng ¥ — từ 2026-09-10 đơn vị của mốc là lựa chọn của
+    // người dùng, nên nó ở lại ₫. Trước bản này nó bị quy về ¥24.419 ngay lúc đọc, và
+    // dock thì hiện chữ số ₫ thô cạnh ký hiệu ¥ của chặng.
     const out = normalizeToPhaseCurrency(
       phases,
       [event({ id: 'e1', startYear: 2026, currency: 'VND', amountMinor: 4_200_000 })],
       'JPY',
       fx,
     )
-    expect(out.events[0].currency).toBe('JPY')
-    expect(out.events[0].amountMinor).toBe(Math.round(4_200_000 / 172))
-    expect(out.events[0].fxToDisplay).toBe(1)
+    expect(out.events[0].currency).toBe('VND')
+    expect(out.events[0].amountMinor).toBe(4_200_000)
+    expect(out.events[0].fxToDisplay).toBeCloseTo(1 / 172, 10)
     expect(out.hasMissingRate).toBe(false)
   })
 
-  it('mốc rơi vào chặng VND thì tính bằng VND, kể cả khi đang lưu bằng JPY', () => {
+  // Chốt của cú đổi 2026-09-10: bỏ quy đổi KHÔNG được làm xê dịch tiền trên bản chiếu.
+  // Quy ₫→¥ rồi nhân tỷ giá ¥→hiển thị phải cho cùng con số với nhân thẳng ₫→hiển thị.
+  it('bỏ quy đổi không đổi số tiền mà bản chiếu đọc ra', () => {
+    const out = normalizeToPhaseCurrency(
+      phases,
+      [event({ id: 'e1', startYear: 2026, currency: 'VND', amountMinor: 4_200_000 })],
+      'JPY',
+      fx,
+    )
+    const e = out.events[0]
+    expect(convertLifetimeMinor(e.amountMinor, e.currency, 'JPY', e.fxToDisplay)).toBe(
+      Math.round(4_200_000 / 172),
+    )
+  })
+
+  it('chặng dùng đồng khác KHÔNG kéo theo mốc đã khai đơn vị riêng', () => {
+    // Mốc ¥1.000.000 nằm trong chặng ₫ (2040): trước bản này nó bị nhân lên thành
+    // ₫172.000.000 — cùng số tiền, nhưng đơn vị người dùng khai thì mất.
     const out = normalizeToPhaseCurrency(
       phases,
       [event({ id: 'e1', startYear: 2045, currency: 'JPY', amountMinor: 1_000_000 })],
       'JPY',
       fx,
     )
-    expect(out.events[0].currency).toBe('VND')
-    expect(out.events[0].amountMinor).toBe(1_000_000 * 172)
-    expect(out.events[0].fxToDisplay).toBeCloseTo(1 / 172, 10)
+    expect(out.events[0].currency).toBe('JPY')
+    expect(out.events[0].amountMinor).toBe(1_000_000)
+    expect(out.events[0].fxToDisplay).toBe(1)
   })
 
-  it('mốc đã đúng tiền của chặng thì giữ nguyên số, chỉ làm mới tỷ giá', () => {
+  it('mốc cùng tiền với chặng thì giữ nguyên số, chỉ làm mới tỷ giá', () => {
     const out = normalizeToPhaseCurrency(
       phases,
       [event({ id: 'e1', startYear: 2026, currency: 'JPY', amountMinor: 999 })],
@@ -146,7 +166,7 @@ describe('normalizeToPhaseCurrency', () => {
     expect(out.events[0].amountMinor).toBe(500_00)
   })
 
-  it('không có chặng nào thì mốc rơi về tiền hiển thị', () => {
+  it('không có chặng nào thì mốc vẫn giữ đơn vị của nó', () => {
     const out = normalizeToPhaseCurrency(
       [],
       [event({ id: 'e1', startYear: 2026, currency: 'JPY', amountMinor: 10 })],

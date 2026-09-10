@@ -308,6 +308,10 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
   /** Đang chạy `duplicateActiveScenario` — nút "Kịch bản mới" đọc để tự chặn bấm đúp
    *  (phép chép ghi nhiều dòng, bấm hai lần là hai kịch bản trùng tên). */
   const [duplicating, setDuplicating] = useState(false)
+  /** Đang chạy `deleteScenario` — nút thùng rác khoá lại. Bấm đúp không tạo ra hai
+   *  kịch bản như nút kia, nhưng nó chạy hộp thoại xác nhận thứ hai trên một kịch bản
+   *  vừa biến mất, và câu hỏi đó sẽ in ra "0 chặng và 0 mốc". */
+  const [deleting, setDeleting] = useState(false)
 
   /**
    * Tạo kịch bản đầu tiên: một dòng `life_scenarios` rồi một dòng `life_phases`. Hai
@@ -462,6 +466,68 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     }
   }
 
+  /**
+   * Xoá một kịch bản, cùng MỌI chặng, mốc và ảnh chụp kết luận của nó.
+   *
+   * Không xoá tay từng dòng con: Postgres tự dọn (`on delete cascade`, migration 0031 và
+   * 0055) và bản demo tự dọn trong `demoRepo.deleteLifeScenario`. Ba bảng, một lệnh.
+   *
+   * KHÔNG hỏi lại ở đây, dù đây là hành động phá huỷ. Câu hỏi phải nói ra người dùng sắp
+   * mất bao nhiêu chặng và bao nhiêu mốc, mà con số đó chỉ đúng cho kịch bản ĐANG MỞ
+   * (`phases`/`events` của hook này đã lọc theo `active`) — nên chỗ gọi hỏi, hàm này chỉ
+   * giữ luật dữ liệu. Cùng lối `TagsPage.removeGroup`: hộp thoại ở component, lệnh ghi ở
+   * tầng dưới.
+   *
+   * Chặn kịch bản CUỐI CÙNG. Xoá nó không phải "xoá một kịch bản" mà là đẩy cả trang về
+   * trạng thái "chưa có kịch bản nào" — một màn khác hẳn, ra bằng `ensureFirstScenario`
+   * (dựng chặng nền từ 12 tháng giao dịch, đặt `is_primary`). Nút gọi cũng đã ẩn khi
+   * `scenarios.length < 2`; đây là lớp thứ hai, và nó nói ra lý do thay vì im lặng —
+   * một hàm `return` trần ở đây là một cú bấm không phản hồi.
+   *
+   * `setActiveId(null)` khi xoá đúng bản đang mở: `active` rơi về `pickActive` (kịch bản
+   * chính, hoặc `sort_order` nhỏ nhất), và `activeId` mà hook trả ra đổi theo — đó là thứ
+   * effect trong `TuongLaiPage` nghe để BỎ BẢN NHÁP. Giữ lại id đã chết thì màn hình vẫn
+   * đúng (`find` trả undefined nên vẫn rơi về `pickActive`) nhưng bản nháp của kịch bản
+   * vừa xoá còn nguyên trong bộ nhớ, và bấm Lưu là ghi thu/chi của nó lên kịch bản khác.
+   */
+  async function deleteScenario(id: string) {
+    if (deleting) return
+    if (scenarios.length <= 1) {
+      showToast(
+        'Đây là kịch bản duy nhất — xoá nó thì không còn gì để chiếu. Tạo một kịch bản khác trước rồi xoá cái này.',
+        'error',
+      )
+      return
+    }
+    // Lấy tên TRƯỚC khi xoá: sau lệnh ghi thì dòng đó không còn trong `scenarios`, và
+    // toast sẽ nói "Đã xoá kịch bản" trần — không ai biết mình vừa xoá cái nào.
+    const name = scenarios.find((s) => s.id === id)?.name ?? 'kịch bản'
+    setDeleting(true)
+    try {
+      await repo.deleteLifeScenario(id)
+      if (active?.id === id) setActiveId(null)
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['lifeScenarios'] }),
+        qc.invalidateQueries({ queryKey: ['lifePhases'] }),
+        qc.invalidateQueries({ queryKey: ['lifeEvents'] }),
+      ])
+      // XOÁ hẳn khỏi cache, không làm mới: key mang id kịch bản
+      // (`['lifetimeVerdictSnapshots', id]`, xem `useLifetimeVerdictSnapshots`), nên làm
+      // mới là bỏ tiền nạp lại một mảng chắc chắn rỗng, còn để nguyên là giữ ảnh chụp
+      // của một kịch bản đã chết tới hết phiên.
+      qc.removeQueries({ queryKey: ['lifetimeVerdictSnapshots', id] })
+      showToast(`Đã xoá kịch bản "${name}".`, 'success')
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      showToast(
+        `Không xoá được kịch bản "${name}" (${detail}). Nó vẫn còn nguyên — kiểm tra mạng rồi thử lại.`,
+        'error',
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return {
     scenarios,
     active,
@@ -488,6 +554,10 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     /** Nhân bản kịch bản đang xem rồi chọn luôn bản sao — nút "Kịch bản mới" ở dải chip. */
     duplicateActiveScenario,
     duplicatingScenario: duplicating,
+    /** Xoá một kịch bản cùng cả cây con của nó — nút thùng rác ở dải chip. Chỗ gọi phải
+     *  hỏi lại TRƯỚC khi gọi (xem JSDoc của hàm: câu hỏi cần số chặng/số mốc). */
+    deleteScenario,
+    deletingScenario: deleting,
     /** Tài sản ròng hiện tại (base currency) — số sẽ dùng làm `starting_assets_minor`
      *  khi tạo kịch bản đầu tiên. `LifetimePage` hiện số này ở trạng thái "chưa có kịch
      *  bản" để minh bạch, và hiện cảnh báo khi `netWorthReliable` là false. */

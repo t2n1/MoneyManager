@@ -229,6 +229,71 @@ describe('lifePhases — UNIQUE (scenario_id, start_year) khớp 0031', () => {
   })
 })
 
+// Cascade của Postgres (`references … on delete cascade`) không có ở bản demo — nó phải
+// tự dọn tay, nên số bảng nó dọn là thứ LỆCH ĐƯỢC so với migration mà không ai thấy.
+// Nó đã lệch thật: `lifetime_verdict_snapshots` (0055) sinh sau `deleteLifeScenario` và
+// không được thêm vào, nên tới 2026-09-10 xoá kịch bản ở chế độ demo còn để lại ảnh chụp
+// kết luận mồ côi — không hiện ra ở đâu nhưng đi theo mọi bản sao lưu.
+//
+// Đếm CẢ hai chiều trong một phép thử: cây con của kịch bản bị xoá phải sạch, VÀ cây con
+// của kịch bản còn lại phải nguyên. Chỉ đếm chiều thứ nhất thì một hàm `deleteLifeScenario`
+// xoá sạch cả ba bảng của MỌI kịch bản vẫn xanh.
+describe('deleteLifeScenario — dọn cả ba bảng con (khớp cascade 0031 + 0055)', () => {
+  async function scenarioCoDayDu(name: string) {
+    const sc = await demoRepo.createLifeScenario(scenarioInput({ name }))
+    await demoRepo.createLifePhase({
+      scenario_id: sc.id,
+      start_year: 2030,
+      label: 'Đi làm',
+      country: 'JP',
+      currency: 'JPY',
+      annual_income_minor: 8_000_000,
+      annual_expense_minor: 3_000_000,
+      fx_to_display: 1,
+    })
+    await demoRepo.createLifeEvent({
+      scenario_id: sc.id,
+      start_year: 2032,
+      end_year: null,
+      kind: 'expense',
+      amount_minor: 1_000_000,
+      currency: 'JPY',
+      label: 'Cưới',
+      note: '',
+      fx_to_display: 1,
+      inflate: true,
+    })
+    await demoRepo.upsertLifetimeVerdictSnapshot({
+      scenario_id: sc.id,
+      month_on: '2026-09-01',
+      fire_year: 2050,
+      negative_year: null,
+      end_age: 90,
+      assets_end_minor: 12_345_678,
+      display_currency: 'JPY',
+    })
+    return sc
+  }
+
+  it('xoá kịch bản thì chặng, mốc và ảnh chụp kết luận của nó đi theo', async () => {
+    const bo = await scenarioCoDayDu('Bỏ')
+    const giu = await scenarioCoDayDu('Giữ')
+
+    await demoRepo.deleteLifeScenario(bo.id)
+
+    expect((await demoRepo.getLifeScenarios()).map((sc) => sc.name)).toEqual(['Giữ'])
+    expect((await demoRepo.getLifePhases()).filter((p) => p.scenario_id === bo.id)).toHaveLength(0)
+    expect((await demoRepo.getLifeEvents()).filter((e) => e.scenario_id === bo.id)).toHaveLength(0)
+    // Đây là dòng bắt được lần bỏ sót: trước 2026-09-10 nó trả về 1.
+    expect(await demoRepo.getLifetimeVerdictSnapshots(bo.id)).toHaveLength(0)
+
+    // Kịch bản còn lại KHÔNG bị sứt: cả ba dòng của nó phải còn.
+    expect((await demoRepo.getLifePhases()).filter((p) => p.scenario_id === giu.id)).toHaveLength(1)
+    expect((await demoRepo.getLifeEvents()).filter((e) => e.scenario_id === giu.id)).toHaveLength(1)
+    expect(await demoRepo.getLifetimeVerdictSnapshots(giu.id)).toHaveLength(1)
+  })
+})
+
 describe('deleteAccount', () => {
   it('xóa được tài khoản trống', async () => {
     const acc = await demoRepo.createAccount(accountInput())

@@ -1871,13 +1871,28 @@ export const demoRepo: Repo = {
     return db.lifeScenarios[idx]
   },
 
-  // Demo không có `on delete cascade` của Postgres nên phải tự xóa
-  // chặng + sự kiện thuộc kịch bản, tránh để lại dữ liệu mồ côi.
+  /**
+   * Xóa kịch bản cùng MỌI dòng trỏ về nó.
+   *
+   * Demo không có `on delete cascade` của Postgres nên phải tự dọn — và danh sách bảng
+   * phải khớp danh sách `references … on delete cascade` trong migration, BA bảng chứ
+   * không phải hai: `life_phases` + `life_events` (0031) và `lifetime_verdict_snapshots`
+   * (0055). Bản 0055 sinh sau hàm này và không ai quay lại sửa, nên tới 2026-09-10 xóa
+   * một kịch bản ở chế độ demo còn để lại ảnh chụp kết luận mồ côi trong localStorage:
+   * chúng không hiện ra ở đâu (`getLifetimeVerdictSnapshots` lọc theo id đã chết) nhưng
+   * đi theo mọi bản sao lưu và mọi lần khôi phục.
+   *
+   * Thêm bảng nào trỏ về `life_scenarios` thì thêm một dòng ở đây — `deleteLifeScenario`
+   * trong demoRepo.test.ts đếm cả ba bảng đúng để bắt lần bỏ sót tiếp theo.
+   */
   async deleteLifeScenario(id: string) {
     const db = load()
     db.lifeScenarios = (db.lifeScenarios ?? []).filter((s) => s.id !== id)
     db.lifePhases = (db.lifePhases ?? []).filter((p) => p.scenario_id !== id)
     db.lifeEvents = (db.lifeEvents ?? []).filter((e) => e.scenario_id !== id)
+    db.lifetimeVerdictSnapshots = (db.lifetimeVerdictSnapshots ?? []).filter(
+      (v) => v.scenario_id !== id,
+    )
     save(db)
   },
 

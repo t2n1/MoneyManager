@@ -11,12 +11,13 @@
 // chọn nhanh (`PlanDock`/`PhaseLane`/`QuickAddBoard`) cắm vào đúng ô đã chừa.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Plus, Star } from 'lucide-react'
+import { ChevronDown, Plus, Star, Trash2 } from 'lucide-react'
 import {
   ActionButton,
   Card,
   EmptyState,
   FilterChip,
+  IconButton,
   Money,
   Num,
   PageHeader,
@@ -40,7 +41,7 @@ import {
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import type { CurrencyCode } from '../../lib/currencies'
 import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
-import { showToast } from '../../lib/dialog'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { fetchRates, formatRateLine } from '../../lib/rates'
 import { suggestBaseline } from './baseline'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
@@ -268,6 +269,8 @@ function TuongLaiConsole() {
     netWorthLoading,
     duplicateActiveScenario,
     duplicatingScenario,
+    deleteScenario,
+    deletingScenario,
   } = useLifetime({ enabled: isDesktop })
 
   // --- Cách ĐỌC bản chiếu (không thuộc kịch bản, không được ghi) ----------------------
@@ -638,6 +641,45 @@ function TuongLaiConsole() {
       setSaving(false)
     }
   }, [active, draft, saving, refreshTree, setActiveId])
+
+  /**
+   * Hỏi lại rồi xoá kịch bản ĐANG MỞ (nút thùng rác ở hàng 2).
+   *
+   * Câu hỏi in ra SỐ THẬT sẽ mất — số chặng và số mốc của chính kịch bản này. Một câu
+   * "Bạn có chắc không?" trần không cho người dùng thêm dữ kiện nào để trả lời, mà đây
+   * là hành động duy nhất trên console không có đường về: nháp thì có "Bỏ", mốc xoá lẻ
+   * thì có "Hoàn tác" chín giây, còn cái này thì `on delete cascade` đã dọn xong.
+   *
+   * Ba câu phụ, mỗi câu chỉ hiện khi đúng ca:
+   *   · số mốc chỉ nói khi > 0 — "và 0 mốc" là một mệnh đề rỗng làm loãng con số kia;
+   *   · bản nháp đang vặn cũng mất, và nó KHÔNG nằm trong hai con số trên (chúng đếm
+   *     dòng đã lưu), nên không nói ra là người dùng mất một thứ chưa được kể tên;
+   *   · kịch bản CHÍNH thì mất luôn ngôi sao — và không có bề mặt nào trong app đặt lại
+   *     được `is_primary` (nó chỉ được đặt lúc tạo kịch bản đầu tiên). `pickActive` rơi
+   *     về `sort_order` nhỏ nhất nên không có gì vỡ, nhưng thông báo và trang Tài sản
+   *     sẽ âm thầm đọc theo một kịch bản khác — đúng thứ phải nói TRƯỚC, không phải sau.
+   *
+   * Con số đi bằng chuỗi thường, không qua `<Num>`: `confirmDialog` nhận `string`, không
+   * nhận JSX (xem lib/dialog.tsx). Cùng ngoại lệ mà `TagsPage.removeGroup` đang dùng.
+   */
+  const handleDeleteScenario = useCallback(async () => {
+    if (!active || deletingScenario) return
+    const mat = events.length > 0 ? `${phases.length} chặng và ${events.length} mốc` : `${phases.length} chặng`
+    const ok = await confirmDialog({
+      title: `Xoá kịch bản "${active.name}"?`,
+      message:
+        `Mất luôn ${mat} của nó.` +
+        (dirty ? ' Bản nháp đang vặn cũng mất.' : '') +
+        (active.is_primary
+          ? ' Đây là kịch bản CHÍNH — thông báo và trang Tài sản sẽ đọc theo kịch bản đầu dải chip.'
+          : '') +
+        ' Không lấy lại được.',
+      confirmLabel: 'Xoá kịch bản',
+      danger: true,
+    })
+    if (!ok) return
+    await deleteScenario(active.id)
+  }, [active, phases.length, events.length, dirty, deletingScenario, deleteScenario])
 
   /**
    * Có dòng nào thiếu tỷ giá không. Quy ước toàn repo: thiếu rate thì LOẠI khoản đó ra
@@ -1769,6 +1811,43 @@ function TuongLaiConsole() {
               }}
               className="w-33 min-w-0 rounded-full border border-dashed border-border-strong bg-transparent px-3 py-1.5 text-sm text-fg-secondary"
             />
+
+            {/* XOÁ KỊCH BẢN — thêm 2026-09-10, người dùng báo "tôi không thấy nút xoá
+                kịch bản". Đường xoá ở tầng dữ liệu đã có từ migration 0031
+                (`repo.deleteLifeScenario`) nhưng chưa bao giờ có bề mặt nào gọi nó.
+
+                Đứng ở ĐÂY, giữa ô đổi tên và "So sánh", vì nó nói về kịch bản ĐANG MỞ —
+                đúng như hai control kia. Không đặt dấu × lên từng chip: dấu đó nằm trong
+                vùng bấm để CHỌN chip, tức hai việc cách nhau vài pixel mà một việc là mở,
+                việc kia là xoá cả cây con.
+
+                Ẩn khi chỉ còn MỘT kịch bản: xoá nó là đẩy trang về màn "chưa có kịch bản
+                nào", không phải xoá một kịch bản. `deleteScenario` chặn lần thứ hai và
+                nói ra lý do — đây chỉ là lớp không cho người dùng đi tới đó.
+
+                Icon, không phải nút chữ: xoá là việc hiếm, một nút "Xoá kịch bản" đầy chữ
+                cạnh "+ Kịch bản mới" sẽ nặng ngang một hành động thường ngày. `ghost` +
+                `hover:text-money-out` là đúng cặp mà nút xoá nhóm nhãn (TagsPage) dùng.
+
+                Để nguyên 44×44 của `IconButton`, KHÔNG bó nhỏ lại. Bản đầu có thêm
+                `min-h-9 min-w-9` chép từ TagsPage cho khỏi cao hơn dải chip 32px bên cạnh
+                — đo trong trình duyệt thì `minHeight` vẫn ra 44px: hai class đó không ăn.
+                Tailwind xếp `min-h-9` trước `min-h-11` trong CSS sinh ra, nên thứ tự viết
+                trong `className` không quyết định gì — một class có mặt trong DOM không có nghĩa
+                là nó ăn. Và 44 cũng đúng ngưỡng vùng chạm mà `IconButton` tồn tại để bảo vệ; nó
+                bằng chằn chặn nút "+ Kịch bản mới" ngay cạnh, nên hàng vẫn thẳng. */}
+            {scenarios.length > 1 && (
+              <IconButton
+                variant="ghost"
+                aria-label={`Xoá kịch bản "${active.name}"`}
+                title="Xoá kịch bản đang mở"
+                disabled={deletingScenario}
+                onClick={() => void handleDeleteScenario()}
+                className="shrink-0 px-0 text-fg-muted hover:text-money-out"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            )}
 
             {scenarios.length > 1 && (
               <FilterChip

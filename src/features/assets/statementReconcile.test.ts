@@ -89,4 +89,25 @@ describe('reconcileStatement', () => {
     expect(r.missingFromLedger).toHaveLength(0)
     expect(r.explained.map((e) => e.cause)).toEqual(['recalculated'])
   })
+
+  it('ten chi CHUA chu チャージ thi KHONG duoc coi la nap vi', () => {
+    const r = reconcileStatement([line('2026-01-08', 4000, 'モバイルＳｕｉｃａチャージ')], [], CARD, [])
+    expect(r.explained).toHaveLength(0)
+    expect(r.missingFromLedger).toHaveLength(1)
+  })
+
+  it('（再計算） phai la HAU TO moi tinh', () => {
+    const r = reconcileStatement([line('2026-05-31', 3476, '（再計算）ＴＥＭＵ')], [], CARD, [])
+    expect(r.explained).toHaveLength(0)
+    expect(r.missingFromLedger).toHaveLength(1)
+  })
+
+  it('date-edge phai gan nhau ve thoi gian, khong khop bua theo so tien', () => {
+    const r = reconcileStatement(
+      [], [tx('2026-06-01', 5060)], CARD,
+      [{ lines: [line('2026-07-28', 5060, 'ユニクロオンラインストア')] }],
+    )
+    expect(r.explained).toHaveLength(0)
+    expect(r.extraInLedger).toHaveLength(1)
+  })
 })

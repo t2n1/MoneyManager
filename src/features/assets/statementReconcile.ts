@@ -30,6 +30,12 @@ export interface ReconcileResult {
 }
 
 const MATCH_WINDOW_DAYS = 4
+/**
+ * `date-edge` = CÙNG một lần mua, hai bên ghi hai ngày. Không ép gần nhau về thời gian thì
+ * luật này biến thành "khớp bừa theo số tiền ở kỳ bên cạnh", và một khoản chi ghi sai thật
+ * sẽ bị nuốt vào nhóm bỏ qua. Ca thật đo được lệch 3 ngày.
+ */
+const EDGE_WINDOW_DAYS = 7
 const dayGap = (a: string, b: string) =>
   Math.abs(Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000))
 
@@ -48,9 +54,15 @@ const inScope = (t: LedgerTx, cardId: string) =>
   !(t.type === 'transfer' && t.to_account_id === cardId) && t.note !== CARD_RECONCILE_NOTE
 
 const nfkc = (s: string) => s.normalize('NFKC')
-const isTopUp = (l: StatementLine) => nfkc(l.name).includes('チャージ')
-const isRecalculated = (l: StatementLine) => nfkc(l.name).includes('(再計算)')
+const isTopUp = (l: StatementLine) => nfkc(l.name).trim() === 'チャージ'
+const isRecalculated = (l: StatementLine) => nfkc(l.name).trim().endsWith('(再計算)')
 
+/**
+ * ĐIỀU KIỆN GỌI: `ledger` PHẢI đã lọc sẵn về đúng một thẻ (`cardId`) và đúng kỳ đang xét.
+ * `LedgerTx` cố tình không mang `account_id`, nên `inScope` không tự lọc được — truyền vào
+ * rổ nhiều tài khoản thì khoản "Điều chỉnh số nợ" của thẻ KHÁC cũng bị loại, và kết quả
+ * lệch khỏi `cardMonthCharge`.
+ */
 export function reconcileStatement(
   lines: StatementLine[],
   ledger: LedgerTx[],
@@ -105,7 +117,13 @@ export function reconcileStatement(
       continue
     }
     // Cùng một lần mua, hai bên ghi hai ngày, rơi hai kỳ.
-    const edge = near.find((n) => !n.used && !n.l.isAdjustment && n.l.amount === a.amount)
+    const edge = near.find(
+      (n) =>
+        !n.used &&
+        !n.l.isAdjustment &&
+        n.l.amount === a.amount &&
+        dayGap(a.t.occurred_on, n.l.iso) <= EDGE_WINDOW_DAYS,
+    )
     if (edge) {
       edge.used = true
       explained.push({ cause: 'date-edge', label: `${edge.l.name} — thẻ ghi ${edge.l.iso}`, amount: a.amount })

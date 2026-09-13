@@ -13,9 +13,10 @@ import { dayMonthLabel } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
-import { parsePaypayStatement, type ParsedStatement } from './paypayStatement'
-import { billRowsFor, withNeighbours } from './statementNeighbours'
-import { reconcileStatement, type LedgerTx, type ReconcileResult } from './statementReconcile'
+import { parseStatement } from './parseStatement'
+import { billRowsFor, mergeStatements, type MergedStatement } from './statementBatch'
+import type { ParsedStatement } from './statementLine'
+import { emptyResult, reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
 
 /**
  * Không có mốc trên, giống `useCardStatements`: một lô 13 file trải 13 kỳ, và cửa sổ
@@ -49,7 +50,7 @@ const toLedgerTx = (t: TransactionRow): LedgerTx => ({
 })
 
 interface Reviewed {
-  parsed: ParsedStatement
+  merged: MergedStatement
   result: ReconcileResult
 }
 
@@ -60,17 +61,18 @@ export function ImportStatementSheet({ card, onClose }: Props) {
   const [moRong, setMoRong] = useState<Record<string, boolean>>({})
   const upsert = useUpsertCardBills()
 
-  // Cửa sổ truy vấn suy TỪ chính các file đã bóc, không nhận từ nơi gọi: trang tài
-  // khoản chỉ giữ giao dịch của MỘT tháng đang xem, mà lô này trải nhiều kỳ — đối
-  // chiếu 13 kỳ với rổ một tháng thì 12 kỳ báo lệch sạch.
-  const earliestStart = useMemo(
-    () =>
-      parsed.reduce<string | null>(
-        (min, p) => (min == null || p.range.start < min ? p.range.start : min),
-        null,
-      ),
-    [parsed],
-  )
+  const merged = useMemo(() => mergeStatements(parsed), [parsed])
+
+  // Cửa sổ truy vấn suy TỪ chính các file đã bóc: trang tài khoản chỉ giữ một tháng, mà lô
+  // này trải nhiều kỳ. Mở xuống tới NGÀY DÒNG THẺ SỚM NHẤT chứ không chỉ range.start: ETC
+  // ghi trễ 5 tuần nằm trước kỳ, không có dòng sổ của ngày đó thì không ghép được.
+  const earliestStart = useMemo(() => {
+    let min: string | null = null
+    for (const m of merged) {
+      for (const d of [m.range.start, ...m.lines.map((l) => l.iso)]) if (min == null || d < min) min = d
+    }
+    return min
+  }, [merged])
 
   const { data: txs = [], isPending } = useSearchTransactions(
     {
@@ -82,26 +84,13 @@ export function ImportStatementSheet({ card, onClose }: Props) {
   )
   const dangDocSo = earliestStart != null && isPending
 
-  const reviewed: Reviewed[] = useMemo(
-    () =>
-      withNeighbours(parsed).map(({ parsed: p, neighbours }) => ({
-        parsed: p,
-        // `reconcileStatement` đòi rổ đã lọc sẵn về ĐÚNG một thẻ và ĐÚNG một kỳ:
-        // `range.end` là mốc loại trừ (hôm sau ngày chốt) nên so `<`, không `<=`.
-        result: reconcileStatement(
-          p.lines,
-          txs
-            .filter((t) => t.occurred_on >= p.range.start && t.occurred_on < p.range.end)
-            .map(toLedgerTx),
-          card.id,
-          neighbours,
-        ),
-      })),
-    [parsed, txs, card.id],
-  )
+  const reviewed: Reviewed[] = useMemo(() => {
+    const results = reconcileBatch(merged, txs.map(toLedgerTx), card.id)
+    return merged.map((m) => ({ merged: m, result: results.get(m.range.closeISO) ?? emptyResult() }))
+  }, [merged, txs, card.id])
 
   // Ngày chốt / ngày trả khai sai thì MỌI kỳ xếp nhầm chỗ — chặn lưu, đừng lưu một nửa.
-  const lechNgay = parsed.some((p) => p.dueDateMismatch)
+  const lechNgay = merged.some((m) => m.dueDateMismatch)
 
   async function chonFile(files: FileList | null) {
     const danhSach = files ? Array.from(files) : []
@@ -109,7 +98,7 @@ export function ImportStatementSheet({ card, onClose }: Props) {
     const doc: ParsedStatement[] = []
     const hong: string[] = []
     for (const f of danhSach) {
-      const p = parsePaypayStatement(await f.text(), card)
+      const p = parseStatement(await f.text(), card, f.name)
       if (p) doc.push(p)
       else hong.push(f.name)
     }
@@ -118,7 +107,7 @@ export function ImportStatementSheet({ card, onClose }: Props) {
   }
 
   function luu() {
-    upsert.mutate(billRowsFor(card.id, parsed), {
+    upsert.mutate(billRowsFor(card.id, merged), {
       onSuccess: onClose,
       onError: (err) => showToast(`Không lưu được: ${(err as Error).message}`, 'error'),
     })
@@ -168,8 +157,8 @@ export function ImportStatementSheet({ card, onClose }: Props) {
 
         {unreadable.length > 0 && (
           <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-            Không đọc được: {unreadable.join(', ')}. File phải là sao kê PayPay tải từ app, và
-            thẻ phải khai đủ ngày chốt + ngày đến hạn.
+            Không đọc được: {unreadable.join(', ')}. File phải là sao kê PayPay hoặc Rakuten
+            e-NAVI tải từ app/web nhà thẻ, và thẻ phải khai đủ ngày chốt + ngày đến hạn.
           </p>
         )}
 
@@ -183,7 +172,7 @@ export function ImportStatementSheet({ card, onClose }: Props) {
         {dangDocSo && <p className="mb-3 text-sm text-fg-muted">Đang đọc sổ…</p>}
 
         {!dangDocSo &&
-          reviewed.map(({ parsed: p, result }) => {
+          reviewed.map(({ merged: p, result }) => {
             const canXem = [
               ...result.extraInLedger.map((e) => ({
                 key: `led-${e.tx.id}`,
@@ -195,6 +184,13 @@ export function ImportStatementSheet({ card, onClose }: Props) {
                 chu: `${dayMonthLabel(l.iso)} · ${l.name} — thẻ có, sổ không`,
                 amount: l.amount,
               })),
+              ...(result.unmatchedTopups.count > 0
+                ? [{
+                    key: `topups-${p.range.closeISO}`,
+                    chu: `Nạp ví chưa ghép được — ${result.unmatchedTopups.count} lần, ví có số dư nên chưa chắc là lỗi sổ`,
+                    amount: result.unmatchedTopups.total,
+                  }]
+                : []),
             ]
             const hoanTien = result.refundDiffs.map((d, i) => ({
               key: `refund-${d.source}-${i}`,
@@ -220,9 +216,20 @@ export function ImportStatementSheet({ card, onClose }: Props) {
                   />
                 </div>
 
+                {p.parts.length > 1 && (
+                  <p className="text-2xs text-fg-muted">
+                    {p.parts.map((part, i) => (
+                      <span key={part.source}>
+                        {i > 0 && ' · '}
+                        {part.sourceLabel} <Money amount={part.total} currency={card.currency} tone="muted" />
+                      </span>
+                    ))}
+                  </p>
+                )}
+
                 {p.dueDateMismatch && (
                   <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-                    File ghi ngày rút {p.dueDateFromFile}, app tính {p.range.dueISO}.
+                    Kỳ suy ra từ nội dung file không khớp ngày rút / tên file. Kiểm ngày chốt và ngày trả của thẻ.
                   </p>
                 )}
 

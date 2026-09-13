@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { billAfterDismiss, dismissKey, isReviewed, keysFor, splitDismissed, toggleKey } from './statementDismiss'
 import type { ReviewRow } from './statementReviewRows'
 import type { MergedStatement } from './statementBatch'
-import type { CardBillRow } from '../../types/database.types'
 
 const led = (id: string, iso = '2026-06-10', amount = 23000): ReviewRow => ({
   kind: 'ledger', key: `led-${id}`, amount, refund: false,
@@ -83,20 +82,16 @@ describe('billAfterDismiss', () => {
     range: { start: '2026-06-01', end: '2026-07-01', closeISO: '2026-06-30', dueISO: '2026-07-27' },
     total: 158429, parts: [], lines: [], dueDateMismatch: false,
   }
-  const existing: CardBillRow = {
-    id: 'b1', user_id: 'u', account_id: 'acc', close_date: '2026-06-30', due_date: '2026-07-27',
-    total: 1, created_at: '', dismissed: ['tx:a'], reviewed: false,
-  }
   it('tong/ngay tu file, dismissed tu tham so, reviewed tinh tu rows', () => {
     const rows = [led('a'), topups]
-    const nb = billAfterDismiss(m, 'acc', existing, ['tx:a', 'topups:2026-06-30'], rows)
+    const nb = billAfterDismiss(m, 'acc', ['tx:a', 'topups:2026-06-30'], rows)
     expect(nb).toEqual({
       account_id: 'acc', close_date: '2026-06-30', due_date: '2026-07-27', total: 158429,
       dismissed: ['tx:a', 'topups:2026-06-30'], reviewed: true,
     })
   })
-  it('chua co bill thi van dung duoc (existing null)', () => {
-    const nb = billAfterDismiss(m, 'acc', null, ['tx:a'], [led('a'), topups])
+  it('chua co bill thi van dung duoc (khong con nhan existing)', () => {
+    const nb = billAfterDismiss(m, 'acc', ['tx:a'], [led('a'), topups])
     expect(nb.reviewed).toBe(false)
     expect(nb.dismissed).toEqual(['tx:a'])
   })

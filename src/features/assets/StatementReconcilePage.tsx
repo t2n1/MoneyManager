@@ -161,12 +161,18 @@ export function StatementReconcilePage() {
   const lechNgay = merged.some((m) => m.dueDateMismatch)
 
   // Bỏ qua / Xem lại: ghi NGAY một dòng card_bills cho kỳ đó (tạo bill luôn nếu chưa có),
-  // không đợi "Lưu N kỳ". Kỳ lệch ngày thì không ghi — cùng lý do chặn Lưu.
+  // không đợi "Lưu N kỳ". Gác theo `kyChon.dueDateMismatch` — CỦA RIÊNG kỳ đang mở, không
+  // phải `lechNgay` (gộp cả lô): một file khai sai ngày không được phép khoá luôn nút Bỏ
+  // qua của mười hai kỳ còn lại đang đúng. `lechNgay` chỉ còn dùng cho nút Lưu, vì Lưu ghi
+  // NGUYÊN LÔ một lượt nên phải chặn khi bất kỳ kỳ nào trong lô sai.
   function ghiDau(keys: string[], on: boolean) {
-    if (!card || !kyChon || lechNgay) return
+    if (!card || !kyChon || kyChon.dueDateMismatch) return
     let next: string[] = [...daBoQua]
     for (const k of keys) next = toggleKey(next, k, on)
-    upsert.mutate([billAfterDismiss(kyChon, card.id, billChon, next, hang)], {
+    // `onSettled` ở useUpsertCardBills trả về promise invalidate ['cardBills'] — mutate()
+    // chỉ rời isPending SAU khi cache mới về, nên `daBoQua` đọc lại đã tươi trước khi nút
+    // Bỏ qua/Xem lại bật lại (xem comment tại onSettled trong queries.ts).
+    upsert.mutate([billAfterDismiss(kyChon, card.id, next, hang)], {
       onError: (err) => showToast(`Không ghi được: ${(err as Error).message}`, 'error'),
     })
   }
@@ -415,50 +421,57 @@ export function StatementReconcilePage() {
                   <p className="text-sm font-medium text-fg-primary">
                     Cần bạn xem (<Num>{hangMo.length}</Num>)
                   </p>
+                  {/* flex-wrap: ở 375px × cỡ chữ 1,25× nhãn dài + Money + hai nút không lọt
+                      một hàng — cụm số/nút phải được phép rớt xuống dòng dưới nguyên khối,
+                      không phải vỡ chữ từng từ như khi ép min-w-0 nhận hết. */}
                   {hangMo.map((h) => (
                     <div
                       key={h.key}
-                      className="flex items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm first:border-t-0"
+                      className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm first:border-t-0"
                     >
-                      <span className="min-w-0 flex-1 text-fg-muted">{nhanHang(h)}</span>
-                      <Money
-                        amount={Math.abs(h.amount)}
-                        currency={card.currency}
-                        tone={h.amount < 0 ? 'in' : 'out'}
-                      />
-                      {/* Hàng hoàn-tiền dựng lại từ `refundDiffs` không giữ id giao dịch gốc
-                          (Task 1), nên không mở được màn sửa — không có id thì không có nút. */}
-                      {h.kind === 'ledger' && h.tx.id !== '' && (
+                      <span className="min-w-0 flex-1 basis-40 text-fg-muted">{nhanHang(h)}</span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <Money
+                          amount={Math.abs(h.amount)}
+                          currency={card.currency}
+                          tone={h.amount < 0 ? 'in' : 'out'}
+                        />
+                        {/* Hàng hoàn-tiền dựng lại từ `refundDiffs` không giữ id giao dịch gốc
+                            (Task 1), nên không mở được màn sửa — không có id thì không có nút. */}
+                        {h.kind === 'ledger' && h.tx.id !== '' && (
+                          <ActionButton
+                            disabled={dangLamMoi}
+                            onClick={() => {
+                              const t = txById.get(h.tx.id)
+                              if (t) setEditing(t)
+                            }}
+                          >
+                            Sửa
+                          </ActionButton>
+                        )}
+                        {h.kind === 'statement' && (
+                          <ActionButton
+                            disabled={dangLamMoi}
+                            onClick={() => setAdding(prefillFromLine(h.line, card.id))}
+                          >
+                            Thêm vào sổ
+                          </ActionButton>
+                        )}
+                        {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
+                        {/* Gác theo dueDateMismatch CỦA KỲ NÀY, không phải `lechNgay` toàn lô
+                            — xem comment ở `ghiDau`. */}
                         <ActionButton
-                          disabled={dangLamMoi}
-                          onClick={() => {
-                            const t = txById.get(h.tx.id)
-                            if (t) setEditing(t)
-                          }}
+                          disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
+                          onClick={() => ghiDau([khoaCua(h)], true)}
                         >
-                          Sửa
+                          Bỏ qua
                         </ActionButton>
-                      )}
-                      {h.kind === 'statement' && (
-                        <ActionButton
-                          disabled={dangLamMoi}
-                          onClick={() => setAdding(prefillFromLine(h.line, card.id))}
-                        >
-                          Thêm vào sổ
-                        </ActionButton>
-                      )}
-                      {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
-                      <ActionButton
-                        disabled={dangLamMoi || upsert.isPending || lechNgay}
-                        onClick={() => ghiDau([khoaCua(h)], true)}
-                      >
-                        Bỏ qua
-                      </ActionButton>
+                      </span>
                     </div>
                   ))}
                   <div className="mt-2 flex justify-end">
                     <ActionButton
-                      disabled={dangLamMoi || upsert.isPending || lechNgay}
+                      disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
                       onClick={() => ghiDau(hangMo.map(khoaCua), true)}
                     >
                       Bỏ qua hết phần còn lại kỳ này
@@ -516,16 +529,18 @@ export function StatementReconcilePage() {
                     {hangDaBo.map((h) => (
                       <div
                         key={h.key}
-                        className="flex items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm text-fg-muted first:border-t-0"
+                        className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm text-fg-muted first:border-t-0"
                       >
-                        <span className="min-w-0 flex-1">{nhanHang(h)}</span>
-                        <Money amount={Math.abs(h.amount)} currency={card.currency} tone="muted" />
-                        <ActionButton
-                          disabled={dangLamMoi || upsert.isPending || lechNgay}
-                          onClick={() => ghiDau([khoaCua(h)], false)}
-                        >
-                          Xem lại
-                        </ActionButton>
+                        <span className="min-w-0 flex-1 basis-40">{nhanHang(h)}</span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <Money amount={Math.abs(h.amount)} currency={card.currency} tone="muted" />
+                          <ActionButton
+                            disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
+                            onClick={() => ghiDau([khoaCua(h)], false)}
+                          >
+                            Xem lại
+                          </ActionButton>
+                        </span>
                       </div>
                     ))}
                   </Collapse>

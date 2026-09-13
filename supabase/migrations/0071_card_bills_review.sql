@@ -23,6 +23,11 @@ alter table public.card_bills
   add column if not exists dismissed jsonb   not null default '[]'::jsonb,
   add column if not exists reviewed  boolean not null default false;
 
+-- `dismissed` phải luôn là mảng jsonb: một giá trị khác dạng (object, string, số...) làm
+-- `new Set(dismissed)` phía trang (statementDismiss.ts) ném lỗi hoặc ra kết quả rác im lặng.
+alter table public.card_bills
+  add constraint card_bills_dismissed_is_array check (jsonb_typeof(dismissed) = 'array');
+
 comment on column public.card_bills.dismissed is
   'Mảng khoá dòng lệch người dùng đã bấm Bỏ qua. Định dạng khoá: xem statementDismiss.ts.';
 comment on column public.card_bills.reviewed is

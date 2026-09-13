@@ -258,10 +258,15 @@ alter table public.card_bills
 
 `dismissed`: mảng chuỗi khoá dòng. Dòng sổ: `"tx:<uuid>"`. Dòng thẻ: `"stm:<iso>|<amount>|<name NFKC>"`.
 Cụm nạp ví: `"topups:<closeISO>"`. Khoá thẻ không có `source` — cùng ngày, cùng tiền, cùng tên
-ở hai thẻ là cùng một thứ theo nghĩa người đọc, và trùng như vậy hiếm.
+ở hai thẻ là cùng một thứ theo nghĩa người đọc, và trùng như vậy hiếm. Hoàn tiền phía sổ
+không có id giao dịch nên dùng khoá riêng `"rtx:<iso>|<amount>|<note>"`. Dòng trùng base key
+trong cùng một kỳ (vd ba dòng thẻ cùng ngày/tiền/tên) được đánh số hậu tố `#k` (k ≥ 2, dòng
+thứ nhất giữ nguyên) để mỗi dòng có một khoá lưu riêng — xem `keysFor`.
 
-`database.types.ts` cùng commit: `CardBillRow` thêm hai trường; `Insert` cho phép thiếu (default);
-`Update` thêm `dismissed | reviewed`. `NewCardBill` thêm `dismissed?`, `reviewed?`.
+`database.types.ts` cùng commit: `CardBillRow` thêm hai trường; `Insert` cho phép thiếu (default,
+vì DB đã có `default '[]'::jsonb` / `default false`); `Update` thêm `dismissed | reviewed`.
+`NewCardBill` đòi **đủ** hai trường mới, không optional (khớp §7.2 — repo không đọc-rồi-ghi
+nên không có chỗ nào để tự điền thiếu; `Insert` là type của Supabase, khác `NewCardBill`).
 
 ### 7.2 Repo
 

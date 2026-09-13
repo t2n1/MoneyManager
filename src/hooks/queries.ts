@@ -640,6 +640,14 @@ export function useUpsertCardBills() {
     mutationFn: (rows: NewCardBill[]) => repo.upsertCardBills(rows),
     // CHỈ 'cardBills': hoá đơn không đụng số dư, không đụng giao dịch. Invalidate
     // rộng hơn là bắt cả app tải lại vì một con số chỉ panel thẻ đọc.
+    //
+    // Mũi tên PHẢI trả về promise của invalidateQueries — cố ý, đừng bọc thân hàm bằng
+    // dấu ngoặc nhọn rồi bỏ `return`. TanStack Query đợi promise trả về từ `onSettled`
+    // xong mới cho mutation rời `isPending`. `StatementReconcilePage.ghiDau` khoá các nút
+    // Bỏ qua/Xem lại bằng `upsert.isPending`, và đọc `daBoQua` từ cache `['cardBills']` —
+    // mất `return` thì nút bật lại NGAY khi request về server, trong khi cache có thể chưa
+    // kịp invalidate/refetch xong; bấm Bỏ qua lần hai lúc đó ghi đè lên bản `dismissed` cũ
+    // (lost update), im lặng mất một dấu vừa bấm.
     onSettled: () => qc.invalidateQueries({ queryKey: ['cardBills'] }),
   })
 }

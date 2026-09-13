@@ -51,7 +51,9 @@ export function overviewRows(
       dueISO: b.due_date,
       billTotal: b.total,
       loaded: null,
-      reviewed: b.reviewed,
+      // `?? false`: dòng ghi trước migration 0071 không có cột này ở DB cũ / bản sao lưu cũ
+      // (xem comment cột `reviewed` ở 0071) — thiếu thì coi là chưa xem, không phải lỗi.
+      reviewed: b.reviewed ?? false,
       status: 'saved-only',
     })
   }

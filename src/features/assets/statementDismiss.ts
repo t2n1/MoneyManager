@@ -10,7 +10,6 @@
 //
 // Thuần, không phụ thuộc React.
 
-import type { CardBillRow } from '../../types/database.types'
 import type { NewCardBill } from '../../data/repo'
 import type { MergedStatement } from './statementBatch'
 import type { ReviewRow } from './statementReviewRows'
@@ -72,14 +71,14 @@ export function toggleKey(dismissed: readonly string[], key: string, on: boolean
 }
 
 /**
- * Dòng `card_bills` sau một lần Bỏ qua / Xem lại: tổng và ngày lấy từ FILE (nguồn mới
- * hơn bill đã lưu), dấu từ tham số, `reviewed` tính lại từ hàng hiện có. `existing` chỉ để
- * chỗ gọi tiện tra — không đọc gì từ nó ngoài việc chấp nhận null (kỳ chưa có bill).
+ * Dòng `card_bills` sau một lần Bỏ qua / Xem lại: tổng và ngày lấy từ FILE (`m.total`,
+ * `m.range`) — CỐ Ý, không phải bill đã lưu: kỳ đang mở nghĩa là đã có file mới hơn, và
+ * bảng tổng quan đã coi tổng của file là số đáng tin cho kỳ đang nạp. `reviewed` tính lại
+ * từ hàng hiện có (`rows` + `dismissed`), không đọc từ bill cũ.
  */
 export function billAfterDismiss(
   m: MergedStatement,
   accountId: string,
-  _existing: CardBillRow | null,
   dismissed: string[],
   rows: ReviewRow[],
 ): NewCardBill {

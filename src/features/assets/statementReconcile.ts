@@ -197,16 +197,25 @@ export function reconcileBatch(
     out.get(s.closeISO)!.matchedCount++
   }
 
-  // Vòng 1: theo số tiền, ưu tiên lệch ngày ít nhất trong cửa sổ, BẤT KỂ kỳ.
+  // Vòng 1: mọi cặp (thẻ, sổ) cùng số tiền, lệch ngày ≤ cửa sổ, BẤT KỂ kỳ — chọn theo ĐỘ
+  // LỆCH NHỎ NHẤT TOÀN CỤC, không tham lam theo thứ tự mảng `ledger`. `ledger` luôn tới theo
+  // ngày tăng dần, nên xét từng dòng thẻ một và chọn ứng viên đầu tiên vừa mắt sẽ để một dòng
+  // thẻ NGÀY SỚM HƠN (nhưng khác kỳ với dòng sổ) giành quyền chọn trước một dòng thẻ ngày
+  // muộn hơn — dù dòng sau mới thực sự khớp (gap nhỏ hơn, đúng kỳ của dòng sổ).
+  const candidates: { a: L; s: S; gap: number; inside: boolean }[] = []
   for (const a of led) {
-    let best: { s: S; gap: number } | null = null
     for (const s of stmt) {
-      if (s.used || UNMATCHABLE.has(s.l.kind) || s.l.amount !== a.amount) continue
+      if (UNMATCHABLE.has(s.l.kind) || s.l.amount !== a.amount) continue
       const gap = dayGap(a.t.occurred_on, s.l.iso)
       if (gap > MATCH_WINDOW_DAYS) continue
-      if (!best || gap < best.gap) best = { s, gap }
+      const inside = a.t.occurred_on >= s.range.start && a.t.occurred_on < s.range.end
+      candidates.push({ a, s, gap, inside })
     }
-    if (best) pairOneToOne(a, best.s)
+  }
+  candidates.sort((x, y) => x.gap - y.gap || Number(y.inside) - Number(x.inside))
+  for (const c of candidates) {
+    if (c.a.used || c.s.used) continue
+    pairOneToOne(c.a, c.s)
   }
   // Vòng 2: bỏ giới hạn ngày nhưng đòi CÙNG KỲ. Sao kê hay dời ngày vài hôm.
   for (const a of led) {
@@ -224,7 +233,11 @@ export function reconcileBatch(
     if (a.used) continue
     const p = periodOf(a.t.occurred_on)
     // Hoàn tiền sổ ghi ở kỳ này, nhà thẻ cấn qua 調整額 ở kỳ khác — bất kỳ kỳ nào đã nạp.
-    const adj = stmt.find((s) => !s.used && s.l.kind === 'adjustment' && s.l.amount === a.amount)
+    // Chỉ xét khi dòng sổ THẬT SỰ là hoàn tiền (`is_refund`): một khoản `income` cùng số tiền
+    // không phải hoàn tiền — ghép nhầm với 調整額 là giấu một khoản thu nhập thật đi.
+    const adj = a.t.is_refund
+      ? stmt.find((s) => !s.used && s.l.kind === 'adjustment' && s.l.amount === a.amount)
+      : undefined
     if (adj) {
       a.used = true
       adj.used = true

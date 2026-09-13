@@ -142,6 +142,53 @@ describe('reconcileBatch — cap ghep khac ky', () => {
     const matched = r.get('2026-06-30')!.matchedCount + r.get('2026-07-31')!.matchedCount
     expect(matched).toBe(1)
     expect(r.get('2026-06-30')!.missingFromLedger.length + r.get('2026-07-31')!.missingFromLedger.length).toBe(1)
+    expect(r.get('2026-06-30')!.matchedCount).toBe(1)
+  })
+
+  it('vong 1 chon gap nho nhat TOAN CUC, khong an theo thu tu mang ledger', () => {
+    // the ky6 (06-20) va the ky7 (07-01), cung 1000. So co hai dong: A 06-28 (gap toi
+    // the ky7 = 3 ngay), B 07-01 (gap toi the ky7 = 0 ngay). Xu ly theo thu tu mang ledger
+    // (A truoc B) se khien A "cuop" dong the ky7 truoc — dung ra B moi la dong khop that.
+    const r = reconcileBatch(
+      [period('2026-06', [line('2026-06-20', 1000)]), period('2026-07', [line('2026-07-01', 1000)])],
+      [tx('2026-06-28', 1000), tx('2026-07-01', 1000)],
+      CARD,
+    )
+    // B (gap 0, dung ky) phai thang A (gap 3), du A dung truoc trong mang ledger.
+    expect(r.get('2026-07-31')!.matchedCount).toBe(1)
+    expect(causes(r.get('2026-07-31')!)).toEqual([])
+    expect(r.get('2026-07-31')!.pairs[0].ledger[0].occurred_on).toBe('2026-07-01')
+    // A khong con "cuop" duoc dong the ky 7 nua; vong 2 ghep tiep A voi dong so CUNG KY no
+    // (06-20) — dung theo luat "cung ky, khong gioi han ngay" von co san, khong phai ro.
+    expect(r.get('2026-06-30')!.matchedCount).toBe(1)
+    expect(r.get('2026-06-30')!.missingFromLedger).toHaveLength(0)
+    expect(r.get('2026-06-30')!.extraInLedger).toHaveLength(0)
+    expect(causes(r.get('2026-06-30')!)).not.toContain('date-edge')
+    expect(causes(r.get('2026-07-31')!)).not.toContain('date-edge')
+  })
+})
+
+describe('reconcileBatch — UNMATCHABLE', () => {
+  it('dong topup khong duoc ghep vong 1/2, unmatchedTopups van rong o Task 4', () => {
+    const r = one(
+      '2026-06',
+      [line('2026-06-15', 1485, '楽天キャッシュ　チャージ', 'topup')],
+      [tx('2026-06-15', 1485)],
+    )
+    expect(r.matchedCount).toBe(0)
+    expect(r.extraInLedger).toHaveLength(1)
+    expect(r.missingFromLedger).toHaveLength(1)
+    expect(r.unmatchedTopups.count).toBe(0)
+  })
+
+  it('dong installment-later khong duoc ghep, danh cho tra gop lan sau', () => {
+    const r = one(
+      '2026-06',
+      [line('2026-06-15', 3000, 'The Gioi Di Dong (tra gop 2/3)', 'installment-later')],
+      [tx('2026-06-15', 3000)],
+    )
+    expect(r.matchedCount).toBe(0)
+    expect(r.extraInLedger).toHaveLength(1)
   })
 })
 
@@ -155,6 +202,21 @@ describe('reconcileBatch — luat giai thich duoc (PayPay)', () => {
     expect(r.get('2026-02-28')!.extraInLedger).toHaveLength(0)
     expect(r.get('2026-02-28')!.refundDiffs).toHaveLength(0)
     expect(causes(r.get('2026-01-31')!)).toEqual(['refund-shifted'])
+  })
+
+  it('refund-shifted KHONG ghep voi dong income, chi is_refund moi duoc', () => {
+    const r = reconcileBatch(
+      [period('2026-01', [line('2026-01-03', -961, '調整額 · X', 'adjustment')]), period('2026-02', [])],
+      [tx('2026-02-03', 961, { type: 'income' })],
+      CARD,
+    )
+    expect(causes(r.get('2026-01-31')!)).toEqual([])
+    expect(causes(r.get('2026-02-28')!)).toEqual([])
+    expect(r.get('2026-02-28')!.extraInLedger).toHaveLength(1)
+    expect(r.get('2026-02-28')!.extraInLedger[0].amount).toBe(-961)
+    expect(r.get('2026-01-31')!.refundDiffs).toEqual([
+      { source: 'statement', label: '調整額 · X', iso: '2026-01-03', amount: -961 },
+    ])
   })
 
   it('recalculated: dong （再計算） khong co trong so', () => {

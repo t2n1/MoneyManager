@@ -2532,7 +2532,9 @@ export const supabaseRepo: Repo = {
     }
 
     // card_bills: composite FK tới accounts → chèn sau accounts. Gửi rõ mọi cột thay
-    // vì trông cậy default, cùng lý do account_valuations ở trên.
+    // vì trông cậy default, cùng lý do account_valuations ở trên. dismissed/reviewed
+    // (migration 0071) dùng `??` vì bản sao lưu từ trước 0071 không có hai cột này —
+    // thiếu thì mặc định [] / false, không phải lỗi.
     if (data.cardBills?.length) {
       await insertChunked(
             data.cardBills.map((b) => ({
@@ -2542,6 +2544,8 @@ export const supabaseRepo: Repo = {
               close_date: b.close_date,
               due_date: b.due_date,
               total: b.total,
+              dismissed: b.dismissed ?? [],
+              reviewed: b.reviewed ?? false,
             })),
         (part) => sb.from('card_bills').insert(part),
       )

@@ -23,6 +23,9 @@ describe('reviewRows', () => {
     expect(rows.map((x) => x.kind)).toEqual(['ledger', 'statement', 'topups', 'ledger', 'statement'])
     expect(rows[2]).toMatchObject({ kind: 'topups', count: 2, amount: 3376, key: 'topups-2026-06-30' })
     expect(rows[3]).toMatchObject({ kind: 'ledger', refund: true, amount: -6990 })
+    // Dòng hoàn tiền dựng lại từ refundDiffs không giữ id giao dịch gốc — id rỗng là chốt
+    // hợp đồng để trang ẩn nút Sửa (StatementReconcilePage: `h.tx.id !== ''`).
+    expect(rows[3].kind === 'ledger' && rows[3].tx.id).toBe('')
     expect(rows[4]).toMatchObject({ kind: 'statement', refund: true, amount: -7951 })
   })
 

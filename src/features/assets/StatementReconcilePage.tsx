@@ -96,7 +96,12 @@ export function StatementReconcilePage() {
     return min
   }, [merged])
 
-  const { data: txs = [], isPending, isError } = useSearchTransactions(
+  // `dangLamMoi`: trang này đọc sổ qua cache ['search', filter], còn `useCreateTransaction`
+  // chèn optimistic vào cache ['transactions', start, end] — hai khoá khác nhau, nên "Thêm
+  // vào sổ" xong, dòng vừa lưu vẫn còn ở "Cần bạn xem" với nút sống cho tới khi ['search']
+  // refetch xong. Khoá cả hai nút (Sửa và Thêm vào sổ) trong lúc đó để tránh bấm lần hai ghi
+  // trùng — KHÔNG gộp vào `chuaGhepDuoc`, vì cờ đó xoá cả khối "Cần bạn xem" mỗi lần refetch nền.
+  const { data: txs = [], isPending, isError, isFetching: dangLamMoi } = useSearchTransactions(
     { start: earliestStart ?? FAR_FUTURE, end: FAR_FUTURE, accountIds: [accountId] },
     earliestStart != null,
   )
@@ -180,6 +185,10 @@ export function StatementReconcilePage() {
           một cái thẻ hoàn toàn hợp lệ. Đang tải thì nói đang tải, không phán gì về thẻ. */}
       {dangTaiTaiKhoan ? (
         <EmptyState compact>Đang tải…</EmptyState>
+      ) : !account ? (
+        // Đã tải xong danh sách tài khoản mà không thấy id này — khác hẳn "đang tải": không
+        // có tài khoản thì không có gì để dựng (không ô chọn file, không bảng), nói thẳng.
+        <EmptyState compact>Không tìm thấy tài khoản này.</EmptyState>
       ) : (
         <>
           {/* `multiple` là BẮT BUỘC: hai luật "giải thích được" của phép đối chiếu cần
@@ -260,7 +269,7 @@ export function StatementReconcilePage() {
                       {rows.map((r) => (
                         <tr
                           key={r.closeISO}
-                          className={`border-t border-border-subtle ${r.loaded ? 'cursor-pointer' : ''} ${r.closeISO === chonHieuLuc ? 'bg-surface-sunken' : ''}`}
+                          className={`border-t border-border-subtle ${r.closeISO === chonHieuLuc ? 'bg-surface-sunken' : ''}`}
                         >
                           <td className="py-2 pl-3 pr-2 text-left text-fg-primary">
                             {/* Chỗ bấm là một <button> THẬT chứ không phải onClick trên
@@ -272,7 +281,7 @@ export function StatementReconcilePage() {
                                 type="button"
                                 onClick={() => setChon(r.closeISO)}
                                 aria-pressed={r.closeISO === chonHieuLuc}
-                                className="min-h-11 text-left text-sm text-fg-primary"
+                                className="min-h-11 cursor-pointer rounded-md px-1 text-left text-sm text-fg-primary hover:bg-surface-sunken"
                               >
                                 {dayMonthLabel(r.closeISO)}
                               </button>
@@ -359,7 +368,12 @@ export function StatementReconcilePage() {
                       <span className="min-w-0 flex-1 text-fg-muted">
                         {h.kind === 'ledger' && `${dayMonthLabel(h.tx.occurred_on)} · ${h.tx.note || 'không ghi chú'} — sổ có, thẻ không${h.refund ? DUOI_HOAN_TIEN : ''}`}
                         {h.kind === 'statement' && `${dayMonthLabel(h.line.iso)} · ${h.line.name} — thẻ có, sổ không${h.refund ? DUOI_HOAN_TIEN : ''}`}
-                        {h.kind === 'topups' && `Nạp ví chưa ghép được — ${h.count} lần, ví có số dư nên chưa chắc là lỗi sổ`}
+                        {h.kind === 'topups' && (
+                          <>
+                            Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần, ví có số
+                            dư nên chưa chắc là lỗi sổ
+                          </>
+                        )}
                       </span>
                       <Money
                         amount={Math.abs(h.amount)}
@@ -370,6 +384,7 @@ export function StatementReconcilePage() {
                           (Task 1), nên không mở được màn sửa — không có id thì không có nút. */}
                       {h.kind === 'ledger' && h.tx.id !== '' && (
                         <ActionButton
+                          disabled={dangLamMoi}
                           onClick={() => {
                             const t = txById.get(h.tx.id)
                             if (t) setEditing(t)
@@ -379,7 +394,10 @@ export function StatementReconcilePage() {
                         </ActionButton>
                       )}
                       {h.kind === 'statement' && (
-                        <ActionButton onClick={() => setAdding(prefillFromLine(h.line, card.id))}>
+                        <ActionButton
+                          disabled={dangLamMoi}
+                          onClick={() => setAdding(prefillFromLine(h.line, card.id))}
+                        >
                           Thêm vào sổ
                         </ActionButton>
                       )}

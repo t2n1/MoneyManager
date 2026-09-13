@@ -15,7 +15,15 @@ export interface OverviewRow {
   closeISO: string
   dueISO: string
   billTotal: number
-  /** Chỉ có khi kỳ này vừa nạp file: Σ amount dòng sổ đã ghép + sổ thừa — KHÔNG phải cardMonthCharge. */
+  /**
+   * Chỉ có khi kỳ này vừa nạp file trong lô đang xem (không phải mọi kỳ đã lưu trong
+   * `card_bills`). `matchedCount`/`lineCount` là số dòng sao kê đã ghép / tổng số dòng sao
+   * kê của kỳ; `reviewCount` là số dòng còn "cần bạn xem" sau khi ghép; `parts` là các
+   * nguồn file gộp vào kỳ này (vd PayPay + Rakuten cùng kỳ).
+   *
+   * Cột "Sổ" (tổng số tiền phía sổ giao dịch của kỳ, để so trực tiếp với `billTotal`) CHƯA
+   * có ở đây — dự kiến thêm ở Đợt 4.
+   */
   loaded: null | {
     matchedCount: number
     lineCount: number

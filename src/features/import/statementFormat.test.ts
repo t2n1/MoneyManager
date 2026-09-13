@@ -30,4 +30,20 @@ describe('detectStatementFormat', () => {
   it('file rỗng không làm vỡ', () => {
     expect(detectStatementFormat([])).toBeNull()
   })
+
+  const RAKUTEN_HEADER = [
+    '﻿利用日', '利用店名・商品名', '利用者', '支払方法', '利用金額',
+    '手数料/利息', '支払総額', '7月支払金額', '当月請求額', '8月繰越残高', '新規サイン',
+  ]
+
+  it('nhận ra sao kê Rakuten e-NAVI từ dòng tiêu đề, khoản mua là số dương', () => {
+    const f = detectStatementFormat([RAKUTEN_HEADER])
+    expect(f?.id).toBe('rakuten')
+    expect(f?.negativeIsExpense).toBe(false)
+  })
+
+  it('Rakuten và PayPay không nhận nhầm nhau', () => {
+    expect(detectStatementFormat([PAYPAY_HEADER])?.id).toBe('paypay')
+    expect(detectStatementFormat([RAKUTEN_HEADER])?.id).not.toBe('paypay')
+  })
 })

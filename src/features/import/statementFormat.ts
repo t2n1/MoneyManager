@@ -38,6 +38,14 @@ const FORMATS: FormatSpec[] = [
     dateOrder: 'ymd',
     needles: ['利用日/キャンセル日', '決済方法'],
   },
+  {
+    id: 'rakuten',
+    label: 'Rakuten Card (e-NAVI)',
+    // Khoản mua = số dương, giống PayPay.
+    negativeIsExpense: false,
+    dateOrder: 'ymd',
+    needles: ['利用日', '利用店名・商品名', '新規サイン'],
+  },
 ]
 
 /** Nhận dạng sao kê từ dòng tiêu đề; null = file lạ, giữ nguyên lựa chọn của người dùng. */

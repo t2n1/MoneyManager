@@ -34,8 +34,6 @@ export interface StatementLine {
   billed: number
   name: string
   kind: LineKind
-  /** @deprecated tương thích Đợt 1 — bằng `kind === 'adjustment'`. Xoá ở Đợt 4. */
-  isAdjustment: boolean
   /** Nguồn (đuôi thẻ) — mergeStatements gắn khi gộp nhiều nguồn; reader không cần điền. */
   source?: string
 }

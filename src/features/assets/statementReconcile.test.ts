@@ -6,7 +6,7 @@ import { CARD_RECONCILE_NOTE } from './reconcile'
 
 const CARD = 'card-1'
 const line = (iso: string, amount: number, name = 'X', kind: LineKind = 'purchase'): StatementLine => ({
-  iso, amount, billed: amount, name, kind, isAdjustment: kind === 'adjustment',
+  iso, amount, billed: amount, name, kind,
 })
 const tx = (iso: string, amount: number, p: Partial<LedgerTx> = {}): LedgerTx => ({
   id: `t-${iso}-${amount}-${Math.random().toString(36).slice(2, 6)}`,

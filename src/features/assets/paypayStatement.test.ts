@@ -29,10 +29,10 @@ describe('parsePaypayStatement', () => {
     ].join('\n')
     const p = parsePaypayStatement(csv, CARD)!
     expect(p.lines).toHaveLength(2)
-    expect(p.lines.filter((l) => !l.isAdjustment)).toEqual([
-      { iso: '2026-01-03', amount: 8215, billed: 8215, name: '極楽茶屋', kind: 'purchase', isAdjustment: false },
+    expect(p.lines.filter((l) => l.kind !== 'adjustment')).toEqual([
+      { iso: '2026-01-03', amount: 8215, billed: 8215, name: '極楽茶屋', kind: 'purchase' },
     ])
-    const adj = p.lines.find((l) => l.isAdjustment)!
+    const adj = p.lines.find((l) => l.kind === 'adjustment')!
     expect(adj.amount).toBe(-7951)
     expect(adj.iso).toBe('2026-01-03')
   })

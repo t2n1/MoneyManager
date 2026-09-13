@@ -54,7 +54,7 @@ export function reviewRows(result: ReconcileResult, closeISO: string): ReviewRow
       rows.push({
         kind: 'statement',
         key: `refund-stm-${closeISO}-${i}`,
-        line: { iso: d.iso, amount: d.amount, billed: d.amount, name: d.label, kind: 'adjustment', isAdjustment: true },
+        line: { iso: d.iso, amount: d.amount, billed: d.amount, name: d.label, kind: 'adjustment' },
         amount: d.amount,
         refund: true,
       })

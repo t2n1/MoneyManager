@@ -8,7 +8,7 @@ const st = (closeISO: string, source: string, total = 0): ParsedStatement => ({
   range: { start: '', end: '', closeISO, dueISO: `${closeISO}-due` },
   dueDateFromFile: '',
   total,
-  lines: [{ iso: closeISO, amount: total, billed: total, name: source, kind: 'purchase', isAdjustment: false }],
+  lines: [{ iso: closeISO, amount: total, billed: total, name: source, kind: 'purchase' }],
   dueDateMismatch: false,
   source,
   sourceLabel: `Thẻ ${source}`,
@@ -87,7 +87,7 @@ describe('billRowsFor', () => {
   })
   it('ket qua co hang mo thi reviewed false du dismissed co khoa khac', () => {
     const r = emptyResult()
-    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase', isAdjustment: false })
+    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase' })
     const rows = billRowsFor('acc-1', mergeStatements([st('2026-06-30', '3737', 100)]), { existing: [], results: new Map([['2026-06-30', r]]) })
     expect(rows[0].reviewed).toBe(false)
   })

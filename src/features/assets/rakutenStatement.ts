@@ -102,7 +102,7 @@ export function parseRakutenStatement(
     // Trả góp lần 1: sổ ghi CẢ món một lần ⇒ ghép theo 利用金額, hoá đơn chỉ nhận một nửa.
     const isFirstInstallment = kind === 'purchase' && /\(1回目\)/.test(nfkc(how))
     const amount = isFirstInstallment && iUse >= 0 ? num(r[iUse] ?? '') : billed
-    return { iso, amount, billed, name, kind, isAdjustment: false }
+    return { iso, amount, billed, name, kind }
   })
 
   // Kiểm chéo tên file: enavi{YYYY}{MM}. Lệch ⇒ chặn lưu, như PayPay lệch ngày trả.

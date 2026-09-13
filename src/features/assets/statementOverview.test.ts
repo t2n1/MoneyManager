@@ -12,7 +12,7 @@ const merged = (close: string, total: number, n = 1): MergedStatement => ({
   range: { start: '', end: '', closeISO: close, dueISO: `${close}-due2` },
   total,
   parts: [{ source: '3737', sourceLabel: 'Master 3737', total }],
-  lines: Array.from({ length: n }, (_, i) => ({ iso: close, amount: i + 1, billed: i + 1, name: 'x', kind: 'purchase' as const, isAdjustment: false })),
+  lines: Array.from({ length: n }, (_, i) => ({ iso: close, amount: i + 1, billed: i + 1, name: 'x', kind: 'purchase' as const })),
   dueDateMismatch: false,
 })
 
@@ -34,7 +34,7 @@ describe('overviewRows', () => {
 
   it('co hang can xem thi status review va dem dung', () => {
     const r = emptyResult()
-    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase', isAdjustment: false })
+    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase' })
     const rows = overviewRows([], 'acc-1', [merged('2026-06-30', 10)], new Map([['2026-06-30', r]]))
     expect(rows[0].status).toBe('review')
     expect(rows[0].loaded?.reviewCount).toBe(1)
@@ -56,7 +56,7 @@ describe('overviewRows', () => {
   it('reviewCount chi dem hang MO; hang da bo qua vao dismissedCount; status theo hang mo', () => {
     const r = emptyResult()
     r.unmatchedTopups = { count: 1, total: 9, lines: [] }
-    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase', isAdjustment: false })
+    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase' })
     const b = { ...bill('2026-06-30', 1), dismissed: ['topups:2026-06-30'], reviewed: false }
     const rows = overviewRows([b], 'acc-1', [merged('2026-06-30', 10)], new Map([['2026-06-30', r]]))
     expect(rows[0].loaded).toMatchObject({ reviewCount: 1, dismissedCount: 1 })

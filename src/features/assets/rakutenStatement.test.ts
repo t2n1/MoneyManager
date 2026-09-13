@@ -96,7 +96,7 @@ describe('parseRakutenStatement', () => {
   it('hoan tien la dong am thuong, khong phai adjustment', () => {
     const csv = [HEAD_11, r11('2026/06/10', 'UNIQLO', '1回払い', '-5060', '-5060')].join('\n')
     const p = parseRakutenStatement(csv, CARD, 'enavi202607(3737).csv')!
-    expect(p.lines[0]).toMatchObject({ amount: -5060, kind: 'purchase', isAdjustment: false })
+    expect(p.lines[0]).toMatchObject({ amount: -5060, kind: 'purchase' })
     expect(p.total).toBe(-5060)
   })
 

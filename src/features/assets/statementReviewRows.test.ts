@@ -4,7 +4,7 @@ import { emptyResult, type LedgerTx } from './statementReconcile'
 import type { StatementLine } from './statementLine'
 
 const line = (iso: string, amount: number, name = 'X'): StatementLine => ({
-  iso, amount, billed: amount, name, kind: 'purchase', isAdjustment: false,
+  iso, amount, billed: amount, name, kind: 'purchase',
 })
 const tx = (iso: string, amount: number, p: Partial<LedgerTx> = {}): LedgerTx => ({
   id: `t-${iso}-${amount}`, occurred_on: iso, amount, type: 'expense', is_refund: false,

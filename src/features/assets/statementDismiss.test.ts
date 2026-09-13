@@ -9,7 +9,7 @@ const led = (id: string, iso = '2026-06-10', amount = 23000): ReviewRow => ({
 })
 const stm = (iso: string, amount: number, name: string): ReviewRow => ({
   kind: 'statement', key: `stm-x`, amount, refund: false,
-  line: { iso, amount, billed: amount, name, kind: 'purchase', isAdjustment: false },
+  line: { iso, amount, billed: amount, name, kind: 'purchase' },
 })
 const topups: ReviewRow = { kind: 'topups', key: 'topups-2026-06-30', count: 2, amount: 3376 }
 const rledger: ReviewRow = {

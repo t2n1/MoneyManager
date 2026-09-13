@@ -86,7 +86,7 @@ export function parsePaypayStatement(
     const name = (r[COL.name] ?? '').trim()
     if (billedRaw !== '') {
       const amount = num(billedRaw)
-      lines.push({ iso, amount, billed: amount, name, kind: kindOf(name), isAdjustment: false })
+      lines.push({ iso, amount, billed: amount, name, kind: kindOf(name) })
     }
     const adj = num(r[COL.adjust] ?? '')
     if (adj !== 0)
@@ -96,7 +96,6 @@ export function parsePaypayStatement(
         billed: adj,
         name: `調整額 · ${name}`,
         kind: 'adjustment',
-        isAdjustment: true,
       })
   }
 

@@ -1,14 +1,18 @@
-// Ghép từng dòng sao kê với từng giao dịch trong sổ, rồi chia phần lệch làm hai:
-// thứ NGƯỜI DÙNG cần xem, và thứ giải thích được bằng khác biệt cấu trúc.
+// Ghép từng dòng sao kê với từng giao dịch trong sổ, rồi chia phần lệch làm hai: thứ
+// NGƯỜI DÙNG cần xem, và thứ giải thích được bằng khác biệt cấu trúc.
 //
-// Vì sao phải chia: đo trên 8 kỳ PayPay, ~200 dòng, chỉ 4 dòng là ghi sai thật. Nếu
-// đổ hết phần lệch vào một danh sách thì 4 dòng đáng sửa nằm lẫn giữa hàng chục dòng
-// vô hại, và người đọc bỏ qua cả cụm.
+// Vì sao phải chia: đo trên 8 kỳ PayPay, ~200 dòng, chỉ 4 dòng là ghi sai thật. Đổ hết
+// phần lệch vào một danh sách thì 4 dòng đáng sửa nằm lẫn giữa hàng chục dòng vô hại.
+//
+// Vì sao ghép CẢ LÔ một lượt (đợt 2): Rakuten ghi phí ETC trễ tới 5 tuần — dòng 17/05 nằm
+// trong hoá đơn kỳ quẹt tháng 6. Ghép từng kỳ với rổ sổ của đúng kỳ đó thì dòng ấy báo
+// "thẻ có, sổ không" dù sổ có. Một rổ cho cả lô; cặp ghép được GÁN VỀ KỲ CỦA DÒNG THẺ.
 //
 // Thuần, không phụ thuộc React, để unit-test được.
 
-import type { StatementLine } from './paypayStatement'
 import { CARD_RECONCILE_NOTE } from './reconcile'
+import type { MergedStatement } from './statementBatch'
+import type { StatementLine } from './statementLine'
 
 export interface LedgerTx {
   id: string
@@ -24,60 +28,90 @@ export type ExplainedCause =
   | 'refund-shifted'
   | 'wallet-topup'
   | 'date-edge'
+  | 'late-posting'
   | 'recalculated'
   | 'merged-rows'
+  | 'installment'
+  | 'investment'
+
+/**
+ * Một hàng của bảng ghép đôi. n:m vì `merged-rows` là 1 sổ : n thẻ, `wallet-topup` là
+ * 1 thẻ : n sổ. `cause` rỗng = khớp thường.
+ */
+export interface Pair {
+  ledger: LedgerTx[]
+  lines: StatementLine[]
+  cause?: ExplainedCause
+  label: string
+  /** Số tiền đại diện của hàng (phía thẻ nếu có, không thì phía sổ). */
+  amount: number
+}
 
 export interface ReconcileResult {
+  /** Số dòng thẻ của kỳ ghép được 1-1 (kể cả date-edge / late-posting). */
   matchedCount: number
   extraInLedger: { tx: LedgerTx; amount: number }[]
   missingFromLedger: StatementLine[]
   /**
-   * Chênh lệch CHỈ liên quan tới hoàn tiền: dòng `調整額` của nhà thẻ, và dòng hoàn
-   * trong sổ, không khớp 1-1 được.
-   *
-   * Nhóm RIÊNG chứ không nhét vào `explained`: nhà thẻ GỘP nhiều khoản hoàn vào một
-   * dòng điều chỉnh (−7.951 = −961 + −6.990) nên hai bên gần như không bao giờ khớp
-   * từng dòng — nhưng một khoản hoàn người dùng QUÊN ghi cũng rơi vào đây, và giấu nó
-   * đi là phản lại lý do tồn tại của cả màn này. Hiện ra, gắn nhãn, để người đọc lướt.
+   * Chênh lệch CHỈ liên quan tới hoàn tiền: dòng `adjustment` của nhà thẻ và dòng hoàn
+   * trong sổ không khớp 1-1 được. Nhóm RIÊNG chứ không nhét vào `explained`: nhà thẻ GỘP
+   * nhiều khoản hoàn vào một dòng điều chỉnh nên hai bên hiếm khi khớp từng dòng — nhưng
+   * một khoản hoàn người dùng QUÊN ghi cũng rơi vào đây, giấu đi là phản lại lý do tồn tại
+   * của cả màn này.
    */
   refundDiffs: { source: 'ledger' | 'statement'; label: string; iso: string; amount: number }[]
+  /** Dẫn xuất từ `pairs` có `cause`. */
   explained: { cause: ExplainedCause; label: string; amount: number }[]
+  /**
+   * Nạp ví không tìm được nhóm món sổ tương ứng. Gom một cụm, không rải lẻ: ví có số dư nên
+   * đây thường KHÔNG phải lỗi sổ, nhưng giấu hẳn thì một tuần quên ghi cũng biến mất.
+   * (Cài ở Task 5; Task 4 luôn rỗng.)
+   */
+  unmatchedTopups: { count: number; total: number; lines: StatementLine[] }
+  pairs: Pair[]
+}
+
+export function emptyResult(): ReconcileResult {
+  return {
+    matchedCount: 0,
+    extraInLedger: [],
+    missingFromLedger: [],
+    refundDiffs: [],
+    explained: [],
+    unmatchedTopups: { count: 0, total: 0, lines: [] },
+    pairs: [],
+  }
 }
 
 const MATCH_WINDOW_DAYS = 4
 /**
- * `date-edge` = CÙNG một lần mua, hai bên ghi hai ngày. Không ép gần nhau về thời gian thì
- * luật này biến thành "khớp bừa theo số tiền ở kỳ bên cạnh", và một khoản chi ghi sai thật
- * sẽ bị nuốt vào nhóm bỏ qua. Ca thật đo được lệch 3 ngày.
+ * `date-edge` = CÙNG một lần mua, hai bên ghi hai ngày, rơi hai kỳ. Cách ranh giới kỳ xa
+ * hơn thế thì là nhà thẻ ghi TRỄ (`late-posting`) — ETC là 5 tuần. Cả hai đều đã ghép 1-1
+ * nên không "khớp bừa"; nhãn chỉ để người đọc hiểu vì sao hàng nằm ở kỳ này.
  */
 const EDGE_WINDOW_DAYS = 7
-const dayGap = (a: string, b: string) =>
-  Math.abs(Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000))
+const DAY = 86_400_000
+const dayGap = (a: string, b: string) => Math.abs(Math.round((Date.parse(a) - Date.parse(b)) / DAY))
+const dayLabel = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
 /**
- * Dấu của một dòng sổ theo cách repo ghi tiền: hoàn tiền là `expense` + `is_refund`,
- * KHÔNG phải `income` (xem `aggregate.ts: expenseSign`). Đọc nhầm chỗ này là mọi khoản
- * hoàn đảo dấu và không dòng nào ghép được.
- *
- * `income` trên một tài khoản THẺ cũng mang dấu âm ở đây, dù không phải hoàn tiền: nó
- * khớp cách `txBalanceDelta` (`lib/cardBalance.ts`) tính số dư — tiền `income` trên thẻ
- * CỘNG vào số dư, cùng chiều với hoàn tiền, ngược chiều với một khoản chi thật. Không có
- * gì cấm ghi `income` trên thẻ (`assertTxShape` chỉ ràng buộc transfer/category), nên bỏ
- * qua nhánh này là một khoản `income` bị ghép nhầm với một khoản CHI thật cùng số tiền —
- * `matchedCount` tăng sai, và khoản chi thật bị nuốt mất khỏi "Cần bạn xem".
+ * Dấu của một dòng sổ theo cách repo ghi tiền: hoàn tiền là `expense` + `is_refund`, KHÔNG
+ * phải `income` (xem `aggregate.ts: expenseSign`). `income` trên thẻ cũng mang dấu âm —
+ * khớp `txBalanceDelta` (`lib/cardBalance.ts`): tiền vào thẻ CỘNG vào số dư, cùng chiều
+ * hoàn tiền, ngược chiều một khoản chi thật.
  */
 const signedAmount = (t: LedgerTx) => (t.type === 'income' || t.is_refund ? -t.amount : t.amount)
 
-/**
- * Rổ sổ dùng để đối chiếu, loại đúng những gì `cardMonthCharge` loại — hai chỗ phải nói
- * cùng một kiểu, kẻo panel báo lệch mà bảng đối chiếu bảo khớp.
- */
+/** Rổ sổ để đối chiếu, loại đúng những gì `cardMonthCharge` loại — hai chỗ phải nói cùng một kiểu. */
 const inScope = (t: LedgerTx, cardId: string) =>
   !(t.type === 'transfer' && t.to_account_id === cardId) && t.note !== CARD_RECONCILE_NOTE
 
-const nfkc = (s: string) => s.normalize('NFKC')
-const isTopUp = (l: StatementLine) => nfkc(l.name).trim() === 'チャージ'
-const isRecalculated = (l: StatementLine) => nfkc(l.name).trim().endsWith('(再計算)')
+/**
+ * Dòng thẻ KHÔNG đi qua vòng ghép 1-1: trả góp lần sau và mua quỹ không có gì để ghép;
+ * nạp ví đi qua luật riêng (Task 5) — để vòng 1 lấy nó trước là luật riêng không bao giờ
+ * tới lượt, và một lần nạp 1.485 sẽ ăn nhầm một khoản chi 1.485 cùng ngày.
+ */
+const UNMATCHABLE = new Set<StatementLine['kind']>(['installment-later', 'investment', 'topup'])
 
 /** Mọi tổ hợp kích cỡ `size` lấy từ `arr`, không lặp phần tử, không quan tâm thứ tự. */
 function* combinations<T>(arr: T[], size: number): Generator<T[]> {
@@ -86,139 +120,158 @@ function* combinations<T>(arr: T[], size: number): Generator<T[]> {
     return
   }
   for (let i = 0; i <= arr.length - size; i++) {
-    for (const rest of combinations(arr.slice(i + 1), size - 1)) {
-      yield [arr[i], ...rest]
-    }
+    for (const rest of combinations(arr.slice(i + 1), size - 1)) yield [arr[i], ...rest]
   }
 }
 
-/**
- * Rule 'merged-rows': sổ ghi GỘP một dòng, nhà thẻ TÁCH ra nhiều dòng cùng ngày —
- * cùng một khoản tiền, khác độ mịn. Vét cạn tổ hợp 2–4 (nhóm cùng ngày rất nhỏ, không
- * làm subset-sum tổng quát) trên các dòng CHƯA khớp, KHÔNG phải điều chỉnh. Chỉ làm
- * chiều này (sổ gộp, thẻ tách) — chiều ngược lại chưa thấy trong dữ liệu thật.
- */
-function findMergedSubset(
-  target: number,
-  candidates: { l: StatementLine; used: boolean }[],
-): { l: StatementLine; used: boolean }[] | null {
-  const pool = candidates.filter((c) => !c.used && !c.l.isAdjustment)
-  for (let size = 2; size <= Math.min(4, pool.length); size++) {
+/** Tổ hợp `minSize..maxSize` phần tử của `pool` có tổng đúng `target`, không thì null. */
+function findSubset<T>(target: number, pool: T[], amountOf: (x: T) => number, minSize: number, maxSize: number): T[] | null {
+  for (let size = minSize; size <= Math.min(maxSize, pool.length); size++) {
     for (const combo of combinations(pool, size)) {
-      if (combo.reduce((sum, c) => sum + c.l.amount, 0) === target) return combo
+      if (combo.reduce((s, c) => s + amountOf(c), 0) === target) return combo
     }
   }
   return null
 }
 
+interface S {
+  l: StatementLine
+  closeISO: string
+  range: MergedStatement['range']
+  used: boolean
+}
+interface L {
+  t: LedgerTx
+  amount: number
+  used: boolean
+}
+
 /**
- * ĐIỀU KIỆN GỌI: `ledger` PHẢI đã lọc sẵn về đúng một thẻ (`cardId`) và đúng kỳ đang xét.
- * `LedgerTx` cố tình không mang `account_id`, nên `inScope` không tự lọc được — truyền vào
- * rổ nhiều tài khoản thì khoản "Điều chỉnh số nợ" của thẻ KHÁC cũng bị loại, và kết quả
- * lệch khỏi `cardMonthCharge`.
+ * ĐIỀU KIỆN GỌI: `ledger` PHẢI đã lọc về đúng một thẻ (`cardId`) — `LedgerTx` không mang
+ * `account_id` nên `inScope` không tự lọc được. Cửa sổ ngày của `ledger` phải phủ từ
+ * min(range.start, ngày dòng thẻ sớm nhất) tới hết kỳ muộn nhất.
+ * `statements` phải đã qua `mergeStatements` (mỗi closeISO một bản, sắp tăng).
  */
-export function reconcileStatement(
-  lines: StatementLine[],
+export function reconcileBatch(
+  statements: MergedStatement[],
   ledger: LedgerTx[],
   cardId: string,
-  neighbours: { lines: StatementLine[] }[],
-): ReconcileResult {
-  const stmt = lines.map((l) => ({ l, used: false }))
-  const led = ledger
+): Map<string, ReconcileResult> {
+  const out = new Map<string, ReconcileResult>()
+  for (const m of statements) out.set(m.range.closeISO, emptyResult())
+
+  const stmt: S[] = statements.flatMap((m) =>
+    m.lines.map((l) => ({ l, closeISO: m.range.closeISO, range: m.range, used: false })),
+  )
+  const led: L[] = ledger
     .filter((t) => inScope(t, cardId))
     .map((t) => ({ t, amount: signedAmount(t), used: false }))
 
-  // Vòng 1: ghép theo số tiền, ưu tiên lệch ngày ít nhất trong cửa sổ.
+  /** Kỳ chứa một ngày sổ, theo [start, end). Ngoài mọi kỳ đã nạp ⇒ undefined. */
+  const periodOf = (iso: string) => statements.find((m) => iso >= m.range.start && iso < m.range.end)
+
+  const push = (closeISO: string, pair: Pair) => {
+    const r = out.get(closeISO)!
+    r.pairs.push(pair)
+    if (pair.cause) r.explained.push({ cause: pair.cause, label: pair.label, amount: pair.amount })
+  }
+
+  /** Cặp 1-1 vừa ghép: gán nhãn theo vị trí ngày sổ so với kỳ của dòng thẻ. */
+  const pairOneToOne = (a: L, s: S) => {
+    a.used = true
+    s.used = true
+    const iso = a.t.occurred_on
+    const inside = iso >= s.range.start && iso < s.range.end
+    let cause: ExplainedCause | undefined
+    if (!inside) {
+      const gap = iso < s.range.start ? dayGap(s.range.start, iso) : dayGap(iso, s.range.closeISO)
+      cause = gap <= EDGE_WINDOW_DAYS ? 'date-edge' : 'late-posting'
+    }
+    const label =
+      cause === 'date-edge'
+        ? `${s.l.name} — thẻ ghi ${dayLabel(s.l.iso)}, sổ ${dayLabel(iso)}`
+        : cause === 'late-posting'
+          ? `${s.l.name} — nhà thẻ ghi trễ, sổ ${dayLabel(iso)}`
+          : s.l.name
+    push(s.closeISO, { ledger: [a.t], lines: [s.l], cause, label, amount: s.l.amount })
+    out.get(s.closeISO)!.matchedCount++
+  }
+
+  // Vòng 1: theo số tiền, ưu tiên lệch ngày ít nhất trong cửa sổ, BẤT KỂ kỳ.
   for (const a of led) {
-    let best: { s: (typeof stmt)[number]; gap: number } | null = null
+    let best: { s: S; gap: number } | null = null
     for (const s of stmt) {
-      if (s.used || s.l.amount !== a.amount) continue
+      if (s.used || UNMATCHABLE.has(s.l.kind) || s.l.amount !== a.amount) continue
       const gap = dayGap(a.t.occurred_on, s.l.iso)
       if (gap > MATCH_WINDOW_DAYS) continue
       if (!best || gap < best.gap) best = { s, gap }
     }
-    if (best) {
-      best.s.used = true
-      a.used = true
-    }
+    if (best) pairOneToOne(a, best.s)
   }
-  // Vòng 2: bỏ giới hạn ngày, vẫn trong cùng kỳ. Sao kê hay dời ngày vài hôm.
+  // Vòng 2: bỏ giới hạn ngày nhưng đòi CÙNG KỲ. Sao kê hay dời ngày vài hôm.
   for (const a of led) {
     if (a.used) continue
-    const s = stmt.find((s) => !s.used && s.l.amount === a.amount)
-    if (s) {
-      s.used = true
-      a.used = true
-    }
-  }
-
-  const matchedCount = stmt.filter((s) => s.used).length
-  const explained: ReconcileResult['explained'] = []
-  const extraInLedger: ReconcileResult['extraInLedger'] = []
-  const missingFromLedger: StatementLine[] = []
-  const refundDiffs: ReconcileResult['refundDiffs'] = []
-
-  // Dòng của các kỳ LIỀN KỀ, để nhận ra hai nguyên nhân "lệch một kỳ". Đây là lý do
-  // màn nạp cho chọn nhiều file cùng lúc: một file lẻ không đủ dữ kiện.
-  const near = neighbours.flatMap((n) => n.lines.map((l) => ({ l, used: false })))
-
-  for (const a of led) {
-    if (a.used) continue
-    // Hoàn tiền sổ ghi ở kỳ này, nhà thẻ cấn qua 調整額 ở kỳ liền kề.
-    const adj = near.find((n) => !n.used && n.l.isAdjustment && n.l.amount === a.amount)
-    if (adj) {
-      adj.used = true
-      explained.push({ cause: 'refund-shifted', label: `Hoàn tiền nhà thẻ cấn ở kỳ khác`, amount: a.amount })
-      continue
-    }
-    // Cùng một lần mua, hai bên ghi hai ngày, rơi hai kỳ.
-    const edge = near.find(
-      (n) =>
-        !n.used &&
-        !n.l.isAdjustment &&
-        n.l.amount === a.amount &&
-        dayGap(a.t.occurred_on, n.l.iso) <= EDGE_WINDOW_DAYS,
+    const p = periodOf(a.t.occurred_on)
+    if (!p) continue
+    const s = stmt.find(
+      (s) => !s.used && !UNMATCHABLE.has(s.l.kind) && s.closeISO === p.range.closeISO && s.l.amount === a.amount,
     )
-    if (edge) {
-      edge.used = true
-      explained.push({ cause: 'date-edge', label: `${edge.l.name} — thẻ ghi ${edge.l.iso}`, amount: a.amount })
-      continue
-    }
-    // Sổ ghi gộp một dòng, nhà thẻ tách nhiều dòng CÙNG NGÀY — cùng tiền, khác độ mịn.
-    const sameDay = stmt.filter((s) => s.l.iso === a.t.occurred_on)
-    const merged = findMergedSubset(a.amount, sameDay)
-    if (merged) {
-      merged.forEach((m) => (m.used = true))
-      explained.push({
-        cause: 'merged-rows',
-        label: `${merged.map((m) => m.l.name).join(' + ')} — sổ ghi gộp một dòng`,
-        amount: a.amount,
+    if (s) pairOneToOne(a, s)
+  }
+
+  // Luật cho dòng SỔ chưa ghép.
+  for (const a of led) {
+    if (a.used) continue
+    const p = periodOf(a.t.occurred_on)
+    // Hoàn tiền sổ ghi ở kỳ này, nhà thẻ cấn qua 調整額 ở kỳ khác — bất kỳ kỳ nào đã nạp.
+    const adj = stmt.find((s) => !s.used && s.l.kind === 'adjustment' && s.l.amount === a.amount)
+    if (adj) {
+      a.used = true
+      adj.used = true
+      push(adj.closeISO, {
+        ledger: [a.t], lines: [adj.l], cause: 'refund-shifted',
+        label: 'Hoàn tiền nhà thẻ cấn ở kỳ khác', amount: adj.l.amount,
       })
       continue
     }
-    if (a.t.is_refund) {
-      refundDiffs.push({ source: 'ledger', label: a.t.note ?? '', iso: a.t.occurred_on, amount: a.amount })
+    if (!p) continue // ngoài mọi kỳ đã nạp và không ghép được ⇒ không thuộc kỳ nào đang xem
+    // Sổ ghi GỘP một dòng, nhà thẻ TÁCH nhiều dòng CÙNG NGÀY — cùng tiền, khác độ mịn.
+    const sameDay = stmt.filter(
+      (s) => !s.used && s.l.kind === 'purchase' && s.closeISO === p.range.closeISO && s.l.iso === a.t.occurred_on,
+    )
+    const merged = findSubset(a.amount, sameDay, (s) => s.l.amount, 2, 4)
+    if (merged) {
+      a.used = true
+      merged.forEach((s) => (s.used = true))
+      push(p.range.closeISO, {
+        ledger: [a.t], lines: merged.map((s) => s.l), cause: 'merged-rows',
+        label: `${merged.map((s) => s.l.name).join(' + ')} — sổ ghi gộp một dòng`, amount: a.amount,
+      })
       continue
     }
-    extraInLedger.push({ tx: a.t, amount: a.amount })
+    const r = out.get(p.range.closeISO)!
+    if (a.t.is_refund) {
+      r.refundDiffs.push({ source: 'ledger', label: a.t.note ?? '', iso: a.t.occurred_on, amount: a.amount })
+    } else {
+      r.extraInLedger.push({ tx: a.t, amount: a.amount })
+    }
   }
 
+  // Luật cho dòng THẺ chưa ghép.
   for (const s of stmt) {
     if (s.used) continue
-    if (isTopUp(s.l)) {
-      explained.push({ cause: 'wallet-topup', label: 'Nạp ví PayPay bằng thẻ', amount: s.l.amount })
-      continue
+    const r = out.get(s.closeISO)!
+    switch (s.l.kind) {
+      case 'recalculated':
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'recalculated', label: `${s.l.name} — nhà thẻ tính lại`, amount: s.l.amount })
+        break
+      case 'adjustment':
+        r.refundDiffs.push({ source: 'statement', label: s.l.name, iso: s.l.iso, amount: s.l.amount })
+        break
+      default:
+        r.missingFromLedger.push(s.l)
     }
-    if (isRecalculated(s.l)) {
-      explained.push({ cause: 'recalculated', label: `${s.l.name} — nhà thẻ tính lại`, amount: s.l.amount })
-      continue
-    }
-    if (s.l.isAdjustment) {
-      refundDiffs.push({ source: 'statement', label: s.l.name, iso: s.l.iso, amount: s.l.amount })
-      continue
-    }
-    missingFromLedger.push(s.l)
   }
 
-  return { matchedCount, extraInLedger, missingFromLedger, refundDiffs, explained }
+  return out
 }

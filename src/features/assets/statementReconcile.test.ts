@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { reconcileStatement, type LedgerTx } from './statementReconcile'
-import type { StatementLine } from './paypayStatement'
+import { reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
+import type { MergedStatement } from './statementBatch'
+import type { LineKind, StatementLine } from './statementLine'
 import { CARD_RECONCILE_NOTE } from './reconcile'
 
 const CARD = 'card-1'
-const line = (iso: string, amount: number, name = 'X', isAdjustment = false): StatementLine => ({
-  iso, amount, name, isAdjustment,
+const line = (iso: string, amount: number, name = 'X', kind: LineKind = 'purchase'): StatementLine => ({
+  iso, amount, billed: amount, name, kind, isAdjustment: kind === 'adjustment',
 })
 const tx = (iso: string, amount: number, p: Partial<LedgerTx> = {}): LedgerTx => ({
-  id: `t-${iso}-${amount}`,
+  id: `t-${iso}-${amount}-${Math.random().toString(36).slice(2, 6)}`,
   occurred_on: iso,
   amount,
   type: 'expense',
@@ -17,144 +18,176 @@ const tx = (iso: string, amount: number, p: Partial<LedgerTx> = {}): LedgerTx =>
   note: null,
   ...p,
 })
+/** Kỳ quẹt cả tháng: start = mùng 1, closeISO = cuối tháng, end = mùng 1 tháng sau. */
+const period = (yyyyMM: string, lines: StatementLine[]): MergedStatement => {
+  const [y, m] = yyyyMM.split('-').map(Number)
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
+  return {
+    range: { start: `${yyyyMM}-01`, end: next, closeISO: `${yyyyMM}-${last}`, dueISO: `${next.slice(0, 7)}-27` },
+    total: lines.reduce((s, l) => s + l.billed, 0),
+    parts: [],
+    lines,
+    dueDateMismatch: false,
+  }
+}
+/** Một kỳ, một kết quả — cách gọi ngắn cho các ca không cần lô. */
+const one = (yyyyMM: string, lines: StatementLine[], ledger: LedgerTx[]): ReconcileResult => {
+  const p = period(yyyyMM, lines)
+  return reconcileBatch([p], ledger, CARD).get(p.range.closeISO)!
+}
+const causes = (r: ReconcileResult) => r.explained.map((e) => e.cause)
 
-describe('reconcileStatement', () => {
-  it('ghep duoc thi khong ai vao danh sach lech', () => {
-    const r = reconcileStatement([line('2026-06-02', 4950)], [tx('2026-06-02', 4950)], CARD, [])
+describe('reconcileBatch — ghep 1-1', () => {
+  it('ghep duoc thi khong ai vao danh sach lech, va co mot cap khong cause', () => {
+    const r = one('2026-06', [line('2026-06-02', 4950)], [tx('2026-06-02', 4950)])
     expect(r.matchedCount).toBe(1)
     expect(r.extraInLedger).toHaveLength(0)
     expect(r.missingFromLedger).toHaveLength(0)
+    expect(r.pairs).toHaveLength(1)
+    expect(r.pairs[0].cause).toBeUndefined()
   })
 
   it('lech ngay trong 4 ngay van ghep', () => {
-    const r = reconcileStatement([line('2026-06-07', 2200)], [tx('2026-06-06', 2200)], CARD, [])
-    expect(r.matchedCount).toBe(1)
+    expect(one('2026-06', [line('2026-06-07', 2200)], [tx('2026-06-06', 2200)]).matchedCount).toBe(1)
   })
 
   it('moi dong chi ghep mot lan — so co 4 lan 4950, the co 3', () => {
-    const lines = [line('2026-06-02', 4950), line('2026-06-08', 4950), line('2026-06-16', 4950)]
-    const led = [
-      tx('2026-06-02', 4950), tx('2026-06-08', 4950),
-      tx('2026-06-14', 4950), tx('2026-06-16', 4950),
-    ]
-    const r = reconcileStatement(lines, led, CARD, [])
+    const r = one(
+      '2026-06',
+      [line('2026-06-02', 4950), line('2026-06-08', 4950), line('2026-06-16', 4950)],
+      [tx('2026-06-02', 4950), tx('2026-06-08', 4950), tx('2026-06-14', 4950), tx('2026-06-16', 4950)],
+    )
     expect(r.matchedCount).toBe(3)
     expect(r.extraInLedger).toHaveLength(1)
   })
 
+  it('vong 2: cung ky, cach xa hon 4 ngay van ghep', () => {
+    expect(one('2026-06', [line('2026-06-25', 700)], [tx('2026-06-03', 700)]).matchedCount).toBe(1)
+  })
+
   it('hoan tien trong so mang dau am (is_refund, KHONG phai income)', () => {
-    const r = reconcileStatement(
-      [line('2026-03-06', -539, '調整額 · ChargeSPOT', true)],
-      [tx('2026-03-27', 539, { is_refund: true })],
-      CARD, [],
-    )
+    const r = one('2026-03', [line('2026-03-06', -539, '調整額 · ChargeSPOT', 'adjustment')], [tx('2026-03-27', 539, { is_refund: true })])
     expect(r.matchedCount).toBe(1)
   })
 
+  it('income tren the mang dau am, khong ghep nham voi mot khoan chi that', () => {
+    const r = one('2026-06', [line('2026-06-05', 5000, 'Mot khoan chi that')], [tx('2026-06-05', 5000, { type: 'income' })])
+    expect(r.matchedCount).toBe(0)
+    expect(r.missingFromLedger).toHaveLength(1)
+    expect(r.extraInLedger).toHaveLength(1)
+  })
+
   it('loai tra no the va khoan Dieu chinh so no khoi ro so', () => {
-    const led = [
+    const r = one('2026-06', [], [
       tx('2026-06-05', 50000, { type: 'transfer', to_account_id: CARD }),
       tx('2026-06-06', 92158, { note: CARD_RECONCILE_NOTE }),
-    ]
-    const r = reconcileStatement([], led, CARD, [])
+    ])
     expect(r.extraInLedger).toHaveLength(0)
   })
 
-  it('nhan ra hoan tien lech ky: khop mot 調整額 o ky lien ke', () => {
-    const r = reconcileStatement(
-      [], [tx('2026-02-03', 961, { is_refund: true })], CARD,
-      [{ lines: [line('2026-01-03', -961, '調整額 · 極楽茶屋', true)] }],
+  it('dong so nam NGOAI moi ky da nap va khong ghep duoc thi bo qua, khong bao', () => {
+    const r = reconcileBatch([period('2026-06', [])], [tx('2026-03-03', 999)], CARD)
+    expect(r.get('2026-06-30')!.extraInLedger).toHaveLength(0)
+  })
+})
+
+describe('reconcileBatch — cap ghep khac ky', () => {
+  it('date-edge: so 30/06, the 03/07 (ky 7) — ky 6 khong con so thua, ky 7 co hang date-edge', () => {
+    const r = reconcileBatch(
+      [period('2026-06', []), period('2026-07', [line('2026-07-03', 5060, 'ユニクロオンラインストア')])],
+      [tx('2026-06-30', 5060)],
+      CARD,
     )
-    expect(r.extraInLedger).toHaveLength(0)
-    expect(r.explained.map((e) => e.cause)).toEqual(['refund-shifted'])
+    expect(r.get('2026-06-30')!.extraInLedger).toHaveLength(0)
+    expect(causes(r.get('2026-07-31')!)).toEqual(['date-edge'])
+    expect(r.get('2026-07-31')!.missingFromLedger).toHaveLength(0)
   })
 
-  it('nhan ra nap vi PayPay', () => {
-    const r = reconcileStatement([line('2026-01-08', 4000, 'チャージ')], [], CARD, [])
+  it('date-edge phai gan ranh gioi, khong khop bua theo so tien qua vong 1 (>4 ngay, khac ky)', () => {
+    const r = reconcileBatch(
+      [period('2026-06', []), period('2026-07', [line('2026-07-28', 5060, 'ユニクロ')])],
+      [tx('2026-06-01', 5060)],
+      CARD,
+    )
+    expect(r.get('2026-06-30')!.extraInLedger).toHaveLength(1)
+    expect(r.get('2026-07-31')!.missingFromLedger).toHaveLength(1)
+  })
+
+  it('late-posting: ETC quet 17/05 nam trong hoa don ky 6 (quet thang 6), so co dong 17/05', () => {
+    const r = reconcileBatch(
+      [period('2026-05', []), period('2026-06', [line('2026-05-17', 300, 'ＥＴＣカード売上')])],
+      [tx('2026-05-17', 300, { note: 'ETC 利用料' })],
+      CARD,
+    )
+    expect(r.get('2026-05-31')!.extraInLedger).toHaveLength(0)
+    expect(causes(r.get('2026-06-30')!)).toEqual(['late-posting'])
+  })
+
+  it('late-posting khi so nam ngoai moi ky da nap van ghep duoc', () => {
+    const r = reconcileBatch(
+      [period('2026-06', [line('2026-05-17', 300, 'ＥＴＣカード売上')])],
+      [tx('2026-05-17', 300)],
+      CARD,
+    )
+    expect(causes(r.get('2026-06-30')!)).toEqual(['late-posting'])
+  })
+
+  it('mot dong so khong bao gio ghep hai dong the o hai ky', () => {
+    const r = reconcileBatch(
+      [period('2026-06', [line('2026-06-30', 1000)]), period('2026-07', [line('2026-07-01', 1000)])],
+      [tx('2026-06-30', 1000)],
+      CARD,
+    )
+    const matched = r.get('2026-06-30')!.matchedCount + r.get('2026-07-31')!.matchedCount
+    expect(matched).toBe(1)
+    expect(r.get('2026-06-30')!.missingFromLedger.length + r.get('2026-07-31')!.missingFromLedger.length).toBe(1)
+  })
+})
+
+describe('reconcileBatch — luat giai thich duoc (PayPay)', () => {
+  it('refund-shifted: hoan tien so ky 2, nha the can 調整額 ky 1', () => {
+    const r = reconcileBatch(
+      [period('2026-01', [line('2026-01-03', -961, '調整額 · 極楽茶屋', 'adjustment')]), period('2026-02', [])],
+      [tx('2026-02-03', 961, { is_refund: true })],
+      CARD,
+    )
+    expect(r.get('2026-02-28')!.extraInLedger).toHaveLength(0)
+    expect(r.get('2026-02-28')!.refundDiffs).toHaveLength(0)
+    expect(causes(r.get('2026-01-31')!)).toEqual(['refund-shifted'])
+  })
+
+  it('recalculated: dong （再計算） khong co trong so', () => {
+    const r = one('2026-05', [line('2026-05-31', 3476, 'ＴＥＭＵ（再計算）', 'recalculated')], [])
     expect(r.missingFromLedger).toHaveLength(0)
-    expect(r.explained.map((e) => e.cause)).toEqual(['wallet-topup'])
-  })
-
-  it('nhan ra lech ranh gioi ngay: khop mot dong the o ky lien ke', () => {
-    const r = reconcileStatement(
-      [], [tx('2026-06-30', 5060)], CARD,
-      [{ lines: [line('2026-07-03', 5060, 'ユニクロオンラインストア')] }],
-    )
-    expect(r.extraInLedger).toHaveLength(0)
-    expect(r.explained.map((e) => e.cause)).toEqual(['date-edge'])
-  })
-
-  it('nhan ra dong 再計算', () => {
-    const r = reconcileStatement([line('2026-05-31', 3476, 'ＴＥＭＵ（再計算）')], [], CARD, [])
-    expect(r.missingFromLedger).toHaveLength(0)
-    expect(r.explained.map((e) => e.cause)).toEqual(['recalculated'])
-  })
-
-  it('ten chi CHUA chu チャージ thi KHONG duoc coi la nap vi', () => {
-    const r = reconcileStatement([line('2026-01-08', 4000, 'モバイルＳｕｉｃａチャージ')], [], CARD, [])
-    expect(r.explained).toHaveLength(0)
-    expect(r.missingFromLedger).toHaveLength(1)
-  })
-
-  it('（再計算） phai la HAU TO moi tinh', () => {
-    const r = reconcileStatement([line('2026-05-31', 3476, '（再計算）ＴＥＭＵ')], [], CARD, [])
-    expect(r.explained).toHaveLength(0)
-    expect(r.missingFromLedger).toHaveLength(1)
-  })
-
-  it('date-edge phai gan nhau ve thoi gian, khong khop bua theo so tien', () => {
-    const r = reconcileStatement(
-      [], [tx('2026-06-01', 5060)], CARD,
-      [{ lines: [line('2026-07-28', 5060, 'ユニクロオンラインストア')] }],
-    )
-    expect(r.explained).toHaveLength(0)
-    expect(r.extraInLedger).toHaveLength(1)
+    expect(causes(r)).toEqual(['recalculated'])
   })
 
   it('dong 調整額 khong khop di vao nhom hoan tien rieng, khong vao "can xem"', () => {
-    const r = reconcileStatement([line('2026-01-03', -7951, '調整額 · 極楽茶屋', true)], [], CARD, [])
+    const r = one('2026-01', [line('2026-01-03', -7951, '調整額 · 極楽茶屋', 'adjustment')], [])
     expect(r.missingFromLedger).toHaveLength(0)
-    expect(r.refundDiffs).toEqual([
-      { source: 'statement', label: '調整額 · 極楽茶屋', iso: '2026-01-03', amount: -7951 },
-    ])
+    expect(r.refundDiffs).toEqual([{ source: 'statement', label: '調整額 · 極楽茶屋', iso: '2026-01-03', amount: -7951 }])
   })
 
   it('dong hoan tien trong so khong khop di vao nhom hoan tien rieng', () => {
-    const r = reconcileStatement([], [tx('2026-01-28', 6990, { is_refund: true, note: 'Uniqlo hoan' })], CARD, [])
+    const r = one('2026-01', [], [tx('2026-01-28', 6990, { is_refund: true, note: 'Uniqlo hoan' })])
     expect(r.extraInLedger).toHaveLength(0)
-    expect(r.refundDiffs).toHaveLength(1)
     expect(r.refundDiffs[0]).toMatchObject({ source: 'ledger', amount: -6990 })
   })
 
-  it('so ghi gop mot dong, the tach hai dong cung ngay -> giai thich duoc', () => {
-    const r = reconcileStatement(
-      [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-18', 732, 'ＴＥＭＵ')],
-      [tx('2026-06-18', 5880)],
-      CARD, [],
-    )
+  it('merged-rows: so ghi gop mot dong, the tach hai dong cung ngay', () => {
+    const r = one('2026-06', [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-18', 732, 'ＴＥＭＵ')], [tx('2026-06-18', 5880)])
     expect(r.extraInLedger).toHaveLength(0)
     expect(r.missingFromLedger).toHaveLength(0)
-    expect(r.explained.map((e) => e.cause)).toContain('merged-rows')
+    expect(causes(r)).toContain('merged-rows')
+    const p = r.pairs.find((p) => p.cause === 'merged-rows')!
+    expect(p.lines).toHaveLength(2)
+    expect(p.ledger).toHaveLength(1)
   })
 
   it('tong khop nhung KHAC NGAY thi KHONG duoc gop', () => {
-    const r = reconcileStatement(
-      [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-20', 732, 'ＴＥＭＵ')],
-      [tx('2026-06-18', 5880)],
-      CARD, [],
-    )
-    expect(r.explained.map((e) => e.cause)).not.toContain('merged-rows')
-    expect(r.extraInLedger).toHaveLength(1)
-  })
-
-  it('income tren the mang dau am, khong ghep nham voi mot khoan chi that', () => {
-    const r = reconcileStatement(
-      [line('2026-06-05', 5000, 'Mot khoan chi that')],
-      [tx('2026-06-05', 5000, { type: 'income' })],
-      CARD, [],
-    )
-    expect(r.matchedCount).toBe(0)
-    expect(r.missingFromLedger).toHaveLength(1)
+    const r = one('2026-06', [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-20', 732, 'ＴＥＭＵ')], [tx('2026-06-18', 5880)])
+    expect(causes(r)).not.toContain('merged-rows')
     expect(r.extraInLedger).toHaveLength(1)
   })
 })

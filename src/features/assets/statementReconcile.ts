@@ -65,7 +65,6 @@ export interface ReconcileResult {
   /**
    * Nạp ví không tìm được nhóm món sổ tương ứng. Gom một cụm, không rải lẻ: ví có số dư nên
    * đây thường KHÔNG phải lỗi sổ, nhưng giấu hẳn thì một tuần quên ghi cũng biến mất.
-   * (Cài ở Task 5; Task 4 luôn rỗng.)
    */
   unmatchedTopups: { count: number; total: number; lines: StatementLine[] }
   pairs: Pair[]
@@ -228,6 +227,30 @@ export function reconcileBatch(
     if (s) pairOneToOne(a, s)
   }
 
+  // Nạp ví (Rakuten Pay, PayPay チャージ) chưa ghép 1-1: sổ ghi TỪNG MÓN tiêu ngày hôm
+  // trước, thẻ ghi MỘT lần nạp hôm sau. Đo thật: nạp 2.376 ngày 22/06 = sổ 21/06 có 1.051 +
+  // 1.325. Chỉ dùng món CHƯA ghép, không hoàn tiền; nhận cả `transfer` từ thẻ ra ví (cách
+  // sổ PayPay ghi một lần nạp — ghép 1 dòng : 1 transfer ở đây, không qua vòng 1). Thử
+  // D−1 trước rồi D.
+  const shift = (iso: string, days: number) => new Date(Date.parse(iso) + days * DAY).toISOString().slice(0, 10)
+  for (const s of stmt) {
+    if (s.used || s.l.kind !== 'topup') continue
+    for (const day of [shift(s.l.iso, -1), s.l.iso]) {
+      const pool = led.filter(
+        (a) => !a.used && !a.t.is_refund && (a.t.type === 'expense' || a.t.type === 'transfer') && a.t.occurred_on === day,
+      )
+      const group = findSubset(s.l.amount, pool, (a) => a.amount, 1, 4)
+      if (!group) continue
+      s.used = true
+      group.forEach((a) => (a.used = true))
+      push(s.closeISO, {
+        ledger: group.map((a) => a.t), lines: [s.l], cause: 'wallet-topup',
+        label: `Nạp ví Rakuten Pay = ${group.length} món sổ ngày ${dayLabel(day)}`, amount: s.l.amount,
+      })
+      break
+    }
+  }
+
   // Luật cho dòng SỔ chưa ghép.
   for (const a of led) {
     if (a.used) continue
@@ -280,6 +303,17 @@ export function reconcileBatch(
         break
       case 'adjustment':
         r.refundDiffs.push({ source: 'statement', label: s.l.name, iso: s.l.iso, amount: s.l.amount })
+        break
+      case 'topup':
+        r.unmatchedTopups.count++
+        r.unmatchedTopups.total += s.l.amount
+        r.unmatchedTopups.lines.push(s.l)
+        break
+      case 'installment-later':
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'installment', label: `${s.l.name} — trả góp lần sau, sổ đã ghi cả món`, amount: s.l.amount })
+        break
+      case 'investment':
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'investment', label: `${s.l.name} — mua quỹ, theo dõi riêng`, amount: s.l.amount })
         break
       default:
         r.missingFromLedger.push(s.l)

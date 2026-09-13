@@ -169,15 +169,16 @@ describe('reconcileBatch — cap ghep khac ky', () => {
 })
 
 describe('reconcileBatch — UNMATCHABLE', () => {
-  it('dong topup khong duoc ghep vong 1/2, unmatchedTopups van rong o Task 4', () => {
+  it('dong topup khong duoc ghep vong 1/2, nhung duoc luat nap vi giai thich thay vi vao can xem', () => {
     const r = one(
       '2026-06',
       [line('2026-06-15', 1485, '楽天キャッシュ　チャージ', 'topup')],
       [tx('2026-06-15', 1485)],
     )
     expect(r.matchedCount).toBe(0)
-    expect(r.extraInLedger).toHaveLength(1)
-    expect(r.missingFromLedger).toHaveLength(1)
+    expect(causes(r)).toEqual(['wallet-topup'])
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.missingFromLedger).toHaveLength(0)
     expect(r.unmatchedTopups.count).toBe(0)
   })
 
@@ -251,5 +252,81 @@ describe('reconcileBatch — luat giai thich duoc (PayPay)', () => {
     const r = one('2026-06', [line('2026-06-18', 5148, 'ＴＥＭＵ'), line('2026-06-20', 732, 'ＴＥＭＵ')], [tx('2026-06-18', 5880)])
     expect(causes(r)).not.toContain('merged-rows')
     expect(r.extraInLedger).toHaveLength(1)
+  })
+})
+
+describe('reconcileBatch — luat Rakuten', () => {
+  const topup = (iso: string, amount: number) => line(iso, amount, '楽天キャッシュ　チャージ', 'topup')
+
+  it('wallet-topup: nap ngay D = tong 2 mon so ngay D-1 chua ghep (2376 = 1051 + 1325)', () => {
+    const r = one('2026-06', [topup('2026-06-22', 2376)], [tx('2026-06-21', 1051), tx('2026-06-21', 1325)])
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.missingFromLedger).toHaveLength(0)
+    expect(r.unmatchedTopups.count).toBe(0)
+    const p = r.pairs.find((p) => p.cause === 'wallet-topup')!
+    expect(p.ledger).toHaveLength(2)
+    expect(p.lines).toHaveLength(1)
+    expect(p.label).toBe('Nạp ví Rakuten Pay = 2 món sổ ngày 21/06')
+  })
+
+  it('wallet-topup chi dung mon CHUA ghep: quet thang the 40680 da ghep, con 1485 moi la nap vi', () => {
+    const r = one(
+      '2026-06',
+      [line('2026-06-22', 40680, 'ﾄｷｳﾞﾃﾂ'), topup('2026-06-23', 1485)],
+      [tx('2026-06-22', 40680), tx('2026-06-22', 1485)],
+    )
+    expect(r.matchedCount).toBe(1)
+    expect(causes(r)).toEqual(['wallet-topup'])
+    expect(r.extraInLedger).toHaveLength(0)
+  })
+
+  it('wallet-topup: khong thay nhom ngay D-1 thi thu CUNG ngay D; nap vi KHONG di qua vong 1', () => {
+    const r = one('2026-06', [topup('2026-06-15', 1230)], [tx('2026-06-15', 1230)])
+    expect(r.matchedCount).toBe(0)
+    expect(causes(r)).toEqual(['wallet-topup'])
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.unmatchedTopups.count).toBe(0)
+  })
+
+  it('nap vi 1485 KHONG an nham khoan chi 1485 cung ngay khi ngay hom truoc co nhom khop', () => {
+    const r = one('2026-06', [topup('2026-06-23', 1485)], [tx('2026-06-22', 1485), tx('2026-06-23', 1485)])
+    const p = r.pairs.find((p) => p.cause === 'wallet-topup')!
+    expect(p.ledger[0].occurred_on).toBe('2026-06-22')
+    expect(r.extraInLedger.map((e) => e.tx.occurred_on)).toEqual(['2026-06-23'])
+  })
+
+  it('wallet-topup: mon so la hoan tien thi KHONG duoc dua vao nhom', () => {
+    const r = one('2026-06', [topup('2026-06-22', 1000)], [tx('2026-06-21', 1000, { is_refund: true })])
+    expect(r.unmatchedTopups.count).toBe(1)
+  })
+
+  it('nap vi khong tim duoc nhom thi vao cum unmatchedTopups, KHONG vao missingFromLedger', () => {
+    const r = one('2026-06', [topup('2026-06-24', 1000), topup('2026-06-20', 2258)], [tx('2026-06-23', 278)])
+    expect(r.missingFromLedger).toHaveLength(0)
+    expect(r.unmatchedTopups).toMatchObject({ count: 2, total: 3258 })
+    expect(r.extraInLedger).toHaveLength(1) // 278 vẫn là "sổ có, thẻ không"
+  })
+
+  it('PayPay チャージ cung theo luat nay: co transfer ra vi trong so thi ghep, khong thi vao cum', () => {
+    const r1 = one('2026-01', [line('2026-01-08', 4000, 'チャージ', 'topup')], [tx('2026-01-08', 4000, { type: 'transfer', to_account_id: 'wallet' })])
+    expect(causes(r1)).toEqual(['wallet-topup'])
+    expect(r1.extraInLedger).toHaveLength(0)
+    expect(r1.unmatchedTopups.count).toBe(0)
+    const r2 = one('2026-01', [line('2026-01-08', 4000, 'チャージ', 'topup')], [])
+    expect(r2.missingFromLedger).toHaveLength(0)
+    expect(r2.unmatchedTopups.count).toBe(1)
+  })
+
+  it('installment: dong tra gop lan 2 giai thich duoc, khong ghep voi ai', () => {
+    const r = one('2026-03', [line('2026-02-09', 4734, 'AMAZON.CO.JP', 'installment-later')], [tx('2026-02-09', 4734)])
+    expect(causes(r)).toEqual(['installment'])
+    expect(r.explained[0].label).toBe('AMAZON.CO.JP — trả góp lần sau, sổ đã ghi cả món')
+    expect(r.matchedCount).toBe(0)
+  })
+
+  it('investment: 楽天証券 giai thich duoc', () => {
+    const r = one('2026-06', [line('2026-06-01', 68000, '楽天証券投信積立', 'investment')], [])
+    expect(causes(r)).toEqual(['investment'])
+    expect(r.explained[0].label).toBe('楽天証券投信積立 — mua quỹ, theo dõi riêng')
   })
 })

@@ -197,10 +197,12 @@ export function reconcileBatch(
   }
 
   // Vòng 1: mọi cặp (thẻ, sổ) cùng số tiền, lệch ngày ≤ cửa sổ, BẤT KỂ kỳ — chọn theo ĐỘ
-  // LỆCH NHỎ NHẤT TOÀN CỤC, không tham lam theo thứ tự mảng `ledger`. `ledger` luôn tới theo
-  // ngày tăng dần, nên xét từng dòng thẻ một và chọn ứng viên đầu tiên vừa mắt sẽ để một dòng
-  // thẻ NGÀY SỚM HƠN (nhưng khác kỳ với dòng sổ) giành quyền chọn trước một dòng thẻ ngày
-  // muộn hơn — dù dòng sau mới thực sự khớp (gap nhỏ hơn, đúng kỳ của dòng sổ).
+  // LỆCH NHỎ NHẤT TOÀN CỤC, không tham lam theo thứ tự mảng `ledger`. `ledger` tới theo thứ
+  // tự ngày (thực tế: `supabaseRepo.searchTransactions` sắp GIẢM DẦN theo `occurred_on`), dù
+  // tăng hay giảm dần thì xét tham lam từng dòng sổ một và chọn ứng viên đầu tiên vừa mắt vẫn
+  // để một dòng sổ KHÁC KỲ với dòng thẻ giành quyền chọn trước một dòng sổ đến sau trong mảng
+  // — dù dòng sau mới thực sự khớp (gap nhỏ hơn, đúng kỳ của dòng thẻ). Vì vậy phải sắp toàn
+  // cục theo độ lệch trước khi ghép, không xử lý tuần tự theo thứ tự mảng.
   const candidates: { a: L; s: S; gap: number; inside: boolean }[] = []
   for (const a of led) {
     for (const s of stmt) {
@@ -243,9 +245,10 @@ export function reconcileBatch(
       if (!group) continue
       s.used = true
       group.forEach((a) => (a.used = true))
+      const wallet = s.l.name.normalize('NFKC').includes('楽天') ? 'Rakuten Pay' : 'PayPay'
       push(s.closeISO, {
         ledger: group.map((a) => a.t), lines: [s.l], cause: 'wallet-topup',
-        label: `Nạp ví Rakuten Pay = ${group.length} món sổ ngày ${dayLabel(day)}`, amount: s.l.amount,
+        label: `Nạp ví ${wallet} = ${group.length} món sổ ngày ${dayLabel(day)}`, amount: s.l.amount,
       })
       break
     }
@@ -272,8 +275,15 @@ export function reconcileBatch(
     }
     if (!p) continue // ngoài mọi kỳ đã nạp và không ghép được ⇒ không thuộc kỳ nào đang xem
     // Sổ ghi GỘP một dòng, nhà thẻ TÁCH nhiều dòng CÙNG NGÀY — cùng tiền, khác độ mịn.
+    // Cùng dấu với dòng sổ: Rakuten ghi hoàn tiền là dòng `purchase` ÂM, 3.000 + (−2.000)
+    // không được phép "giải thích" một khoản 1.000.
     const sameDay = stmt.filter(
-      (s) => !s.used && s.l.kind === 'purchase' && s.closeISO === p.range.closeISO && s.l.iso === a.t.occurred_on,
+      (s) =>
+        !s.used &&
+        s.l.kind === 'purchase' &&
+        s.closeISO === p.range.closeISO &&
+        s.l.iso === a.t.occurred_on &&
+        Math.sign(s.l.amount) === Math.sign(a.amount),
     )
     const merged = findSubset(a.amount, sameDay, (s) => s.l.amount, 2, 4)
     if (merged) {

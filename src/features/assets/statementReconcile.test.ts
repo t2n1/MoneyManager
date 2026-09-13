@@ -253,6 +253,16 @@ describe('reconcileBatch — luat giai thich duoc (PayPay)', () => {
     expect(causes(r)).not.toContain('merged-rows')
     expect(r.extraInLedger).toHaveLength(1)
   })
+
+  it('merged-rows khong duoc tron dau: 3000 + (-2000) khong duoc "giai thich" mot khoan 1000', () => {
+    const r = one(
+      '2026-06',
+      [line('2026-06-18', 3000, 'ＴＥＭＵ'), line('2026-06-18', -2000, 'ＴＥＭＵ hoan')],
+      [tx('2026-06-18', 1000)],
+    )
+    expect(causes(r)).not.toContain('merged-rows')
+    expect(r.extraInLedger).toHaveLength(1)
+  })
 })
 
 describe('reconcileBatch — luat Rakuten', () => {
@@ -312,6 +322,7 @@ describe('reconcileBatch — luat Rakuten', () => {
     expect(causes(r1)).toEqual(['wallet-topup'])
     expect(r1.extraInLedger).toHaveLength(0)
     expect(r1.unmatchedTopups.count).toBe(0)
+    expect(r1.pairs.find((p) => p.cause === 'wallet-topup')!.label.startsWith('Nạp ví PayPay')).toBe(true)
     const r2 = one('2026-01', [line('2026-01-08', 4000, 'チャージ', 'topup')], [])
     expect(r2.missingFromLedger).toHaveLength(0)
     expect(r2.unmatchedTopups.count).toBe(1)

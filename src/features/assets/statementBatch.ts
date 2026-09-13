@@ -47,7 +47,7 @@ export function mergeStatements(parsed: ParsedStatement[]): MergedStatement[] {
         range: sorted[0].range,
         total: sorted.reduce((s, p) => s + p.total, 0),
         parts: sorted.map((p) => ({ source: p.source, sourceLabel: p.sourceLabel, total: p.total })),
-        lines: sorted.flatMap((p) => p.lines),
+        lines: sorted.flatMap((p) => p.lines.map((l) => ({ ...l, source: p.source }))),
         dueDateMismatch: sorted.some((p) => p.dueDateMismatch),
       }
     })

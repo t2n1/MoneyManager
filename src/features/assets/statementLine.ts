@@ -36,6 +36,8 @@ export interface StatementLine {
   kind: LineKind
   /** @deprecated tương thích Đợt 1 — bằng `kind === 'adjustment'`. Xoá ở Đợt 4. */
   isAdjustment: boolean
+  /** Nguồn (đuôi thẻ) — mergeStatements gắn khi gộp nhiều nguồn; reader không cần điền. */
+  source?: string
 }
 
 export interface ParsedStatement {
@@ -57,11 +59,14 @@ export interface ParsedStatement {
   sourceLabel: string
 }
 
-/** Đuôi 4 số trong ngoặc của tên file nhà thẻ; không có thì tên file bỏ đuôi mở rộng. */
+/**
+ * Đuôi 4 số trong ngoặc của tên file nhà thẻ; không có ngoặc thì trả chuỗi rỗng — file
+ * không đánh đuôi không tách được nguồn, nên coi các bản cùng kỳ là CÙNG một nguồn
+ * (bản nạp sau thắng) thay vì cộng đôi hoá đơn.
+ */
 export function sourceFromFileName(fileName: string): string {
   const m = fileName.match(/\((\d{4})\)/)
-  if (m) return m[1]
-  return fileName.replace(/\.[^.]+$/, '')
+  return m ? m[1] : ''
 }
 
 /** Bảng đuôi → tên chỉ là NHÃN hiển thị của người dùng này; không có trong DB. */
@@ -72,6 +77,7 @@ const KNOWN_LABELS: Record<string, string> = {
 }
 
 export function sourceLabelFor(source: string): string {
+  if (source === '') return ''
   if (KNOWN_LABELS[source]) return KNOWN_LABELS[source]
   if (/^\d{4}$/.test(source)) return `Thẻ ····${source}`
   return source

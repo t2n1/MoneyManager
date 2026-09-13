@@ -1,7 +1,9 @@
 // Một cửa cho màn nạp: thử từng bộ đọc, bộ nào nhận thì lấy.
 //
-// Mỗi bộ đọc tự kiểm dòng tiêu đề (PayPay đòi `決済方法`, Rakuten đòi `新規サイン`) nên
-// không nhận nhầm nhau; thứ tự thử không quan trọng. Thêm nhà thẻ = thêm một dòng.
+// Mỗi bộ đọc tự kiểm dòng tiêu đề nên không nhận nhầm nhau: PayPay đòi cột `決済方法`
+// (Rakuten không có), còn Rakuten đòi cột `利用日` KHỚP TUYỆT ĐỐI (PayPay chỉ có
+// `利用日/キャンセル日`, không khớp). Vì vậy thứ tự thử không quan trọng. Thêm nhà thẻ =
+// thêm một dòng.
 
 import { parsePaypayStatement } from './paypayStatement'
 import { parseRakutenStatement } from './rakutenStatement'

@@ -6,8 +6,8 @@ describe('sourceFromFileName', () => {
     expect(sourceFromFileName('enavi202607(3737) (1).csv')).toBe('3737')
     expect(sourceFromFileName('detail202607(4342).csv')).toBe('4342')
   })
-  it('khong co ngoac thi dung ten file bo duoi', () => {
-    expect(sourceFromFileName('sao-ke-thang-7.csv')).toBe('sao-ke-thang-7')
+  it('khong co ngoac thi tra chuoi rong (khong tach duoc nguon)', () => {
+    expect(sourceFromFileName('sao-ke-thang-7.csv')).toBe('')
   })
   it('ten rong thi tra chuoi rong, khong vo', () => {
     expect(sourceFromFileName('')).toBe('')
@@ -23,7 +23,7 @@ describe('sourceLabelFor', () => {
   it('duoi 4 so la thi ghi The ····NNNN', () => {
     expect(sourceLabelFor('9999')).toBe('Thẻ ····9999')
   })
-  it('khong phai 4 so thi giu nguyen', () => {
-    expect(sourceLabelFor('sao-ke-thang-7')).toBe('sao-ke-thang-7')
+  it('chuoi rong thi tra chuoi rong', () => {
+    expect(sourceLabelFor('')).toBe('')
   })
 })

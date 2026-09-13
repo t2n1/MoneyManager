@@ -45,6 +45,20 @@ describe('mergeStatements', () => {
   it('rong thi rong', () => {
     expect(mergeStatements([])).toEqual([])
   })
+
+  it('hai nguon mot ky thi moi dong ghep gan dung source cua phan no den tu', () => {
+    const out = mergeStatements([st('2026-06-30', '3737', 165429), st('2026-06-30', '2565', 880)])
+    expect(out[0].lines.every((l) => l.source === l.name)).toBe(true)
+    expect(out[0].lines.find((l) => l.name === '3737')!.source).toBe('3737')
+    expect(out[0].lines.find((l) => l.name === '2565')!.source).toBe('2565')
+  })
+
+  it('hai file cung ky khong duoi (source rong) thi COI LA CUNG NGUON, ban sau thang', () => {
+    const out = mergeStatements([st('2026-06-30', '', 100), st('2026-06-30', '', 200)])
+    expect(out).toHaveLength(1)
+    expect(out[0].total).toBe(200)
+    expect(out[0].parts).toHaveLength(1)
+  })
 })
 
 describe('billRowsFor', () => {

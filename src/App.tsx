@@ -30,6 +30,9 @@ const TuongLaiPage = lazy(() =>
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
 )
+const StatementReconcilePage = lazy(() =>
+  import('./features/assets/StatementReconcilePage').then((m) => ({ default: m.StatementReconcilePage })),
+)
 const RetirementPage = lazy(() =>
   import('./features/assets/RetirementPage').then((m) => ({ default: m.RetirementPage })),
 )
@@ -192,6 +195,7 @@ function AppRoutes() {
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/quyen-loi" element={lazyRoute(<QuyenLoiPage />)} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
+          <Route path="/assets/account/:accountId/sao-ke" element={lazyRoute(<StatementReconcilePage />, 'table')} />
           <Route path="/assets/retirement" element={lazyRoute(<RetirementPage />)} />
           <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />
           <Route path="/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />

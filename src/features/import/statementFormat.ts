@@ -44,7 +44,12 @@ const FORMATS: FormatSpec[] = [
     // Khoản mua = số dương, giống PayPay.
     negativeIsExpense: false,
     dateOrder: 'ymd',
-    needles: ['利用日', '利用店名・商品名', '新規サイン'],
+    // Không dùng `利用日`: header PayPay là `利用日/キャンセル日`, mà `norm` so khớp
+    // kiểu includes nên vẫn dính. Mọi header enavi (10/11/12 cột) đều có cột
+    // `N月繰越残高`; PayPay cũng có cột "繰越" nhưng tên là `翌月以降繰越金額`
+    // (繰越金額, không phải 繰越残高) ⇒ cặp này tách được hai bên, kể cả bản 12 cột
+    // không có `新規サイン`.
+    needles: ['利用店名・商品名', '繰越残高'],
   },
 ]
 

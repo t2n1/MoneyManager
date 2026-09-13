@@ -46,4 +46,14 @@ describe('detectStatementFormat', () => {
     expect(detectStatementFormat([PAYPAY_HEADER])?.id).toBe('paypay')
     expect(detectStatementFormat([RAKUTEN_HEADER])?.id).not.toBe('paypay')
   })
+
+  /** Header 12 cột như enavi202609(3737): không có 新規サイン (đã bị thay bằng 支払月 / N月以降請求額). */
+  const RAKUTEN_HEADER_12 = [
+    '﻿利用日', '利用店名・商品名', '利用者', '支払方法', '利用金額',
+    '手数料/利息', '支払総額', '支払月', '9月支払金額', '当月請求額', '10月繰越残高', '10月以降請求額',
+  ]
+
+  it('nhận ra header 12 cột không có 新規サイン là Rakuten', () => {
+    expect(detectStatementFormat([RAKUTEN_HEADER_12])?.id).toBe('rakuten')
+  })
 })

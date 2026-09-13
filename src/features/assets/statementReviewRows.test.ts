@@ -49,6 +49,15 @@ describe('reviewRows', () => {
   it('ket qua rong thi khong hang nao', () => {
     expect(reviewRows(emptyResult(), '2026-06-30')).toEqual([])
   })
+
+  it('hoan tien so co tx goc thi hang ledger mang tx that (co id, co Sua)', () => {
+    const r = emptyResult()
+    const t = tx('2026-01-28', 6990, { is_refund: true, note: 'Uniqlo hoan' })
+    r.refundDiffs.push({ source: 'ledger', label: 'Uniqlo hoan', iso: '2026-01-28', amount: -6990, tx: t })
+    const row = reviewRows(r, '2026-01-31')[0]
+    expect(row.kind).toBe('ledger')
+    if (row.kind === 'ledger') { expect(row.tx).toBe(t); expect(row.refund).toBe(true); expect(row.amount).toBe(-6990) }
+  })
 })
 
 describe('prefillFromLine', () => {

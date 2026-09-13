@@ -40,12 +40,13 @@ export function reviewRows(result: ReconcileResult, closeISO: string): ReviewRow
   }
   result.refundDiffs.forEach((d, i) => {
     if (d.source === 'ledger') {
-      // refundDiffs không giữ LedgerTx gốc — dựng lại đủ trường phép sửa cần: id không có,
-      // nên hàng này KHÔNG có nút Sửa (xem trang). Giữ amount âm để tone đúng.
+      // Có `d.tx` (khoản hoàn ghi trong sổ không khớp mạng) ⇒ tx thật, có id ⇒ trang hiện
+      // nút Sửa. Không có (dòng 調整額 phía thẻ, không phải giao dịch sổ) thì dựng tx giả
+      // id rỗng — hàng này KHÔNG có nút Sửa (xem trang). Giữ amount âm để tone đúng.
       rows.push({
         kind: 'ledger',
         key: `refund-led-${closeISO}-${i}`,
-        tx: { id: '', occurred_on: d.iso, amount: Math.abs(d.amount), type: 'expense', is_refund: true, to_account_id: null, note: d.label },
+        tx: d.tx ?? { id: '', occurred_on: d.iso, amount: Math.abs(d.amount), type: 'expense', is_refund: true, to_account_id: null, note: d.label },
         amount: d.amount,
         refund: true,
       })

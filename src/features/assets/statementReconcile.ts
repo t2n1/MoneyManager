@@ -59,9 +59,15 @@ export interface ReconcileResult {
    * một khoản hoàn người dùng QUÊN ghi cũng rơi vào đây, giấu đi là phản lại lý do tồn tại
    * của cả màn này.
    */
-  refundDiffs: { source: 'ledger' | 'statement'; label: string; iso: string; amount: number }[]
+  refundDiffs: { source: 'ledger' | 'statement'; label: string; iso: string; amount: number; tx?: LedgerTx }[]
   /** Dẫn xuất từ `pairs` có `cause`. */
   explained: { cause: ExplainedCause; label: string; amount: number }[]
+  /**
+   * Σ signedAmount của dòng sổ inScope có occurred_on trong [range.start, range.end) — bất kể
+   * ghép hay không. Cùng rổ với cardMonthCharge: KHÔNG tính transfer trả nợ thẻ và note
+   * CARD_RECONCILE_NOTE.
+   */
+  ledgerTotal: number
   /**
    * Nạp ví không tìm được nhóm món sổ tương ứng. Gom một cụm, không rải lẻ: ví có số dư nên
    * đây thường KHÔNG phải lỗi sổ, nhưng giấu hẳn thì một tuần quên ghi cũng biến mất.
@@ -77,6 +83,7 @@ export function emptyResult(): ReconcileResult {
     missingFromLedger: [],
     refundDiffs: [],
     explained: [],
+    ledgerTotal: 0,
     unmatchedTopups: { count: 0, total: 0, lines: [] },
     pairs: [],
   }
@@ -168,6 +175,13 @@ export function reconcileBatch(
 
   /** Kỳ chứa một ngày sổ, theo [start, end). Ngoài mọi kỳ đã nạp ⇒ undefined. */
   const periodOf = (iso: string) => statements.find((m) => iso >= m.range.start && iso < m.range.end)
+
+  // Tổng phía sổ của từng kỳ — cột "Sổ" trên bảng tổng quan. Tính TRƯỚC khi ghép và trên
+  // cùng rổ `inScope` để khớp `cardMonthCharge` của panel thẻ (hai chỗ phải nói một kiểu).
+  for (const a of led) {
+    const p = periodOf(a.t.occurred_on)
+    if (p) out.get(p.range.closeISO)!.ledgerTotal += a.amount
+  }
 
   const push = (closeISO: string, pair: Pair) => {
     const r = out.get(closeISO)!
@@ -297,7 +311,7 @@ export function reconcileBatch(
     }
     const r = out.get(p.range.closeISO)!
     if (a.t.is_refund) {
-      r.refundDiffs.push({ source: 'ledger', label: a.t.note ?? '', iso: a.t.occurred_on, amount: a.amount })
+      r.refundDiffs.push({ source: 'ledger', label: a.t.note ?? '', iso: a.t.occurred_on, amount: a.amount, tx: a.t })
     } else {
       r.extraInLedger.push({ tx: a.t, amount: a.amount })
     }

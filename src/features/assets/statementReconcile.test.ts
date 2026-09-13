@@ -341,3 +341,28 @@ describe('reconcileBatch — luat Rakuten', () => {
     expect(r.explained[0].label).toBe('楽天証券投信積立 — mua quỹ, theo dõi riêng')
   })
 })
+
+describe('reconcileBatch — du lieu them cho giao dien', () => {
+  it('ledgerTotal = tong dong so trong ky (inScope), bat ke ghep hay khong', () => {
+    const r = one('2026-06', [line('2026-06-02', 4950)], [
+      tx('2026-06-02', 4950), tx('2026-06-10', 23000), tx('2026-06-11', 500, { is_refund: true }),
+      tx('2026-06-05', 50000, { type: 'transfer', to_account_id: CARD }),
+      tx('2026-06-06', 92158, { note: CARD_RECONCILE_NOTE }),
+    ])
+    expect(r.ledgerTotal).toBe(4950 + 23000 - 500)
+  })
+  it('ledgerTotal cua ky khong co dong so la 0; dong so ngoai ky khong tinh', () => {
+    const r = reconcileBatch([period('2026-06', [])], [tx('2026-05-17', 300)], CARD)
+    expect(r.get('2026-06-30')!.ledgerTotal).toBe(0)
+  })
+  it('hoan tien phia so khong khop mang theo tx goc', () => {
+    const t = tx('2026-01-28', 6990, { is_refund: true, note: 'Uniqlo hoan' })
+    const r = one('2026-01', [], [t])
+    expect(r.refundDiffs[0].tx).toBe(t)
+    expect(r.refundDiffs[0].source).toBe('ledger')
+  })
+  it('hoan tien phia the (調整額) khong co tx', () => {
+    const r = one('2026-01', [line('2026-01-03', -7951, '調整額 · A', 'adjustment')], [])
+    expect(r.refundDiffs[0].tx).toBeUndefined()
+  })
+})

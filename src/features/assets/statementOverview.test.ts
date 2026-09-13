@@ -19,7 +19,7 @@ const merged = (close: string, total: number, n = 1): MergedStatement => ({
 describe('overviewRows', () => {
   it('ky da luu nhung chua nap: saved-only, khong co loaded', () => {
     const rows = overviewRows([bill('2026-04-30', 71015)], 'acc-1', [], new Map())
-    expect(rows).toEqual([{ closeISO: '2026-04-30', dueISO: '2026-04-30-due', billTotal: 71015, loaded: null, status: 'saved-only' }])
+    expect(rows).toEqual([{ closeISO: '2026-04-30', dueISO: '2026-04-30-due', billTotal: 71015, loaded: null, status: 'saved-only', reviewed: false }])
   })
 
   it('ky vua nap thang ky da luu ve tong va ngay rut; status theo hang can xem', () => {
@@ -51,5 +51,27 @@ describe('overviewRows', () => {
     const rows = overviewRows([], 'acc-1', [merged('2026-06-30', 10)], new Map())
     expect(rows[0].loaded).toMatchObject({ matchedCount: 0, reviewCount: 0 })
     expect(rows[0].status).toBe('ok')
+  })
+
+  it('reviewCount chi dem hang MO; hang da bo qua vao dismissedCount; status theo hang mo', () => {
+    const r = emptyResult()
+    r.unmatchedTopups = { count: 1, total: 9, lines: [] }
+    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase', isAdjustment: false })
+    const b = { ...bill('2026-06-30', 1), dismissed: ['topups:2026-06-30'], reviewed: false }
+    const rows = overviewRows([b], 'acc-1', [merged('2026-06-30', 10)], new Map([['2026-06-30', r]]))
+    expect(rows[0].loaded).toMatchObject({ reviewCount: 1, dismissedCount: 1 })
+    expect(rows[0].status).toBe('review')
+  })
+  it('moi hang deu da bo qua ⇒ status ok; reviewed doc tu bill da luu', () => {
+    const r = emptyResult()
+    r.unmatchedTopups = { count: 1, total: 9, lines: [] }
+    const b = { ...bill('2026-06-30', 1), dismissed: ['topups:2026-06-30'], reviewed: true }
+    const rows = overviewRows([b], 'acc-1', [merged('2026-06-30', 10)], new Map([['2026-06-30', r]]))
+    expect(rows[0].status).toBe('ok')
+    expect(rows[0].reviewed).toBe(true)
+  })
+  it('ky saved-only mang reviewed cua bill', () => {
+    const rows = overviewRows([{ ...bill('2026-04-30', 5), reviewed: true }], 'acc-1', [], new Map())
+    expect(rows[0]).toMatchObject({ status: 'saved-only', reviewed: true })
   })
 })

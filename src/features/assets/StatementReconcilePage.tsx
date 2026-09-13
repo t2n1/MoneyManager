@@ -163,7 +163,7 @@ export function StatementReconcilePage() {
 
   function luu() {
     if (!card) return
-    upsert.mutate(billRowsFor(card.id, merged), {
+    upsert.mutate(billRowsFor(card.id, merged, { existing: cardBills, results }), {
       onSuccess: () => showToast(`Đã lưu ${merged.length} kỳ`, 'success'),
       onError: (err) => showToast(`Không lưu được: ${(err as Error).message}`, 'error'),
     })

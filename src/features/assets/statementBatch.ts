@@ -14,8 +14,12 @@
 // Thuần, không phụ thuộc React.
 
 import type { NewCardBill } from '../../data/repo'
+import type { CardBillRow } from '../../types/database.types'
 import type { CardBillingRange } from './cardMonthCharge'
+import { isReviewed } from './statementDismiss'
 import type { ParsedStatement, StatementLine } from './statementLine'
+import type { ReconcileResult } from './statementReconcile'
+import { reviewRows } from './statementReviewRows'
 
 export interface MergedStatement {
   range: CardBillingRange
@@ -53,15 +57,21 @@ export function mergeStatements(parsed: ParsedStatement[]): MergedStatement[] {
     })
 }
 
-/** Dòng `card_bills` cho một thẻ — mỗi kỳ ĐÚNG một dòng, total đã gộp các nguồn. */
-export function billRowsFor(accountId: string, merged: MergedStatement[]): NewCardBill[] {
-  return merged.map((m) => ({
-    account_id: accountId,
-    close_date: m.range.closeISO,
-    due_date: m.range.dueISO,
-    total: m.total,
-    // Tạm mặc định — Task 3 nạp dismissed/reviewed thật từ cache useCardBills.
-    dismissed: [],
-    reviewed: false,
-  }))
+/**
+ * Dòng `card_bills` cho một thẻ — mỗi kỳ ĐÚNG một dòng. Dấu Bỏ qua của kỳ đã lưu được GIỮ
+ * (feature có cache `useCardBills`, repo không đọc-rồi-ghi); `reviewed` tính lại từ kết
+ * quả ghép hiện tại — chưa có kết quả (đang đọc sổ) thì false, không đoán.
+ */
+export function billRowsFor(
+  accountId: string,
+  merged: MergedStatement[],
+  ctx: { existing: CardBillRow[]; results: Map<string, ReconcileResult> },
+): NewCardBill[] {
+  return merged.map((m) => {
+    const cu = ctx.existing.find((b) => b.account_id === accountId && b.close_date === m.range.closeISO)
+    const dismissed = cu?.dismissed ?? []
+    const r = ctx.results.get(m.range.closeISO)
+    const reviewed = r ? isReviewed(reviewRows(r, m.range.closeISO), dismissed) : false
+    return { account_id: accountId, close_date: m.range.closeISO, due_date: m.range.dueISO, total: m.total, dismissed, reviewed }
+  })
 }

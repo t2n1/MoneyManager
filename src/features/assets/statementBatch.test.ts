@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { billRowsFor, mergeStatements } from './statementBatch'
+import { emptyResult, type ReconcileResult } from './statementReconcile'
 import type { ParsedStatement } from './statementLine'
+import type { CardBillRow } from '../../types/database.types'
 
 const st = (closeISO: string, source: string, total = 0): ParsedStatement => ({
   range: { start: '', end: '', closeISO, dueISO: `${closeISO}-due` },
@@ -62,27 +64,31 @@ describe('mergeStatements', () => {
 })
 
 describe('billRowsFor', () => {
-  it('moi ky mot dong, total la tong da gop', () => {
-    const rows = billRowsFor('acc-1', mergeStatements([
-      st('2026-06-30', '3737', 165429), st('2026-06-30', '2565', 880), st('2026-05-31', '3737', 50),
-    ]))
+  const ctx0 = { existing: [] as CardBillRow[], results: new Map<string, ReconcileResult>() }
+  it('moi ky mot dong, total gop; chua co bill va chua co ket qua ⇒ dismissed [] reviewed false', () => {
+    const rows = billRowsFor('acc-1', mergeStatements([st('2026-06-30', '3737', 165429), st('2026-06-30', '2565', 880), st('2026-05-31', '3737', 50)]), ctx0)
     expect(rows).toEqual([
-      {
-        account_id: 'acc-1',
-        close_date: '2026-05-31',
-        due_date: '2026-05-31-due',
-        total: 50,
-        dismissed: [],
-        reviewed: false,
-      },
-      {
-        account_id: 'acc-1',
-        close_date: '2026-06-30',
-        due_date: '2026-06-30-due',
-        total: 166309,
-        dismissed: [],
-        reviewed: false,
-      },
+      { account_id: 'acc-1', close_date: '2026-05-31', due_date: '2026-05-31-due', total: 50, dismissed: [], reviewed: false },
+      { account_id: 'acc-1', close_date: '2026-06-30', due_date: '2026-06-30-due', total: 166309, dismissed: [], reviewed: false },
     ])
+  })
+  it('giu dismissed cua bill da luu cung ky, va tinh reviewed tu ket qua ghep', () => {
+    const existing: CardBillRow = { id: 'b', user_id: 'u', account_id: 'acc-1', close_date: '2026-06-30', due_date: 'x', total: 1, created_at: '', dismissed: ['topups:2026-06-30'], reviewed: false }
+    const r = emptyResult()
+    r.unmatchedTopups = { count: 1, total: 1000, lines: [] }
+    const rows = billRowsFor('acc-1', mergeStatements([st('2026-06-30', '3737', 100)]), { existing: [existing], results: new Map([['2026-06-30', r]]) })
+    expect(rows[0].dismissed).toEqual(['topups:2026-06-30'])
+    expect(rows[0].reviewed).toBe(true)   // hàng duy nhất (cụm nạp ví) đã bỏ qua
+  })
+  it('bill cua the KHAC cung ky khong duoc lay nham', () => {
+    const other: CardBillRow = { id: 'b', user_id: 'u', account_id: 'acc-9', close_date: '2026-06-30', due_date: 'x', total: 1, created_at: '', dismissed: ['tx:z'], reviewed: true }
+    const rows = billRowsFor('acc-1', mergeStatements([st('2026-06-30', '3737', 100)]), { existing: [other], results: new Map() })
+    expect(rows[0].dismissed).toEqual([])
+  })
+  it('ket qua co hang mo thi reviewed false du dismissed co khoa khac', () => {
+    const r = emptyResult()
+    r.missingFromLedger.push({ iso: '2026-06-03', amount: 5, billed: 5, name: 'y', kind: 'purchase', isAdjustment: false })
+    const rows = billRowsFor('acc-1', mergeStatements([st('2026-06-30', '3737', 100)]), { existing: [], results: new Map([['2026-06-30', r]]) })
+    expect(rows[0].reviewed).toBe(false)
   })
 })

@@ -8,7 +8,7 @@
 // Trang này KHÔNG bao giờ tự sửa/tạo/xoá giao dịch. Việc đó chỉ xảy ra khi người dùng bấm
 // Sửa / Thêm vào sổ và lưu ở màn đó.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileUp } from 'lucide-react'
 import {
@@ -23,10 +23,11 @@ import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { AddFromStatementSheet } from './AddFromStatementSheet'
 import { parseStatement } from './parseStatement'
 import { billRowsFor, mergeStatements } from './statementBatch'
+import { billAfterDismiss, keysFor, splitDismissed, toggleKey } from './statementDismiss'
 import type { ParsedStatement } from './statementLine'
 import { overviewRows } from './statementOverview'
 import { emptyResult, reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
-import { prefillFromLine, reviewRows } from './statementReviewRows'
+import { prefillFromLine, reviewRows, type ReviewRow } from './statementReviewRows'
 
 /**
  * Không có mốc trên, giống `useCardStatements`: một lô 13 file trải 13 kỳ, và cửa sổ
@@ -74,6 +75,7 @@ export function StatementReconcilePage() {
   const [unreadable, setUnreadable] = useState<string[]>([])
   const [chon, setChon] = useState<string | null>(null)          // closeISO kỳ đang chọn
   const [moGiaiThich, setMoGiaiThich] = useState(false)
+  const [moDaBoQua, setMoDaBoQua] = useState(false)
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [adding, setAdding] = useState<TransactionRow | null>(null)
   // Ước lượng CAO, cố ý: `EditTransactionSheet` không nói được "đã lưu hay chỉ đóng", nên
@@ -142,8 +144,32 @@ export function StatementReconcilePage() {
   const ketQua = kyChon ? results.get(kyChon.range.closeISO) ?? emptyResult() : null
   const hang = kyChon && ketQua ? reviewRows(ketQua, kyChon.range.closeISO) : []
 
+  // Bill đã lưu của kỳ đang chọn (nếu có) — dấu Bỏ qua nằm ở đây.
+  const billChon = kyChon
+    ? cardBills.find((b) => b.account_id === accountId && b.close_date === kyChon.range.closeISO) ?? null
+    : null
+  const daBoQua = billChon?.dismissed ?? []
+  const { open: hangMo, hidden: hangDaBo } = splitDismissed(hang, daBoQua)
+  // Khoá LƯU của từng hàng, tra theo khoá render `h.key`. Phải tính `keysFor` trên TOÀN
+  // `hang`: hậu tố `#k` của dòng trùng đếm theo thứ tự cả kỳ, tính lại trên một danh sách
+  // con (hangMo / hangDaBo) sẽ cho khoá khác — tức bỏ qua nhầm dòng.
+  const khoaHang = keysFor(hang)
+  const khoaTheoHang = new Map(hang.map((h, i) => [h.key, khoaHang[i]] as const))
+  const khoaCua = (h: ReviewRow) => khoaTheoHang.get(h.key)!
+
   // Ngày chốt / ngày trả khai sai thì MỌI kỳ xếp nhầm chỗ — chặn lưu, đừng lưu một nửa.
   const lechNgay = merged.some((m) => m.dueDateMismatch)
+
+  // Bỏ qua / Xem lại: ghi NGAY một dòng card_bills cho kỳ đó (tạo bill luôn nếu chưa có),
+  // không đợi "Lưu N kỳ". Kỳ lệch ngày thì không ghi — cùng lý do chặn Lưu.
+  function ghiDau(keys: string[], on: boolean) {
+    if (!card || !kyChon || lechNgay) return
+    let next: string[] = [...daBoQua]
+    for (const k of keys) next = toggleKey(next, k, on)
+    upsert.mutate([billAfterDismiss(kyChon, card.id, billChon, next, hang)], {
+      onError: (err) => showToast(`Không ghi được: ${(err as Error).message}`, 'error'),
+    })
+  }
 
   async function chonFile(files: FileList | null) {
     const danhSach = files ? Array.from(files) : []
@@ -170,6 +196,23 @@ export function StatementReconcilePage() {
   }
 
   const txById = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs])
+
+  // Nhãn một hàng lệch. Dùng CHUNG cho danh sách mở và cụm "Đã bỏ qua" — chép hai bản là
+  // hai bản trôi khỏi nhau, và bản trong cụm đã bỏ qua chẳng ai soi để thấy nó sai.
+  function nhanHang(h: ReviewRow): ReactNode {
+    if (h.kind === 'ledger') {
+      return `${dayMonthLabel(h.tx.occurred_on)} · ${h.tx.note || 'không ghi chú'} — sổ có, thẻ không${h.refund ? DUOI_HOAN_TIEN : ''}`
+    }
+    if (h.kind === 'statement') {
+      return `${dayMonthLabel(h.line.iso)} · ${h.line.name} — thẻ có, sổ không${h.refund ? DUOI_HOAN_TIEN : ''}`
+    }
+    return (
+      <>
+        Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần, ví có số dư nên chưa
+        chắc là lỗi sổ
+      </>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
@@ -325,14 +368,26 @@ export function StatementReconcilePage() {
                               <span className="text-fg-muted">Đang đọc sổ…</span>
                             ) : (
                               <>
-                                {r.status === 'saved-only' && (
-                                  <span className="text-fg-muted">Đã lưu, chưa nạp file lần này</span>
-                                )}
-                                {r.status === 'ok' && <StatusChip tone="good">Khớp hết</StatusChip>}
-                                {r.status === 'review' && (
+                                {/* Thứ tự có ý: lô vừa nạp còn hàng MỞ thì "cần xem" thắng,
+                                    kể cả khi bill cũ mang reviewed=true — dấu cũ nói về lô
+                                    cũ, dòng mới xuất hiện thì kỳ lại cần xem. */}
+                                {r.status === 'review' ? (
                                   <StatusChip tone="warn">
                                     <Num tone="warn">{r.loaded!.reviewCount}</Num> cần xem
                                   </StatusChip>
+                                ) : r.reviewed ? (
+                                  <StatusChip tone="good">Đã đối chiếu</StatusChip>
+                                ) : (
+                                  <>
+                                    {r.status === 'saved-only' && (
+                                      <span className="text-fg-muted">
+                                        Đã lưu, chưa nạp file lần này
+                                      </span>
+                                    )}
+                                    {r.status === 'ok' && (
+                                      <StatusChip tone="good">Khớp hết</StatusChip>
+                                    )}
+                                  </>
                                 )}
                               </>
                             )}
@@ -355,26 +410,17 @@ export function StatementReconcilePage() {
                 Quẹt {dayMonthLabel(kyChon.range.start)} – {dayMonthLabel(kyChon.range.closeISO)} ·
                 bị rút {dayMonthLabel(kyChon.range.dueISO)}
               </SectionTitle>
-              {hang.length > 0 && (
+              {hangMo.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-medium text-fg-primary">
-                    Cần bạn xem (<Num>{hang.length}</Num>)
+                    Cần bạn xem (<Num>{hangMo.length}</Num>)
                   </p>
-                  {hang.map((h) => (
+                  {hangMo.map((h) => (
                     <div
                       key={h.key}
                       className="flex items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm first:border-t-0"
                     >
-                      <span className="min-w-0 flex-1 text-fg-muted">
-                        {h.kind === 'ledger' && `${dayMonthLabel(h.tx.occurred_on)} · ${h.tx.note || 'không ghi chú'} — sổ có, thẻ không${h.refund ? DUOI_HOAN_TIEN : ''}`}
-                        {h.kind === 'statement' && `${dayMonthLabel(h.line.iso)} · ${h.line.name} — thẻ có, sổ không${h.refund ? DUOI_HOAN_TIEN : ''}`}
-                        {h.kind === 'topups' && (
-                          <>
-                            Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần, ví có số
-                            dư nên chưa chắc là lỗi sổ
-                          </>
-                        )}
-                      </span>
+                      <span className="min-w-0 flex-1 text-fg-muted">{nhanHang(h)}</span>
                       <Money
                         amount={Math.abs(h.amount)}
                         currency={card.currency}
@@ -401,9 +447,30 @@ export function StatementReconcilePage() {
                           Thêm vào sổ
                         </ActionButton>
                       )}
+                      {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
+                      <ActionButton
+                        disabled={dangLamMoi || upsert.isPending || lechNgay}
+                        onClick={() => ghiDau([khoaCua(h)], true)}
+                      >
+                        Bỏ qua
+                      </ActionButton>
                     </div>
                   ))}
+                  <div className="mt-2 flex justify-end">
+                    <ActionButton
+                      disabled={dangLamMoi || upsert.isPending || lechNgay}
+                      onClick={() => ghiDau(hangMo.map(khoaCua), true)}
+                    >
+                      Bỏ qua hết phần còn lại kỳ này
+                    </ActionButton>
+                  </div>
                 </div>
+              )}
+
+              {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì cái thẻ kỳ trông như
+                  chưa nạp được file. */}
+              {hangMo.length === 0 && (hangDaBo.length > 0 || ketQua.explained.length > 0) && (
+                <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
               )}
 
               {ketQua.explained.length > 0 && (
@@ -426,6 +493,39 @@ export function StatementReconcilePage() {
                       >
                         <span className="text-fg-muted">{e.label}</span>
                         <Money amount={Math.abs(e.amount)} currency={card.currency} tone="muted" />
+                      </div>
+                    ))}
+                  </Collapse>
+                </div>
+              )}
+
+              {/* Đã bỏ qua: gấp lại ở cuối thẻ kỳ. Không xoá khỏi màn — bỏ qua nhầm thì
+                  phải có đường quay lại, và đường đó là nút Xem lại từng dòng. */}
+              {hangDaBo.length > 0 && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setMoDaBoQua((s) => !s)}
+                    aria-expanded={moDaBoQua}
+                    aria-controls={`da-bo-qua-${kyChon.range.closeISO}`}
+                    className="min-h-11 text-sm text-fg-muted"
+                  >
+                    Đã bỏ qua (<Num tone="muted">{hangDaBo.length}</Num>) {moDaBoQua ? '▴' : '▾'}
+                  </button>
+                  <Collapse open={moDaBoQua} id={`da-bo-qua-${kyChon.range.closeISO}`}>
+                    {hangDaBo.map((h) => (
+                      <div
+                        key={h.key}
+                        className="flex items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm text-fg-muted first:border-t-0"
+                      >
+                        <span className="min-w-0 flex-1">{nhanHang(h)}</span>
+                        <Money amount={Math.abs(h.amount)} currency={card.currency} tone="muted" />
+                        <ActionButton
+                          disabled={dangLamMoi || upsert.isPending || lechNgay}
+                          onClick={() => ghiDau([khoaCua(h)], false)}
+                        >
+                          Xem lại
+                        </ActionButton>
                       </div>
                     ))}
                   </Collapse>

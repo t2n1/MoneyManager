@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { FileUp } from 'lucide-react'
 import {
-  ActionButton, Card, Collapse, EmptyState, Money, Num, PageHeader, SectionTitle, StatusChip,
+  ActionButton, Card, EmptyState, Money, Num, PageHeader, SectionTitle, SegmentedControl,
+  StatusChip, STATUS_FILL, type MoneyTone,
 } from '../../components/ui'
 import { useAccounts, useCardBills, useSearchTransactions, useUpsertCardBills } from '../../hooks/queries'
 import { dayMonthLabel } from '../../lib/dates'
@@ -21,10 +22,11 @@ import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { AddFromStatementSheet } from './AddFromStatementSheet'
+import { CAUSE_LABEL, pairRows, type PairRow } from './pairRows'
 import { parseStatement } from './parseStatement'
 import { billRowsFor, mergeStatements } from './statementBatch'
 import { billAfterDismiss, keysFor, splitDismissed, toggleKey } from './statementDismiss'
-import type { ParsedStatement } from './statementLine'
+import { sourceLabelFor, type ParsedStatement } from './statementLine'
 import { overviewRows } from './statementOverview'
 import { emptyResult, reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
 import { prefillFromLine, reviewRows, type ReviewRow } from './statementReviewRows'
@@ -36,11 +38,60 @@ import { prefillFromLine, reviewRows, type ReviewRow } from './statementReviewRo
  */
 const FAR_FUTURE = '9999-12-31'
 
+/** Hiện dòng nào trong bảng ghép đôi: chỉ phần lệch, hay cả những cặp đã khớp. */
+type CheDo = 'lech' | 'tatca'
+
 /**
- * Đuôi gắn vào nhãn hàng dựng từ `refundDiffs`. Không nói ra thì một dòng điều chỉnh bị
- * nhà thẻ GỘP đọc y hệt một khoản quên ghi — và người dùng bấm "Thêm vào sổ" thật.
+ * Lớp của cả HÀNG trong bảng ghép đôi. `matched` mờ đi bằng `text-fg-muted` chứ KHÔNG
+ * bằng `opacity` viết tay: opacity làm mờ luôn nền cảnh báo và viền, mà ở đây chỉ có
+ * chữ cần lùi lại.
  */
-const DUOI_HOAN_TIEN = ' — hoàn tiền, nhà thẻ hay gộp nhiều khoản vào một dòng'
+const LOP_HANG: Record<PairRow['kind'], string> = {
+  diff: 'bg-state-warn-bg',
+  explained: 'italic text-fg-secondary',
+  matched: 'text-fg-muted',
+  dismissed: 'text-fg-muted',
+}
+
+/**
+ * Một bên của cặp không có gì để đối chiếu. Nói thẳng thay vì để ô trống: ô trống trong
+ * một lưới hai cột đọc ra như lỗi render, không ra như "sổ không ghi khoản này".
+ */
+const KHONG_CO_DONG = <span className="italic text-fg-muted">không có dòng nào</span>
+
+/**
+ * Khoá render một hàng. Hàng lệch / đã bỏ qua đã có khoá riêng (`ReviewRow.key`, đã tính
+ * hậu tố cho dòng trùng); cặp thì lấy cause + vị trí — `pairRows` dựng lại cả danh sách
+ * mỗi lượt nên vị trí ổn định trong một lượt bày.
+ */
+function keyHang(r: PairRow, i: number): string {
+  if (r.kind === 'diff' || r.kind === 'dismissed') return r.row.key
+  return `${r.pair.cause ?? 'match'}-${i}`
+}
+
+/**
+ * Một bên của hàng ghép đôi: ngày · tên (hoặc ghi chú) · nguồn · số tiền.
+ *
+ * Chữ KHÔNG mang lớp màu riêng — màu của cả hàng do `LOP_HANG` quyết. Tô riêng ngày bằng
+ * `text-fg-muted` là đặt một cặp màu chưa ai đo lên nền `bg-state-warn-bg` của hàng lệch,
+ * mà hàng lệch chính là hàng cần đọc rõ nhất.
+ */
+function ben(
+  iso: string,
+  ten: string,
+  amount: number,
+  currency: CurrencyCode,
+  tone: MoneyTone,
+  duoi?: string,
+): ReactNode {
+  return (
+    <>
+      {dayMonthLabel(iso)} · {ten}
+      {duoi ? ` · ${duoi}` : ''}{' '}
+      <Money amount={Math.abs(amount)} currency={currency} tone={tone} />
+    </>
+  )
+}
 
 /** `TransactionRow` → `LedgerTx`: chỉ những trường phép ghép cần, không hơn. */
 const toLedgerTx = (t: TransactionRow): LedgerTx => ({
@@ -74,8 +125,9 @@ export function StatementReconcilePage() {
   const [parsed, setParsed] = useState<ParsedStatement[]>([])
   const [unreadable, setUnreadable] = useState<string[]>([])
   const [chon, setChon] = useState<string | null>(null)          // closeISO kỳ đang chọn
-  const [moGiaiThich, setMoGiaiThich] = useState(false)
-  const [moDaBoQua, setMoDaBoQua] = useState(false)
+  // Mặc định 'lech': phần khớp thẳng là ~200 dòng của một kỳ, mở sẵn thì bốn dòng đáng
+  // sửa nằm lẫn trong đó — đúng cái mà cả phép ghép sinh ra để tránh.
+  const [cheDo, setCheDo] = useState<CheDo>('lech')
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [adding, setAdding] = useState<TransactionRow | null>(null)
   // Ước lượng CAO, cố ý: `EditTransactionSheet` không nói được "đã lưu hay chỉ đóng", nên
@@ -157,8 +209,23 @@ export function StatementReconcilePage() {
   const khoaTheoHang = new Map(hang.map((h, i) => [h.key, khoaHang[i]] as const))
   const khoaCua = (h: ReviewRow) => khoaTheoHang.get(h.key)!
 
+  // Một danh sách duy nhất cho cả kỳ: lệch → giải thích được → (khớp, nếu hỏi) → đã bỏ qua.
+  const hangGhep = ketQua ? pairRows(ketQua, hangMo, hangDaBo, cheDo === 'tatca') : []
+
+  // Tỷ lệ dòng THẺ đã yên (khớp thẳng + đã có lời giải), đếm MỘT lần mỗi dòng: Σ `lines`
+  // của mọi cặp. Cộng `matchedCount` với số dòng của các cặp CÓ cause là đếm đôi — cặp
+  // `date-edge`/`late-posting` vừa nằm trong `matchedCount` vừa mang cause, nên một kỳ 10
+  // dòng có 2 dòng lệch ngày sẽ ra 120%.
+  const dongDaYen = ketQua ? ketQua.pairs.reduce((s, p) => s + p.lines.length, 0) : 0
+  const tongDongThe = kyChon?.lines.length ?? 0
+  const pct = tongDongThe ? Math.round((100 * dongDaYen) / tongDongThe) : 100
+
   // Ngày chốt / ngày trả khai sai thì MỌI kỳ xếp nhầm chỗ — chặn lưu, đừng lưu một nửa.
   const lechNgay = merged.some((m) => m.dueDateMismatch)
+
+  // Khoá nút Bỏ qua / Xem lại. Gác theo `dueDateMismatch` CỦA KỲ ĐANG MỞ, không phải
+  // `lechNgay` gộp cả lô — xem comment ở `ghiDau`.
+  const khoaDau = dangLamMoi || upsert.isPending || (kyChon?.dueDateMismatch ?? false)
 
   // Bỏ qua / Xem lại: ghi NGAY một dòng card_bills cho kỳ đó (tạo bill luôn nếu chưa có),
   // không đợi "Lưu N kỳ". Gác theo `kyChon.dueDateMismatch` — CỦA RIÊNG kỳ đang mở, không
@@ -203,19 +270,118 @@ export function StatementReconcilePage() {
 
   const txById = useMemo(() => new Map(txs.map((t) => [t.id, t])), [txs])
 
-  // Nhãn một hàng lệch. Dùng CHUNG cho danh sách mở và cụm "Đã bỏ qua" — chép hai bản là
-  // hai bản trôi khỏi nhau, và bản trong cụm đã bỏ qua chẳng ai soi để thấy nó sai.
-  function nhanHang(h: ReviewRow): ReactNode {
-    if (h.kind === 'ledger') {
-      return `${dayMonthLabel(h.tx.occurred_on)} · ${h.tx.note || 'không ghi chú'} — sổ có, thẻ không${h.refund ? DUOI_HOAN_TIEN : ''}`
+  // Ba hàm dựng ba cột của một hàng ghép đôi. Dùng CHUNG cho cả bốn loại hàng — chép
+  // riêng cho "đã bỏ qua" như bản trước là hai bản trôi khỏi nhau, và bản nằm trong cụm
+  // gấp lại chẳng ai soi để thấy nó sai.
+
+  /** Bên SỔ (cột trái). */
+  function beTrai(r: PairRow, currency: CurrencyCode): ReactNode {
+    if (r.kind === 'diff' || r.kind === 'dismissed') {
+      const h = r.row
+      if (h.kind === 'ledger') {
+        const tone: MoneyTone = r.kind === 'dismissed' ? 'muted' : h.amount < 0 ? 'in' : 'out'
+        return ben(h.tx.occurred_on, h.tx.note || 'không ghi chú', h.amount, currency, tone)
+      }
+      // Cụm nạp ví là chuyện của phía thẻ: ví có số dư nên sổ KHÔNG chắc thiếu gì. In
+      // "không có dòng nào" ở đây là vu cho quyển sổ một lỗi nó chưa chắc có.
+      if (h.kind === 'topups') return null
+      return KHONG_CO_DONG
     }
-    if (h.kind === 'statement') {
-      return `${dayMonthLabel(h.line.iso)} · ${h.line.name} — thẻ có, sổ không${h.refund ? DUOI_HOAN_TIEN : ''}`
+    const p = r.pair
+    if (p.ledger.length === 0) return KHONG_CO_DONG
+    // Cặp n:m (sổ ghi gộp, nạp ví) nối tên bằng " + " và in TỔNG của cặp — số của từng
+    // dòng con không nói được gì khi hai bên khác độ mịn.
+    return ben(
+      p.ledger[0].occurred_on,
+      p.ledger.map((t) => t.note || 'không ghi chú').join(' + '),
+      p.amount,
+      currency,
+      'muted',
+    )
+  }
+
+  /** Bên THẺ (cột phải). */
+  function bePhai(r: PairRow, currency: CurrencyCode): ReactNode {
+    if (r.kind === 'diff' || r.kind === 'dismissed') {
+      const h = r.row
+      const tone: MoneyTone = r.kind === 'dismissed' ? 'muted' : h.amount < 0 ? 'in' : 'out'
+      if (h.kind === 'statement') {
+        return ben(h.line.iso, h.line.name, h.amount, currency, tone, sourceLabelFor(h.line.source ?? ''))
+      }
+      if (h.kind === 'topups') {
+        return (
+          <>
+            Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần{' '}
+            <Money amount={Math.abs(h.amount)} currency={currency} tone={tone} />
+          </>
+        )
+      }
+      return KHONG_CO_DONG
+    }
+    const p = r.pair
+    if (p.lines.length === 0) return KHONG_CO_DONG
+    return ben(
+      p.lines[0].iso,
+      p.lines.map((l) => l.name).join(' + '),
+      p.amount,
+      currency,
+      'muted',
+      sourceLabelFor(p.lines[0].source ?? ''),
+    )
+  }
+
+  /** Chiều của cặp: → chỉ sổ có, ← chỉ thẻ có, ↔ hai bên cùng có. */
+  function muiTen(r: PairRow): string {
+    if (r.kind === 'diff' || r.kind === 'dismissed') return r.row.kind === 'ledger' ? '→' : '←'
+    const p = r.pair
+    if (p.ledger.length > 0 && p.lines.length > 0) return '↔'
+    return p.ledger.length > 0 ? '→' : '←'
+  }
+
+  /** Cột nút / nhãn cuối hàng. */
+  function nut(r: PairRow, cardId: string): ReactNode {
+    if (r.kind === 'matched') return null
+    if (r.kind === 'explained') {
+      return r.pair.cause ? <StatusChip tone="info">{CAUSE_LABEL[r.pair.cause]}</StatusChip> : null
+    }
+    const h = r.row
+    if (r.kind === 'dismissed') {
+      return (
+        <ActionButton disabled={khoaDau} onClick={() => ghiDau([khoaCua(h)], false)}>
+          Xem lại
+        </ActionButton>
+      )
     }
     return (
       <>
-        Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần, ví có số dư nên chưa
-        chắc là lỗi sổ
+        {/* Không dán nhãn thì một dòng điều chỉnh bị nhà thẻ GỘP đọc y hệt một khoản quên
+            ghi — và người dùng bấm "Thêm vào sổ" thật. */}
+        {h.kind !== 'topups' && h.refund && <StatusChip tone="info">hoàn tiền</StatusChip>}
+        {/* Hàng hoàn-tiền dựng lại từ `refundDiffs` không giữ id giao dịch gốc (Task 1),
+            nên không mở được màn sửa — không có id thì không có nút. */}
+        {h.kind === 'ledger' && h.tx.id !== '' && (
+          <ActionButton
+            disabled={dangLamMoi}
+            onClick={() => {
+              const t = txById.get(h.tx.id)
+              if (t) setEditing(t)
+            }}
+          >
+            Sửa
+          </ActionButton>
+        )}
+        {h.kind === 'statement' && (
+          <ActionButton
+            disabled={dangLamMoi}
+            onClick={() => setAdding(prefillFromLine(h.line, cardId))}
+          >
+            Thêm vào sổ
+          </ActionButton>
+        )}
+        {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
+        <ActionButton disabled={khoaDau} onClick={() => ghiDau([khoaCua(h)], true)}>
+          Bỏ qua
+        </ActionButton>
       </>
     )
   }
@@ -310,7 +476,8 @@ export function StatementReconcilePage() {
                         <th className="py-1 pl-3 pr-2 text-left font-medium">Kỳ</th>
                         <th className="hidden py-1 px-2 font-medium sm:table-cell">Bị rút</th>
                         <th className="py-1 px-2 font-medium">Hoá đơn</th>
-                        <th className="py-1 px-2 font-medium">Khớp</th>
+                        <th className="hidden py-1 px-2 font-medium sm:table-cell">Sổ</th>
+                        <th className="py-1 px-2 font-medium">Lệch</th>
                         <th className="py-1 pl-2 pr-3 text-left font-medium">Tình trạng</th>
                       </tr>
                     </thead>
@@ -353,12 +520,26 @@ export function StatementReconcilePage() {
                               </span>
                             )}
                           </td>
+                          {/* Sổ: tổng phía sổ của kỳ. Chỉ có khi kỳ này vừa nạp file —
+                              kỳ đã lưu không giữ số sổ, và đoán một số là bịa. */}
+                          <td className="hidden py-2 px-2 sm:table-cell">
+                            {r.loaded ? (
+                              <Money amount={r.loaded.ledgerTotal} currency={card.currency} tone="out" />
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          {/* Lệch: chỉ ĐỘ LỚN, không dấu. `showSign` ở đây sẽ lấy dấu từ
+                              `tone` (xem Money), mà tone ở cột này nói TÌNH TRẠNG chứ
+                              không nói chiều tiền — in ra là in sai chiều. Chiều lệch đọc
+                              ở khối kỳ bên dưới, nơi có cả hai bên để so. */}
                           <td className="py-2 px-2">
                             {r.loaded ? (
-                              <>
-                                <Num tone="muted">{r.loaded.matchedCount}</Num>/
-                                <Num tone="muted">{r.loaded.lineCount}</Num>
-                              </>
+                              <Money
+                                amount={Math.abs(r.loaded.gap)}
+                                currency={card.currency}
+                                tone={r.loaded.gap === 0 ? 'muted' : r.reviewed ? 'neutral' : 'warn'}
+                              />
                             ) : (
                               '—'
                             )}
@@ -412,139 +593,92 @@ export function StatementReconcilePage() {
               chục bản trùng của những khoản đã có sẵn. */}
           {card && kyChon && ketQua && !loiDocSo && (
             <Card as="section" padding="lg">
-              <SectionTitle>
-                Quẹt {dayMonthLabel(kyChon.range.start)} – {dayMonthLabel(kyChon.range.closeISO)} ·
-                bị rút {dayMonthLabel(kyChon.range.dueISO)}
-              </SectionTitle>
-              {hangMo.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium text-fg-primary">
-                    Cần bạn xem (<Num>{hangMo.length}</Num>)
-                  </p>
-                  {/* flex-wrap: ở 375px × cỡ chữ 1,25× nhãn dài + Money + hai nút không lọt
-                      một hàng — cụm số/nút phải được phép rớt xuống dòng dưới nguyên khối,
-                      không phải vỡ chữ từng từ như khi ép min-w-0 nhận hết. */}
-                  {hangMo.map((h) => (
-                    <div
-                      key={h.key}
-                      className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm first:border-t-0"
-                    >
-                      <span className="min-w-0 flex-1 basis-40 text-fg-muted">{nhanHang(h)}</span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        <Money
-                          amount={Math.abs(h.amount)}
-                          currency={card.currency}
-                          tone={h.amount < 0 ? 'in' : 'out'}
-                        />
-                        {/* Hàng hoàn-tiền dựng lại từ `refundDiffs` không giữ id giao dịch gốc
-                            (Task 1), nên không mở được màn sửa — không có id thì không có nút. */}
-                        {h.kind === 'ledger' && h.tx.id !== '' && (
-                          <ActionButton
-                            disabled={dangLamMoi}
-                            onClick={() => {
-                              const t = txById.get(h.tx.id)
-                              if (t) setEditing(t)
-                            }}
-                          >
-                            Sửa
-                          </ActionButton>
-                        )}
-                        {h.kind === 'statement' && (
-                          <ActionButton
-                            disabled={dangLamMoi}
-                            onClick={() => setAdding(prefillFromLine(h.line, card.id))}
-                          >
-                            Thêm vào sổ
-                          </ActionButton>
-                        )}
-                        {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
-                        {/* Gác theo dueDateMismatch CỦA KỲ NÀY, không phải `lechNgay` toàn lô
-                            — xem comment ở `ghiDau`. */}
-                        <ActionButton
-                          disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
-                          onClick={() => ghiDau([khoaCua(h)], true)}
-                        >
-                          Bỏ qua
-                        </ActionButton>
-                      </span>
-                    </div>
-                  ))}
-                  <div className="mt-2 flex justify-end">
-                    <ActionButton
-                      disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
-                      onClick={() => ghiDau(hangMo.map(khoaCua), true)}
-                    >
-                      Bỏ qua hết phần còn lại kỳ này
-                    </ActionButton>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SectionTitle>
+                  Quẹt {dayMonthLabel(kyChon.range.start)} – {dayMonthLabel(kyChon.range.closeISO)} ·
+                  bị rút {dayMonthLabel(kyChon.range.dueISO)}
+                </SectionTitle>
+                {/* Đây là đổi CÁCH XEM cùng một dữ liệu, không phải lọc một tập con — nên
+                    SegmentedControl chứ không FilterChip (design-system §"Ba họ"). */}
+                <SegmentedControl<CheDo>
+                  label="Hiện dòng nào"
+                  size="sm"
+                  stretch={false}
+                  items={[
+                    { value: 'lech', label: 'Chỉ dòng lệch' },
+                    {
+                      value: 'tatca',
+                      label: (
+                        <>
+                          Tất cả <Num tone="muted">{ketQua.pairs.length + hang.length}</Num> cặp
+                        </>
+                      ),
+                    },
+                  ]}
+                  value={cheDo}
+                  onChange={setCheDo}
+                />
+              </div>
+
+              {/* Thanh tỷ lệ dòng thẻ đã yên. Câu hỏi đầu tiên của một kỳ là "còn bao nhiêu
+                  chưa xong" — một thanh trả lời nhanh hơn ba con số ở dòng dưới. */}
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
+                <div className={`h-full ${STATUS_FILL.good}`} style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-1 flex flex-wrap justify-between gap-2 text-2xs text-fg-muted">
+                <span>
+                  Hoá đơn <Money amount={kyChon.total} currency={card.currency} tone="muted" />
+                </span>
+                <span>
+                  Khớp <Num tone="muted">{ketQua.matchedCount}</Num> · giải thích{' '}
+                  <Num tone="muted">{ketQua.explained.length}</Num> /{' '}
+                  <Num tone="muted">{kyChon.lines.length}</Num> dòng
+                </span>
+                <span>
+                  Sổ <Money amount={ketQua.ledgerTotal} currency={card.currency} tone="muted" />
+                </span>
+              </p>
+
+              {hangGhep.length === 0 ? (
+                <p className="mt-2 text-sm text-fg-muted">Kỳ này khớp hết.</p>
+              ) : (
+                <>
+                  {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì bảng bên dưới
+                      toàn dòng mờ, đọc ra như thẻ kỳ chưa nạp được file. */}
+                  {hangMo.length === 0 && (
+                    <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
+                  )}
+                  {/* Một bảng ghép đôi duy nhất: sổ | chiều | thẻ | nút. Dưới sm lưới rơi
+                      về một cột (bên sổ trên, bên thẻ dưới, nút cuối) và cột mũi tên ẩn —
+                      xếp dọc thì chiều đã nằm ở thứ tự, một mũi tên ngang là nói ngược. */}
+                  <div className="mt-2 divide-y divide-border-subtle">
+                    {hangGhep.map((r, i) => (
+                      <div
+                        key={keyHang(r, i)}
+                        className={`grid gap-x-2 gap-y-1 py-1.5 text-sm sm:grid-cols-12 sm:items-center ${LOP_HANG[r.kind]}`}
+                      >
+                        <div className="min-w-0 sm:col-span-5">{beTrai(r, card.currency)}</div>
+                        <div className="hidden text-center text-fg-muted sm:col-span-1 sm:block">
+                          {muiTen(r)}
+                        </div>
+                        <div className="min-w-0 sm:col-span-4">{bePhai(r, card.currency)}</div>
+                        <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
+                          {nut(r, card.id)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
-
-              {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì cái thẻ kỳ trông như
-                  chưa nạp được file. */}
-              {hangMo.length === 0 && (hangDaBo.length > 0 || ketQua.explained.length > 0) && (
-                <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
-              )}
-
-              {ketQua.explained.length > 0 && (
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setMoGiaiThich((s) => !s)}
-                    aria-expanded={moGiaiThich}
-                    aria-controls={`giai-thich-${kyChon.range.closeISO}`}
-                    className="min-h-11 text-sm text-fg-muted"
-                  >
-                    Giải thích được, bỏ qua (<Num tone="muted">{ketQua.explained.length}</Num>){' '}
-                    {moGiaiThich ? '▴' : '▾'}
-                  </button>
-                  <Collapse open={moGiaiThich} id={`giai-thich-${kyChon.range.closeISO}`}>
-                    {ketQua.explained.map((e, i) => (
-                      <div
-                        key={`${e.cause}-${i}`}
-                        className="flex items-baseline justify-between gap-2 text-sm"
+                  {hangMo.length > 0 && (
+                    <div className="mt-2 flex justify-end">
+                      <ActionButton
+                        disabled={khoaDau}
+                        onClick={() => ghiDau(hangMo.map(khoaCua), true)}
                       >
-                        <span className="text-fg-muted">{e.label}</span>
-                        <Money amount={Math.abs(e.amount)} currency={card.currency} tone="muted" />
-                      </div>
-                    ))}
-                  </Collapse>
-                </div>
-              )}
-
-              {/* Đã bỏ qua: gấp lại ở cuối thẻ kỳ. Không xoá khỏi màn — bỏ qua nhầm thì
-                  phải có đường quay lại, và đường đó là nút Xem lại từng dòng. */}
-              {hangDaBo.length > 0 && (
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setMoDaBoQua((s) => !s)}
-                    aria-expanded={moDaBoQua}
-                    aria-controls={`da-bo-qua-${kyChon.range.closeISO}`}
-                    className="min-h-11 text-sm text-fg-muted"
-                  >
-                    Đã bỏ qua (<Num tone="muted">{hangDaBo.length}</Num>) {moDaBoQua ? '▴' : '▾'}
-                  </button>
-                  <Collapse open={moDaBoQua} id={`da-bo-qua-${kyChon.range.closeISO}`}>
-                    {hangDaBo.map((h) => (
-                      <div
-                        key={h.key}
-                        className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle py-1.5 text-sm text-fg-muted first:border-t-0"
-                      >
-                        <span className="min-w-0 flex-1 basis-40">{nhanHang(h)}</span>
-                        <span className="flex shrink-0 items-center gap-2">
-                          <Money amount={Math.abs(h.amount)} currency={card.currency} tone="muted" />
-                          <ActionButton
-                            disabled={dangLamMoi || upsert.isPending || kyChon.dueDateMismatch}
-                            onClick={() => ghiDau([khoaCua(h)], false)}
-                          >
-                            Xem lại
-                          </ActionButton>
-                        </span>
-                      </div>
-                    ))}
-                  </Collapse>
-                </div>
+                        Bỏ qua hết phần còn lại kỳ này
+                      </ActionButton>
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           )}

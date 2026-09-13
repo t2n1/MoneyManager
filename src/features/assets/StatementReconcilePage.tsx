@@ -212,13 +212,16 @@ export function StatementReconcilePage() {
   // Một danh sách duy nhất cho cả kỳ: lệch → giải thích được → (khớp, nếu hỏi) → đã bỏ qua.
   const hangGhep = ketQua ? pairRows(ketQua, hangMo, hangDaBo, cheDo === 'tatca') : []
 
-  // Tỷ lệ dòng THẺ đã yên (khớp thẳng + đã có lời giải), đếm MỘT lần mỗi dòng: Σ `lines`
-  // của mọi cặp. Cộng `matchedCount` với số dòng của các cặp CÓ cause là đếm đôi — cặp
-  // `date-edge`/`late-posting` vừa nằm trong `matchedCount` vừa mang cause, nên một kỳ 10
-  // dòng có 2 dòng lệch ngày sẽ ra 120%.
-  const dongDaYen = ketQua ? ketQua.pairs.reduce((s, p) => s + p.lines.length, 0) : 0
+  // Thanh tỷ lệ và dòng tóm tắt đếm CÙNG một thứ, bằng CÙNG một phép: số DÒNG THẺ, mỗi
+  // dòng đúng một lần. Không dùng `matchedCount` — nó đếm CẶP 1-1, mà cặp `date-edge` /
+  // `late-posting` vừa nằm trong nó vừa mang cause, nên "khớp + giải thích" cộng lại vượt
+  // quá số dòng của kỳ: một kỳ 10 dòng có 2 dòng lệch ngày ra 12/10, và thanh ra 120%.
+  const dongCuaCap = (coCause: boolean) =>
+    ketQua ? ketQua.pairs.reduce((s, p) => s + (!!p.cause === coCause ? p.lines.length : 0), 0) : 0
+  const khopDong = dongCuaCap(false)
+  const giaiThichDong = dongCuaCap(true)
   const tongDongThe = kyChon?.lines.length ?? 0
-  const pct = tongDongThe ? Math.round((100 * dongDaYen) / tongDongThe) : 100
+  const pct = tongDongThe ? Math.round((100 * (khopDong + giaiThichDong)) / tongDongThe) : 100
 
   // Ngày chốt / ngày trả khai sai thì MỌI kỳ xếp nhầm chỗ — chặn lưu, đừng lưu một nửa.
   const lechNgay = merged.some((m) => m.dueDateMismatch)
@@ -620,63 +623,73 @@ export function StatementReconcilePage() {
                 />
               </div>
 
-              {/* Thanh tỷ lệ dòng thẻ đã yên. Câu hỏi đầu tiên của một kỳ là "còn bao nhiêu
-                  chưa xong" — một thanh trả lời nhanh hơn ba con số ở dòng dưới. */}
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
-                <div className={`h-full ${STATUS_FILL.good}`} style={{ width: `${pct}%` }} />
-              </div>
-              <p className="mt-1 flex flex-wrap justify-between gap-2 text-2xs text-fg-muted">
-                <span>
-                  Hoá đơn <Money amount={kyChon.total} currency={card.currency} tone="muted" />
-                </span>
-                <span>
-                  Khớp <Num tone="muted">{ketQua.matchedCount}</Num> · giải thích{' '}
-                  <Num tone="muted">{ketQua.explained.length}</Num> /{' '}
-                  <Num tone="muted">{kyChon.lines.length}</Num> dòng
-                </span>
-                <span>
-                  Sổ <Money amount={ketQua.ledgerTotal} currency={card.currency} tone="muted" />
-                </span>
-              </p>
-
-              {hangGhep.length === 0 ? (
-                <p className="mt-2 text-sm text-fg-muted">Kỳ này khớp hết.</p>
+              {/* Chưa đọc xong sổ thì `results` còn rỗng ⇒ `ketQua` là `emptyResult()`, và
+                  cả khối dưới sẽ nói "Khớp 0 · Sổ ¥0 · Kỳ này khớp hết" — đúng lời nói dối
+                  mà chip trạng thái ở bảng trên đã từ chối nói (xem comment ô Tình trạng).
+                  Giữ đầu khối để bộ gạt không nhảy chỗ, phần còn lại im cho tới khi có số. */}
+              {dangDocSo ? (
+                <p className="mt-2 text-sm text-fg-muted">Đang đọc sổ…</p>
               ) : (
                 <>
-                  {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì bảng bên dưới
-                      toàn dòng mờ, đọc ra như thẻ kỳ chưa nạp được file. */}
-                  {hangMo.length === 0 && (
-                    <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
-                  )}
-                  {/* Một bảng ghép đôi duy nhất: sổ | chiều | thẻ | nút. Dưới sm lưới rơi
-                      về một cột (bên sổ trên, bên thẻ dưới, nút cuối) và cột mũi tên ẩn —
-                      xếp dọc thì chiều đã nằm ở thứ tự, một mũi tên ngang là nói ngược. */}
-                  <div className="mt-2 divide-y divide-border-subtle">
-                    {hangGhep.map((r, i) => (
-                      <div
-                        key={keyHang(r, i)}
-                        className={`grid gap-x-2 gap-y-1 py-1.5 text-sm sm:grid-cols-12 sm:items-center ${LOP_HANG[r.kind]}`}
-                      >
-                        <div className="min-w-0 sm:col-span-5">{beTrai(r, card.currency)}</div>
-                        <div className="hidden text-center text-fg-muted sm:col-span-1 sm:block">
-                          {muiTen(r)}
-                        </div>
-                        <div className="min-w-0 sm:col-span-4">{bePhai(r, card.currency)}</div>
-                        <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
-                          {nut(r, card.id)}
-                        </div>
-                      </div>
-                    ))}
+                  {/* Thanh tỷ lệ dòng thẻ đã yên. Câu hỏi đầu tiên của một kỳ là "còn bao
+                      nhiêu chưa xong" — một thanh trả lời nhanh hơn ba con số ở dòng dưới. */}
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
+                    <div className={`h-full ${STATUS_FILL.good}`} style={{ width: `${pct}%` }} />
                   </div>
-                  {hangMo.length > 0 && (
-                    <div className="mt-2 flex justify-end">
-                      <ActionButton
-                        disabled={khoaDau}
-                        onClick={() => ghiDau(hangMo.map(khoaCua), true)}
-                      >
-                        Bỏ qua hết phần còn lại kỳ này
-                      </ActionButton>
-                    </div>
+                  <p className="mt-1 flex flex-wrap justify-between gap-2 text-2xs text-fg-muted">
+                    <span>
+                      Hoá đơn <Money amount={kyChon.total} currency={card.currency} tone="muted" />
+                    </span>
+                    <span>
+                      Khớp <Num tone="muted">{khopDong}</Num> · giải thích{' '}
+                      <Num tone="muted">{giaiThichDong}</Num> /{' '}
+                      <Num tone="muted">{kyChon.lines.length}</Num> dòng
+                    </span>
+                    <span>
+                      Sổ <Money amount={ketQua.ledgerTotal} currency={card.currency} tone="muted" />
+                    </span>
+                  </p>
+
+                  {hangGhep.length === 0 ? (
+                    <p className="mt-2 text-sm text-fg-muted">Kỳ này khớp hết.</p>
+                  ) : (
+                    <>
+                      {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì bảng bên dưới
+                          toàn dòng mờ, đọc ra như thẻ kỳ chưa nạp được file. */}
+                      {hangMo.length === 0 && (
+                        <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
+                      )}
+                      {/* Một bảng ghép đôi duy nhất: sổ | chiều | thẻ | nút. Dưới sm lưới
+                          rơi về một cột (bên sổ trên, bên thẻ dưới, nút cuối) và cột mũi
+                          tên ẩn — xếp dọc thì chiều đã nằm ở thứ tự, mũi tên ngang nói ngược. */}
+                      <div className="mt-2 divide-y divide-border-subtle">
+                        {hangGhep.map((r, i) => (
+                          <div
+                            key={keyHang(r, i)}
+                            className={`grid gap-x-2 gap-y-1 py-1.5 text-sm sm:grid-cols-12 sm:items-center ${LOP_HANG[r.kind]}`}
+                          >
+                            <div className="min-w-0 sm:col-span-5">{beTrai(r, card.currency)}</div>
+                            <div className="hidden text-center text-fg-muted sm:col-span-1 sm:block">
+                              {muiTen(r)}
+                            </div>
+                            <div className="min-w-0 sm:col-span-4">{bePhai(r, card.currency)}</div>
+                            <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
+                              {nut(r, card.id)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {hangMo.length > 0 && (
+                        <div className="mt-2 flex justify-end">
+                          <ActionButton
+                            disabled={khoaDau}
+                            onClick={() => ghiDau(hangMo.map(khoaCua), true)}
+                          >
+                            Bỏ qua hết phần còn lại kỳ này
+                          </ActionButton>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}

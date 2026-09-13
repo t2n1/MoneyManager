@@ -2,8 +2,11 @@
 //
 // Khoá phải SỐNG QUA lần nạp file sau: dòng sổ có id nên dùng id; dòng thẻ không có id
 // nên dùng (ngày, tiền, tên NFKC) — hai dòng thẻ cùng ngày cùng tiền cùng tên là một thứ
-// theo nghĩa người đọc, và trùng như vậy hiếm (spec §7.1). Cụm nạp ví là MỘT hàng/kỳ nên
-// khoá theo ngày chốt. Hàng hoàn tiền phía sổ không có id (Đợt 1 không giữ) ⇒ ngày|tiền|ghi chú.
+// theo nghĩa người đọc. Nhưng dòng trùng KHÔNG hiếm (statementReviewRows.ts: CBTS 4.950 × 3
+// trong một kỳ là chuyện thật) nên `dismissKey` một mình không đủ làm khoá lưu — dòng thứ
+// hai, ba... cùng base key phải được đánh số `#2`, `#3` (xem `keysFor`), nếu không bỏ qua
+// một dòng sẽ ẩn luôn cả cụm và `isReviewed` báo sai. Cụm nạp ví là MỘT hàng/kỳ nên khoá
+// theo ngày chốt. Hàng hoàn tiền phía sổ không có id (Đợt 1 không giữ) ⇒ ngày|tiền|ghi chú.
 //
 // Thuần, không phụ thuộc React.
 
@@ -28,11 +31,31 @@ export function dismissKey(row: ReviewRow): string {
   }
 }
 
+/**
+ * Khoá lưu thật của từng hàng, CÙNG độ dài và thứ tự với `rows`. Dòng đầu tiên trùng base
+ * key giữ nguyên (đúng dạng đã ghi ở `dismissKey`); dòng thứ k (k ≥ 2, đếm theo thứ tự
+ * `rows`) nối hậu tố `#k`. Đánh đổi đã chấp nhận: đây là số thứ tự trong LƯỢT NẠP hiện tại,
+ * không phải id bền — nếu sau này một dòng trùng khác được đối chiếu (biến thành `ledger`)
+ * và rơi khỏi danh sách `statement`, thứ tự #2/#3 còn lại có thể xê dịch, khiến một dấu đã
+ * bỏ qua từ trước không còn khớp đúng dòng cũ. Hệ quả chỉ là người dùng bấm Bỏ qua lại lần
+ * nữa — không mất gì, không hiện sai số.
+ */
+export function keysFor(rows: ReviewRow[]): string[] {
+  const seen = new Map<string, number>()
+  return rows.map((row) => {
+    const base = dismissKey(row)
+    const count = (seen.get(base) ?? 0) + 1
+    seen.set(base, count)
+    return count === 1 ? base : `${base}#${count}`
+  })
+}
+
 export function splitDismissed(rows: ReviewRow[], dismissed: readonly string[]) {
   const set = new Set(dismissed)
+  const keys = keysFor(rows)
   const open: ReviewRow[] = []
   const hidden: ReviewRow[] = []
-  for (const r of rows) (set.has(dismissKey(r)) ? hidden : open).push(r)
+  rows.forEach((r, i) => (set.has(keys[i]) ? hidden : open).push(r))
   return { open, hidden }
 }
 

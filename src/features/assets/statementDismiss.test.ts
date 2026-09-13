@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { billAfterDismiss, dismissKey, isReviewed, splitDismissed, toggleKey } from './statementDismiss'
+import { billAfterDismiss, dismissKey, isReviewed, keysFor, splitDismissed, toggleKey } from './statementDismiss'
 import type { ReviewRow } from './statementReviewRows'
 import type { MergedStatement } from './statementBatch'
 import type { CardBillRow } from '../../types/database.types'
@@ -48,6 +48,33 @@ describe('splitDismissed / isReviewed / toggleKey', () => {
     expect(toggleKey(d, 'tx:b', true)).toEqual(['tx:a', 'tx:b'])
     expect(toggleKey(['tx:a', 'tx:b'], 'tx:a', false)).toEqual(['tx:b'])
     expect(d).toEqual(['tx:a'])
+  })
+})
+
+describe('keysFor', () => {
+  it('dong trung thu 2, 3 duoc noi #2, #3; dong doc nhat giu nguyen', () => {
+    const dup = stm('2026-06-16', 4950, 'CBTS')
+    const rows = [dup, dup, dup, stm('2026-07-03', 5060, 'UNIQLO')]
+    expect(keysFor(rows)).toEqual([
+      'stm:2026-06-16|4950|CBTS',
+      'stm:2026-06-16|4950|CBTS#2',
+      'stm:2026-06-16|4950|CBTS#3',
+      'stm:2026-07-03|5060|UNIQLO',
+    ])
+  })
+})
+
+describe('splitDismissed voi dong trung', () => {
+  it('bo qua mot dong chi an mot dong', () => {
+    const dup = stm('2026-06-16', 4950, 'CBTS')
+    const rows = [dup, dup, dup]
+    const { open, hidden } = splitDismissed(rows, ['stm:2026-06-16|4950|CBTS#2'])
+    expect(open.length).toBe(2)
+    expect(hidden.length).toBe(1)
+    expect(isReviewed(rows, ['stm:2026-06-16|4950|CBTS#2'])).toBe(false)
+    expect(
+      isReviewed(rows, ['stm:2026-06-16|4950|CBTS', 'stm:2026-06-16|4950|CBTS#2', 'stm:2026-06-16|4950|CBTS#3']),
+    ).toBe(true)
   })
 })
 

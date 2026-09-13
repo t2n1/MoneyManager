@@ -60,5 +60,8 @@ export function billRowsFor(accountId: string, merged: MergedStatement[]): NewCa
     close_date: m.range.closeISO,
     due_date: m.range.dueISO,
     total: m.total,
+    // Tạm mặc định — Task 3 nạp dismissed/reviewed thật từ cache useCardBills.
+    dismissed: [],
+    reviewed: false,
   }))
 }

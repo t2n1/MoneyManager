@@ -446,6 +446,10 @@ export interface NewCardBill {
   due_date: string
   /** minor units; âm là hợp lệ. */
   total: number
+  /** Đủ trường, không optional: giữ dấu cũ khi chỉ lưu tổng là việc của FEATURE (nó có
+   *  cache `useCardBills`), repo không đọc-rồi-ghi. Xem `billRowsFor`. */
+  dismissed: string[]
+  reviewed: boolean
 }
 
 /** Một lệnh mua/bán/điều chỉnh cổ phiếu (migration 0035). Mọi số ở đồng. */

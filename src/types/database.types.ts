@@ -461,6 +461,10 @@ export type CardBillRow = {
   due_date: string
   /** minor units. Âm = kỳ được hoàn nhiều hơn tiêu. */
   total: number
+  /** Khoá dòng lệch đã Bỏ qua — định dạng ở `statementDismiss.ts`. jsonb, luôn là mảng chuỗi. */
+  dismissed: string[]
+  /** Kỳ không còn dòng chưa xử lý. App tính lại mỗi lần ghi. */
+  reviewed: boolean
   created_at: string
 }
 
@@ -1317,9 +1321,9 @@ export type Database = {
         Insert: InsertOf<
           CardBillRow,
           'user_id' | 'account_id' | 'close_date' | 'due_date' | 'total',
-          'id'
+          'id' | 'dismissed' | 'reviewed'
         >
-        Update: Partial<Pick<CardBillRow, 'due_date' | 'total'>>
+        Update: Partial<Pick<CardBillRow, 'due_date' | 'total' | 'dismissed' | 'reviewed'>>
         Relationships: []
       }
       stock_prices: {

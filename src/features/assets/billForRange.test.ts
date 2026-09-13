@@ -9,6 +9,8 @@ const bill = (account_id: string, close_date: string, total: number): CardBillRo
   close_date,
   due_date: '2026-07-27',
   total,
+  dismissed: [],
+  reviewed: false,
   created_at: '',
 })
 const range = (closeISO: string) => ({ start: '', end: '', closeISO, dueISO: '' })

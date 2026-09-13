@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { demoRepo, resetDemoData, STORAGE_KEY } from './demoRepo'
 import type { NewAccount, NewLifeScenario, NewRecurringRule, NewTransaction } from './repo'
+import type { CardBillRow } from '../types/database.types'
 
 // Vitest chạy môi trường node → không có localStorage. Cài bản giả trong bộ nhớ.
 beforeEach(() => {
@@ -1741,15 +1742,36 @@ describe('card_bills', () => {
     const card = accs.find((a) => a.type === 'card')!
 
     await demoRepo.upsertCardBills([
-      { account_id: card.id, close_date: '2026-06-30', due_date: '2026-07-27', total: 158429 },
-      { account_id: card.id, close_date: '2026-07-31', due_date: '2026-08-27', total: 191925 },
+      {
+        account_id: card.id,
+        close_date: '2026-06-30',
+        due_date: '2026-07-27',
+        total: 158429,
+        dismissed: [],
+        reviewed: false,
+      },
+      {
+        account_id: card.id,
+        close_date: '2026-07-31',
+        due_date: '2026-08-27',
+        total: 191925,
+        dismissed: [],
+        reviewed: false,
+      },
     ])
     let bills = await demoRepo.getCardBills()
     expect(bills.filter((b) => b.account_id === card.id)).toHaveLength(2)
 
     // Nạp lại cùng kỳ với số khác → ĐÈ, không thêm hàng mới
     await demoRepo.upsertCardBills([
-      { account_id: card.id, close_date: '2026-06-30', due_date: '2026-07-27', total: 999 },
+      {
+        account_id: card.id,
+        close_date: '2026-06-30',
+        due_date: '2026-07-27',
+        total: 999,
+        dismissed: [],
+        reviewed: false,
+      },
     ])
     bills = await demoRepo.getCardBills()
     expect(bills.filter((b) => b.account_id === card.id)).toHaveLength(2)
@@ -1760,9 +1782,58 @@ describe('card_bills', () => {
     const accs = await demoRepo.getAccounts()
     const card = accs.find((a) => a.type === 'card')!
     await demoRepo.upsertCardBills([
-      { account_id: card.id, close_date: '2026-05-31', due_date: '2026-06-29', total: -4200 },
+      {
+        account_id: card.id,
+        close_date: '2026-05-31',
+        due_date: '2026-06-29',
+        total: -4200,
+        dismissed: [],
+        reviewed: false,
+      },
     ])
     const bills = await demoRepo.getCardBills()
     expect(bills.find((b) => b.close_date === '2026-05-31')!.total).toBe(-4200)
+  })
+
+  it('luu va de dismissed/reviewed theo ky', async () => {
+    const accs = await demoRepo.getAccounts()
+    const card = accs.find((a) => a.type === 'card')!
+    await demoRepo.upsertCardBills([
+      {
+        account_id: card.id,
+        close_date: '2026-08-31',
+        due_date: '2026-09-28',
+        total: 100,
+        dismissed: ['tx:a'],
+        reviewed: false,
+      },
+    ])
+    let b = (await demoRepo.getCardBills()).find((x) => x.close_date === '2026-08-31')!
+    expect(b.dismissed).toEqual(['tx:a'])
+    expect(b.reviewed).toBe(false)
+    await demoRepo.upsertCardBills([
+      {
+        account_id: card.id,
+        close_date: '2026-08-31',
+        due_date: '2026-09-28',
+        total: 100,
+        dismissed: ['tx:a', 'topups:2026-08-31'],
+        reviewed: true,
+      },
+    ])
+    b = (await demoRepo.getCardBills()).find((x) => x.close_date === '2026-08-31')!
+    expect(b.dismissed).toEqual(['tx:a', 'topups:2026-08-31'])
+    expect(b.reviewed).toBe(true)
+  })
+
+  it('nhap sao luu cu khong co dismissed/reviewed thi mac dinh [] / false', async () => {
+    const data = await demoRepo.exportAll()
+    const accs = await demoRepo.getAccounts()
+    const card = accs.find((a) => a.type === 'card')!
+    const cu = { id: 'b-cu', user_id: 'x', account_id: card.id, close_date: '2026-07-31', due_date: '2026-08-27', total: 5 }
+    await demoRepo.importAll({ ...data, cardBills: [cu as unknown as CardBillRow] })
+    const b = (await demoRepo.getCardBills()).find((x) => x.close_date === '2026-07-31')!
+    expect(b.dismissed).toEqual([])
+    expect(b.reviewed).toBe(false)
   })
 })

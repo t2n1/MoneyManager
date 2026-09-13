@@ -67,8 +67,22 @@ describe('billRowsFor', () => {
       st('2026-06-30', '3737', 165429), st('2026-06-30', '2565', 880), st('2026-05-31', '3737', 50),
     ]))
     expect(rows).toEqual([
-      { account_id: 'acc-1', close_date: '2026-05-31', due_date: '2026-05-31-due', total: 50 },
-      { account_id: 'acc-1', close_date: '2026-06-30', due_date: '2026-06-30-due', total: 166309 },
+      {
+        account_id: 'acc-1',
+        close_date: '2026-05-31',
+        due_date: '2026-05-31-due',
+        total: 50,
+        dismissed: [],
+        reviewed: false,
+      },
+      {
+        account_id: 'acc-1',
+        close_date: '2026-06-30',
+        due_date: '2026-06-30-due',
+        total: 166309,
+        dismissed: [],
+        reviewed: false,
+      },
     ])
   })
 })

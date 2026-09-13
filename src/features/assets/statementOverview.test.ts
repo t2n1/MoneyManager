@@ -5,7 +5,8 @@ import type { MergedStatement } from './statementBatch'
 import type { CardBillRow } from '../../types/database.types'
 
 const bill = (close: string, total: number, account_id = 'acc-1'): CardBillRow => ({
-  id: `b-${close}`, user_id: 'u', account_id, close_date: close, due_date: `${close}-due`, total, created_at: '',
+  id: `b-${close}`, user_id: 'u', account_id, close_date: close, due_date: `${close}-due`, total,
+  dismissed: [], reviewed: false, created_at: '',
 })
 const merged = (close: string, total: number, n = 1): MergedStatement => ({
   range: { start: '', end: '', closeISO: close, dueISO: `${close}-due2` },

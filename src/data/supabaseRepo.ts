@@ -600,6 +600,8 @@ export const supabaseRepo: Repo = {
           close_date: r.close_date,
           due_date: r.due_date,
           total: r.total,
+          dismissed: r.dismissed,
+          reviewed: r.reviewed,
         })),
         { onConflict: 'account_id,close_date' },
       )

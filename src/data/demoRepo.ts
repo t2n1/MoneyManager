@@ -1498,6 +1498,8 @@ export const demoRepo: Repo = {
       if (existing) {
         existing.due_date = r.due_date
         existing.total = r.total
+        existing.dismissed = r.dismissed
+        existing.reviewed = r.reviewed
         out.push(existing)
         continue
       }
@@ -1508,6 +1510,8 @@ export const demoRepo: Repo = {
         close_date: r.close_date,
         due_date: r.due_date,
         total: r.total,
+        dismissed: r.dismissed,
+        reviewed: r.reviewed,
         created_at: new Date().toISOString(),
       }
       db.cardBills.push(row)
@@ -3165,7 +3169,12 @@ export const demoRepo: Repo = {
       debtPayments: stamp(data.debtPayments ?? []),
       recurringRules: stamp(data.recurringRules ?? []),
       accountValuations: stamp(data.accountValuations ?? []),
-      cardBills: stamp(data.cardBills ?? []),
+      // sao lưu trước 0071 không có hai cột dismissed/reviewed — mặc định [] / false.
+      cardBills: stamp(data.cardBills ?? []).map((b) => ({
+        ...b,
+        dismissed: b.dismissed ?? [],
+        reviewed: b.reviewed ?? false,
+      })),
       stockTrades: stamp(data.stockTrades ?? []),
       fundTrades: stamp(data.fundTrades ?? []),
       stockPrices,

@@ -30,7 +30,7 @@ describe('parsePaypayStatement', () => {
     const p = parsePaypayStatement(csv, CARD)!
     expect(p.lines).toHaveLength(2)
     expect(p.lines.filter((l) => !l.isAdjustment)).toEqual([
-      { iso: '2026-01-03', amount: 8215, name: '極楽茶屋', isAdjustment: false },
+      { iso: '2026-01-03', amount: 8215, billed: 8215, name: '極楽茶屋', kind: 'purchase', isAdjustment: false },
     ])
     const adj = p.lines.find((l) => l.isAdjustment)!
     expect(adj.amount).toBe(-7951)
@@ -67,5 +67,23 @@ describe('parsePaypayStatement', () => {
   it('the thieu ngay chot tra null', () => {
     const csv = [HEAD, row('2026/5/2', 'X', '4000', '4000', '0', '2026/6/29')].join('\n')
     expect(parsePaypayStatement(csv, { statementDay: null, paymentDueDay: 27 })).toBeNull()
+  })
+
+  it('gan kind: チャージ tron la topup, （再計算） hau to la recalculated, con lai purchase', () => {
+    const csv = [
+      HEAD,
+      row('2026/1/8', 'チャージ', '4000', '4000', '0', '2026/2/27'),
+      row('2026/1/9', 'モバイルＳｕｉｃａチャージ', '1000', '1000', '0', '2026/2/27'),
+      row('', 'ＴＥＭＵ（再計算）', '3476', '3476', '0', '2026/2/27'),
+    ].join('\n')
+    const p = parsePaypayStatement(csv, CARD)!
+    expect(p.lines.map((l) => l.kind)).toEqual(['topup', 'purchase', 'recalculated'])
+  })
+
+  it('source lay tu ten file; khong truyen ten thi rong', () => {
+    const csv = [HEAD, row('2026/1/6', '野方ホープ', '2160', '2160', '0', '2026/2/27')].join('\n')
+    expect(parsePaypayStatement(csv, CARD, 'detail202602(4342).csv')!.source).toBe('4342')
+    expect(parsePaypayStatement(csv, CARD, 'detail202602(4342).csv')!.sourceLabel).toBe('PayPay 4342')
+    expect(parsePaypayStatement(csv, CARD)!.source).toBe('')
   })
 })

@@ -75,7 +75,7 @@ describe('overviewRows', () => {
     expect(rows[0]).toMatchObject({ status: 'saved-only', reviewed: true })
   })
 
-  it('loaded co ledgerTotal, gap va explainedCount; saved-only van loaded null', () => {
+  it('loaded co ledgerTotal va gap; saved-only van loaded null', () => {
     const r = emptyResult()
     r.ledgerTotal = 214439
     r.explained = [
@@ -85,7 +85,7 @@ describe('overviewRows', () => {
     const rows = overviewRows(
       [bill('2026-04-30', 71015)], 'acc-1', [merged('2026-06-30', 158429)], new Map([['2026-06-30', r]]),
     )
-    expect(rows[0].loaded).toMatchObject({ ledgerTotal: 214439, gap: 56010, explainedCount: 2 })
+    expect(rows[0].loaded).toMatchObject({ ledgerTotal: 214439, gap: 56010 })
     const savedOnly = rows.find((row) => row.closeISO === '2026-04-30')
     expect(savedOnly?.loaded).toBeNull()
   })

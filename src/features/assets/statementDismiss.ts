@@ -6,7 +6,9 @@
 // trong một kỳ là chuyện thật) nên `dismissKey` một mình không đủ làm khoá lưu — dòng thứ
 // hai, ba... cùng base key phải được đánh số `#2`, `#3` (xem `keysFor`), nếu không bỏ qua
 // một dòng sẽ ẩn luôn cả cụm và `isReviewed` báo sai. Cụm nạp ví là MỘT hàng/kỳ nên khoá
-// theo ngày chốt. Hàng hoàn tiền phía sổ không có id (Đợt 1 không giữ) ⇒ ngày|tiền|ghi chú.
+// theo ngày chốt. Hàng hoàn tiền phía sổ đã có `tx` (refundDiffs[].tx) thì khoá như dòng sổ
+// thường (`tx:<uuid>`) — `rtx:<ngày>|<tiền>|<ghi chú>` chỉ còn là phương án dự phòng cho dòng
+// hoàn tiền KHÔNG có tx đính kèm (dữ liệu cũ / trường hợp chưa xác định được giao dịch gốc).
 //
 // Thuần, không phụ thuộc React.
 

@@ -24,10 +24,8 @@ export interface OverviewRow {
    * file gộp vào kỳ này (vd PayPay + Rakuten cùng kỳ).
    *
    * `ledgerTotal` là tổng số tiền phía sổ giao dịch của kỳ (`ReconcileResult.ledgerTotal`);
-   * `explainedCount` là số dòng lệch đã có lý do (`ReconcileResult.explained.length`) — nhóm
-   * chênh lệch không khớp 1-1 nhưng đã hiểu vì sao, không tính là "cần xem"; `gap` là
-   * `ledgerTotal - billTotal`, dương nghĩa là sổ ghi NHIỀU hơn hoá đơn — cùng quy ước dấu với
-   * `billGap` ở panel thẻ.
+   * `gap` là `ledgerTotal - billTotal`, dương nghĩa là sổ ghi NHIỀU hơn hoá đơn — cùng quy
+   * ước dấu với `billGap` ở panel thẻ.
    */
   loaded: null | {
     matchedCount: number
@@ -36,7 +34,6 @@ export interface OverviewRow {
     dismissedCount: number
     parts: MergedStatement['parts']
     ledgerTotal: number
-    explainedCount: number
     gap: number
   }
   reviewed: boolean
@@ -78,7 +75,6 @@ export function overviewRows(
         dismissedCount: hidden.length,
         parts: m.parts,
         ledgerTotal: r.ledgerTotal,
-        explainedCount: r.explained.length,
         gap: r.ledgerTotal - m.total,
       },
       reviewed: cu?.reviewed ?? false,

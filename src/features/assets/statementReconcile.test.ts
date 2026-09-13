@@ -3,6 +3,7 @@ import { reconcileBatch, type LedgerTx, type ReconcileResult } from './statement
 import type { MergedStatement } from './statementBatch'
 import type { LineKind, StatementLine } from './statementLine'
 import { CARD_RECONCILE_NOTE } from './reconcile'
+import { cardMonthCharge } from './cardMonthCharge'
 
 const CARD = 'card-1'
 const line = (iso: string, amount: number, name = 'X', kind: LineKind = 'purchase'): StatementLine => ({
@@ -364,5 +365,43 @@ describe('reconcileBatch — du lieu them cho giao dien', () => {
   it('hoan tien phia the (調整額) khong co tx', () => {
     const r = one('2026-01', [line('2026-01-03', -7951, '調整額 · A', 'adjustment')], [])
     expect(r.refundDiffs[0].tx).toBeUndefined()
+  })
+
+  // Hai file tinh tien QUET trong ky theo hai quy uoc dau khac nhau: statementReconcile
+  // dung `signedAmount` (income/is_refund -> am), cardMonthCharge.ts dung `-txBalanceDelta`.
+  // Test nay khoa bat bien ledgerTotal === cardMonthCharge tren CUNG mot ro giao dich, de
+  // hai duong khong troi dan ra hai so khac nhau qua tung dot sua rieng le.
+  it('ledgerTotal cua reconcileBatch bang dung cardMonthCharge tren cung mot ro giao dich', () => {
+    type Row = {
+      id: string
+      account_id: string
+      occurred_on: string
+      amount: number
+      type: 'expense' | 'income' | 'transfer'
+      is_refund: boolean
+      to_account_id: string | null
+      to_amount: number | null
+      note: string | null
+    }
+    const rows: Row[] = [
+      // Chi thuong.
+      { id: 'r1', account_id: CARD, occurred_on: '2026-06-02', amount: 4950, type: 'expense', is_refund: false, to_account_id: null, to_amount: null, note: null },
+      // Thu nhap ghi thang tren the.
+      { id: 'r2', account_id: CARD, occurred_on: '2026-06-03', amount: 1000, type: 'income', is_refund: false, to_account_id: null, to_amount: null, note: null },
+      // Chuyen tien RA KHOI the (rut vi) — van tinh vao ca hai ben.
+      { id: 'r3', account_id: CARD, occurred_on: '2026-06-04', amount: 3000, type: 'transfer', is_refund: false, to_account_id: 'wallet', to_amount: null, note: null },
+      // Hoan tien tren the.
+      { id: 'r4', account_id: CARD, occurred_on: '2026-06-05', amount: 500, type: 'expense', is_refund: true, to_account_id: null, to_amount: null, note: null },
+      // Tra no the (chuyen tien VAO the) — loai khoi ca hai ben.
+      { id: 'r5', account_id: 'wallet', occurred_on: '2026-06-06', amount: 50000, type: 'transfer', is_refund: false, to_account_id: CARD, to_amount: 50000, note: null },
+      // Khoan bu "Dieu chinh so no" — loai khoi ca hai ben.
+      { id: 'r6', account_id: CARD, occurred_on: '2026-06-07', amount: 92158, type: 'expense', is_refund: false, to_account_id: null, to_amount: null, note: CARD_RECONCILE_NOTE },
+    ]
+    const p = period('2026-06', [])
+    const ledger: LedgerTx[] = rows.map(({ id, occurred_on, amount, type, is_refund, to_account_id, note }) => ({
+      id, occurred_on, amount, type, is_refund, to_account_id, note,
+    }))
+    const result = reconcileBatch([p], ledger, CARD).get(p.range.closeISO)!
+    expect(result.ledgerTotal).toBe(cardMonthCharge(CARD, rows))
   })
 })

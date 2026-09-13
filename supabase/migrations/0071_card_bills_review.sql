@@ -11,9 +11,11 @@
 -- hệ nào khác để tra. Tách bảng là thêm một join cho một cột.
 --
 -- KHOÁ DÒNG (định nghĩa ở src/features/assets/statementDismiss.ts):
---   'tx:<uuid giao dịch>'                 dòng sổ thừa
+--   'tx:<uuid giao dịch>'                 dòng sổ thừa, VÀ hoàn tiền phía sổ đã biết tx gốc
+--                                         (refundDiffs[].tx)
 --   'stm:<ngày>|<số tiền>|<tên NFKC>'     dòng thẻ thiếu
---   'rtx:<ngày>|<số tiền>|<ghi chú>'      hoàn tiền phía sổ (không có id giao dịch)
+--   'rtx:<ngày>|<số tiền>|<ghi chú>'      chỉ dự phòng: hoàn tiền phía sổ KHÔNG có tx đính
+--                                         kèm (refundDiffs[].tx undefined)
 --   'topups:<ngày chốt>'                  cụm nạp ví chưa ghép
 --
 -- Xem: docs/superpowers/specs/2026-09-13-doi-chieu-sao-ke-the-2-design.md §7

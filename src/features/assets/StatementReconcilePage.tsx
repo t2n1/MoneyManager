@@ -524,9 +524,11 @@ export function StatementReconcilePage() {
                             )}
                           </td>
                           {/* Sổ: tổng phía sổ của kỳ. Chỉ có khi kỳ này vừa nạp file —
-                              kỳ đã lưu không giữ số sổ, và đoán một số là bịa. */}
+                              kỳ đã lưu không giữ số sổ, và đoán một số là bịa. Đang đọc
+                              sổ / đọc hỏng thì `results` rỗng (xem comment ô Tình trạng)
+                              nên `ledgerTotal` là 0 giả — im lặng thay vì in ¥0 sai. */}
                           <td className="hidden py-2 px-2 sm:table-cell">
-                            {r.loaded ? (
+                            {r.loaded && !chuaGhepDuoc ? (
                               <Money amount={r.loaded.ledgerTotal} currency={card.currency} tone="out" />
                             ) : (
                               '—'
@@ -535,13 +537,24 @@ export function StatementReconcilePage() {
                           {/* Lệch: chỉ ĐỘ LỚN, không dấu. `showSign` ở đây sẽ lấy dấu từ
                               `tone` (xem Money), mà tone ở cột này nói TÌNH TRẠNG chứ
                               không nói chiều tiền — in ra là in sai chiều. Chiều lệch đọc
-                              ở khối kỳ bên dưới, nơi có cả hai bên để so. */}
+                              ở khối kỳ bên dưới, nơi có cả hai bên để so. Đang đọc sổ / đọc
+                              hỏng thì `gap` = −billTotal giả (cùng lý do cột Sổ ở trên) —
+                              im lặng thay vì in một "Lệch" toàn bộ hoá đơn màu cam. */}
                           <td className="py-2 px-2">
-                            {r.loaded ? (
+                            {r.loaded && !chuaGhepDuoc ? (
                               <Money
                                 amount={Math.abs(r.loaded.gap)}
                                 currency={card.currency}
-                                tone={r.loaded.gap === 0 ? 'muted' : r.reviewed ? 'neutral' : 'warn'}
+                                tone={
+                                  r.loaded.gap === 0
+                                    ? 'muted'
+                                    : // Kỳ không còn hàng MỞ (đã xem hết, hoặc mọi dòng lệch
+                                      // đều là khác biệt cấu trúc đã hiểu — trả góp, nạp ví)
+                                      // thì lệch còn lại không phải điều cần cảnh báo nữa.
+                                      r.reviewed || r.status === 'ok'
+                                      ? 'neutral'
+                                      : 'warn'
+                                }
                               />
                             ) : (
                               '—'
@@ -611,7 +624,11 @@ export function StatementReconcilePage() {
                     { value: 'lech', label: 'Chỉ dòng lệch' },
                     {
                       value: 'tatca',
-                      label: (
+                      // Đang đọc sổ / đọc hỏng thì `ketQua` là `emptyResult()` (xem comment
+                      // ô Tình trạng) — đếm lúc đó là "0 cặp" giả, bỏ số đi cho tới khi có.
+                      label: chuaGhepDuoc ? (
+                        'Tất cả'
+                      ) : (
                         <>
                           Tất cả <Num tone="muted">{ketQua.pairs.length + hang.length}</Num> cặp
                         </>

@@ -811,14 +811,17 @@ export function AccountDetailPage() {
                   từ con số, nên một nhãn duy nhất không thể nói đúng chiều. Tiền lệ ngay trên
                   panel này: `carried` cũng dùng hai nhãn vì đúng lý do đó.
                   `tone="warn"` chứ không `in`/`out`: đây là TÌNH TRẠNG đối chiếu, không phải
-                  một lần tiền vào hay ra — xem ghi chú ở `TONE_CLASS` của Money.tsx. */}
+                  một lần tiền vào hay ra — xem ghi chú ở `TONE_CLASS` của Money.tsx.
+                  `bill.reviewed` = người dùng đã xem hết dòng lệch trên trang Đối chiếu —
+                  số vẫn hiện (không giấu), nhưng không còn là cảnh báo, nên đổi sang tone
+                  trung tính. */}
               <span className="text-fg-muted">
-                {billGap > 0 ? 'Lệch — sổ ghi thừa' : 'Lệch — sổ ghi thiếu'}
+                {bill?.reviewed ? 'Lệch — đã xem hết' : billGap > 0 ? 'Lệch — sổ ghi thừa' : 'Lệch — sổ ghi thiếu'}
               </span>
               <Money
                 amount={Math.abs(billGap)}
                 currency={currency}
-                tone="warn"
+                tone={bill?.reviewed ? 'neutral' : 'warn'}
                 className="font-medium"
               />
             </div>

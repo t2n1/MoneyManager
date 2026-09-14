@@ -1495,36 +1495,38 @@ function TuongLaiConsole() {
    * sách đầy đủ". Trước đây thân hàm này nằm inline trong object của dock; hoist ra vì
    * phiếu cần đúng luật đó, và hai bản sao của luật "né năm khi mẫu sinh chặng" là hai
    * chỗ để lệch nhau (chính là phát hiện review 2026-09-09 #2).
+   *
+   * KHÔNG bọc `useCallback`: chỗ này nằm SAU bốn nhánh `return` sớm ở trên (đang tải,
+   * thiếu năm sinh, chưa có kịch bản, chưa có nháp), nên một hook ở đây làm số hook đổi
+   * giữa hai lượt render — React nổ "Rendered more hooks than during the previous
+   * render". Mà bọc cũng vô ích: dep `buildPresetCtx` là hàm dựng lại mỗi lượt render.
    */
-  const addPresetAtDefaultYear = useCallback(
-    (preset: LifePreset) => {
-      if (!working) return
-      // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương lai, và
-      // một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ thị, chỗ khó kéo
-      // nhất. Cùng con số với màn cũ.
-      const wanted = currentYear + 2
-      const seed = ++newIdSeed.current
-      const probe = preset.build(buildPresetCtx(wanted))
-      // BA mẫu sinh CHẶNG (`cuoi`/`nghi-huu`/`chuyen-nuoc`) đều đặt `start_year: ctx.year`
-      // — bấm "Cưới" hai lần ra hai chặng cùng năm và Lưu nổ `unique (scenario_id,
-      // start_year)`. Sáu mẫu còn lại chỉ sinh SỰ KIỆN (không có ràng buộc unique theo
-      // năm), nên chỉ né năm khi mẫu THẬT SỰ sinh một chặng.
-      const nam =
-        probe.phases.length > 0
-          ? freePhaseStartYear(working.phases, wanted, currentYear, lastYear)
-          : wanted
-      const result = nam === wanted ? probe : preset.build(buildPresetCtx(nam))
-      editDraft((d) => applyPreset(d, result, seed))
-      // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng thì giữ nguyên lựa
-      // chọn — không có mốc để nhắm tới.
-      if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
-      showToast(
-        `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
-        'success',
-      )
-    },
-    [working, currentYear, lastYear, buildPresetCtx, editDraft],
-  )
+  const addPresetAtDefaultYear = (preset: LifePreset) => {
+    if (!working) return
+    // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương lai, và
+    // một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ thị, chỗ khó kéo
+    // nhất. Cùng con số với màn cũ.
+    const wanted = currentYear + 2
+    const seed = ++newIdSeed.current
+    const probe = preset.build(buildPresetCtx(wanted))
+    // BA mẫu sinh CHẶNG (`cuoi`/`nghi-huu`/`chuyen-nuoc`) đều đặt `start_year: ctx.year`
+    // — bấm "Cưới" hai lần ra hai chặng cùng năm và Lưu nổ `unique (scenario_id,
+    // start_year)`. Sáu mẫu còn lại chỉ sinh SỰ KIỆN (không có ràng buộc unique theo
+    // năm), nên chỉ né năm khi mẫu THẬT SỰ sinh một chặng.
+    const nam =
+      probe.phases.length > 0
+        ? freePhaseStartYear(working.phases, wanted, currentYear, lastYear)
+        : wanted
+    const result = nam === wanted ? probe : preset.build(buildPresetCtx(nam))
+    editDraft((d) => applyPreset(d, result, seed))
+    // Nhắm con trỏ vào thứ vừa thêm (spec §14). Mẫu chỉ sinh chặng thì giữ nguyên lựa
+    // chọn — không có mốc để nhắm tới.
+    if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
+    showToast(
+      `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+      'success',
+    )
+  }
 
   /**
    * "Thử nghỉ việc từ <năm FIRE>" (spec §13, tryRetire.ts) — cắm mẫu Nghỉ hưu vào năm đó

@@ -103,6 +103,23 @@ describe('bố cục trang Tài sản', () => {
       // là bấm một chỗ rồi phải cuộn lên xem cái vừa đổi.
       expect(at(now, 'AssetsNowView.tsx', '<StructureBar')).toBeLessThan(picker)
     })
+
+    it('thẻ Cơ cấu nở hết khung 27rem đứng cạnh thẻ Thẻ tín dụng', () => {
+      // Khung bọc trong AssetsNowView là một HÀNG FLEX (để hai thẻ cao bằng nhau). Con của
+      // hàng flex mà không có flex-1 thì co theo nội dung: đo ở 1500px, khung rộng 432px
+      // mà thẻ chỉ 354px, hở 78px bên phải — nhìn như cả khối bị thụt vào so với dải KPI
+      // và bảng phía dưới. CardsSection bên cạnh nở bằng flex-1; thẻ này phải cùng cơ chế.
+      const structure = read('StructureBar.tsx')
+      const cards = read('CardsSection.tsx')
+      const rootClasses = (src: string, file: string) => {
+        const m = src.match(/<Card\s+as="section"[\s\S]*?className="([^"]*)"/)
+        if (!m) throw new Error(`Không thấy Card gốc trong ${file}`)
+        return m[1].split(/\s+/)
+      }
+      expect(now).toContain('className="flex lg:w-[27rem] lg:shrink-0"')
+      expect(rootClasses(cards, 'CardsSection.tsx')).toContain('flex-1')
+      expect(rootClasses(structure, 'StructureBar.tsx')).toContain('flex-1')
+    })
   })
 
   describe('chế độ Theo thời gian (bản vẽ 2b)', () => {

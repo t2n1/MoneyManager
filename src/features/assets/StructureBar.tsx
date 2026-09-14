@@ -98,7 +98,7 @@ export function StructureBar({
       as="section"
       elevation="panel"
       padding="none"
-      className="flex min-w-0 flex-col overflow-hidden"
+      className="flex min-w-0 flex-1 flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border-panel px-4 py-2.5">
         <SectionTitle role="micro">

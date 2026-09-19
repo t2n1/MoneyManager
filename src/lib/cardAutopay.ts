@@ -70,6 +70,35 @@ export function statementCloseFor(dueISO: string, statementDay: number): string 
   return dayOfMonth(prev.year, prev.month, statementDay)
 }
 
+/**
+ * Kiểu chu kỳ mà `statementCloseFor` SUY RA được từ hai con số ngày — không phải
+ * kiểu chu kỳ thật của thẻ.
+ *
+ * `statementCloseFor` chỉ biết một luật: lấy ngày chốt GẦN NHẤT TRƯỚC ngày trả.
+ * Luật đó gộp hai chu kỳ có thật ngoài đời vào một công thức, và chỉ đoán đúng một:
+ *
+ *   · chốt ≥ trả  → mốc chốt rơi vào THÁNG TRƯỚC  → 'next' (trả tháng sau). Đúng
+ *     với 月末締め翌月27日払い (PayPay, Rakuten thường) và 27日締め翌月27日払い (EPOS).
+ *   · chốt < trả  → mốc chốt rơi vào CÙNG THÁNG   → 'same' (chốt rồi trả luôn trong
+ *     tháng). Đúng với 5日締め当月26日払い, nhưng SAI với 楽天ペイ — vốn chốt ngày 25
+ *     rồi mới rút ngày 27 THÁNG SAU. Với thẻ kiểu đó, "kỳ này" hiện ra thành kỳ
+ *     đang còn mở, tức tiền của KỲ SAU.
+ *
+ * Bảng tài khoản không có cột nào phân biệt hai chu kỳ đó, nên ở 'same' app không
+ * thể biết mình đoán đúng hay sai. Hàm này tồn tại để chỗ nhập liệu NÓI RA điều đó
+ * thay vì lặng lẽ tính lệch một kỳ — xem AccountFormSheet.
+ */
+export type StatementCycleKind = 'same' | 'next'
+
+/** null khi thẻ chưa đủ hai ngày để suy ra chu kỳ. */
+export function statementCycleKind(
+  statementDay: number | null,
+  paymentDueDay: number | null,
+): StatementCycleKind | null {
+  if (statementDay == null || paymentDueDay == null) return null
+  return statementDay < paymentDueDay ? 'same' : 'next'
+}
+
 export interface NextStatementPeriod {
   /** Ngày chốt sao kê của kỳ sắp bị rút. */
   closeISO: string

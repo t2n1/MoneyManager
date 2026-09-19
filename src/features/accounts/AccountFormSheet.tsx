@@ -14,6 +14,7 @@ import {
   useDeleteAccount,
   useUpdateAccount,
 } from '../../hooks/queries'
+import { statementCycleKind } from '../../lib/cardAutopay'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
@@ -130,6 +131,15 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
   )
   // Tự trả cần đủ ngày chốt + đến hạn để tính số tiền theo sao kê
   const autopayNeedsDays = paymentAccountId !== '' && (statementDay === '' || paymentDueDay === '')
+  // Ngày chốt NHỎ HƠN ngày trả là chỗ app buộc phải đoán chu kỳ, và đoán được đúng
+  // một kiểu — xem `statementCycleKind`. Nói ra ngay tại ô nhập, vì hậu quả (cột
+  // "Kỳ này" hiện tiền kỳ sau) xuất hiện ở một màn hình khác hẳn.
+  const cycleAmbiguous =
+    isCard &&
+    statementCycleKind(
+      statementDay === '' ? null : Number(statementDay),
+      paymentDueDay === '' ? null : Number(paymentDueDay),
+    ) === 'same'
   // Ví tiền của tài khoản đầu tư: cùng loại tiền, không phải chính nó, chưa lưu trữ.
   // KHÔNG lọc theo `type`: điều kiện thật là "cùng loại tiền và không phải chính nó";
   // chặn thêm theo loại là đoán hộ người dùng tiền của họ nằm ở đâu.
@@ -328,6 +338,18 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
                 />
               </div>
             </div>
+
+            {cycleAmbiguous && (
+              <p className="mb-3 flex items-start gap-1 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  Ngày chốt nhỏ hơn ngày đến hạn — app sẽ hiểu là chốt ngày {statementDay} rồi rút
+                  ngày {paymentDueDay} <strong>ngay trong tháng đó</strong>. Nếu thẻ của bạn chốt
+                  ngày {statementDay} rồi mới rút ngày {paymentDueDay} <strong>tháng sau</strong>
+                  {' '}(như 楽天ペイ 25日締め), mọi số sẽ lệch nguyên một kỳ.
+                </span>
+              </p>
+            )}
 
             <label htmlFor={`${uid}-payacc`} className="mb-1 block text-sm font-medium text-fg-muted">
               Tài khoản trả thẻ <span className="text-fg-muted">(không bắt buộc)</span>

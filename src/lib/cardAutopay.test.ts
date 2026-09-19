@@ -4,6 +4,7 @@ import {
   dueDatesToGenerate,
   runCardAutopayCatchUp,
   statementCloseFor,
+  statementCycleKind,
   type AccountLike,
   type CardAutopayRepo,
   type TxLike,
@@ -226,5 +227,33 @@ describe('runCardAutopayCatchUp', () => {
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')
     expect(n).toBe(0)
     expect(created).toHaveLength(0)
+  })
+})
+
+describe('statementCycleKind', () => {
+  // Ba thẻ thật trong sổ: EPOS 27日締め翌月27日払い, PayPay/Rakuten 月末締め翌月27日払い.
+  it('chốt ≥ trả → app hiểu là trả THÁNG SAU', () => {
+    expect(statementCycleKind(27, 27)).toBe('next') // EPOS
+    expect(statementCycleKind(31, 27)).toBe('next') // PayPay, Rakuten
+    expect(statementCycleKind(15, 10)).toBe('next') // 三井住友 15日締め翌月10日払い
+  })
+
+  // Đây là cái bẫy: 楽天ペイ chốt 25 → rút 27 THÁNG SAU, nhưng `statementCloseFor`
+  // chỉ biết lấy mốc chốt gần nhất TRƯỚC ngày trả, tức 25 cùng tháng → lệch một kỳ.
+  it('chốt < trả → app chỉ hiểu được kiểu trả CÙNG THÁNG', () => {
+    expect(statementCycleKind(25, 27)).toBe('same') // 楽天ペイ — app tính sai
+    expect(statementCycleKind(5, 26)).toBe('same') // 5日締め当月26日払い — app tính đúng
+  })
+
+  it('thiếu ngày thì không kết luận', () => {
+    expect(statementCycleKind(null, 27)).toBeNull()
+    expect(statementCycleKind(27, null)).toBeNull()
+  })
+
+  // Bằng chứng cho lời cảnh báo: cùng ngày trả 27, chốt 25 ra mốc chốt CÙNG THÁNG
+  // (kỳ chưa đóng), chốt 27 ra mốc chốt tháng trước (kỳ đã đóng, đúng cái sắp bị rút).
+  it('chốt < trả thật sự cho ra mốc chốt của kỳ sau', () => {
+    expect(statementCloseFor('2026-09-27', 25)).toBe('2026-09-25')
+    expect(statementCloseFor('2026-09-27', 27)).toBe('2026-08-27')
   })
 })

@@ -23,6 +23,7 @@
 // trả" ở đầu trang (xem KpiStrip). Hạn chót là thứ phải thấy trước khi cuộn.
 import { Link } from 'react-router-dom'
 import { CreditCard } from 'lucide-react'
+import { dueDateLabel } from '../../lib/dates'
 import { Card, Money, SectionTitle, StatusChip } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 import type { CardLiability } from './aggregate'
@@ -102,6 +103,25 @@ export function CardsSection({ cards, panel, view }: Props) {
     funding.groups[0].cardCount === cards.length &&
     dueDays.size === 1
 
+  // ---- Vì sao đầu cột là NGÀY chứ không phải chữ "Kỳ này" -------------------------
+  //
+  // "Kỳ này" đọc ra là "tháng đang xem", nhưng nó là tiền của tháng TRƯỚC: thẻ Nhật
+  // 月末締め翌月27日払い thì quẹt tháng 8 mới bị rút ngày 27 tháng 9. Nhãn cũ đã làm
+  // chính chủ sổ này đọc thành "app đang hiện tiền kỳ sau" và đi báo lỗi — trong khi
+  // con số vẫn đúng. Một cái ngày thì không còn chỗ để hiểu hai nghĩa.
+  //
+  // Chỉ thay khi MỌI thẻ đang nợ cùng một ngày rút; khác ngày thì một đầu cột không
+  // nói thay được bốn dòng, và rơi về nhãn cũ vẫn đúng hơn là in một ngày sai cho
+  // hai phần ba số dòng.
+  const nextDays = new Set(
+    cards.flatMap((c) => {
+      const d = statements.get(c.id)?.nextDueISO
+      return d ? [d] : []
+    }),
+  )
+  const colBilled = dueDays.size === 1 ? `Rút ${dueDateLabel([...dueDays][0])}` : 'Kỳ này'
+  const colUnbilled = nextDays.size === 1 ? `Rút ${dueDateLabel([...nextDays][0])}` : 'Chưa chốt'
+
   return (
     <Card
       as="section"
@@ -165,8 +185,8 @@ export function CardsSection({ cards, panel, view }: Props) {
         className={`${COLS} border-b border-border-subtle px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted`}
       >
         <span>Thẻ</span>
-        <span className="text-right">Kỳ này</span>
-        <span className="hidden text-right @xl:block">Chưa chốt</span>
+        <span className="text-right">{colBilled}</span>
+        <span className="hidden text-right @xl:block">{colUnbilled}</span>
         <span className="hidden text-right @xl:block">Tổng nợ</span>
       </div>
 
@@ -221,7 +241,10 @@ export function CardsSection({ cards, panel, view }: Props) {
       <div
         className={`${COLS} mt-auto items-center border-t border-border-panel bg-surface-chrome px-4 py-2 text-sm`}
       >
-        <span className="text-fg-muted">Tổng · phần chưa chốt sang kỳ sau</span>
+        {/* Đầu cột đã nói mỗi cột là lần rút nào, nên dòng tổng không cần chú thích
+            "phần chưa chốt sang kỳ sau" nữa — và chính chữ "kỳ sau" là chỗ gây hiểu
+            nhầm ban đầu. */}
+        <span className="text-fg-muted">Tổng</span>
         <Money
           amount={tong.billed}
           currency={view.cur}
@@ -249,7 +272,7 @@ export function CardsSection({ cards, panel, view }: Props) {
           bỏ hẳn thì con số "Kỳ này" trông như toàn bộ nợ thẻ. */}
       {tong.unbilled > 0 && (
         <div className="flex items-center justify-between border-t border-border-subtle bg-surface-chrome px-4 py-2 text-sm @xl:hidden">
-          <span className="text-fg-muted">Chưa chốt · kỳ sau</span>
+          <span className="text-fg-muted">{colUnbilled}</span>
           <Money
             amount={tong.unbilled}
             currency={view.cur}

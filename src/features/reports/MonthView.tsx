@@ -106,6 +106,7 @@ import {
 import { MonthlyBarsCard } from './MonthlyBarsCard'
 import { groupSlicesByParent } from './sankey'
 import { SankeyCard } from './SankeyCard'
+import { TreemapCard } from './TreemapCard'
 import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { SpendClassificationCard } from './SpendClassificationCard'
 import { SpendSizeCard } from './SpendSizeCard'
@@ -670,6 +671,16 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
           <ReportBlock id="m-danh-muc" no="02" title="Chi tiêu đi vào đâu">
             <GhiChuChuyenDi trips={trips} range={range} />
+            {/* Hình đứng TRƯỚC bảng và dùng CHUNG `tableRows`: hình trả lời "to nhỏ ra
+                sao", bảng trả lời "bao nhiêu, so tháng trước thế nào". Cùng một mảng nên
+                không có đường nào để hai thẻ lệch số nhau. */}
+            <TreemapCard
+              rows={tableRows}
+              categories={categories}
+              base={base}
+              monthKey={monthKey}
+              approx={sums.hasForeign}
+            />
             <MonthCategoryTable
               rows={tableRows}
               total={chiCoPhanChuaGhi}

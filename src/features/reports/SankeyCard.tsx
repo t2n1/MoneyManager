@@ -122,7 +122,9 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="h-auto w-full min-w-[38rem]"
+          // Sàn bề ngang đi theo khung: năm cột mà vẫn để sàn của bốn cột thì cả hình co
+          // xuống 0,63 lần, và nhãn 11px in ra 7px — dưới mọi bậc chữ đã đặt tên.
+          className={`h-auto w-full ${width >= 900 ? 'min-w-[50rem]' : 'min-w-[38rem]'}`}
           role="img"
           aria-labelledby={titleId}
         >
@@ -139,7 +141,6 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
             <NodeMark
               key={n.id}
               node={n}
-              width={width}
               money={money}
               lines={plan.get(n.id) ?? 0}
               dim={active !== null && active !== n.id}
@@ -171,9 +172,10 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
 
       <Guide className="mt-1.5 text-2xs text-fg-muted">
         Đọc từ trái sang: tiền vào từ đâu → chia làm ba đường → khúc “Chi tiêu” vỡ ra theo{' '}
-        <b>nhóm danh mục</b>. Mọi phần trăm đều lấy <b>tiền vào</b> làm mẫu số, nên các con số
-        trên cùng một hình cộng trừ được với nhau. Trỏ vào một nút để làm nổi đường của riêng nó.
-        Mỗi cột chỉ hiện vài mục lớn nhất, phần còn lại gộp thành “Khác”.
+        <b>nhóm danh mục</b> → mỗi nhóm vỡ tiếp ra <b>danh mục con</b>. Mọi phần trăm đều lấy{' '}
+        <b>tiền vào</b> làm mẫu số, nên các con số trên cùng một hình cộng trừ được với nhau.
+        Trỏ vào một nút để làm nổi đường của riêng nó. Mỗi cột chỉ hiện vài mục lớn nhất, phần
+        còn lại gộp thành “Khác”; nhóm không có danh mục con thì đi thẳng qua cột cuối.
       </Guide>
     </Card>
   )
@@ -189,7 +191,6 @@ function pctOf(nodes: readonly SankeyNode[], id: string): number {
 
 function NodeMark({
   node,
-  width,
   money,
   lines,
   dim,
@@ -197,15 +198,15 @@ function NodeMark({
   onLeave,
 }: {
   node: SankeyNode
-  width: number
   money: (v: number) => string
   lines: LabelLines
   dim: boolean
   onEnter: () => void
   onLeave: () => void
 }) {
-  // Cột cuối viết nhãn sang TRÁI: viết sang phải thì chữ tràn khỏi viewBox.
-  const last = node.x1 >= width - 0.5
+  // Viết sang TRÁI hay PHẢI do mô hình quyết (`labelSide`), không suy từ toạ độ: với năm
+  // cột thì CẢ HAI cột cuối phải viết sang trái, không riêng cột chạm mép phải.
+  const last = node.labelSide === 'left'
   const tx = last ? node.x0 - 6 : node.x1 + 6
   const anchor = last ? 'end' : 'start'
   const cy = (node.y0 + node.y1) / 2

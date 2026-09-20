@@ -3,6 +3,7 @@ import {
   buildSankey,
   capSlices,
   groupSlicesByParent,
+  groupSlicesWithChildren,
   labelPlan,
   ribbonPath,
   SANKEY_HUB_ID,
@@ -305,8 +306,29 @@ describe('buildSankey — trường hợp biên', () => {
 })
 
 describe('labelPlan', () => {
-  const node = (id: string, col: number, y0: number, y1: number) =>
-    ({ id, label: id, value: y1 - y0, col, tone: 'in', x0: 0, x1: 11, y0, y1, pct: null }) as const
+  const node = (id: string, col: number, y0: number, y1: number, passThrough = false) =>
+    ({
+      id,
+      label: id,
+      value: y1 - y0,
+      col,
+      tone: 'in',
+      x0: 0,
+      x1: 11,
+      y0,
+      y1,
+      pct: null,
+      labelSide: 'right',
+      passThrough,
+    }) as const
+
+  it('ô đi thẳng không in nhãn, và không giữ chỗ nhãn của hàng xóm', () => {
+    // Giữ chỗ cho một nhãn không bao giờ vẽ ra thì nút ngay dưới bị đẩy về 0 dòng — mất
+    // một cái nhãn thật để nhường cho một cái nhãn không tồn tại.
+    const plan = labelPlan([node('di-thang', 4, 0, 100, true), node('that', 4, 100, 130)])
+    expect(plan.get('di-thang')).toBe(0)
+    expect(plan.get('that')).toBe(2)
+  })
 
   it('nút dày và đứng riêng được cả hai dòng nhãn', () => {
     const plan = labelPlan([node('a', 0, 0, 100)])
@@ -384,5 +406,172 @@ describe('sankeyBlocker — phân biệt "tháng rỗng" với "số liệu tự
 
   it('kỳ chưa ghi chi nào thì im, dù có thu — đó là kỳ rỗng, không phải mâu thuẫn', () => {
     expect(sankeyBlocker(p({ expense: 0, chiDaGhi: 0, income: 300_000 }))).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cột thứ NĂM: danh mục con
+// ---------------------------------------------------------------------------
+
+const CATS5 = [
+  { id: 'nha', name: 'Nhà ở', icon: '🏠', parent_id: null },
+  { id: 'thue', name: 'Tiền thuê', icon: '🔑', parent_id: 'nha' },
+  { id: 'dien', name: 'Điện nước', icon: '💡', parent_id: 'nha' },
+  { id: 'dt', name: 'Điện thoại', icon: '📱', parent_id: 'nha' },
+  { id: 'an', name: 'Ăn uống', icon: '🍚', parent_id: null },
+  { id: 'com', name: 'Cơm ngoài', icon: '🍜', parent_id: 'an' },
+  { id: 'le', name: 'Lặt vặt', icon: '📦', parent_id: null },
+]
+
+describe('groupSlicesWithChildren', () => {
+  it('nhóm cha mang theo danh sách con, xếp giảm dần', () => {
+    const out = groupSlicesWithChildren(
+      [
+        { categoryId: 'thue', amount: 100 },
+        { categoryId: 'dien', amount: 30 },
+        { categoryId: 'dt', amount: 20 },
+      ],
+      CATS5,
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].id).toBe('nha')
+    expect(out[0].children?.map((c) => c.label)).toEqual([
+      '🔑 Tiền thuê',
+      '💡 Điện nước',
+      '📱 Điện thoại',
+    ])
+  })
+
+  it('danh mục cấp một không có con thì KHÔNG có `children` — nó đi thẳng qua cột con', () => {
+    const out = groupSlicesWithChildren([{ categoryId: 'le', amount: 40 }], CATS5)
+    expect(out[0].children).toBeUndefined()
+  })
+
+  it('tiền ghi THẲNG vào danh mục cha thành một ô con mang tên chính nó', () => {
+    // Không bỏ qua được: bỏ thì tổng cột con nhỏ hơn nút nhóm, và hình mất cân im lặng.
+    const out = groupSlicesWithChildren(
+      [
+        { categoryId: 'thue', amount: 100 },
+        { categoryId: 'nha', amount: 25 },
+      ],
+      CATS5,
+    )
+    expect(out[0].amount).toBe(125)
+    expect(out[0].children?.find((c) => c.id === 'nha')?.amount).toBe(25)
+  })
+
+  it('có con thì tổng các con LUÔN bằng nhóm', () => {
+    const out = groupSlicesWithChildren(
+      [
+        { categoryId: 'thue', amount: 100 },
+        { categoryId: 'nha', amount: 25 },
+        { categoryId: 'com', amount: 60 },
+        { categoryId: 'an', amount: 5 },
+      ],
+      CATS5,
+    )
+    for (const g of out) {
+      if (!g.children) continue
+      expect(g.children.reduce((s, c) => s + c.amount, 0)).toBe(g.amount)
+    }
+  })
+})
+
+describe('buildSankey — cột danh mục con', () => {
+  const WITH_KIDS: SankeyInput = {
+    income: 500_000,
+    incomeSlices: [{ id: 'luong', label: 'Lương', amount: 500_000 }],
+    expense: 300_000,
+    expenseGroups: [
+      {
+        id: 'nha',
+        label: 'Nhà ở',
+        amount: 200_000,
+        children: [
+          { id: 'thue', label: 'Tiền thuê', amount: 150_000 },
+          { id: 'dien', label: 'Điện nước', amount: 30_000 },
+          { id: 'dt', label: 'Điện thoại', amount: 12_000 },
+          { id: 'net', label: 'Internet', amount: 8_000 },
+        ],
+      },
+      { id: 'le', label: 'Lặt vặt', amount: 100_000 },
+    ],
+    chuaGhi: 0,
+    transfer: 100_000,
+  }
+
+  it('không truyền con thì vẫn đúng BỐN cột như cũ', () => {
+    const m = buildSankey(BINH_THUONG)!
+    expect(Math.max(...m.nodes.map((n) => n.col))).toBe(3)
+    expect(colOf(m, 3)[0].x1).toBe(m.width)
+  })
+
+  it('có con thì đẻ ra cột 4, và cột 4 chạm mép phải', () => {
+    const m = buildSankey(WITH_KIDS)!
+    expect(colOf(m, 4).length).toBeGreaterThan(0)
+    expect(colOf(m, 4)[0].x1).toBe(m.width)
+    expect(new Set([0, 1, 2, 3, 4].map((c) => colOf(m, c)[0].x0)).size).toBe(5)
+  })
+
+  it('cột con cộng lại đúng bằng nút Chi tiêu — ràng buộc cân bằng của cả hình', () => {
+    const m = buildSankey(WITH_KIDS)!
+    expect(sumCol(m, 4)).toBe(nodeById(m, 'tier:expense')!.value)
+  })
+
+  it('mỗi nhóm chỉ mở tối đa 2 con, phần đuôi gộp thành "Khác"', () => {
+    const m = buildSankey(WITH_KIDS)!
+    const kids = colOf(m, 4).filter((n) => n.id.startsWith('c:nha:'))
+    expect(kids).toHaveLength(3)
+    expect(kids[kids.length - 1].label).toContain('Khác')
+    expect(kids.reduce((s, n) => s + n.value, 0)).toBe(200_000)
+  })
+
+  it('nhóm không có con đi THẲNG qua một ô cùng giá trị, và ô đó không in nhãn lại', () => {
+    const m = buildSankey(WITH_KIDS)!
+    const pass = colOf(m, 4).filter((n) => n.passThrough)
+    expect(pass).toHaveLength(1)
+    expect(pass[0].value).toBe(100_000)
+    expect(pass[0].label).toBe('Lặt vặt')
+  })
+
+  it('"Chưa ghi rõ" cũng đi thẳng qua, không bị bịa ra danh mục con', () => {
+    const m = buildSankey({ ...WITH_KIDS, expense: 320_000, chuaGhi: 20_000 })!
+    const n = colOf(m, 4).find((x) => x.id === 'p:g:chua-ghi')!
+    expect(n.passThrough).toBe(true)
+    expect(n.tone).toBe('unknown')
+    expect(n.value).toBe(20_000)
+  })
+
+  it('mỗi ô cột 3 có dải nối sang cột 4 đúng bằng giá trị của nó', () => {
+    const m = buildSankey(WITH_KIDS)!
+    for (const g of colOf(m, 3)) {
+      const out = m.links.filter((l) => l.source === g.id)
+      expect(out.reduce((s, l) => s + l.value, 0)).toBe(g.value)
+    }
+  })
+
+  it('bốn cột thì chỉ cột cuối viết nhãn sang trái', () => {
+    const m = buildSankey(BINH_THUONG)!
+    expect(colOf(m, 3).every((n) => n.labelSide === 'left')).toBe(true)
+    expect(colOf(m, 2).every((n) => n.labelSide === 'right')).toBe(true)
+  })
+
+  it('năm cột thì HAI cột cuối viết nhãn sang trái — không thì nhãn cột 3 đâm vào nhãn cột 4', () => {
+    const m = buildSankey(WITH_KIDS)!
+    expect(colOf(m, 4).every((n) => n.labelSide === 'left')).toBe(true)
+    expect(colOf(m, 3).every((n) => n.labelSide === 'left')).toBe(true)
+    expect(colOf(m, 2).every((n) => n.labelSide === 'right')).toBe(true)
+  })
+
+  it('có cột thứ năm thì khung rộng ra, không nhồi năm cột vào chỗ của bốn', () => {
+    expect(buildSankey(WITH_KIDS)!.width).toBeGreaterThan(buildSankey(BINH_THUONG)!.width)
+  })
+
+  it('mọi nút vẫn nằm trong khung và cao dương', () => {
+    const m = buildSankey(WITH_KIDS)!
+    for (const n of m.nodes) {
+      expect(n.y1).toBeGreaterThan(n.y0)
+      expect(n.y1).toBeLessThanOrEqual(m.height + 0.001)
+    }
   })
 })

@@ -22,6 +22,16 @@ export interface SankeySlice {
   amount: number
 }
 
+/** Một nhóm chi (danh mục cha) kèm các danh mục con của nó — nguồn của cột thứ năm. */
+export interface SankeyGroup extends SankeySlice {
+  /**
+   * Danh mục con. KHÔNG có (undefined) nghĩa là nhóm này không vỡ ra được — danh mục cấp
+   * một không con, hoặc một mục tổng hợp như "Chưa ghi rõ" — và nó sẽ đi thẳng qua cột
+   * con thành một ô cùng giá trị. Có thì tổng các con PHẢI bằng `amount`.
+   */
+  children?: readonly SankeySlice[]
+}
+
 export interface SankeyInput {
   /** Tổng thu của kỳ (minor units, base). */
   income: number
@@ -30,7 +40,7 @@ export interface SankeyInput {
   /** Tổng chi ĐÃ GỒM phần chưa ghi — tức `tongChiCoPhanChuaGhi(...)`. */
   expense: number
   /** Chi theo NHÓM (danh mục cha). Tổng phải bằng `expense - chuaGhi`. */
-  expenseGroups: readonly SankeySlice[]
+  expenseGroups: readonly SankeyGroup[]
   /** Phần đã rời ví mà chưa ai ghi sổ. ≤ 0 = không có nhánh này. */
   chuaGhi: number
   /** Chuyển tài sản (kind = 'transfer'). */
@@ -46,6 +56,15 @@ export interface SankeyOptions {
    * bằng một phần ba, mà nhãn thì vẫn cần bấy nhiêu chỗ.
    */
   maxGroupNodes?: number
+  /**
+   * Số ô tối đa MỖI NHÓM được mở ra ở cột con; phần đuôi gộp thành "Khác". 3 = hai con
+   * lớn nhất + một ô gộp.
+   *
+   * Nhỏ hơn hẳn hai cột kia vì cột con không chia CẢ tiền vào mà chỉ chia nhánh "Chi
+   * tiêu" — tháng 8/2026 nhánh đó chỉ 35% tiền vào, nên một ô con 1% của chi chỉ dày
+   * 1,4px: không in nổi chữ, mà vẫn ăn một khe 7px. Mở ít mà ô dày còn đọc được.
+   */
+  maxChildNodes?: number
   /** Chiều cao vùng vẽ (đơn vị viewBox). */
   height?: number
   /** Chiều rộng vùng vẽ (đơn vị viewBox). */
@@ -56,7 +75,7 @@ export interface SankeyNode {
   id: string
   label: string
   value: number
-  /** 0 nguồn vào · 1 tổng · 2 ba đường · 3 nhóm chi */
+  /** 0 nguồn vào · 1 tổng · 2 ba đường · 3 nhóm chi · 4 danh mục con */
   col: number
   tone: SankeyTone
   x0: number
@@ -65,6 +84,17 @@ export interface SankeyNode {
   y1: number
   /** Phần trăm trên tổng tiền vào. null khi tổng ≤ 0. */
   pct: number | null
+  /**
+   * Ô cột con của một nhóm không vỡ ra được — cùng nhãn, cùng giá trị với ô cột 3 ngay
+   * bên trái. Tầng vẽ KHÔNG in nhãn lại cho nó: dải nối chạy ngang, in hai lần cùng một
+   * chữ cạnh nhau thì đọc ra như hai khoản khác nhau.
+   */
+  passThrough?: boolean
+  /**
+   * Nhãn viết về phía nào của nút. Hai cột cuối luôn viết sang TRÁI — nếu cột 3 viết sang
+   * phải thì nhãn của nó đâm thẳng vào nhãn viết-sang-trái của cột 4.
+   */
+  labelSide: 'left' | 'right'
 }
 
 export interface SankeyLink {
@@ -93,8 +123,11 @@ const NODE_W = 11
 const GAP = 7
 const DEFAULT_MAX_NODES = 6
 const DEFAULT_MAX_GROUP_NODES = 5
+const DEFAULT_MAX_CHILD_NODES = 3
 const DEFAULT_H = 380
 const DEFAULT_W = 720
+/** Có cột thứ năm thì nới khung: nhồi năm cột vào 720 là mỗi khoảng nối còn 177px. */
+const DEFAULT_W_WIDE = 960
 
 export const SANKEY_OTHER_ID = 'other'
 export const SANKEY_CHUA_GHI_ID = 'chua-ghi'
@@ -165,6 +198,64 @@ export function groupSlicesByParent(
 }
 
 /**
+ * Như `groupSlicesByParent`, nhưng mỗi nhóm mang theo danh sách con — nguồn của cột thứ năm.
+ *
+ * Tách thành hàm RIÊNG chứ không thêm trường vào hàm kia: cột nguồn THU cũng gọi hàm kia,
+ * mà thu thì không có cột con nào để vẽ, nên gắn `children` vào đó chỉ là dữ liệu thừa đi
+ * qua nửa màn hình.
+ *
+ * Tiền ghi THẲNG vào danh mục cha (`{ categoryId: 'nha' }` khi 'nha' có con) thành một ô
+ * con mang tên chính nó. Bỏ qua nó thì tổng các con nhỏ hơn nút nhóm, và hình mất cân
+ * trong im lặng — đúng cái ràng buộc ghi ở đầu file.
+ */
+export function groupSlicesWithChildren(
+  slices: readonly { categoryId: string; amount: number }[],
+  categories: readonly CatLike[],
+): SankeyGroup[] {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  interface Acc {
+    id: string
+    label: string
+    amount: number
+    direct: number
+    kids: Map<string, SankeySlice>
+  }
+  const out = new Map<string, Acc>()
+
+  for (const s of slices) {
+    if (s.amount <= 0) continue
+    const leaf = byId.get(s.categoryId)
+    const parent = leaf?.parent_id ? byId.get(leaf.parent_id) : undefined
+    const node = parent ?? leaf
+    const id = node?.id ?? `mat:${s.categoryId}`
+    const label = node ? `${node.icon} ${node.name}`.trim() : 'Danh mục đã xoá'
+    let g = out.get(id)
+    if (!g) {
+      g = { id, label, amount: 0, direct: 0, kids: new Map() }
+      out.set(id, g)
+    }
+    g.amount += s.amount
+    if (parent && leaf) {
+      const cur = g.kids.get(leaf.id)
+      if (cur) cur.amount += s.amount
+      else g.kids.set(leaf.id, { id: leaf.id, label: `${leaf.icon} ${leaf.name}`.trim(), amount: s.amount })
+    } else {
+      g.direct += s.amount
+    }
+  }
+
+  return [...out.values()]
+    .map((g): SankeyGroup => {
+      if (g.kids.size === 0) return { id: g.id, label: g.label, amount: g.amount }
+      const children = [...g.kids.values()]
+      if (g.direct > 0) children.push({ id: g.id, label: g.label, amount: g.direct })
+      children.sort((a, b) => b.amount - a.amount)
+      return { id: g.id, label: g.label, amount: g.amount, children }
+    })
+    .sort((a, b) => b.amount - a.amount)
+}
+
+/**
  * Dải ruy-băng nối hai cạnh dọc, dùng hai đường Bézier bậc ba đối xứng.
  *
  * Điểm điều khiển đặt ở CHÍNH GIỮA hai cột (không phải 1/3–2/3): giữa thì hai dải cắt
@@ -194,6 +285,7 @@ interface Stack {
   label: string
   value: number
   tone: SankeyTone
+  passThrough?: boolean
 }
 
 /** Số dòng nhãn được phép in cạnh một nút: 2 = tên + số, 1 = chỉ tên, 0 = không nhãn. */
@@ -228,6 +320,13 @@ export function labelPlan(nodes: readonly SankeyNode[]): Map<string, LabelLines>
   for (const arr of cols.values()) {
     let lastCy = -Infinity
     for (const n of [...arr].sort((a, b) => a.y0 - b.y0)) {
+      // Ô đi thẳng mang đúng nhãn của ô bên trái nó — không in lại, và cũng KHÔNG tính
+      // vào khoảng cách nhãn, nếu không nó đẩy hàng xóm xuống 0 dòng để giữ chỗ cho một
+      // cái nhãn không bao giờ vẽ ra.
+      if (n.passThrough) {
+        out.set(n.id, 0)
+        continue
+      }
       const h = n.y1 - n.y0
       const cy = (n.y0 + n.y1) / 2
       let lines: LabelLines = 0
@@ -274,8 +373,10 @@ export function sankeyBlocker(p: {
 export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): SankeyModel | null {
   const maxNodes = opts.maxNodes ?? DEFAULT_MAX_NODES
   const maxGroupNodes = opts.maxGroupNodes ?? DEFAULT_MAX_GROUP_NODES
+  const maxChildNodes = opts.maxChildNodes ?? DEFAULT_MAX_CHILD_NODES
   const H = opts.height ?? DEFAULT_H
-  const W = opts.width ?? DEFAULT_W
+  const hasChildCol = input.expenseGroups.some((g) => (g.children?.length ?? 0) > 0)
+  const W = opts.width ?? (hasChildCol ? DEFAULT_W_WIDE : DEFAULT_W)
 
   const income = Math.max(0, Math.round(input.income))
   const expense = Math.max(0, Math.round(input.expense))
@@ -346,8 +447,46 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
     })
   }
 
+  // ---- cột 4: danh mục con --------------------------------------------------------
+  // Chỉ dựng khi có nhóm nào vỡ ra được. Nhóm không có con — danh mục cấp một, "Nhóm
+  // khác" do cắt đuôi, "Chưa gắn danh mục", "Chưa ghi rõ" — đi THẲNG qua một ô cùng giá
+  // trị. Phải đi qua chứ không được bỏ: bỏ thì cột 4 không cộng bằng nút "Chi tiêu".
+  const childrenById = new Map(input.expenseGroups.map((g) => [g.id, g.children]))
+  const children: Stack[] = []
+  if (hasChildCol) {
+    for (const g of groups) {
+      const kids = childrenById.get(g.id.slice(2))
+      if (!kids || kids.length === 0) {
+        children.push({ ...g, id: `p:${g.id}`, passThrough: true })
+        continue
+      }
+      let got = 0
+      for (const c of capSlices(kids, maxChildNodes)) {
+        children.push({
+          id: `c:${g.id.slice(2)}:${c.id}`,
+          label: c.label,
+          value: c.amount,
+          tone: g.tone,
+        })
+        got += c.amount
+      }
+      // Chốt an toàn cho ràng buộc cân bằng: nếu người gọi đưa danh sách con cộng KHÔNG
+      // đủ giá trị nhóm thì bù phần thiếu, thay vì để hình lệch mà không ai thấy.
+      if (g.value - got > 0) {
+        children.push({
+          id: `c:${g.id.slice(2)}:con-lai`,
+          label: g.label,
+          value: g.value - got,
+          tone: g.tone,
+        })
+      }
+    }
+  }
+
   const hub: Stack[] = [{ id: SANKEY_HUB_ID, label: 'Tiền vào', value: total, tone: 'hub' }]
-  const columns: Stack[][] = [sources, hub, tiers, groups]
+  const columns: Stack[][] = hasChildCol
+    ? [sources, hub, tiers, groups, children]
+    : [sources, hub, tiers, groups]
 
   // ---- thang đo -------------------------------------------------------------------
   // MỘT hệ số cho cả hình, lấy cột chật nhất làm chuẩn. Mỗi cột một hệ số thì dải nối
@@ -362,7 +501,11 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   }
   if (!Number.isFinite(k) || k <= 0) return null
 
-  const colX = (c: number) => (c === 3 ? W - NODE_W : ((W - NODE_W) / 3) * c)
+  const lastCol = columns.length - 1
+  const colX = (c: number) => (c === lastCol ? W - NODE_W : ((W - NODE_W) / lastCol) * c)
+  // Hai cột cuối viết nhãn sang TRÁI khi có cột thứ năm — xem ghi chú ở `labelSide`.
+  const sideOf = (c: number): 'left' | 'right' =>
+    c >= lastCol - (lastCol >= 4 ? 1 : 0) ? 'left' : 'right'
   const nodes: SankeyNode[] = []
   const byId = new Map<string, SankeyNode>()
   for (let c = 0; c < columns.length; c++) {
@@ -380,6 +523,8 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
         y0: y,
         y1: y + h,
         pct: total > 0 ? Math.round((s.value / total) * 100) : null,
+        passThrough: s.passThrough,
+        labelSide: sideOf(c),
       }
       nodes.push(node)
       byId.set(node.id, node)
@@ -440,6 +585,29 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
         value: g.value,
         tone: g.tone,
         path: ribbonPath(expenseNode.x1, out, out + h, n.x0, n.y0, n.y1),
+      })
+      out += h
+    }
+  }
+
+  // ---- dải nối cột 3 → cột 4 -------------------------------------------------------
+  for (const g of groups) {
+    const gn = byId.get(g.id)
+    if (!gn) continue
+    let out = gn.y0
+    for (const c of children.filter(
+      (x) => x.id === `p:${g.id}` || x.id.startsWith(`c:${g.id.slice(2)}:`),
+    )) {
+      const n = byId.get(c.id)
+      if (!n) continue
+      const h = n.y1 - n.y0
+      links.push({
+        id: `${g.id}->${c.id}`,
+        source: g.id,
+        target: c.id,
+        value: c.value,
+        tone: c.tone,
+        path: ribbonPath(gn.x1, out, out + h, n.x0, n.y0, n.y1),
       })
       out += h
     }

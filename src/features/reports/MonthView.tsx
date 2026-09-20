@@ -104,7 +104,7 @@ import {
   type MoreItem,
 } from './MonthFlowCards'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
-import { groupSlicesByParent } from './sankey'
+import { groupSlicesByParent, groupSlicesWithChildren } from './sankey'
 import { SankeyCard } from './SankeyCard'
 import { TreemapCard } from './TreemapCard'
 import { Section, SectionIndex, type IndexItem } from './SectionIndex'
@@ -247,8 +247,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     () => groupSlicesByParent(incomeByCategory.slices, categories),
     [incomeByCategory, categories],
   )
+  // Nhóm chi mang theo danh mục CON — cột thứ năm của sơ đồ. Cột nguồn thu vẫn dùng bản
+  // không con: thu không vỡ tầng nào cả.
   const sankeyGroups = useMemo(
-    () => groupSlicesByParent(breakdown.slices, categories),
+    () => groupSlicesWithChildren(breakdown.slices, categories),
     [breakdown, categories],
   )
 

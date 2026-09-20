@@ -18,6 +18,7 @@ import { useId, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, SectionTitle, SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { Guide } from '../../components/Guide'
+import { GROUP_COLOR_NONE, GROUP_PALETTE } from '../assets/groupColors'
 import { useBoxSize } from '../lifetime/useBoxSize'
 import { CHART_TEXT_3XS, CHART_TEXT_2XS } from '../../lib/chartText'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
@@ -42,51 +43,37 @@ const MODES: readonly SegmentedItem<Mode>[] = [
 ]
 
 /**
- * Thang màu ô: BỐN bậc của `--chart-slice-*` rồi tới xám, xếp theo HẠNG (to nhất = bậc 1).
+ * MỖI NHÓM CHA MỘT MÀU, lấy nguyên bảng của `assets/groupColors.ts` — không đẻ bảng thứ hai.
  *
- * Cùng thang với donut Cơ cấu của màn Đầu tư, nhưng CHỈ 4/5 bậc — và con số 4 là kết quả
- * đo, không phải ước lượng. Ô ở đây có CHỮ nằm trên nền màu, nên mỗi bậc phải đạt 4,5:1
- * với màu chữ ở CẢ hai chế độ. Đo trên app thật (nền thẻ, không phải nền trắng lý thuyết):
+ * Đây là lần chọn màu thứ hai. Lần đầu dùng thang một tông `--chart-slice-*` (cùng thang với
+ * donut Cơ cấu bên Đầu tư): số đo tương phản đạt hết, nhưng mở app ra thì tám nhóm nằm trên
+ * cùng một dải xanh dương nên hai nhóm cạnh nhau gần như cùng màu — tức là cái CÔNG DỤNG duy
+ * nhất của màu ở hình này (phân biệt nhóm) không có. Thang tuần tự hợp với thứ có THỨ TỰ;
+ * nhóm chi tiêu thì không.
  *
- *            chữ --fg-inverse trên nền bậc      bậc so với nền thẻ
- *   bậc 1        13,9 sáng / 11,7 tối             13,9 / 11,0
- *   bậc 2         9,5      /  9,0                  9,5 /  8,4
- *   bậc 3         7,5      /  7,2                  7,5 /  6,8
- *   bậc 4         5,9      /  4,9                  5,9 /  4,5
- *   bậc 5         4,0      /  3,3   ← TRƯỢT cả hai chế độ, cả hai màu chữ
- *   xám           5,5      /  7,7                  5,5 /  7,2
- *
- * Nên bậc 5 bị bỏ hẳn và hạng 5 trở đi về xám. Đổi thang thì ĐO LẠI, đừng suy: hai chế độ
- * đi ngược chiều nhau (sáng 950→600, tối 300→700) nên "trông ổn ở một chế độ" không nói gì
- * về chế độ kia — chính nó là cách bậc 5 lọt vào bản đầu.
+ * Bảng này đã phục vụ ba màn Tài sản, nên dùng lại là app có đúng một bộ màu phân loại thay
+ * vì hai. Màu gán theo HẠNG của nhóm trong kỳ (nặng nhất lấy màu đầu), và gán từ danh sách
+ * CHƯA gộp — nhờ vậy một danh mục giữ nguyên màu khi gạt qua lại giữa hai kiểu xếp.
  */
-const SLICE = [
-  'var(--chart-slice-1)',
-  'var(--chart-slice-2)',
-  'var(--chart-slice-3)',
-  'var(--chart-slice-4)',
-] as const
-
-/** Hạng 5 trở đi không còn bậc riêng — xám trung tính, như `SLICE_NEUTRAL` bên Đầu tư. */
-const sliceAt = (i: number): string => SLICE[i] ?? 'var(--fg-muted)'
+const groupColorAt = (i: number): string => GROUP_PALETTE[i % GROUP_PALETTE.length]
 
 /**
- * NỀN ô tô mờ, VIỀN ô tô đặc cùng màu. Đây là lần chỉnh thứ ba, hai lần trước đều đo mới
- * thấy sai — nên đừng đổi bằng mắt.
+ * NỀN ô tô mờ, VIỀN ô tô đặc cùng màu. Đo mới thấy, đừng đổi bằng mắt.
  *
- *   · Tô mờ dần theo số tiền (bản 1): ô nhỏ nhạt tới mức không tách khỏi nền thẻ (1,2:1),
- *     tức là đúng những ô cần chỉ ra thì lại tàng hình.
- *   · Tô ĐẶC (bản 2): số đo đẹp — chữ `--fg-inverse` đạt 4,9–13,9 ở cả hai chế độ — nhưng
- *     mở app ra xem thì ở chế độ Tối cả thẻ thành một mảng sky sáng chói, vì nền thẻ gần
- *     đen mà ô thì phủ nửa thẻ. Số đo không nói được điều đó.
+ * Bảng màu là mã hex cố định (không lật theo chế độ Tối), nên nếu tô ĐẶC thì màu chữ phải
+ * đổi theo từng ô — trắng trên tím đậm, đen trên vàng — và không có màu chữ nào đúng cho cả
+ * mười hai. Tô mờ 0,30 giữ ô luôn gần màu nền thẻ, nên một màu chữ `--fg-primary` là đủ cho
+ * mọi ô ở cả hai chế độ; VIỀN tô đặc lo việc "đâu là ranh giới một ô".
  *
- * Bản này tách hai việc ra: VIỀN (đặc) lo việc "đâu là ranh giới một ô" — đo được 4,5–13,9
- * với nền thẻ ở cả hai chế độ; NỀN (0,30) chỉ gợi màu nhóm, nên ô luôn gần màu thẻ và cả
- * hình giữ được sự điềm đạm của phần còn lại trong app. Chữ `--fg-primary` trên nền đó đo
- * được 7,8 (tối) và 9,1 (sáng). Cùng cái idiom §2.6 dùng cho chip ở chế độ Tối: viền làm
- * hình, nền chỉ gợi.
+ * Thử nghiệm trước đó tô mờ dần theo số tiền, và ô nhỏ nhất tụt xuống 1,2:1 với nền thẻ —
+ * tàng hình đúng những ô cần chỉ ra. Nên độ đục là một HẰNG SỐ, không theo số tiền: diện
+ * tích đã nói độ nặng rồi.
+ *
+ * 0,45 là TRẦN đo được, không phải con số chọn cho đẹp: ở 0,5 chữ trên ô tối nhất còn 5,4
+ * và ở 0,6 tụt xuống 4,3 — trượt AA. 0,45 giữ chữ ở ~5,9 (Tối) / ~9,1 (Sáng) trên cả mười
+ * hai màu, mà vẫn đủ đậm để ra màu chứ không ra một vệt xám ám màu.
  */
-const FILL_ALPHA = 0.3
+const FILL_ALPHA = 0.45
 
 /** Khung nhóm chỉ là một vệt nền rất nhạt để mắt gom các ô con lại — chữ nằm trên nó. */
 const FRAME_OPACITY = 0.1
@@ -196,16 +183,19 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
     const m = metricsOf()
     if (total <= 0 || box.w <= 0 || box.h <= 0) return { frames: [], tiles: [] as TileView[] }
 
+    // Màu tra theo NHÓM GỐC của từng danh mục, không theo nhóm sau khi gộp — nhờ vậy
+    // "Sách vở" giữ nguyên màu dù ở kiểu Phẳng nó đứng riêng còn ở kiểu Theo nhóm nó nằm
+    // trong ô "Nhóm nhỏ khác". Gạt qua lại mà cả hình đổi màu thì mắt phải học lại từ đầu.
+    const rank = new Map(groups.map((g, i) => [g.id, i]))
+    const homeGroup = new Map(flat.map((l) => [l.id, l.groupId]))
+    const colorOfLeaf = (id: string) => groupColorAt(rank.get(homeGroup.get(id) ?? '') ?? 0)
+
     if (mode === 'flat') {
-      const laid = layoutFlat(flat, frame, total)
       return {
         frames: [],
-        tiles: laid.map((t) => ({
+        tiles: layoutFlat(flat, frame, total).map((t) => ({
           ...t,
-          // Kiểu Phẳng là ĐƠN SẮC có chủ ý: bỏ tầng nhóm rồi thì màu không còn gì để
-          // nói, và một bảng tám màu ở đây chỉ bắt người đọc dò chú giải. Độ nặng đọc
-          // bằng diện tích và độ đục.
-          color: sliceAt(0),
+          color: colorOfLeaf(t.id),
           groupLabel: t.groupLabel === t.label ? null : t.groupLabel,
           linkable: true,
         })),
@@ -213,15 +203,19 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
     }
 
     const packed = collapseSmallGroups(groups, MIN_GROUP_SHARE)
-    const rank = new Map(packed.map((g, i) => [g.id, i]))
     const laid = layoutGrouped(packed, frame, { gap: GAP, header: m.header }, total)
     return {
-      frames: laid.groups.map((g) => ({ ...g, color: sliceAt(rank.get(g.id) ?? 99) })),
+      // Khung "Nhóm nhỏ khác" không phải một nhóm thật nên không ăn một màu của bảng —
+      // cùng quy ước với `GROUP_COLOR_NONE` bên Tài sản. Ô con bên trong vẫn giữ màu riêng.
+      frames: laid.groups.map((g) => ({
+        ...g,
+        color: g.id === SMALL_GROUP_ID ? GROUP_COLOR_NONE : groupColorAt(rank.get(g.id) ?? 0),
+      })),
       tiles: laid.leaves.map((t) => ({
         ...t,
-        color: sliceAt(rank.get(t.groupId) ?? 99),
+        color: colorOfLeaf(t.id),
         groupLabel: t.groupLabel === t.label ? null : t.groupLabel,
-        linkable: t.groupId !== SMALL_GROUP_ID || t.id !== SMALL_GROUP_ID,
+        linkable: true,
       })),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

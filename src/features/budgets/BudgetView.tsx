@@ -416,17 +416,26 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       current: new Map(report?.lines.map((l) => [l.categoryId, l.budgeted]) ?? []),
       eligible,
       minAverage: AUTO_MIN_AVERAGE,
+      // Để `plan.total` đếm theo đúng luật mốc theo dõi — xem `totalAfterWrite`.
+      parentOf: (id) => catOf(id)?.parent_id ?? null,
     })
     if (plan.lines.length === 0) {
       showToast('Chưa đủ lịch sử để đề xuất hạn mức nào.', 'info')
       return
     }
+    // Nói con số MỚI cạnh con số CŨ: một mình "Tổng ¥432,000" không cho biết đây là tăng
+    // hay giảm, mà đó đúng là điều người dùng đang cân nhắc khi ngón tay ở trên nút.
+    const currentTotal = report?.totalBudgeted ?? 0
+    const head =
+      currentTotal > 0
+        ? `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)} — đang là ${formatMoney(currentTotal, base)}.`
+        : `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)}.`
     const ok = await confirmDialog({
       title: `Đặt ${plan.lines.length} hạn mức từ 6 tháng qua?`,
       message:
         plan.overwrite > 0
-          ? `Tổng ${formatMoney(plan.total, base)}. Trong đó ${plan.overwrite} mục ĐANG CÓ hạn mức sẽ bị ghi đè.`
-          : `Tổng ${formatMoney(plan.total, base)}. Không mục nào đang có hạn mức bị đụng.`,
+          ? `${head} Trong đó ${plan.overwrite} mục ĐANG CÓ hạn mức sẽ bị ghi đè.`
+          : `${head} Không mục nào đang có hạn mức bị đụng.`,
       confirmLabel: 'Đặt hạn mức',
     })
     if (!ok) return

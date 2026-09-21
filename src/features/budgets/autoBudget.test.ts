@@ -77,7 +77,7 @@ describe('planAutoBudget', () => {
     expect(p.overwrite).toBe(0)
   })
 
-  it('tổng cộng đúng bằng tổng các dòng', () => {
+  it('không có cha con thì tổng đúng bằng tổng các dòng', () => {
     const p = planAutoBudget(input())
     expect(p.total).toBe(p.lines.reduce((s, l) => s + l.amount, 0))
   })
@@ -90,5 +90,63 @@ describe('planAutoBudget', () => {
   it('trung bình âm (hoàn tiền nhiều hơn chi) không sinh hạn mức', () => {
     const p = planAutoBudget(input({ averages: new Map([['an', -5_000]]), eligible: ['an'] }))
     expect(p.lines).toEqual([])
+  })
+})
+
+// `total` là con số DUY NHẤT hộp thoại xác nhận đưa ra, nên nó phải là tổng mà tab Ngân
+// sách sẽ hiện SAU KHI ghi — cùng luật với `buildBudgetReport`. Bản trước cộng ngây thơ
+// mọi dòng, kể cả dòng con nằm dưới một cha cũng có trần; đo trên sổ thật tháng 2026-09
+// nó ra ¥837.000 trong khi kế hoạch thật là ¥432.000, và người dùng nhìn con số gần gấp
+// đôi rồi không dám bấm.
+describe('planAutoBudget · total = tổng ngân sách sau khi ghi', () => {
+  const parentOf = (id: string) => (id === 'tien_nha' ? 'nha' : null)
+
+  it('đặt trần cho CẢ cha lẫn con thì chỉ cộng cha — con là mốc theo dõi', () => {
+    const p = planAutoBudget({
+      averages: new Map([
+        ['nha', 68_000],
+        ['tien_nha', 60_000],
+        ['an', 42_300],
+      ]),
+      current: new Map(),
+      eligible: ['nha', 'tien_nha', 'an'],
+      parentOf,
+    })
+    expect(p.lines).toHaveLength(3)
+    expect(p.total).toBe(68_000 + 42_000)
+  })
+
+  it('đặt trần cho cha biến hạn mức con ĐANG CÓ thành mốc — con rơi khỏi tổng', () => {
+    const p = planAutoBudget({
+      averages: new Map([['nha', 68_000]]),
+      current: new Map([['tien_nha', 50_000]]),
+      eligible: ['nha'],
+      parentOf,
+    })
+    expect(p.lines.map((l) => l.categoryId)).toEqual(['nha'])
+    expect(p.total).toBe(68_000)
+  })
+
+  it('hạn mức đang có mà bản đề xuất không đụng tới vẫn nằm trong tổng', () => {
+    const p = planAutoBudget({
+      averages: new Map([['an', 42_300]]),
+      current: new Map([['dien', 3_000]]),
+      eligible: ['an'],
+      parentOf: () => null,
+    })
+    expect(p.lines.map((l) => l.categoryId)).toEqual(['an'])
+    expect(p.total).toBe(42_000 + 3_000)
+  })
+
+  it('không khai parentOf thì mọi danh mục là gốc — giữ nguyên hành vi cũ', () => {
+    const p = planAutoBudget({
+      averages: new Map([
+        ['nha', 68_000],
+        ['tien_nha', 60_000],
+      ]),
+      current: new Map(),
+      eligible: ['nha', 'tien_nha'],
+    })
+    expect(p.total).toBe(68_000 + 60_000)
   })
 })

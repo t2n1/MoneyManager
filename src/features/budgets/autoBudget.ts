@@ -8,6 +8,8 @@
 // KHÔNG phải "đặt hạn mức hộ rồi thôi": kết quả là một bản NHÁP để người dùng sửa. Vì
 // vậy hàm này trả về danh sách đề xuất kèm lý do, không tự ghi.
 
+import { isTrackingMarker } from './progress'
+
 /** Một dòng đề xuất. `current` là hạn mức đang có (0 = chưa đặt). */
 export interface AutoBudgetLine {
   categoryId: string
@@ -24,7 +26,15 @@ export interface AutoBudgetPlan {
   lines: AutoBudgetLine[]
   /** Số dòng sẽ ĐÈ lên hạn mức đang có — con số phải nói ra trước khi bấm. */
   overwrite: number
-  /** Tổng của mọi dòng đề xuất. */
+  /**
+   * TỔNG NGÂN SÁCH SAU KHI GHI — cùng luật với `BudgetReport.totalBudgeted`, nên nó so
+   * thẳng được với con số tab Ngân sách đang hiện.
+   *
+   * Không phải tổng các dòng đề xuất: dòng con nằm dưới một cha cũng có trần chỉ là mốc
+   * theo dõi (`isTrackingMarker`) và không vào tổng, còn hạn mức đang có mà bản đề xuất
+   * không đụng tới thì vẫn còn đó nên vẫn phải cộng. Cộng ngây thơ mọi dòng cho ra
+   * ¥837.000 ở tháng 2026-09 trong khi kế hoạch thật là ¥432.000.
+   */
   total: number
 }
 
@@ -58,6 +68,13 @@ export interface AutoBudgetInput {
    * Gộp làm một thì một trong hai ý định không làm được.
    */
   keepExisting?: boolean
+  /**
+   * Danh mục CHA của một danh mục (null = danh mục gốc). Chỉ dùng để tính `total` cho
+   * đúng luật mốc theo dõi; nó KHÔNG đổi những dòng nào được đề xuất.
+   *
+   * Mặc định: mọi danh mục là gốc → `total` bằng tổng các dòng, như trước.
+   */
+  parentOf?: (categoryId: string) => string | null
 }
 
 /**
@@ -87,6 +104,30 @@ export function planAutoBudget(input: AutoBudgetInput): AutoBudgetPlan {
   return {
     lines,
     overwrite: lines.filter((l) => l.current > 0).length,
-    total: lines.reduce((s, l) => s + l.amount, 0),
+    total: totalAfterWrite(lines, input),
   }
+}
+
+/**
+ * Tổng ngân sách app sẽ hiện sau khi ghi bản đề xuất này.
+ *
+ * Sổ sau khi ghi = hạn mức đang có, với những dòng trong `lines` được thay số. Trên tập
+ * đó áp đúng luật của `buildBudgetReport`: dòng nào là mốc theo dõi thì không cộng.
+ *
+ * Một xấp xỉ đã biết: `current` là hạn mức HIỆU LỰC (đã gồm phần dồn của tháng trước),
+ * còn `line.amount` là số thô. Dòng bật dồn mà bị đè sẽ được cộng thiếu đúng phần dồn
+ * đó. Chỗ gọi duy nhất cũng dựng `current` từ `BudgetLine.budgeted` nên phép so
+ * "làm tròn xong trùng hạn mức đang có" ở trên vốn đã sống chung với xấp xỉ này.
+ */
+function totalAfterWrite(lines: AutoBudgetLine[], input: AutoBudgetInput): number {
+  const parentOf = input.parentOf ?? (() => null)
+  const amountAfter = new Map(input.current)
+  for (const l of lines) amountAfter.set(l.categoryId, l.amount)
+  const budgetedIds = new Set(amountAfter.keys())
+  let total = 0
+  for (const [categoryId, amount] of amountAfter) {
+    if (isTrackingMarker(categoryId, parentOf, budgetedIds)) continue
+    total += amount
+  }
+  return total
 }

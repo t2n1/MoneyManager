@@ -15,6 +15,26 @@ export function statusOf(ratio: number): BudgetStatus {
   return 'ok'
 }
 
+/**
+ * Hạn mức của `categoryId` chỉ là MỐC THEO DÕI khi danh mục CHA của nó cũng có hạn
+ * mức: lúc đó trần thật nằm ở cha, nên dòng con không được cộng vào tổng.
+ *
+ * Luật này có hai nơi dùng — báo cáo thật (`buildBudgetReport`) và bản đề xuất tự động
+ * (`planAutoBudget`) — nên nó ở đây, đúng một chỗ. Viết lại lần hai là cách hộp thoại
+ * "Đặt hạn mức từ 6 tháng qua" từng báo tổng gần gấp đôi tổng app thật sự dùng.
+ *
+ * `budgetedIds` là tập danh mục CÓ dòng ngân sách — kể cả dòng ¥0, vì ¥0 là một hạn
+ * mức thật trong app này.
+ */
+export function isTrackingMarker(
+  categoryId: string,
+  parentOf: (id: string) => string | null,
+  budgetedIds: ReadonlySet<string>,
+): boolean {
+  const parent = parentOf(categoryId)
+  return parent != null && budgetedIds.has(parent)
+}
+
 export interface BudgetLine {
   categoryId: string
   budgeted: number // minor units base (đã gồm phần dồn nếu có)
@@ -98,9 +118,8 @@ export function buildBudgetReport(
   let warnCount = 0
   const lines: BudgetLine[] = []
   for (const b of budgets) {
-    const parent = parentOf(b.category_id)
     // Con của một nhóm đã có trần cha → chỉ là mốc theo dõi, không vào tổng.
-    const isMarker = parent != null && budgetedIds.has(parent)
+    const isMarker = isTrackingMarker(b.category_id, parentOf, budgetedIds)
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0
     const budgeted = b.amount + carried
     // Marker: chỉ tính chi riêng của con. Dòng tính-vào-tổng: cả nhóm (cha + con).

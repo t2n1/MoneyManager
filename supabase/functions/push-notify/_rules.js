@@ -2161,6 +2161,10 @@ function statusOf(ratio) {
   if (ratio >= 0.8) return "warn";
   return "ok";
 }
+function isTrackingMarker(categoryId, parentOf, budgetedIds) {
+  const parent = parentOf(categoryId);
+  return parent != null && budgetedIds.has(parent);
+}
 function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parentOf = () => null, carryByCat = /* @__PURE__ */ new Map(), transferIds = NO_TRANSFER_CATEGORIES) {
   const spentByCat = /* @__PURE__ */ new Map();
   let hasMissingRate = false;
@@ -2187,8 +2191,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
   let warnCount = 0;
   const lines2 = [];
   for (const b of budgets) {
-    const parent = parentOf(b.category_id);
-    const isMarker = parent != null && budgetedIds.has(parent);
+    const isMarker = isTrackingMarker(b.category_id, parentOf, budgetedIds);
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0;
     const budgeted = b.amount + carried;
     const spent = isMarker ? spentByCat.get(b.category_id) ?? 0 : groupSpent(b.category_id);

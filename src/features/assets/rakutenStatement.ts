@@ -13,6 +13,7 @@
 // Thuần, không phụ thuộc React.
 
 import { parseCsvText } from '../import/csvImport'
+import { detectIssuerFromHeader } from '../import/statementFormat'
 import { cardBillingRange } from './cardMonthCharge'
 import {
   sourceFromFileName,
@@ -30,13 +31,6 @@ const toISO = (s: string): string | null => {
   return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
 }
 
-/**
- * Hai cột bắt buộc để nhận là enavi. So KHỚP TUYỆT ĐỐI (không phải includes): cột
- * ngày của PayPay tên `利用日/キャンセル日`, không bằng `利用日` ⇒ đã đủ để không nhận
- * nhầm, khỏi cần `新規サイン` — cột này có ở header 10/11 cột nhưng vắng mặt ở bản
- * 12 cột (enavi202609 trở đi, thêm `支払月` / `N月以降請求額` thay chỗ).
- */
-const REQUIRED = ['利用日', '利用店名・商品名']
 /** Cột hoá đơn: DUY NHẤT một cột khớp mẫu này trong header. */
 const BILLED_COL = /^(\d{1,2})月支払金額$/
 /** `分割2回払い(2回目)` → 2. Không khớp → 1 (trả một lần, hoặc `(1回目)`). */
@@ -65,8 +59,11 @@ export function parseRakutenStatement(
   const rows = parseCsvText(text)
   const header = rows[0]
   if (!header) return null
+  // Nhận dạng nhà thẻ nằm ở statementFormat.ts, dùng chung với màn Nhập CSV. Trước đây
+  // chỗ này giữ luật riêng, và luật đó KHÁC luật bên màn Nhập — cùng một câu hỏi, hai
+  // câu trả lời, nên một file enavi kiểu mới có thể được màn này nhận và màn kia không.
+  if (detectIssuerFromHeader(header) !== 'rakuten') return null
   const cols = header.map(nfkc)
-  if (!REQUIRED.every((n) => cols.includes(n))) return null
   const iBilled = cols.findIndex((c) => BILLED_COL.test(c))
   if (iBilled < 0) return null
   const iDate = cols.indexOf('利用日')

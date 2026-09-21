@@ -10,6 +10,7 @@
 // Thuần, không phụ thuộc React, để unit-test được.
 
 import { parseCsvText } from '../import/csvImport'
+import { detectIssuerFromHeader } from '../import/statementFormat'
 import { cardBillingRange } from './cardMonthCharge'
 import {
   sourceFromFileName,
@@ -24,11 +25,7 @@ export type { ParsedStatement, StatementLine } from './statementLine'
 
 /** Bố cục cột đã xác minh trên 13 file thật (2025-08 → 2026-08). */
 const COL = { date: 0, name: 1, billed: 8, adjust: 10, dueDate: 11 } as const
-/** Dòng tiêu đề phải chứa đủ hai mẩu này thì mới nhận là sao kê PayPay. */
-const NEEDLES = ['利用日/キャンセル日', '決済方法']
 
-/** Quy chữ rộng (ＡＢＣ) về chữ hẹp, bỏ trắng, hạ thường — sao kê Nhật trộn hai bề rộng. */
-const norm = (s: string) => s.normalize('NFKC').replace(/\s+/g, '').toLowerCase()
 const num = (s: string) => Number(String(s ?? '').replace(/[,\s]/g, '')) || 0
 
 const toISO = (s: string): string | null => {
@@ -56,10 +53,9 @@ export function parsePaypayStatement(
   fileName = '',
 ): ParsedStatement | null {
   const rows = parseCsvText(text)
-  const header = rows[0]
-  if (!header) return null
-  const joined = header.map(norm).join('|')
-  if (!NEEDLES.every((n) => joined.includes(norm(n)))) return null
+  // Nhận dạng nhà thẻ nằm ở statementFormat.ts, dùng chung với màn Nhập CSV — giữ bảng
+  // chữ riêng ở đây là để hai màn trôi khỏi nhau (đã từng xảy ra với phần Rakuten).
+  if (detectIssuerFromHeader(rows[0]) !== 'paypay') return null
 
   const data = rows.slice(1)
   const dueRaw = data.map((r) => toISO(r[COL.dueDate] ?? '')).find((d) => d != null)

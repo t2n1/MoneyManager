@@ -8,10 +8,25 @@
 //
 // Bảng FORMATS cố tình để rỗng chỗ mở rộng: thêm sao kê mới = thêm một dòng,
 // không phải sửa logic.
+//
+// NƠI DUY NHẤT trả lời "file này của nhà thẻ nào". Trước đây câu đó được trả lời ở BA
+// chỗ: file này, `paypayStatement.ts` và `rakutenStatement.ts` của màn Đối chiếu. Phần
+// PayPay ba chỗ giống nhau từng ký tự; phần Rakuten thì hai luật KHÁC NHAU cho cùng một
+// câu hỏi, nên một file enavi kiểu mới có thể được màn này nhận và màn kia không. Hai bộ
+// đọc kia nay gọi `detectIssuerFromHeader` thay vì giữ bảng chữ riêng.
+//
+// SO KHỚP TUYỆT ĐỐI TỪNG CỘT, không phải tìm chuỗi con trong cả dòng tiêu đề. Cột ngày
+// của PayPay tên `利用日/キャンセル日`, của Rakuten tên `利用日`: tìm chuỗi con thì hai
+// cái dính nhau, phải lôi thêm một cột thứ ba vào làm trọng tài (luật cũ ở đây dùng
+// `繰越残高` đúng vì lẽ đó). Khớp tuyệt đối tách được ngay, nên bảng dưới chỉ cần đúng
+// những cột đặc trưng của mỗi nhà thẻ.
 import type { DateOrder } from './csvImport'
 
+/** Nhà thẻ mà repo này biết đọc sao kê. */
+export type IssuerId = 'paypay' | 'rakuten'
+
 export interface StatementFormat {
-  id: string
+  id: IssuerId
   /** Tên hiện cho người dùng thấy: "Đã nhận ra sao kê …" */
   label: string
   negativeIsExpense: boolean
@@ -19,14 +34,23 @@ export interface StatementFormat {
 }
 
 /**
- * Quy chữ rộng (ＡＢＣ) về chữ hẹp, bỏ khoảng trắng, hạ chữ thường. Sao kê Nhật
- * trộn hai bề rộng chữ tùy nơi xuất file, so thô là trượt.
+ * Chuẩn hoá MỘT Ô tiêu đề: bỏ BOM, quy chữ rộng (ＡＢＣ) về chữ hẹp, bỏ khoảng trắng,
+ * hạ chữ thường.
+ *
+ * BOM phải bỏ tường minh dù `\s` của JS đã nuốt `﻿`: cột đầu của mọi file enavi
+ * tải về đều dính BOM, và đó đúng là cột `利用日` mà luật Rakuten đang soi — để nó phụ
+ * thuộc vào một chi tiết ngoài lề của `\s` thì lần ai đó đổi `norm` là hỏng lặng lẽ.
  */
-const norm = (s: string) => s.normalize('NFKC').replace(/\s+/g, '').toLowerCase()
+const normCol = (s: string) =>
+  String(s ?? '')
+    .replace(/^﻿/, '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .toLowerCase()
 
 interface FormatSpec extends StatementFormat {
-  /** Dòng tiêu đề phải chứa ĐỦ các mẩu này thì mới nhận — một mẩu là quá lỏng. */
-  needles: string[]
+  /** Dòng tiêu đề phải có ĐỦ các cột này, khớp tuyệt đối sau khi chuẩn hoá. */
+  columns: string[]
 }
 
 const FORMATS: FormatSpec[] = [
@@ -36,7 +60,7 @@ const FORMATS: FormatSpec[] = [
     // Khoản mua = số dương.
     negativeIsExpense: false,
     dateOrder: 'ymd',
-    needles: ['利用日/キャンセル日', '決済方法'],
+    columns: ['利用日/キャンセル日', '決済方法'],
   },
   {
     id: 'rakuten',
@@ -44,29 +68,37 @@ const FORMATS: FormatSpec[] = [
     // Khoản mua = số dương, giống PayPay.
     negativeIsExpense: false,
     dateOrder: 'ymd',
-    // Không dùng `利用日`: header PayPay là `利用日/キャンセル日`, mà `norm` so khớp
-    // kiểu includes nên vẫn dính. Mọi header enavi (10/11/12 cột) đều có cột
-    // `N月繰越残高`; PayPay cũng có cột "繰越" nhưng tên là `翌月以降繰越金額`
-    // (繰越金額, không phải 繰越残高) ⇒ cặp này tách được hai bên, kể cả bản 12 cột
-    // không có `新規サイン`.
-    needles: ['利用店名・商品名', '繰越残高'],
+    // Đủ cho cả ba bố cục enavi đã gặp (10, 11 và 12 cột): bản 12 cột bỏ `新規サイン`
+    // nên không dùng cột đó được. PayPay không lọt vì cột ngày của nó là
+    // `利用日/キャンセル日`, khác `利用日` khi so tuyệt đối.
+    columns: ['利用日', '利用店名・商品名'],
   },
 ]
 
-/** Nhận dạng sao kê từ dòng tiêu đề; null = file lạ, giữ nguyên lựa chọn của người dùng. */
-export function detectStatementFormat(rows: string[][]): StatementFormat | null {
-  const header = rows[0]
-  if (!header) return null
-  const joined = header.map(norm).join('|')
+/**
+ * Nhà thẻ đứng sau dòng tiêu đề này; null = file lạ.
+ *
+ * Nhận thẳng mảng ô tiêu đề (không phải cả bảng) để hai bộ đọc của màn Đối chiếu gọi
+ * được sau khi chúng đã tự tách CSV.
+ */
+export function detectIssuerFromHeader(header: string[] | undefined): IssuerId | null {
+  if (!header || header.length === 0) return null
+  const cols = header.map(normCol)
   for (const f of FORMATS) {
-    if (f.needles.every((n) => joined.includes(norm(n)))) {
-      return {
-        id: f.id,
-        label: f.label,
-        negativeIsExpense: f.negativeIsExpense,
-        dateOrder: f.dateOrder,
-      }
-    }
+    if (f.columns.every((c) => cols.includes(normCol(c)))) return f.id
   }
   return null
+}
+
+/** Nhận dạng sao kê từ dòng tiêu đề; null = file lạ, giữ nguyên lựa chọn của người dùng. */
+export function detectStatementFormat(rows: string[][]): StatementFormat | null {
+  const id = detectIssuerFromHeader(rows[0])
+  const f = FORMATS.find((x) => x.id === id)
+  if (!f) return null
+  return {
+    id: f.id,
+    label: f.label,
+    negativeIsExpense: f.negativeIsExpense,
+    dateOrder: f.dateOrder,
+  }
 }

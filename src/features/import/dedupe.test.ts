@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionRow } from '../../types/database.types'
 import type { ImportItem } from './csvImport'
-import { classifyDuplicates, mergeStatementFiles } from './dedupe'
+import { detectInternalTransfers } from './csvImport'
+import { classifyDuplicates, mergedNote, mergeStatementFiles } from './dedupe'
 
 let seq = 0
 const etx = (
@@ -132,5 +133,139 @@ describe('mergeStatementFiles', () => {
   it('xếp lại theo ngày', () => {
     const out = mergeStatementFiles([[item('2026-03-01', 1, 'a')], [item('2026-01-01', 2, 'b')]])
     expect(out.map((i) => i.occurred_on)).toEqual(['2026-01-01', '2026-03-01'])
+  })
+})
+
+describe('classifyDuplicates — dò chéo ví', () => {
+  const cross = { accountId: 'card', crossAccountIds: new Set(['cash', 'bank']) }
+
+  it('cùng tiền, cùng chiều, trong cửa sổ ngày, ở ví KHÁC → mức cross', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'Cà phê' })],
+      cross,
+    )
+    expect(out[0]?.level).toBe('cross')
+    expect(out[0]?.matchedAccountId).toBe('cash')
+    expect(out[0]?.matchedNote).toBe('Cà phê')
+  })
+
+  it('không có crossAccountIds thì KHÔNG dò chéo — hành vi cũ giữ nguyên', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'Cà phê' })],
+      opts,
+    )
+    expect(out[0]).toBeNull()
+  })
+
+  it('ví không nằm trong danh sách ứng viên thì bỏ qua', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'ngoai-danh-sach', note: 'x' })],
+      cross,
+    )
+    expect(out[0]).toBeNull()
+  })
+
+  it('quá cửa sổ ngày thì không dò chéo nữa', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-20', 480, 'ドトール')],
+      [etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'x' })],
+      cross,
+    )
+    expect(out[0]).toBeNull()
+  })
+
+  it('khoản NGƯỢC chiều ở ví khác không phải việc của dò chéo — đó là chuyển khoản nội bộ', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'income', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'x' })],
+      cross,
+    )
+    expect(out[0]).toBeNull()
+  })
+
+  it('giao dịch kiểu transfer không bị dò chéo nhận nhầm', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'transfer', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'x' })],
+      cross,
+    )
+    expect(out[0]).toBeNull()
+  })
+
+  it('lượt cùng-ví chạy HẾT trước, không để dò chéo chiếm mất khoản khớp chính xác', () => {
+    // Dòng chéo ví (10/2) đứng TRƯỚC dòng khớp y hệt trong đúng ví (11/2). Nếu dò
+    // chéo chạy xen vào giữa, nó chiếm mất giao dịch ở 'cash' thì không sao — nhưng
+    // nếu nó được phép quét cả pool thì dòng đầu có thể ôm luôn giao dịch của 'card',
+    // đẩy dòng khớp chính xác thành "mới" và khoản đó bị nhập lại lần hai.
+    const out = classifyDuplicates(
+      [item('2026-02-10', 900, 'ａ'), item('2026-02-11', 900, 'ｂ')],
+      [etx({ type: 'expense', amount: 900, occurred_on: '2026-02-11', account_id: 'card', note: 'ｂ' })],
+      cross,
+    )
+    expect(out[1]?.level).toBe('exact')
+    expect(out[0]).toBeNull()
+  })
+
+  it('mỗi giao dịch ở ví khác cũng chỉ khớp MỘT dòng', () => {
+    const out = classifyDuplicates(
+      [item('2026-02-10', 480, 'ドトール'), item('2026-02-10', 480, 'ドトール')],
+      [etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'Cà phê' })],
+      cross,
+    )
+    expect(out[0]?.level).toBe('cross')
+    expect(out[1]).toBeNull()
+  })
+
+  it('dò chéo và dò chuyển khoản nội bộ KHÔNG BAO GIỜ giành cùng một giao dịch', () => {
+    // Hai hàm cùng quét các ví khác, nên phải chứng minh chúng rời nhau: dò chéo đòi
+    // CÙNG chiều, dò chuyển khoản đòi NGƯỢC chiều (hoặc type transfer). Dựng sẵn cả
+    // hai loại mồi trong một lượt để nếu ai đó nới điều kiện của một bên thì test đổ.
+    const items = [item('2026-02-10', 480, 'ドトール'), item('2026-02-12', 3_000, 'チャージ')]
+    const existing = [
+      etx({ type: 'expense', amount: 480, occurred_on: '2026-02-10', account_id: 'cash', note: 'Cà phê' }),
+      etx({ type: 'income', amount: 3_000, occurred_on: '2026-02-12', account_id: 'bank', note: 'Nạp ví' }),
+    ]
+    const dupes = classifyDuplicates(items, existing, cross)
+    const transfers = detectInternalTransfers(items, existing, {
+      importingAccountId: 'card',
+      candidateAccountIds: new Set(['cash', 'bank']),
+    })
+    const dupIds = new Set(dupes.filter((d) => d !== null).map((d) => d!.matchedTxId))
+    const transferIds = transfers.map((t) => t.matchedTxId)
+    expect(dupIds.size).toBeGreaterThan(0)
+    expect(transferIds.length).toBeGreaterThan(0)
+    for (const id of transferIds) expect(dupIds.has(id)).toBe(false)
+  })
+})
+
+describe('mergedNote', () => {
+  it('nối ghi chú tay với tên quán từ sao kê', () => {
+    expect(mergedNote('Cơm ngoài', '串かつ　でんがな')).toBe('Cơm ngoài · 串かつ　でんがな')
+  })
+
+  it('ghi chú cũ trống thì lấy hẳn tên quán', () => {
+    expect(mergedNote('', '串かつ　でんがな')).toBe('串かつ　でんがな')
+    expect(mergedNote('   ', '串かつ　でんがな')).toBe('串かつ　でんがな')
+  })
+
+  it('sao kê không có tên quán thì giữ nguyên ghi chú cũ', () => {
+    expect(mergedNote('Cơm ngoài', '')).toBe('Cơm ngoài')
+    expect(mergedNote('Cơm ngoài', '  ')).toBe('Cơm ngoài')
+  })
+
+  it('gộp LẦN HAI không nối thêm nữa — nhập lại cùng file không làm ghi chú dài ra', () => {
+    const lan1 = mergedNote('Cơm ngoài', '串かつ　でんがな')
+    expect(mergedNote(lan1, '串かつ　でんがな')).toBe(lan1)
+  })
+
+  it('tên quán người dùng đã tự gõ trong câu thì không nối lại', () => {
+    expect(mergedNote('Ăn ở ドトール với anh Tuấn', 'ドトール')).toBe('Ăn ở ドトール với anh Tuấn')
+  })
+
+  it('cả hai cùng trống thì ra chuỗi rỗng', () => {
+    expect(mergedNote('', '')).toBe('')
   })
 })

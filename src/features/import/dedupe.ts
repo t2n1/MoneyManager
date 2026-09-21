@@ -17,12 +17,14 @@
 import type { TransactionRow } from '../../types/database.types'
 import type { ImportItem } from './csvImport'
 
-export type DupLevel = 'exact' | 'likely'
+export type DupLevel = 'exact' | 'likely' | 'cross'
 
 export interface DupMatch {
   level: DupLevel
   /** Giao dịch đã có trong sổ bị nghi là cùng một khoản. */
   matchedTxId: string
+  /** Ví đang chứa khoản đó. Khác `opts.accountId` ⇔ level là 'cross'. */
+  matchedAccountId: string
   /** Lệch bao nhiêu ngày; luôn 0 với mức 'exact'. */
   dayGap: number
   /** Ghi chú của khoản đã có — để người dùng nhìn mà quyết. */
@@ -30,8 +32,13 @@ export interface DupMatch {
 }
 
 export interface DupOptions {
-  /** Tài khoản đang nhập vào; chỉ đối chiếu trong phạm vi tài khoản này. */
+  /** Tài khoản đang nhập vào; hai mức đầu chỉ đối chiếu trong phạm vi tài khoản này. */
   accountId: string
+  /**
+   * Các ví KHÁC được phép dò chéo (mức 'cross'), thường là ví cùng loại tiền.
+   * Bỏ trống = không dò chéo, giữ đúng hành vi cũ.
+   */
+  crossAccountIds?: Set<string>
   /** Cửa sổ ngày cho mức 'likely'. Ngày quẹt thẻ và ngày ghi sổ hay lệch vài hôm. */
   windowDays?: number
 }
@@ -75,7 +82,13 @@ export function classifyDuplicates(
     )
     if (!m) continue
     used.add(m.id)
-    out[i] = { level: 'exact', matchedTxId: m.id, dayGap: 0, matchedNote: m.note ?? '' }
+    out[i] = {
+      level: 'exact',
+      matchedTxId: m.id,
+      matchedAccountId: m.account_id,
+      dayGap: 0,
+      matchedNote: m.note ?? '',
+    }
   }
 
   // Lượt 2 — nghi trùng: cùng số tiền, cùng chiều, lệch trong cửa sổ ngày, ghi
@@ -96,11 +109,78 @@ export function classifyDuplicates(
     out[i] = {
       level: 'likely',
       matchedTxId: best.tx.id,
+      matchedAccountId: best.tx.account_id,
       dayGap: best.gap,
       matchedNote: best.tx.note ?? '',
     }
   }
+
+  // Lượt 3 — ghi nhầm ví: khoản có thật trong sổ nhưng nằm ở ví khác (quẹt thẻ mà
+  // ghi vào Tiền mặt). Luật cũ chỉ soi đúng một ví nên bỏ sót sạch, nhập vào là
+  // nhân đôi.
+  //
+  // PHẢI CHẠY SAU CÙNG, không được trộn vào hai lượt trên. Pool của lượt này là các
+  // ví KHÁC, nhưng nếu gộp chung vòng lặp thì một dòng đứng trước có thể ôm mất giao
+  // dịch mà dòng sau khớp chính xác trong ĐÚNG ví — đúng cái bẫy lượt 1 đã né.
+  //
+  // CÙNG CHIỀU, VÀ KHÔNG NHẬN 'transfer'. Khoản NGƯỢC chiều ở ví khác là việc của
+  // `detectInternalTransfers` (trả thẻ, nạp ví). Hai hàm cùng quét các ví khác nên
+  // ranh giới này phải cứng, nếu không chúng giành nhau một giao dịch và người dùng
+  // thấy cùng một dòng hiện ở hai cảnh báo khác nhau.
+  const crossIds = opts.crossAccountIds
+  if (crossIds && crossIds.size > 0) {
+    const crossPool = existing.filter(
+      (t) =>
+        t.account_id !== opts.accountId &&
+        crossIds.has(t.account_id) &&
+        (t.type === 'expense' || t.type === 'income'),
+    )
+    for (let i = 0; i < items.length; i++) {
+      if (out[i]) continue
+      const it = items[i]
+      let best: { tx: TransactionRow; gap: number } | null = null
+      for (const t of crossPool) {
+        if (used.has(t.id)) continue
+        if (t.amount !== it.amount || !sameWay(t, it)) continue
+        const gap = dayDiff(it.occurred_on, t.occurred_on)
+        if (gap > windowDays) continue
+        if (!best || gap < best.gap) best = { tx: t, gap }
+      }
+      if (!best) continue
+      used.add(best.tx.id)
+      out[i] = {
+        level: 'cross',
+        matchedTxId: best.tx.id,
+        matchedAccountId: best.tx.account_id,
+        dayGap: best.gap,
+        matchedNote: best.tx.note ?? '',
+      }
+    }
+  }
   return out
+}
+
+/**
+ * Ghi chú sau khi gộp một dòng sao kê vào khoản đã có trong sổ.
+ *
+ * `note` là trường chữ tự do DUY NHẤT của bảng giao dịch — không có cột riêng cho tên
+ * quán — nên gộp ở đây là nối chuỗi, không phải điền thêm một ô.
+ *
+ * GIỮ CHỮ NGƯỜI DÙNG TRƯỚC, tên quán sau: cột ghi chú trong danh sách bị cắt khi dài,
+ * mà phần người dùng tự viết mới là phần họ cần đọc để nhận ra khoản đó.
+ *
+ * CHỐNG NỐI HAI LẦN. Nhập lại cùng một file sao kê là chuyện xảy ra thật (tải lại từ
+ * ngân hàng, gộp nhiều kỳ). Nếu không kiểm, ghi chú dài thêm mỗi lượt nhập:
+ * "Cơm ngoài · でんがな · でんがな". Kiểm bằng phép chứa chuỗi chứ không so từng đoạn
+ * cắt bởi dấu ·, để bắt luôn trường hợp người dùng đã tự gõ tên quán giữa câu.
+ */
+export function mergedNote(existingNote: string, statementNote: string): string {
+  const cu = existingNote.trim()
+  const moi = statementNote.trim()
+  if (moi === '') return cu
+  if (cu === '') return moi
+  if (cu.includes(moi)) return cu
+  return `${cu} · ${moi}`
 }
 
 /**

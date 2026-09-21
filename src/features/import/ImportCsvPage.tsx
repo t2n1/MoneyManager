@@ -17,7 +17,7 @@ import {
   type ImportItem,
 } from './csvImport'
 import type { CategoryRow } from '../../types/database.types'
-import { classifyDuplicates, mergeStatementFiles } from './dedupe'
+import { classifyDuplicates, mergedNote, mergeStatementFiles, type DupLevel } from './dedupe'
 import {
   groupByMerchant,
   guessCategoryForMerchants,
@@ -214,21 +214,8 @@ export function ImportCsvPage() {
     !!span && !!accountId,
   )
 
-  // Ba mức: trùng chắc chắn (bỏ im lặng) · nghi trùng (bày ra, mặc định bỏ) · mới.
-  // Vì sao phải có mức giữa: ghi chú trong sao kê là tên quán tiếng Nhật, còn khoản
-  // ghi tay ghi tiếng Việt — luật cũ đòi khớp cả ghi chú nên gần như không bắt được
-  // khoản nào đã ghi tay. Chi tiết trong dedupe.ts.
-  const dupes = useMemo(
-    () =>
-      accountId
-        ? classifyDuplicates(preview.items, existing, { accountId })
-        : preview.items.map(() => null),
-    [preview.items, existing, accountId],
-  )
-  const [skipLikely, setSkipLikely] = useState(true)
-
-  // Chuyển khoản nội bộ: dòng sao kê thực chất là tiền chạy giữa ví của chính
-  // mình (trả thẻ, chuyển sang tiết kiệm). Nhập nguyên xi sẽ thổi phồng Chi lẫn Thu.
+  // Các ví KHÁC cùng loại tiền. Dùng cho cả hai phép dò chạm tới ví khác: chuyển
+  // khoản nội bộ (ngược chiều) và ghi nhầm ví (cùng chiều).
   const sameCurrencyIds = useMemo(
     () =>
       new Set(
@@ -236,6 +223,34 @@ export function ImportCsvPage() {
       ),
     [accounts, currency, accountId],
   )
+
+  // Bốn mức: trùng chắc chắn (bỏ im lặng) · nghi trùng cùng ví (bày ra, mặc định bỏ) ·
+  // nghi ghi nhầm ví (bày ra, mặc định KHÔNG bỏ) · mới.
+  // Vì sao phải có mức giữa: ghi chú trong sao kê là tên quán tiếng Nhật, còn khoản
+  // ghi tay ghi tiếng Việt — luật cũ đòi khớp cả ghi chú nên gần như không bắt được
+  // khoản nào đã ghi tay. Chi tiết trong dedupe.ts.
+  const dupes = useMemo(
+    () =>
+      accountId
+        ? classifyDuplicates(preview.items, existing, {
+            accountId,
+            crossAccountIds: sameCurrencyIds,
+          })
+        : preview.items.map(() => null),
+    [preview.items, existing, accountId, sameCurrencyIds],
+  )
+  const [skipLikely, setSkipLikely] = useState(true)
+  // Mức chéo ví mặc định KHÔNG bỏ, ngược với hai mức trên. Đoán sai ở đây làm MẤT một
+  // khoản chi có thật, mà khoản thiếu thì nhìn vào tổng không thấy — khác hẳn nhân đôi.
+  // Nên để người dùng nhìn danh sách kèm tên ví rồi tự bật.
+  const [skipCross, setSkipCross] = useState(false)
+  // Bồi tên quán từ sao kê vào ghi chú khoản cũ. Chỉ có nghĩa với dòng đang BỊ BỎ:
+  // dòng được nhập thì đã tự mang tên quán của nó rồi.
+  const [mergeLikely, setMergeLikely] = useState(true)
+  const [mergeCross, setMergeCross] = useState(true)
+
+  // Chuyển khoản nội bộ: dòng sao kê thực chất là tiền chạy giữa ví của chính
+  // mình (trả thẻ, chuyển sang tiết kiệm). Nhập nguyên xi sẽ thổi phồng Chi lẫn Thu.
   const transferCandidates = useMemo(
     () =>
       accountId
@@ -259,16 +274,62 @@ export function ImportCsvPage() {
     [transferKeys],
   )
 
+  /** Mức nào đang bị bỏ vì coi là khoản đã có trong sổ. */
+  const dupSkipped = useCallback(
+    (level: DupLevel | undefined) =>
+      level === 'exact' || (skipLikely && level === 'likely') || (skipCross && level === 'cross'),
+    [skipLikely, skipCross],
+  )
+
   const toImport = useMemo(
     () =>
       preview.items.filter((it, i) => {
-        const d = dupes[i]
-        if (d?.level === 'exact') return false
-        if (skipLikely && d?.level === 'likely') return false
+        if (dupSkipped(dupes[i]?.level)) return false
         return !(skipTransfers && isInternal(it))
       }),
-    [preview.items, dupes, skipLikely, skipTransfers, isInternal],
+    [preview.items, dupes, dupSkipped, skipTransfers, isInternal],
   )
+
+  /**
+   * Khoản cũ sẽ được bồi tên quán từ sao kê.
+   *
+   * CHỈ XÉT DÒNG ĐANG BỊ BỎ. Dòng được nhập thì đã tự mang tên quán của nó, bồi thêm
+   * vào một khoản khác là bịa ra liên hệ không có.
+   *
+   * CHỈ GIỮ KHOẢN GHI CHÚ THẬT SỰ ĐỔI. Ghi đè một giá trị y hệt vẫn đập vào `updated_at`
+   * (trigger moddatetime), mà txProvenance.ts đọc đúng cột đó để nói "đã sửa lúc nào" —
+   * ghi thừa là đóng dấu "đã sửa" lên hàng chục khoản không ai đụng tới, làm hỏng chính
+   * cái cờ dùng để đối chiếu sao kê.
+   */
+  const mergePlan = useMemo(() => {
+    const out: { txId: string; level: DupLevel; from: string; to: string }[] = []
+    preview.items.forEach((it, i) => {
+      const d = dupes[i]
+      if (!d || !dupSkipped(d.level)) return
+      const from = d.matchedNote.trim()
+      const to = mergedNote(d.matchedNote, it.note)
+      if (to === from) return
+      out.push({ txId: d.matchedTxId, level: d.level, from, to })
+    })
+    return out
+  }, [preview.items, dupes, dupSkipped])
+
+  /** Lọc theo ô tick. Tính sau `mergePlan` để nhãn còn nêu được ví dụ thật ngay cả khi
+   *  người dùng vừa bỏ tick — nhãn phải mô tả việc sẽ xảy ra nếu tick lại. */
+  const toMerge = useMemo(
+    () =>
+      mergePlan.filter((m) =>
+        m.level === 'likely' ? mergeLikely : m.level === 'cross' ? mergeCross : true,
+      ),
+    [mergePlan, mergeLikely, mergeCross],
+  )
+  /** Cặp trước/sau có thật để làm ví dụ trong nhãn — ví dụ bịa đặt cạnh danh sách thật
+   *  thì người đọc tưởng nó nói về đúng dòng đang nhìn. */
+  const mergeSample = useCallback(
+    (level: DupLevel) => mergePlan.find((m) => m.level === level),
+    [mergePlan],
+  )
+
   const dupCount = dupes.filter((d) => d?.level === 'exact').length
   /** Dòng nghi trùng, kèm dòng sao kê tương ứng — để bày danh sách cho người dùng soát. */
   const likelyRows = useMemo(
@@ -276,6 +337,12 @@ export function ImportCsvPage() {
       preview.items
         .map((it, i) => ({ it, dup: dupes[i] }))
         .filter((r) => r.dup?.level === 'likely'),
+    [preview.items, dupes],
+  )
+  /** Dòng nghi ghi nhầm ví — cùng số tiền, cùng chiều, nhưng khoản cũ nằm ở ví khác. */
+  const crossRows = useMemo(
+    () =>
+      preview.items.map((it, i) => ({ it, dup: dupes[i] })).filter((r) => r.dup?.level === 'cross'),
     [preview.items, dupes],
   )
   const transferCount = preview.items.filter(
@@ -358,10 +425,12 @@ export function ImportCsvPage() {
   )
 
   async function handleImport() {
-    if (!accountId || toImport.length === 0) return
+    if (!accountId || (toImport.length === 0 && toMerge.length === 0)) return
     setBusy(true)
     setResult(null)
     let done = 0
+    let merged = 0
+    let mergeErr: string | null = null
     try {
       for (const it of toImport) {
         await repo.createTransaction({
@@ -376,10 +445,28 @@ export function ImportCsvPage() {
         })
         done++
       }
+      // Bồi ghi chú SAU khi chèn xong, và trong try riêng. Chèn dở dang là phần đau
+      // nhất (khoản thật đã vào sổ một nửa); bồi ghi chú dở dang chỉ là vài khoản cũ
+      // chưa có tên quán — lượt nhập sau bồi nốt. Không được để lỗi ở chặng nhẹ này
+      // nuốt mất báo cáo của chặng nặng.
+      for (const m of toMerge) {
+        try {
+          await repo.updateTransaction(m.txId, { note: m.to })
+          merged++
+        } catch (err) {
+          mergeErr = (err as Error).message
+          break
+        }
+      }
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
       qc.invalidateQueries({ queryKey: ['search'] })
-      setResult({ kind: 'ok', text: `Đã nhập ${done} giao dịch.` })
+      const xong = `Đã nhập ${done} giao dịch${merged > 0 ? ` · bồi tên quán cho ${merged} khoản cũ` : ''}.`
+      setResult(
+        mergeErr === null
+          ? { kind: 'ok', text: xong }
+          : { kind: 'error', text: `${xong} Bồi ghi chú dừng giữa chừng: ${mergeErr}` },
+      )
       setRowsPerFile([])
       setFileName('')
       setFormat(null)
@@ -507,8 +594,10 @@ export function ImportCsvPage() {
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipLikely && likelyRows.length > 0 && ` · bỏ qua ${likelyRows.length} nghi trùng`}
+                {skipCross && crossRows.length > 0 && ` · bỏ qua ${crossRows.length} nghi nhầm ví`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {overlapCount > 0 && ` · gộp ${overlapCount} dòng chồng lấn giữa các sao kê`}
+                {toMerge.length > 0 && ` · bồi tên quán cho ${toMerge.length} khoản cũ`}
                 {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
               </p>
 
@@ -552,6 +641,78 @@ export function ImportCsvPage() {
                     ))}
                     {likelyRows.length > 5 && <li>…và {likelyRows.length - 5} dòng nữa.</li>}
                   </ul>
+                  {skipLikely && (
+                    <label className="mt-1.5 flex items-start gap-2 pl-6 text-2xs text-fg-warn">
+                      <input
+                        type="checkbox"
+                        checked={mergeLikely}
+                        onChange={(e) => setMergeLikely(e.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Bồi tên quán từ sao kê vào ghi chú khoản cũ
+                        {mergeSample('likely') && (
+                          <>
+                            {' '}— “{mergeSample('likely')?.from || 'không ghi chú'}” thành “
+                            {mergeSample('likely')?.to}”
+                          </>
+                        )}
+                        . Số tiền, ví và danh mục giữ nguyên.
+                      </span>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {/* Nghi ghi nhầm ví. Mặc định KHÔNG bỏ, ngược với khối trên: đoán sai ở đây
+                  làm mất một khoản chi có thật, mà sổ thiếu thì nhìn tổng không ra. */}
+              {crossRows.length > 0 && (
+                <div className="mt-2 rounded-lg bg-state-warn-bg p-2.5">
+                  <label className="flex items-start gap-2 text-sm text-fg-warn">
+                    <input
+                      type="checkbox"
+                      checked={skipCross}
+                      onChange={(e) => setSkipCross(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <b>{crossRows.length} dòng có vẻ đã ghi ở ví khác</b> — cùng số tiền, cùng
+                      chiều, lệch không quá 3 ngày, nhưng khoản cũ nằm ở ví khác (quẹt thẻ mà
+                      ghi vào Tiền mặt). Mặc định <b>vẫn nhập</b>; tick vào để bỏ qua. Ví của
+                      khoản cũ không bị đổi dù tick hay không.
+                    </span>
+                  </label>
+                  <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
+                    {crossRows.slice(0, 5).map(({ it, dup }) => (
+                      <li key={`${it.key}-${dup?.matchedTxId}`} className="truncate">
+                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔ “
+                        {dup?.matchedNote || 'không ghi chú'}” ở ví{' '}
+                        {dup && nameOfAccount(dup.matchedAccountId)}
+                        {dup && dup.dayGap > 0 && ` (lệch ${dup.dayGap} ngày)`}
+                      </li>
+                    ))}
+                    {crossRows.length > 5 && <li>…và {crossRows.length - 5} dòng nữa.</li>}
+                  </ul>
+                  {skipCross && (
+                    <label className="mt-1.5 flex items-start gap-2 pl-6 text-2xs text-fg-warn">
+                      <input
+                        type="checkbox"
+                        checked={mergeCross}
+                        onChange={(e) => setMergeCross(e.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Bồi tên quán từ sao kê vào ghi chú khoản cũ ở ví kia
+                        {mergeSample('cross') && (
+                          <>
+                            {' '}— “{mergeSample('cross')?.from || 'không ghi chú'}” thành “
+                            {mergeSample('cross')?.to}”
+                          </>
+                        )}
+                        . Số tiền, ví và danh mục giữ nguyên.
+                      </span>
+                    </label>
+                  )}
                 </div>
               )}
 
@@ -718,10 +879,18 @@ export function ImportCsvPage() {
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={busy || toImport.length === 0}
+                disabled={busy || (toImport.length === 0 && toMerge.length === 0)}
                 className={actionButtonClass('primary', 'mt-3 w-full')}
               >
-                {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
+                {/* Cả file có thể đã có trong sổ hết mà vẫn còn việc: bồi tên quán vào
+                    khoản cũ. Để nút chết ở đó thì người dùng tưởng trang hỏng. */}
+                {busy
+                  ? 'Đang nhập…'
+                  : toImport.length > 0
+                    ? `Nhập ${toImport.length} giao dịch`
+                    : toMerge.length > 0
+                      ? `Bồi tên quán cho ${toMerge.length} khoản`
+                      : 'Cả file đã có trong sổ'}
               </button>
             </Card>
           )}

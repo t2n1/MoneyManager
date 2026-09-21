@@ -15,6 +15,7 @@ import { formatMoney } from '../../lib/money'
 import { planAutoBudget } from './autoBudget'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
+import { ActionButton } from '../../components/ui'
 import { EmptyState, Money, SectionTitle, SegmentedControl } from '../../components/ui'
 import { useChiChuaGhi } from '../reports/useChiChuaGhi'
 import { BudgetEditSheet } from './BudgetEditSheet'
@@ -43,6 +44,8 @@ import {
 } from './budgetSort'
 import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
 import { dailyAllowance } from './dailyAllowance'
+import { nenHoiLai } from './rebalance'
+import { useRebalance } from './useRebalance'
 import { useCommitments } from './useCommitments'
 import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
 import type { BudgetStatus } from './progress'
@@ -357,6 +360,65 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   /** Số đang kéo, chưa ghi — báo cáo NHÌN THẤY được vá bằng số này (`applyDraftLimit`). */
   const [draft, setDraft] = useState<{ categoryId: string; amount: number } | null>(null)
   const upsert = useUpsertBudget()
+
+  // ĐỀ NGHỊ CÂN LẠI TRẦN GIỮA CÁC MỤC. Luật nằm trong rebalance.ts; ở đây chỉ hiện và ghi.
+  const rebalance = useRebalance(monthKey)
+  const canKey = `sct-rebalance-off:${monthKeyStr}`
+  const [daTuChoi, setDaTuChoi] = useState<Record<string, number>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(canKey) ?? '{}') as Record<string, number>
+    } catch {
+      return {}
+    }
+  })
+  const deNghi =
+    rebalance && nenHoiLai(rebalance.to.deficit, daTuChoi[rebalance.to.categoryId] ?? null)
+      ? rebalance
+      : null
+
+  function deYen() {
+    if (!rebalance) return
+    // Nhớ mức thiếu LÚC TỪ CHỐI, không nhớ "đã từ chối": tháng còn dài, và một khoản
+    // thiếu phình gấp rưỡi là một chuyện khác chứ không phải chuyện cũ hỏi lại.
+    const next = { ...daTuChoi, [rebalance.to.categoryId]: rebalance.to.deficit }
+    setDaTuChoi(next)
+    try {
+      localStorage.setItem(canKey, JSON.stringify(next))
+    } catch {
+      // Chặn làm phiền là tiện nghi, không phải dữ liệu — lưu hỏng thì thôi.
+    }
+  }
+
+  async function chuyenTran() {
+    if (!deNghi?.from) return
+    const { from, to, amount } = deNghi
+    const soCu = (id: string) => budgets.find((b) => b.category_id === id)?.amount ?? 0
+    const fromCu = soCu(from.categoryId)
+    try {
+      await upsert.mutateAsync({
+        categoryId: from.categoryId,
+        monthKey: monthKeyStr,
+        amount: fromCu - amount,
+      })
+    } catch {
+      return
+    }
+    try {
+      await upsert.mutateAsync({
+        categoryId: to.categoryId,
+        monthKey: monthKeyStr,
+        amount: soCu(to.categoryId) + amount,
+      })
+    } catch {
+      // Lệnh hai hỏng mà để nguyên lệnh một thì TỔNG ngân sách tụt mất `amount` — đúng
+      // cái bất biến tính năng này tồn tại để giữ. Hoàn lại rồi báo, thà không đổi gì.
+      await upsert
+        .mutateAsync({ categoryId: from.categoryId, monthKey: monthKeyStr, amount: fromCu })
+        .catch(() => {})
+      return
+    }
+    showToast(`Đã chuyển ${formatMoney(amount, base)} sang ${to.name}`, 'success')
+  }
 
   function changeSort(m: BudgetSortMode) {
     setSortMode(m)
@@ -1048,6 +1110,60 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           cùng một tháng, cách nhau một ngày.
           Chỉ ở THÁNG ĐANG CHẠY: tháng đã đóng thì mọi kỳ chưa sinh giao dịch đều "quá hạn",
           và một khối đỏ về chuyện của sáu tháng trước không còn việc gì để làm với nó. */}
+      {/* CÂN LẠI TRẦN GIỮA CÁC MỤC — đặt TRƯỚC "Còn phải trả" vì đây là việc có nút bấm,
+          còn khối kia là thứ để đọc. Chỉ hiện khi có đúng một việc đáng làm; luật im/nói
+          nằm trong rebalance.ts. */}
+      {deNghi && (
+        <Card as="section">
+          <SectionTitle>Cân lại trần</SectionTitle>
+          {deNghi.from ? (
+            <>
+              <p className="mt-1 text-sm text-fg">
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
+                vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
+                <Money amount={deNghi.amount} currency={base} /> từ{' '}
+                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này dự
+                báo còn dư <Money amount={deNghi.from.surplus} currency={base} />.
+              </p>
+              <Guide className="mt-1 text-sm text-fg-muted">
+                Tổng ngân sách tháng không đổi: trừ bên này bao nhiêu, cộng bên kia bấy
+                nhiêu. Nếu {deNghi.from.name} đang bật dồn thì phần dồn sang tháng sau cũng
+                giảm theo.
+              </Guide>
+              <div className="mt-3 flex gap-2">
+                <ActionButton variant="primary" onClick={chuyenTran} disabled={upsert.isPending}>
+                  Đồng ý
+                </ActionButton>
+                <ActionButton onClick={deYen}>
+                  Để yên
+                </ActionButton>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Ca không có nguồn — câu đáng giá nhất của cả tính năng, và là câu app
+                  trước đây không bao giờ nói. Im ở đây là để người dùng tự phát hiện vào
+                  ngày cuối tháng. */}
+              <p className="mt-1 text-sm text-fg">
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
+                vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
+                <strong className="font-semibold">không mục nào còn dư để lấy</strong> —
+                tổng tháng này sẽ vượt.
+              </p>
+              <Guide className="mt-1 text-sm text-fg-muted">
+                Cân qua lại không cứu được nữa. Chỉ còn hai đường: tiêu chậm lại ở{' '}
+                {deNghi.to.name}, hoặc chấp nhận tháng này vượt và nâng trần cho đúng sự thật.
+              </Guide>
+              <div className="mt-3">
+                <ActionButton onClick={deYen}>
+                  Đã hiểu
+                </ActionButton>
+              </div>
+            </>
+          )}
+        </Card>
+      )}
+
       {pace.isCurrentMonth && commitments.items.length > 0 && (
         <Card as="section">
           <div className="mb-1 flex items-baseline justify-between gap-2">

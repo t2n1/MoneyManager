@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DebtPaymentRow, DebtRow } from '../../types/database.types'
-import { KHONG_TRU_NO, chonNoMacDinh, khoanNoCoTheChon, noDaChon, tenGanGiong } from './chonNo'
+import { KHOA_LUU_NO_CU, KHONG_TRU_NO, chonNoMacDinh, khoaLuuNo, khoanNoCoTheChon, noDaChon, tenGanGiong } from './chonNo'
 
 const debt = (p: Partial<DebtRow> & { id: string; counterparty: string }): DebtRow =>
   ({
@@ -58,5 +58,12 @@ describe('noDaChon', () => {
 describe('tenGanGiong', () => {
   it('không phân biệt hoa/thường, bỏ tên đúng', () => {
     expect(tenGanGiong([KOME, MINH, CTY])).toEqual(['Minh KOME', 'Công ty Kome'])
+  })
+})
+
+describe('khoaLuuNo', () => {
+  it('mỗi người dùng một khoá, không trùng khoá cũ dùng chung', () => {
+    expect(khoaLuuNo('u1')).not.toBe(khoaLuuNo('demo-user'))
+    expect(khoaLuuNo('u1')).not.toBe(KHOA_LUU_NO_CU)
   })
 })

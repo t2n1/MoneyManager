@@ -43,3 +43,16 @@ export function tenGanGiong(debts: DebtRow[]): string[] {
     .filter((d) => d.counterparty !== TEN_NO_CONG_TY && d.counterparty.toLowerCase().includes(k))
     .map((d) => d.counterparty)
 }
+
+/**
+ * Khoá localStorage giữ lựa chọn khoản nợ — GẮN THEO NGƯỜI DÙNG. Khoá chung cho cả máy thì
+ * demo (hoặc người khác đăng nhập cùng trình duyệt) thừa hưởng lựa chọn của chủ sổ: một id
+ * khoản nợ không có ở sổ của họ. `chonNoMacDinh` vẫn rơi về mặc định được, nhưng lựa chọn
+ * "Không trừ vào nợ" thì đi xuyên qua mọi sổ.
+ */
+export function khoaLuuNo(userId: string): string {
+  return `phieu-luong:no-lap-theo:${userId}`
+}
+
+/** Khoá cũ không gắn người dùng (trước 09/2026) — chỉ để dọn, không đọc. */
+export const KHOA_LUU_NO_CU = 'phieu-luong:no-lap-theo'

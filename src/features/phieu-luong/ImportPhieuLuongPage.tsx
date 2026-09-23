@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
@@ -14,6 +14,7 @@ import {
   useDauPhieuLuong,
   useDebtPayments,
   useDebts,
+  useProfile,
   invalidateDebts,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
@@ -23,7 +24,15 @@ import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
 import { Money, PageHeader, Select, actionButtonClass } from '../../components/ui'
-import { KHONG_TRU_NO, chonNoMacDinh, khoanNoCoTheChon, noDaChon, tenGanGiong as timTenGanGiong } from './chonNo'
+import {
+  KHOA_LUU_NO_CU,
+  KHONG_TRU_NO,
+  chonNoMacDinh,
+  khoaLuuNo,
+  khoanNoCoTheChon,
+  noDaChon,
+  tenGanGiong as timTenGanGiong,
+} from './chonNo'
 import { remainingOf } from '../debts/aggregate'
 import {
   DANH_MUC_THUE_CHA,
@@ -38,29 +47,29 @@ import {
   dungKeHoach,
   gomTrung,
   phieuLoi,
-  type DongKeHoach,
   type KhoanNeo,
 } from './nhap'
 
 const TEN_YUCHO = /yucho/i
 
 /**
- * Khoản nợ người dùng đã chọn cho 立替経費精算 — lưu theo ID ở localStorage của máy này.
- * Không lưu vào profile: bảng đó không có cột cài đặt JSON chung, và thêm cột là đổi schema.
- * Mất (trình duyệt riêng tư / xoá dữ liệu) thì chỉ quay về mặc định: chọn sẵn khoản tên
- * đúng "KOME", không có thì "Không trừ vào nợ".
+ * Khoản nợ người dùng đã chọn cho 立替経費精算 — lưu theo ID ở localStorage của máy này,
+ * mỗi người dùng một khoá (khoaLuuNo). Không lưu vào profile: bảng đó không có cột cài đặt
+ * JSON chung, và thêm cột là đổi schema. Mất (trình duyệt riêng tư / xoá dữ liệu) thì chỉ
+ * quay về mặc định: chọn sẵn khoản tên đúng "KOME", không có thì "Không trừ vào nợ".
  */
-const LUU_NO_KEY = 'phieu-luong:no-lap-theo'
-function docNoDaLuu(): string | null {
+function docNoDaLuu(userId: string): string | null {
   try {
-    return localStorage.getItem(LUU_NO_KEY)
+    return localStorage.getItem(khoaLuuNo(userId))
   } catch {
     return null
   }
 }
-function ghiNoDaLuu(v: string) {
+function ghiNoDaLuu(userId: string, v: string) {
   try {
-    localStorage.setItem(LUU_NO_KEY, v)
+    localStorage.setItem(khoaLuuNo(userId), v)
+    // Khoá cũ dùng chung cả máy: dọn đi để không ai thừa hưởng nó nữa.
+    localStorage.removeItem(KHOA_LUU_NO_CU)
   } catch {
     // không lưu được thì lựa chọn chỉ sống tới khi rời trang — vẫn dùng được
   }
@@ -85,12 +94,29 @@ export function ImportPhieuLuongPage() {
   const createCategory = useCreateCategory()
   const createAccount = useCreateAccount()
   const { data: dauTrongSo = [] } = useDauPhieuLuong()
-  const { data: debts = [] } = useDebts()
-  const { data: debtPayments = [] } = useDebtPayments()
-  const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
-  /** Đầu vào của kế hoạch đang hiện — giữ lại để dựng lại khi đổi khoản nợ, khỏi chọn file lại. */
+  const { data: debts = [], isPending: dangTaiDsNo } = useDebts()
+  const { data: debtPayments = [], isPending: dangTaiLanTra } = useDebtPayments()
+  const { data: profile, isPending: dangTaiHoSo } = useProfile()
+  const userId = profile?.user_id ?? null
+  /**
+   * Chưa có đủ danh sách nợ, các lần trả và người dùng thì CHƯA biết phiếu trừ vào khoản
+   * nào, còn bao nhiêu. Dựng kế hoạch lúc đó là dựng với `debts = []` → "không trừ nợ", và
+   * bấm Ghi là ghi phiếu mà không trừ nợ. Nên chờ, và khoá hai nút cho tới khi đủ.
+   */
+  const dangTaiNo = dangTaiDsNo || dangTaiLanTra || dangTaiHoSo
+  /**
+   * Đầu vào của kế hoạch — kế hoạch DỰNG TỪ ĐÂY (useMemo dưới), không lưu riêng: đổi khoản
+   * nợ hay danh sách nợ vừa tải về thì kế hoạch tự dựng lại, khỏi chọn file lại.
+   */
   const [nguon, setNguon] = useState<{ phieuList: Phieu[]; thu: KhoanNeo[]; dauDaCo: Set<string> } | null>(null)
-  const [noDaLuu, setNoDaLuu] = useState<string | null>(() => docNoDaLuu())
+  /** Lựa chọn vừa đổi trong phiên này, kèm người chọn — đổi tài khoản thì bỏ. */
+  const [noChonTay, setNoChonTay] = useState<{ userId: string; v: string } | null>(null)
+  const noDaLuu =
+    noChonTay && noChonTay.userId === (userId ?? '')
+      ? noChonTay.v
+      : userId
+        ? docNoDaLuu(userId)
+        : null
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
   const [dangGhi, setDangGhi] = useState(false)
@@ -130,19 +156,29 @@ export function ImportPhieuLuongPage() {
   const tenGanGiong = noChonId === null ? timTenGanGiong(debts) : []
 
   function doiNo(v: string) {
-    setNoDaLuu(v)
-    ghiNoDaLuu(v)
-    // Kế hoạch đang hiện dựng với khoản cũ → dựng lại ngay với khoản mới.
-    if (keHoach && nguon && yucho) {
-      const moi = noDaChon(debts, debtPayments, chonNoMacDinh(debts, v))
-      setKeHoach(
-        dungKeHoach(
-          nguon.phieuList, nguon.thu, yucho.id, new Map(chiPhi.map((c) => [c.name, c.id])),
-          nguon.dauDaCo, tkHuu?.id ?? null, moi, dmPhuCap?.id ?? null,
-        ),
-      )
-    }
+    // Hồ sơ tải lỗi (không biết là ai) thì vẫn đổi được trong phiên, chỉ không nhớ.
+    setNoChonTay({ userId: userId ?? '', v })
+    if (userId) ghiNoDaLuu(userId, v)
   }
+
+  // Deps theo GIÁ TRỊ của `no`, không theo object: noDaChon trả object mới mỗi render.
+  const noId = no?.id ?? null
+  const noConLai = no?.conLai ?? null
+  const noTen = no?.ten ?? null
+  const yuchoId = yucho?.id ?? null
+  const tkHuuId = tkHuu?.id ?? null
+  const dmPhuCapId = dmPhuCap?.id ?? null
+  const keHoach = useMemo(() => {
+    if (!nguon || !yuchoId || dangTaiNo) return null
+    const idTheoTen = new Map(
+      categories.filter((c) => c.type === 'expense').map((c) => [c.name, c.id]),
+    )
+    const noHienTai = noId !== null ? { id: noId, conLai: noConLai ?? 0, ten: noTen ?? '' } : null
+    return dungKeHoach(
+      nguon.phieuList, nguon.thu, yuchoId, idTheoTen, nguon.dauDaCo, tkHuuId, noHienTai,
+      dmPhuCapId,
+    )
+  }, [nguon, yuchoId, dangTaiNo, categories, noId, noConLai, noTen, tkHuuId, dmPhuCapId])
 
   // Nhan File[] (da chup san bang layDanhSachFile), KHONG nhan FileList: FileList
   // song se rong truoc khi ham nay kip doc, vi onChange da dat input.value = ''
@@ -174,14 +210,7 @@ export function ImportPhieuLuongPage() {
        * file ngay khi vua mo trang la du de gap. Mot luot fetch trung re hon nhieu.
        */
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
-      const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
       setNguon({ phieuList, thu, dauDaCo })
-      setKeHoach(
-        dungKeHoach(
-          phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null, no,
-          dmPhuCap?.id ?? null,
-        ),
-      )
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
     } finally {
@@ -321,7 +350,7 @@ export function ImportPhieuLuongPage() {
         invalidateDebts(qc)
         // Xoa ke hoach NGAY sau khi ghi xong: dat[] rong lai thi nut Ghi bien mat
         // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
-        setKeHoach(null)
+        setNguon(null)
         setDaGhi({ phieu: nPhieu, dong: nDong })
         showToast(`Đã ghi ${nPhieu} phiếu · ${nDong} dòng`)
       } catch (e) {
@@ -333,7 +362,7 @@ export function ImportPhieuLuongPage() {
         //      khong chi lo nay, nen KHONG duoc goi y no la cach "sua" mot lan
         //      ghi do — nguoi dung phai tu quyet co chap nhan mat ca lich su
         //      hay khong, thong diep loi chi noi that da xay ra chuyen gi.
-        //   2. xoa ke hoach (setKeHoach null) — dat[] cu VAN con nhung mot vai
+        //   2. xoa ke hoach (setNguon null) — dat[] cu VAN con nhung mot vai
         //      phieu trong do da ghi thanh cong roi; de nut "Ghi" song la bam
         //      lai se ghi TRUNG dung nhung phieu vua thanh cong.
         // nDong === 0 (chua ghi duoc dong nao) thi an toan de giu nguyen ke
@@ -341,7 +370,7 @@ export function ImportPhieuLuongPage() {
         if (nDong > 0) {
           invalidateTransactionData(qc)
           invalidateDebts(qc)
-          setKeHoach(null)
+          setNguon(null)
           setDaGhi({ phieu: nPhieu, dong: nDong })
         }
         // nDong > 0 nhung nPhieu === 0: loi xay ra GIUA CHUNG cac dong cua phieu
@@ -516,11 +545,15 @@ export function ImportPhieuLuongPage() {
       >
         <FileUp className="h-5 w-5 text-fg-muted" />
         <span className="flex-1 text-sm text-fg-primary">
-          {dangBoc ? 'Đang bóc…' : 'Chọn file PDF (chọn được nhiều file)'}
+          {dangBoc
+            ? 'Đang bóc…'
+            : dangTaiNo
+              ? 'Đang tải danh sách nợ…'
+              : 'Chọn file PDF (chọn được nhiều file)'}
         </span>
         <input
           type="file" multiple accept="application/pdf" className="sr-only"
-          disabled={dangBoc || thieuDanhMuc.length > 0}
+          disabled={dangBoc || dangTaiNo || thieuDanhMuc.length > 0}
           onChange={(e) => {
             // Chup TRUOC khi reset: e.target.files la FileList SONG — dat value=''
             // xoa luon file BEN TRONG chinh no, nen phai chuyen sang mang thuong
@@ -610,7 +643,7 @@ export function ImportPhieuLuongPage() {
       )}
 
       {dat.length > 0 && (
-        <ActionButton variant="primary" disabled={dangGhi} onClick={ghi}>
+        <ActionButton variant="primary" disabled={dangGhi || dangTaiNo} onClick={ghi}>
           {dangGhi ? 'Đang ghi…' : `Ghi ${soDong} dòng`}
         </ActionButton>
       )}

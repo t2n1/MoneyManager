@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evenSplit, planSplit, splitTotal, type SplitPart } from './splitTransaction'
+import { evenSplit, laKhoanBu, planSplit, splitTotal, type SplitPart } from './splitTransaction'
 
 const p = (amount: number, categoryId: string | null = 'c1', note = ''): SplitPart => ({
   amount,
@@ -100,5 +100,23 @@ describe('evenSplit', () => {
   it('tham số vô nghĩa trả mảng rỗng thay vì NaN', () => {
     expect(evenSplit(0, 3)).toEqual([])
     expect(evenSplit(100, 0)).toEqual([])
+  })
+})
+
+describe('laKhoanBu', () => {
+  const bu = new Set(['c-bu'])
+  it('có dấu khoản bù → là khoản bù, kể cả khi đã đổi danh mục', () => {
+    expect(laKhoanBu({ adjust_kind: 'balance', category_id: 'c1' }, bu)).toBe(true)
+    expect(laKhoanBu({ adjust_kind: 'statement_month', category_id: 'c1' }, bu)).toBe(true)
+  })
+  it('chưa có dấu (dòng cũ) mà nằm ở danh mục bù → vẫn là khoản bù', () => {
+    expect(laKhoanBu({ adjust_kind: null, category_id: 'c-bu' }, bu)).toBe(true)
+    expect(laKhoanBu({ category_id: 'c-bu' }, bu)).toBe(true)
+  })
+  // exclude_from_stats là công tắc người dùng tự bật trên khoản thường ("không tính vào
+  // thống kê") — nó KHÔNG làm một khoản thành khoản bù, nên không được chặn chia vì nó.
+  it('khoản thường, kể cả đã loại khỏi thống kê → không phải khoản bù', () => {
+    expect(laKhoanBu({ adjust_kind: null, category_id: 'c1' }, bu)).toBe(false)
+    expect(laKhoanBu({ category_id: null }, bu)).toBe(false)
   })
 })

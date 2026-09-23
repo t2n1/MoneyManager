@@ -9,7 +9,7 @@ import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
 import { missingTradeTransfers, stockTradeCashFlow } from '../features/assets/stockTradePosting'
 import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
-import { isMissingColumnError } from './missingColumn'
+import { COT_GIAO_DICH_MOI, runDropMissingColumns } from './missingColumn'
 import type {
   AccountRow,
   AccountValuationRow,
@@ -365,14 +365,10 @@ export const supabaseRepo: Repo = {
         .insert({ ...row, user_id })
         .select()
         .single()
-    let { data, error } = await insert(fields)
-    // Code lên trước khi migration 0072 được dán vào Supabase: bỏ dấu khoản bù rồi ghi
-    // lại, thay vì làm hỏng nút "Điều chỉnh số nợ". Dòng ghi lúc đó không có dấu nhưng
+    // Code lên trước khi migration được dán vào Supabase (vd. 0072): bỏ cột DB chưa có rồi
+    // ghi lại, thay vì làm hỏng nút "Điều chỉnh số nợ". Dòng ghi lúc đó không có dấu nhưng
     // vẫn được nhận bằng ghi chú (isBalanceAdjust), và backfill của 0072 đóng dấu cho nó.
-    if (error && fields.adjust_kind !== undefined && isMissingColumnError(error, 'adjust_kind')) {
-      const { adjust_kind: _bo, ...rest } = fields
-      ;({ data, error } = await insert(rest))
-    }
+    const { data, error } = await runDropMissingColumns(fields, COT_GIAO_DICH_MOI, insert)
     if (error) throw error
     if (tag_ids?.length) await this.setTransactionTags(data!.id, tag_ids)
     return data!
@@ -380,12 +376,13 @@ export const supabaseRepo: Repo = {
 
   async updateTransaction(id: string, patch: TransactionPatch) {
     const { tag_ids, ...fields } = patch
-    const { data, error } = await getSupabase()
-      .from('transactions')
-      .update(fields)
-      .eq('id', id)
-      .select()
-      .single()
+    // Cùng lưới an toàn với createTransaction: patch mang cột DB chưa có thì bỏ cột đó.
+    // Bỏ hết thì không còn gì để sửa — đọc lại dòng thay vì gửi một update rỗng.
+    const { data, error } = await runDropMissingColumns(fields, COT_GIAO_DICH_MOI, (p) =>
+      Object.keys(p).length === 0
+        ? getSupabase().from('transactions').select().eq('id', id).single()
+        : getSupabase().from('transactions').update(p).eq('id', id).select().single(),
+    )
     if (error) throw error
     if (tag_ids) await this.setTransactionTags(id, tag_ids)
     return data
@@ -2429,6 +2426,29 @@ export const supabaseRepo: Repo = {
       )
     }
 
+    // stock_trades: composite FK tới accounts → chèn sau accounts. Và TRƯỚC transactions:
+    // dòng tiền của lệnh trỏ về lệnh qua `transactions.stock_trade_id` (FK). Chèn sau thì
+    // phải bỏ liên kết đó, và lệnh nào cũng hiện thành "thiếu dòng tiền" — bấm ghi bù là
+    // tiền mua/bán bị trừ hai lần.
+    if (data.stockTrades?.length) {
+      await insertChunked(
+            data.stockTrades.map((t) => ({
+              id: t.id,
+              user_id: uid,
+              account_id: t.account_id,
+              symbol: t.symbol,
+              kind: t.kind,
+              traded_on: t.traded_on,
+              quantity: t.quantity,
+              price: t.price,
+              fee: t.fee,
+              tax: t.tax,
+              note: t.note,
+            })),
+        (part) => sb.from('stock_trades').insert(part),
+      )
+    }
+
     if (data.transactions?.length) {
       await insertChunked(
             data.transactions.map((t) => ({
@@ -2451,8 +2471,18 @@ export const supabaseRepo: Repo = {
               is_debt_flow: t.is_debt_flow,
               exclude_from_stats: t.exclude_from_stats,
               is_refund: t.is_refund,
+              // Các cột thêm sau. Rơi adjust_kind là khoản bù mất dấu; rơi owner là khoản
+              // của vợ thành của mình; rơi stock_trade_id là lệnh cổ phiếu mất dòng tiền.
+              // `??` = đúng mặc định của migration: bản lưu cũ không có khoá thì chèn lô
+              // vẫn gửi cột (supabase-js lấy cột từ khoá của mọi dòng) và cột NOT NULL nhận
+              // null là nổ. DB đích chưa có cột thì runDropMissingColumns bỏ nó rồi chèn lại.
+              adjust_kind: t.adjust_kind ?? null,
+              adjust_is_spend: t.adjust_is_spend ?? false,
+              owner: t.owner ?? 'mine',
+              stock_trade_id: t.stock_trade_id ?? null,
+              stock_symbol: t.stock_symbol ?? null,
             })),
-        (part) => sb.from('transactions').insert(part),
+        (part) => runDropMissingColumns(part, COT_GIAO_DICH_MOI, (p) => sb.from('transactions').insert(p)),
       )
     }
 
@@ -2558,26 +2588,6 @@ export const supabaseRepo: Repo = {
               reviewed: b.reviewed ?? false,
             })),
         (part) => sb.from('card_bills').insert(part),
-      )
-    }
-
-    // stock_trades: composite FK tới accounts → chèn sau accounts.
-    if (data.stockTrades?.length) {
-      await insertChunked(
-            data.stockTrades.map((t) => ({
-              id: t.id,
-              user_id: uid,
-              account_id: t.account_id,
-              symbol: t.symbol,
-              kind: t.kind,
-              traded_on: t.traded_on,
-              quantity: t.quantity,
-              price: t.price,
-              fee: t.fee,
-              tax: t.tax,
-              note: t.note,
-            })),
-        (part) => sb.from('stock_trades').insert(part),
       )
     }
 

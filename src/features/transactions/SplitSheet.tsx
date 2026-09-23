@@ -15,7 +15,8 @@ import { useCategories, useCreateTransaction, useDeleteTransaction } from '../..
 import { showToast } from '../../lib/dialog'
 import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
-import { evenSplit, planSplit, MIN_PARTS, type SplitPart } from './splitTransaction'
+import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { evenSplit, laKhoanBu, planSplit, MIN_PARTS, type SplitPart } from './splitTransaction'
 
 interface Props {
   tx: TransactionRow
@@ -58,6 +59,12 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
 
   async function handleSplit() {
     if (plan.error !== null || dangChay) return
+    // Chốt thứ hai sau nút ở EditTransactionSheet: khoản bù không được chia (laKhoanBu).
+    const buIds = new Set(categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id))
+    if (laKhoanBu(tx, buIds)) {
+      showToast('Khoản bù số dư không chia được.', 'error')
+      return
+    }
     setDangChay(true)
     try {
       // TẠO TRƯỚC, XOÁ SAU. Ngược lại thì một lỗi mạng giữa chừng làm mất hẳn giao dịch
@@ -75,6 +82,10 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
           note: p.note,
           is_refund: tx.is_refund,
           is_debt_flow: tx.is_debt_flow,
+          // Khoản thường người dùng đã loại khỏi thống kê thì các phần cũng vậy; và chia
+          // khoản của vợ thì các phần vẫn là của vợ. Vắng (DB cũ) thì không gửi.
+          ...(tx.exclude_from_stats !== undefined ? { exclude_from_stats: tx.exclude_from_stats } : {}),
+          ...(tx.owner !== undefined ? { owner: tx.owner } : {}),
         })
       }
       await del.mutateAsync(tx.id)

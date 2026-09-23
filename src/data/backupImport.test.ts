@@ -102,6 +102,31 @@ describe('validateBackupPayload', () => {
     expect(validateBackupPayload(d)[0]).toMatch(/số tiền/i)
   })
 
+  // CHECK transactions_adjust_kind_check (0072): file mang giá trị lạ nổ 23514 SAU khi đã
+  // xoá sạch dữ liệu cũ.
+  it('dấu khoản bù lạ -> báo trước khi xoá; hai giá trị hợp lệ và null thì qua', () => {
+    const d = base()
+    const t = d.transactions[0] as unknown as Record<string, unknown>
+    for (const v of ['balance', 'statement_month', null, undefined]) {
+      t.adjust_kind = v
+      expect(validateBackupPayload(d)).toEqual([])
+    }
+    t.adjust_kind = 'bu-tong'
+    expect(validateBackupPayload(d)[0]).toMatch(/khoản bù/i)
+  })
+
+  // FK transactions.stock_trade_id -> stock_trades: dòng tiền trỏ tới lệnh không có trong
+  // file thì chèn nổ FK — lúc đó dữ liệu cũ đã bị xoá.
+  it('giao dịch trỏ tới lệnh cổ phiếu không có trong file', () => {
+    const d = base()
+    d.transactions[0].stock_trade_id = 'st-lac'
+    expect(validateBackupPayload(d)[0]).toMatch(/lệnh cổ phiếu/i)
+    d.stockTrades = [
+      { id: 'st-lac', account_id: 'a1', symbol: 'VNM', kind: 'buy', traded_on: '2024-01-02', quantity: 1, price: 1 },
+    ] as unknown as BackupData['stockTrades']
+    expect(validateBackupPayload(d)).toEqual([])
+  })
+
   it('ngày sai định dạng', () => {
     const d = base()
     d.transactions[0].occurred_on = '02/01/2024'

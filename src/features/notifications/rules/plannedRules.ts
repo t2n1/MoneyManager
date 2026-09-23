@@ -3,6 +3,7 @@
 // Khác `bill-due` (rules/billRules.ts): tin kia là khoản LẶP MÃI theo chu kỳ. Tin này
 // là khoản MỘT LẦN — đóng phí vệ sinh 20/8, sửa nhà tháng 10. Xong là hết, không có
 // kỳ sau nào để nhắc nữa.
+import { addDaysISO } from '../../../lib/dates'
 import { plannedDue } from '../../planned/planned'
 import type { AppNotification, NotificationInput } from '../types'
 
@@ -34,7 +35,11 @@ export function plannedRules(input: NotificationInput): AppNotification[] {
         d.daysLeft < 0
           ? `Quá hạn ${-d.daysLeft} ngày. Bấm để ghi khoản này.`
           : 'Bấm để ghi khoản này, hoặc dời hạn / bỏ nếu không cần nữa.',
-      onISO: d.dueISO,
+      // Khoản chỉ biết tháng: đưa HẠN CHÓT (ngày cuối tháng) chứ không phải ngày 1 đang
+      // lưu — Việc cần làm tính nhãn và "có hạn trong tuần" từ đây, đưa ngày 1 là cả
+      // tháng 9 hiện đỏ "QUÁ HẠN" dưới tiêu đề "Trong tháng 9…".
+      onISO: d.duePrecision === 'month' ? addDaysISO(input.todayISO, d.daysLeft) : d.dueISO,
+      ...(d.duePrecision === 'month' ? { onPrecision: 'month' as const } : {}),
       to: '/planned',
     }
   })

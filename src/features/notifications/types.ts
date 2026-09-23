@@ -74,6 +74,12 @@ export interface AppNotification {
   detail?: string
   /** Ngày liên quan (ngày trừ tiền, ngày hẹn nợ…). */
   onISO?: string
+  /**
+   * 'month' = việc chỉ biết THÁNG ("sửa nhà tháng 9"): `onISO` là NGÀY CUỐI tháng đó —
+   * hạn chót thật — nên nhãn nói "THÁNG 9" chứ không đếm "N NGÀY", và chỉ quá hạn khi
+   * cả tháng đã qua. Vắng = `onISO` là một ngày cụ thể.
+   */
+  onPrecision?: 'month'
   /** Bấm vào thì đi đâu. */
   to: string
 }

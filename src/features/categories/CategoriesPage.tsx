@@ -852,9 +852,8 @@ export function CategoriesPage() {
           Đường đi sửa nay là chính bộ lọc ngay phía trên, không phải một trang khác. */}
       {!classifyMode && todoCount > 0 && (
         <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm text-state-warn-fg">
-          <Num tone="warn">{todoCount}</Num> danh mục chi chưa phân loại đủ — quỹ dự phòng,
-          hai trục Thiết yếu·Linh hoạt và kịch bản “cắt hết chi linh hoạt” đang tính thiếu
-          chừng đó.{' '}
+          <Num tone="warn">{todoCount}</Num> danh mục chi chưa phân loại đủ — quỹ dự phòng
+          và hai trục Thiết yếu·Linh hoạt đang tính thiếu chừng đó.{' '}
           <button
             type="button"
             onClick={() => setParam('todo', '1')}

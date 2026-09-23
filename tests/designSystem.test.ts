@@ -324,7 +324,14 @@ function stripComments(text: string): string {
 // trong Sổ." khi danh sách gắn mã bị cắt ở 30 dòng. KHÔNG bọc <Guide> được: bỏ nó đi thì
 // người dùng thấy 30 dòng và tưởng đó là tất cả — mất TRẠNG THÁI, không phải gọn hơn
 // (ranh giới ghi ở src/components/Guide.tsx). Đoạn giải thích đi kèm thì đã bọc Guide.
-const PROSE_MAX = 95
+// 98 (từ 95, 2026-09-23, đợt sửa 26 lỗi rà soát): +4 −1 đoạn, đều là TRẠNG THÁI/HỆ QUẢ
+// chứ không phải chữ dạy. "Đang tính %/năm…" (InvestmentPerformanceSection) và nhánh
+// "Đang tải…" của DailySpendPanel là trạng thái đang tải — thay cho số tạm từng hiện như
+// số thật. Hai đoạn ở ImportPhieuLuongPage nói phiếu sẽ trừ vào khoản nợ nào / không trừ
+// gì — bỏ đi là bấm Nhập mà không biết hệ quả. TuongLaiMobile nói đây là bản chỉ đọc. Định
+// nghĩa 口 ở InvestFundsTab cố ý KHÔNG bọc Guide: tắt hướng dẫn thì cột "/1万口" hết nghĩa.
+// Đoạn cảnh báo sheet 2025-08 ở RetirementPage đã chuyển thành dòng ngay dưới con số.
+const PROSE_MAX = 98
 
 const FILES = sourceFiles().map((path) => ({
   path,

@@ -14,10 +14,10 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { DebtEditSheet } from './DebtEditSheet'
 import { DebtPaymentSheet } from './DebtPaymentSheet'
-import { disbursedOf, remainingOf, repaidOf } from './aggregate'
+import { debtBalance, disbursedOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
-import { Card, EmptyState, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
+import { Card, EmptyState, Money, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -53,12 +53,12 @@ export function DebtDetailPage() {
     )
   }
 
-  const remaining = Math.max(remainingOf(debt, allPayments), 0)
+  const { remaining, overpaid, paidOff } = debtBalance(debt, allPayments)
   const paid = repaidOf(debt.id, allPayments)
   const disbursed = disbursedOf(debt, allPayments)
   const isMine = debt.direction === 'i_owe'
   const dirLabel = isMine ? 'Mình nợ' : 'Cho vay'
-  const fullyPaid = remaining <= 0
+  const fullyPaid = paidOff
 
   async function handleDelete() {
     if (
@@ -131,15 +131,22 @@ export function DebtDetailPage() {
           {dirLabel}
           {debt.status === 'settled' && ' · đã tất toán'}
         </SectionTitle>
-        <p
-          className={`mt-1.5 font-mono text-hero font-medium tracking-number tabular-nums ${
-            isMine ? 'text-money-out' : 'text-money-in'
-          }`}
-        >
-          {formatMoney(remaining, debt.currency)}
-        </p>
+        {overpaid > 0 ? (
+          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+            <span className="text-base font-medium text-fg-warn">Trả thừa</span>
+            <Money amount={overpaid} currency={debt.currency} tone="warn" className="text-hero font-medium tracking-number" />
+          </p>
+        ) : (
+          <p
+            className={`mt-1.5 font-mono text-hero font-medium tracking-number tabular-nums ${
+              isMine ? 'text-money-out' : 'text-money-in'
+            }`}
+          >
+            {formatMoney(remaining, debt.currency)}
+          </p>
+        )}
         <p className="mt-2 text-sm text-fg-muted">
-          còn lại · gốc {formatMoney(disbursed, debt.currency)} · đã trả{' '}
+          {overpaid > 0 ? 'đã trả nhiều hơn số nợ' : 'còn lại'} · gốc {formatMoney(disbursed, debt.currency)} · đã trả{' '}
           {formatMoney(paid, debt.currency)}
         </p>
         {debt.due_on && <p className="mt-1 text-sm text-fg-muted">Hạn: {debt.due_on}</p>}
@@ -148,9 +155,12 @@ export function DebtDetailPage() {
 
       {/* Hành động chính */}
       <div className="mt-4 flex flex-wrap gap-2">
+        {/* Đã trả hết thì tắt: mở biểu mẫu với số điền sẵn ¥0 chỉ để người dùng gõ một lần trả thừa. */}
         <button
           type="button"
           onClick={() => setPaying(true)}
+          disabled={paidOff}
+          aria-describedby={paidOff ? 'debt-paid-off-note' : undefined}
           className={actionButtonClass('primary')}
         >
           + Ghi nhận trả
@@ -174,6 +184,12 @@ export function DebtDetailPage() {
           Xóa khoản nợ
         </button>
       </div>
+
+      {paidOff && (
+        <p id="debt-paid-off-note" className="mt-2 text-sm text-fg-muted">
+          {overpaid > 0 ? 'Đã trả thừa' : 'Đã trả hết'} — không còn gì để ghi trả.
+        </p>
+      )}
 
       {debt.status === 'open' && fullyPaid && (
         <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-3 text-sm">

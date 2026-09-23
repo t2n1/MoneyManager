@@ -273,6 +273,17 @@ describe('lifetimeRules', () => {
     expect(out[0].detail).toContain('âm từ 2083')
   })
 
+  it('"không năm nào âm" luôn kèm phạm vi: tới tuổi endAge', () => {
+    // Bản chiếu dừng ở `endAge` — "không năm nào âm" trơn trụi đọc như "cả đời không
+    // bao giờ âm", trong khi nó chỉ đúng tới tuổi đó (cùng quy ước verdictHeadline).
+    // Chi 8.000.000/năm trên vốn 100.000.000: lãi 2% bù đúng phần thiếu, không âm.
+    const rich: LifetimeInput = { ...lifetime, startingAssetsMinor: 100_000_000 }
+    const txs = [tx(800_000, '2026-05-17'), tx(800_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs, lifetime: rich }))
+    expect(out).toHaveLength(1)
+    expect(out[0].detail).toContain('Bản chiếu vẫn không năm nào âm tới tuổi 90.')
+  })
+
   it('nói được ca đáng nói nhất: mốc âm của kế hoạch BIẾN MẤT', () => {
     const overspending: LifetimeInput = {
       ...lifetime,

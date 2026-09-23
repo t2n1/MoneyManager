@@ -1572,11 +1572,12 @@ function lifetimeRules(input) {
   if (days < MIN_WINDOW_DAYS) return [];
   let planRowsCache = null;
   const planRows = () => planRowsCache ??= projectLifetime(lt);
+  const endAge = lt.endAge;
   function consequenceOf(actualRows) {
     const planNeg = firstNegativeYear(planRows(), "low");
     const actualNeg = firstNegativeYear(actualRows, "low");
     if (actualNeg === null && planNeg !== null) return `M\u1ED1c \xE2m ${planNeg} bi\u1EBFn m\u1EA5t.`;
-    if (actualNeg === null) return "B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m.";
+    if (actualNeg === null) return `B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m t\u1EDBi tu\u1ED5i ${endAge}.`;
     if (planNeg === null) return `V\u1EDBi m\u1EE9c n\xE0y, t\xE0i s\u1EA3n c\xF3 th\u1EC3 \xE2m t\u1EEB ${actualNeg}.`;
     if (actualNeg !== planNeg) return `M\u1ED1c \xE2m d\u1ECBch t\u1EEB ${planNeg} sang ${actualNeg}.`;
     return `M\u1ED1c \xE2m v\u1EABn \u1EDF ${actualNeg}.`;
@@ -3017,5 +3018,6 @@ export {
   splitTxWindows,
   taxCategoryIds,
   tinhQuyenLoi,
-  toISODate
+  toISODate,
+  transferCategoryIds
 };

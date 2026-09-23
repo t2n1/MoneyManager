@@ -115,11 +115,14 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   // XÉT `planNeg` TRƯỚC: nếu hỏi `actualNeg === null` trước thì ca đáng nói nhất của cả
   // luật này — thực tế tốt hơn kế hoạch đủ để mốc âm BIẾN MẤT — bị trả lời bằng câu
   // "vẫn không năm nào âm", tức phủ nhận đúng cái tin tốt vừa xảy ra.
+  // Chụp ra biến: trong hàm lồng, TS không còn giữ phép thu hẹp `lt` khác undefined.
+  const endAge = lt.endAge
   function consequenceOf(actualRows: YearRow[]): string {
     const planNeg = firstNegativeYear(planRows(), 'low')
     const actualNeg = firstNegativeYear(actualRows, 'low')
     if (actualNeg === null && planNeg !== null) return `Mốc âm ${planNeg} biến mất.`
-    if (actualNeg === null) return 'Bản chiếu vẫn không năm nào âm.'
+    // Kèm phạm vi: bản chiếu dừng ở endAge, "không năm nào âm" chỉ đúng tới đó.
+    if (actualNeg === null) return `Bản chiếu vẫn không năm nào âm tới tuổi ${endAge}.`
     if (planNeg === null) return `Với mức này, tài sản có thể âm từ ${actualNeg}.`
     if (actualNeg !== planNeg) return `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
     return `Mốc âm vẫn ở ${actualNeg}.`

@@ -30,6 +30,9 @@ export { dueForPush, localPartsIn } from '../../lib/pushSchedule'
 // Dựng lại `budgetReport` — trên trình duyệt việc này do useBudgetReport làm, nhưng
 // hai hàm bên dưới mới là phần thuần, và edge function gọi thẳng chúng.
 export { buildBudgetReport, carryFromPreviousMonth } from '../budgets/progress'
+// Tập danh mục chuyển tài sản mà hai hàm trên phải bỏ — ĐÚNG hàm useBudgetReport dùng.
+// Thiếu nó thì push báo "vượt ngân sách" cho dòng ngân sách app đang ẩn.
+export { transferCategoryIds } from '../categories/kind'
 
 // Trần theo nhãn. Edge function phải tự dựng: trần kiểu 'total' cần chi CẢ ĐỜI nhãn,
 // mà cửa sổ giao dịch của push chỉ có RECENT_TXS_DAYS ngày.

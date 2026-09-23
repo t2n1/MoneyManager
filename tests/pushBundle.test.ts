@@ -30,6 +30,7 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'dueForPush',
     'buildBudgetReport',
     'carryFromPreviousMonth',
+    'transferCategoryIds',
     'buildLifetimeInput',
     'monthKeyForDate',
     'monthKeyString',
@@ -123,5 +124,74 @@ describe('bundle bộ luật cho edge function', () => {
         expect(daCommit, `${outfile} chứa ${cam} — không chạy được trên Deno`).not.toContain(cam)
       }
     }
+  })
+})
+
+/**
+ * Số đối số của MỌI lời gọi `ten(...)` trong một nguồn (bỏ khai báo `function ten(`).
+ *
+ * Đếm dấu phẩy ở tầng ngoài cùng của cặp ngoặc; dấu phẩy cuối trước `)` không tính.
+ * Đủ cho mục đích ở đây: đối số của hai hàm ngân sách không có chuỗi chứa dấu phẩy.
+ */
+function soDoiSo(nguon: string, ten: string): number[] {
+  const out: number[] = []
+  const re = new RegExp(String.raw`(?<![\w.])${ten}\(`, 'g')
+  for (const m of nguon.matchAll(re)) {
+    if (/function\s+$/.test(nguon.slice(Math.max(0, m.index - 20), m.index))) continue
+    let sau = 0
+    let phay = 0
+    let coGi = false
+    let i = m.index + m[0].length
+    for (; i < nguon.length; i++) {
+      const c = nguon[i]
+      if ('([{'.includes(c)) sau++
+      else if (')]}'.includes(c)) {
+        if (sau === 0) break
+        sau--
+      } else if (c === ',' && sau === 0) {
+        // Dấu phẩy cuối (chỉ còn khoảng trắng tới `)`) không mở đối số mới.
+        if (/^\s*\)/.test(nguon.slice(i + 1))) continue
+        phay++
+      } else if (!/\s/.test(c)) coGi = true
+    }
+    out.push(coGi ? phay + 1 : 0)
+  }
+  return out
+}
+
+describe('edge function push-notify gọi hàm dùng chung GIỐNG app', () => {
+  const loadInput = readFileSync(join(ROOT, 'supabase/functions/push-notify/loadInput.ts'), 'utf8')
+  const queries = readFileSync(join(ROOT, 'src/hooks/queries.ts'), 'utf8')
+
+  it('mọi tên loadInput.ts nhập từ _rules.js đều được bundle xuất', () => {
+    const khoi = loadInput.match(/import\s*\{([^}]*)\}\s*from\s*'\.\/_rules\.js'/)
+    expect(khoi, 'không tìm thấy import từ ./_rules.js').not.toBeNull()
+    const ten = (khoi?.[1] ?? '')
+      .replace(/\/\/[^\n]*/g, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const daXuat = tenDaXuat(readFileSync(join(ROOT, 'supabase/functions/push-notify/_rules.js'), 'utf8'))
+    for (const t of ten) expect([...daXuat], `_rules.js thiếu export ${t}`).toContain(t)
+  })
+
+  // Ca thật: loadInput.ts gọi hai hàm này THIẾU `transferIds` — tham số có mặc định
+  // (tập rỗng) nên tsc lẫn Deno đều im. Hệ quả: dòng ngân sách trên danh mục chuyển tài
+  // sản (app ẩn đi) vẫn được push báo "vượt ngân sách". So số đối số với useBudgetReport
+  // thì một tham số mới có mặc định cũng không lọt qua được nữa.
+  for (const ham of ['buildBudgetReport', 'carryFromPreviousMonth']) {
+    it(`${ham}: cùng số đối số với useBudgetReport`, () => {
+      const app = soDoiSo(queries, ham)
+      const server = soDoiSo(loadInput, ham)
+      expect(app.length, `không thấy lời gọi ${ham} trong queries.ts`).toBeGreaterThan(0)
+      expect(server.length, `không thấy lời gọi ${ham} trong loadInput.ts`).toBeGreaterThan(0)
+      for (const n of server) expect(n, `loadInput.ts gọi ${ham} với ${n} đối số`).toBe(Math.max(...app))
+    })
+  }
+
+  it('phép đếm đối số không tính dấu phẩy lồng hay dấu phẩy cuối', () => {
+    expect(soDoiSo('f(a, g(b, c), { x: 1, y: 2 },\n)', 'f')).toEqual([2 + 1])
+    expect(soDoiSo('function f(a, b) {}\nf()', 'f')).toEqual([0])
+    expect(soDoiSo('x.f(a, b); f(a)', 'f')).toEqual([1])
   })
 })

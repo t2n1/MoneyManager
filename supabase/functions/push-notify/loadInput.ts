@@ -28,6 +28,7 @@ import {
   splitTxWindows,
   taxCategoryIds,
   tinhQuyenLoi,
+  transferCategoryIds,
   // deno-lint-ignore no-explicit-any
 } from './_rules.js'
 
@@ -181,9 +182,22 @@ export async function loadNotificationInput(
     RECENT_TXS_DAYS,
   )
 
+  // Danh mục chuyển tài sản không có trần (migration 0046) — cùng MỘT tập cho cả báo cáo
+  // tháng này lẫn phần dồn tháng trước, đúng như useBudgetReport. Hai hàm dưới có mặc
+  // định tập rỗng, nên quên truyền thì không ai báo lỗi: push đã từng báo "vượt ngân
+  // sách" cho dòng "Gửi tiền về VN" mà app ẩn. tests/pushBundle.test.ts canh số đối số.
+  const transferIds = transferCategoryIds(categories)
   const hasRollover = (budgets.data ?? []).some((b: Row) => b.rollover)
   const carry = hasRollover
-    ? carryFromPreviousMonth(prevBudgets.data ?? [], prevMonthTxs, currencyOf, base, rates, parentOf)
+    ? carryFromPreviousMonth(
+        prevBudgets.data ?? [],
+        prevMonthTxs,
+        currencyOf,
+        base,
+        rates,
+        parentOf,
+        transferIds,
+      )
     : new Map<string, number>()
   const budgetReport = buildBudgetReport(
     budgets.data ?? [],
@@ -193,6 +207,7 @@ export async function loadNotificationInput(
     rates,
     parentOf,
     carry,
+    transferIds,
   )
 
   // --- Trần theo nhãn ---

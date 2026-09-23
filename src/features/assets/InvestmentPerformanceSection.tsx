@@ -35,9 +35,9 @@ interface Props {
 }
 
 export function InvestmentPerformanceSection({ accounts, base, view, purposeGroups }: Props) {
-  const { data: profile } = useProfile()
-  const { data: accountRows = [] } = useAccounts()
-  const { rates } = useRates()
+  const { data: profile, isLoading: dangTaiHoSo } = useProfile()
+  const { data: accountRows = [], isLoading: dangTaiTk } = useAccounts()
+  const { rates, isLoading: dangTaiTyGia } = useRates()
   const r = rates ?? {}
   const todayISO = toISODate(new Date())
 
@@ -46,10 +46,14 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
     () => new Map(accounts.map((a) => [a.id, a.currency])),
     [accounts],
   )
-  const { data: txs = [] } = useRangeTransactions(
+  const { data: txs = [], isLoading: dangTaiSo } = useRangeTransactions(
     investTxRange(todayISO),
     ids.size > 0 && !!profile,
   )
+  // %/năm là XIRR trên dòng tiền — mà dòng tiền đọc từ sổ chuyển khoản, số dư mở tài
+  // khoản và tỷ giá. Thiếu một thứ thì XIRR vẫn ra số (hoặc ra câu "lịch sử mới 1 dòng
+  // tiền"), chỉ là số sai. Chưa đủ thì nói "Đang tính", không in gì tạm.
+  const dangTai = dangTaiHoSo || dangTaiTk || dangTaiTyGia || dangTaiSo
 
   // Vốn gốc theo sổ (nạp − rút, gồm cả số dư mở tài khoản) và giá trị nay — tính ở
   // `investCapital` vì ô KPI "Vốn đầu tư đã bỏ vào" ở đầu trang dùng đúng hai con số
@@ -173,14 +177,18 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
       <p className="mt-1 text-2xs text-fg-muted">
         Giá trị hiện tại {money(currentValue)}
         {growthPct != null && <> · {signedPct(pct1(growthPct))}</>}
-        {perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
+        {!dangTai && perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
       </p>
 
       {/* Ba mức lợi nhuận — CHỈ khi có con số. Bản trước luôn dựng ba ô rồi in "—" vào cả
           ba, tức ba ô trống chiếm 84px để nói đúng một điều mà một câu nói được, và nói
           rõ hơn: cả ba đều null CÙNG LÚC (afterTax và real đều dẫn xuất từ annualReturn),
           nên ba dấu gạch là ba bản của một tin. */}
-      {perf.annualReturn !== null ? (
+      {dangTai ? (
+        <p className="mt-3 border-t border-border-subtle pt-3 text-2xs text-fg-muted">
+          Đang tính <span className="text-fg-secondary">%/năm</span>…
+        </p>
+      ) : perf.annualReturn !== null ? (
         <>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {rateRows.map((row) => (
@@ -244,7 +252,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
         </p>
       )}
 
-      {hasMissingRate && (
+      {!dangTai && hasMissingRate && (
         <p className="mt-2 text-2xs text-state-warn-fg">
           Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.
         </p>

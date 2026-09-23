@@ -92,22 +92,28 @@ export function accountRowPnl(
  * đó không tốn thêm lượt nào.
  */
 export function useInvestPnlByAccount(): Map<string, AccountPortfolioSummary> {
-  const { data: accounts = [] } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
+  const { data: accounts = [], isLoading: l1 } = useAccounts()
+  const { data: balances = [], isLoading: l2 } = useAccountBalances()
   const coDauTu = accounts.some((a) => a.type === 'investment' && !a.is_archived)
-  const { data: stockTrades = [] } = useStockTrades(coDauTu)
-  const { data: stockPrices = [] } = useStockPrices(coDauTu)
-  const { data: fundTrades = [] } = useFundTrades(coDauTu)
-  const { data: fundPrices = [] } = useFundPrices(coDauTu)
+  const { data: stockTrades = [], isLoading: l3 } = useStockTrades(coDauTu)
+  const { data: stockPrices = [], isLoading: l4 } = useStockPrices(coDauTu)
+  const { data: fundTrades = [], isLoading: l5 } = useFundTrades(coDauTu)
+  const { data: fundPrices = [], isLoading: l6 } = useFundPrices(coDauTu)
+  // Còn nguồn nào chưa về thì trả Map RỖNG — tức mọi dòng im lặng (`accountRowPnl` → null),
+  // cùng nghĩa "không in số" đã có. Tính với sổ lệnh có mà giá chưa có, hay số dư tạm 0,
+  // là in một con số lời/lỗ rồi nó tự đổi — cùng lỗi useAccountPortfolio đã chặn.
+  const dangTai = l1 || l2 || l3 || l4 || l5 || l6
 
   return useMemo(
     () =>
-      investPnlByAccount(accounts, balances, {
-        stockTrades,
-        stockPrices,
-        fundTrades,
-        fundPrices,
-      }),
-    [accounts, balances, stockTrades, stockPrices, fundTrades, fundPrices],
+      dangTai
+        ? new Map<string, AccountPortfolioSummary>()
+        : investPnlByAccount(accounts, balances, {
+            stockTrades,
+            stockPrices,
+            fundTrades,
+            fundPrices,
+          }),
+    [dangTai, accounts, balances, stockTrades, stockPrices, fundTrades, fundPrices],
   )
 }

@@ -67,6 +67,28 @@ export function hasUsablePrices(
 }
 
 /**
+ * Chuỗi NAV được phép ĐƯA RA NGOÀI — cửa duy nhất mà mọi khu (Hiệu quả, Rủi ro) đi qua.
+ *
+ * Ba trạng thái, và chỉ trạng thái cuối được có số:
+ *   · đang tải (giá, chỉ số, HAY sổ nạp/rút) → rỗng, và KHÔNG nói `noPrices`: lúc này
+ *     app chưa biết có giá hay không, nói "chưa có giá" là kết luận sớm. Sổ nạp/rút là
+ *     cái bẫy đã gặp: về muộn thì tiền mặt từng phiên chỉ còn `initial_balance − đã mua`,
+ *     NAV tí hon, và twr chia cho nó ra "+2.559,7%" rồi mới về 56,6%.
+ *   · tải xong mà không có giá → rỗng, `noPrices` — lý lẽ ở `hasUsablePrices`.
+ *   · tải xong, có giá → cắt phiên rỗng đầu, giữ danh sách mã tạm tính theo giá vốn.
+ */
+export function shownSeries(p: {
+  loading: boolean
+  coGia: boolean
+  points: NavFlow[]
+  missingPrices: string[]
+}): { points: NavFlow[]; missingPrices: string[]; noPrices: boolean } {
+  if (p.loading) return { points: [], missingPrices: [], noPrices: false }
+  if (!p.coGia) return { points: [], missingPrices: [], noPrices: true }
+  return { points: trimLeadingEmpty(p.points), missingPrices: p.missingPrices, noPrices: false }
+}
+
+/**
  * Bỏ những phiên ĐẦU mà danh mục còn trống.
  *
  * Chọn khung 5 năm cho một danh mục sáu tháng tuổi thì 90% biểu đồ là một đường 0% phẳng

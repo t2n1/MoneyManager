@@ -16,16 +16,21 @@ import {
   buildPriceMap,
   hasUsablePrices,
   rangeFrom,
-  trimLeadingEmpty,
+  shownSeries,
 } from './investChartData'
 import { investTxRange } from './investHistory'
 import { navSeries, toLedger } from './navSeries'
 import { dailyReturnsOf, periodReturns, type NavFlow, type PeriodReturns } from './twr'
 
 export interface InvestChartData {
+  /**
+   * true = còn nguồn chưa về (giá, chỉ số, sổ nạp/rút). Lúc đó `points`, `returns`,
+   * `dailyReturns` đều RỖNG — nơi hiển thị nói "Đang tính", không in số tạm.
+   */
   isLoading: boolean
   /**
-   * true = chưa có giá cho mã nào trong sổ lệnh. Lúc đó `points`, `returns` và
+   * true = ĐÃ TẢI XONG mà chưa có giá cho mã nào trong sổ lệnh (đang tải thì false —
+   * lúc đó chưa biết). Lúc đó `points`, `returns` và
    * `dailyReturns` đều RỖNG — rỗng chứ không phải "bằng 0", xem `hasUsablePrices`.
    */
   noPrices: boolean
@@ -67,29 +72,45 @@ export function useInvestChartData(
   const { data: indexRows = [], isLoading: dangTaiChiSo } = useIndexPrices(from)
   // Sổ giao dịch đọc TRỌN lịch sử: số dư tại phiên đầu phụ thuộc mọi lần nạp/rút trước đó.
   // Dùng đúng `investTxRange` mà các khu đầu tư khác dùng → chung một lượt đọc.
-  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
+  const { data: txs = [], isLoading: dangTaiSo } = useRangeTransactions(
+    investTxRange(todayISO),
+    accountIds.size > 0,
+  )
+
+  // Gồm cả sổ nạp/rút: thiếu nó thì tiền mặt tại mỗi phiên chỉ còn `initial_balance −
+  // tiền đã mua`, NAV tí hon, và twr chia cho con số tí hon đó ra lợi nhuận hàng nghìn
+  // phần trăm (đã thấy 2.559,7% trước khi nhảy về 56,6%).
+  const dangTai = dangTaiGia || dangTaiChiSo || dangTaiSo
 
   return useMemo(() => {
     const sessions = indexRows.map((r) => r.trading_date)
     // MỘT bản `priceMap`: `navSeries` và khu Rủi ro dùng đúng cùng một Map.
     const priceMap = buildPriceMap(history)
-    const { points, missingPrices } = navSeries({
-      sessions,
-      trades: trades.map(asTrade),
-      prices: priceMap,
-      ledger: toLedger(txs, accountIds),
-      openingBalance: accounts.reduce((s, a) => s + a.initial_balance, 0),
-    })
-    // Thiếu giá TOÀN BỘ thì trả RỖNG, không trả chuỗi giá-vốn — lý lẽ ở `hasUsablePrices`.
+    // Đang tải thì không dựng: kết quả sẽ bị `shownSeries` vứt đi, mà dựng thì tốn.
+    const { points, missingPrices } = dangTai
+      ? { points: [], missingPrices: [] }
+      : navSeries({
+          sessions,
+          trades: trades.map(asTrade),
+          prices: priceMap,
+          ledger: toLedger(txs, accountIds),
+          openingBalance: accounts.reduce((s, a) => s + a.initial_balance, 0),
+        })
+    // Đang tải, hay thiếu giá TOÀN BỘ, thì trả RỖNG — lý lẽ ở `shownSeries`.
     // Chặn ở ĐÂY, cửa duy nhất, chứ không gác ở từng khu: gác từng khu là mời một khu thứ
     // ba mọc lên mà không ai gác, và năm con số ở khu Hiệu quả cũng phải im theo biểu đồ.
-    const coGia = hasUsablePrices(priceMap, symbols)
-    const catDau = coGia ? trimLeadingEmpty(points) : []
+    const ra = shownSeries({
+      loading: dangTai,
+      coGia: hasUsablePrices(priceMap, symbols),
+      points,
+      missingPrices,
+    })
+    const catDau = ra.points
 
     return {
-      isLoading: dangTaiGia || dangTaiChiSo,
-      noPrices: !coGia,
-      missingPrices: coGia ? missingPrices : [],
+      isLoading: dangTai,
+      noPrices: ra.noPrices,
+      missingPrices: ra.missingPrices,
       points: catDau,
       indexRows,
       indexByDate: new Map(indexRows.map((r) => [r.trading_date, r.close_x100])),
@@ -106,7 +127,6 @@ export function useInvestChartData(
     accountIds,
     accounts,
     symbols,
-    dangTaiGia,
-    dangTaiChiSo,
+    dangTai,
   ])
 }

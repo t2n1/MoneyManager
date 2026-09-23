@@ -68,14 +68,17 @@ export function InvestRiskSection({ data, positions }: Props) {
 
   if (positions.length === 0) return null
 
+  // Đang tải thì im HẾT, không chỉ khi chưa đo được gì: beta có thể ra sớm (chỉ cần giá)
+  // trong khi Sharpe còn chờ chuỗi NAV — in nửa bảng rồi nửa kia nhảy vào là cho người
+  // ta đọc một kết luận chưa đủ dữ liệu.
   const chuaCoGi = r.beta === null && r.volPct === null
-  if (chuaCoGi) {
+  if (data.isLoading || chuaCoGi) {
     return (
       <Card as="section">
         <SectionTitle>Rủi ro</SectionTitle>
         <p className="mt-1 text-sm text-fg-muted">
           {data.isLoading
-            ? 'Đang tải lịch sử giá…'
+            ? 'Đang tính…'
             : 'Chưa đủ lịch sử giá để đo — app tự tải mỗi chiều sau khi sàn đóng cửa.'}
         </p>
       </Card>

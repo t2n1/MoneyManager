@@ -54,12 +54,19 @@ interface Props {
 
 export function InvestmentValueHistorySection({ accounts, base, view, span }: Props) {
   const todayISO = toISODate(new Date())
-  const { data: accountRows = [] } = useAccounts()
-  const { data: valuations = [] } = useAccountValuations()
-  const { rates } = useRates()
+  const { data: accountRows = [], isLoading: dangTaiTk } = useAccounts()
+  const { data: valuations = [], isLoading: dangTaiDinhGia } = useAccountValuations()
+  const { rates, isLoading: dangTaiTyGia } = useRates()
   const ids = useMemo(() => new Set(accounts.map((a) => a.id)), [accounts])
   // Cùng khoảng với ô Hiệu quả đầu tư và hai cột Δ của bảng nhóm → một lượt đọc dùng chung.
-  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), ids.size > 0)
+  const { data: txs = [], isLoading: dangTaiSo } = useRangeTransactions(
+    investTxRange(todayISO),
+    ids.size > 0,
+  )
+  // Đường "vốn bỏ vào" cộng từ sổ nạp/rút, đường giá trị từ bảng định giá: một bên về
+  // trước là hai đường lệch nhau giả, và câu "cần ít nhất hai ngày có giá" là kết luận
+  // sai trong lúc bảng định giá còn chưa về.
+  const dangTai = dangTaiTk || dangTaiDinhGia || dangTaiTyGia || dangTaiSo
 
   // `initial_balance` và `currency` chỉ có ở bảng accounts, không có trong AssetAccount.
   const lichSuTk: InvestHistoryAccount[] = useMemo(
@@ -100,6 +107,17 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
   const trong = useMemo(() => khoangTrong(trongKhoang.map((p) => p.date)), [trongKhoang])
 
   if (accounts.length === 0) return null
+
+  if (dangTai) {
+    return (
+      <Card as="section" elevation="panel" padding="lg">
+        <SectionTitle>
+          Đầu tư · vốn bỏ vào so với giá trị
+        </SectionTitle>
+        <p className="mt-2 text-center text-sm text-fg-muted">Đang tính…</p>
+      </Card>
+    )
+  }
 
   if (trongKhoang.length < 2) {
     return (

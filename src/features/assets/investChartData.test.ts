@@ -5,6 +5,7 @@ import {
   hasUsablePrices,
   investPerformance,
   rangeFrom,
+  shownSeries,
   trimLeadingEmpty,
   type ChartRange,
 } from './investChartData'
@@ -69,6 +70,36 @@ describe('trimLeadingEmpty', () => {
 
   it('chưa bao giờ có gì thì trả rỗng', () => {
     expect(trimLeadingEmpty([{ date: '2026-01-05', nav: 0, flow: 0 }])).toEqual([])
+  })
+})
+
+describe('shownSeries', () => {
+  const pts = [
+    { date: '2026-01-05', nav: 0, flow: 0 },
+    { date: '2026-01-06', nav: 1_000, flow: 1_000 },
+    { date: '2026-01-07', nav: 1_100, flow: 0 },
+  ]
+
+  it('đang tải thì RỖNG hết — kể cả khi đã có giá, vì sổ nạp/rút chưa về thì NAV tí hon', () => {
+    const r = shownSeries({ loading: true, coGia: true, points: pts, missingPrices: ['FPT'] })
+    expect(r.points).toEqual([])
+    expect(r.missingPrices).toEqual([])
+  })
+
+  it('đang tải thì KHÔNG kết luận thiếu giá — chưa biết, không phải không có', () => {
+    expect(shownSeries({ loading: true, coGia: false, points: pts, missingPrices: [] }).noPrices).toBe(false)
+  })
+
+  it('tải xong mà không có giá thì rỗng và nói thiếu giá', () => {
+    const r = shownSeries({ loading: false, coGia: false, points: pts, missingPrices: ['FPT'] })
+    expect(r).toEqual({ points: [], missingPrices: [], noPrices: true })
+  })
+
+  it('tải xong, có giá thì cắt phiên rỗng đầu và giữ mã thiếu giá', () => {
+    const r = shownSeries({ loading: false, coGia: true, points: pts, missingPrices: ['FPT'] })
+    expect(r.points.map((p) => p.date)).toEqual(['2026-01-06', '2026-01-07'])
+    expect(r.missingPrices).toEqual(['FPT'])
+    expect(r.noPrices).toBe(false)
   })
 })
 

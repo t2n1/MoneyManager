@@ -54,6 +54,8 @@ import {
   addMonths,
   getMonthRange,
   monthKeyForDate,
+  periodDays,
+  periodDaysLabel,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
@@ -78,7 +80,6 @@ import { headlineOf } from './headline'
 import { monthStory } from './monthStory'
 import { MonthStoryNote } from './MonthStoryNote'
 import { useMonthPace } from './useMonthPace'
-import { periodDaysLabel } from './periodCompare'
 import {
   categorySparks,
   incomeSplit,
@@ -209,6 +210,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     [monthKey, monthStartDay, todayISO],
   )
   const cutoffDay = daysElapsed >= daysInPeriod ? null : daysElapsed
+  // Số ngày IN RA đi qua quy ước chung của app ("còn N ngày, kể cả hôm nay" — xem
+  // `periodDays`). `daysElapsed` ở trên đếm cả hôm nay là số của PHÉP TÍNH (nhịp chi,
+  // phép cắt cùng số ngày) và giữ nguyên; chỉ chữ hiển thị đổi theo quy ước.
+  const kyNgay = useMemo(() => periodDays(range, todayISO), [range, todayISO])
   const cmp = useMemo(
     () => monthExpenseCompare(rangeTxs, monthKey, monthStartDay, todayISO, currencyOf, base, r, transferIds, vang),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,6 +416,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             ? { forecast: pace.forecast.projected, budgeted: budgetReport.totalBudgeted }
             : null,
         savingsTargetShare: savingsShare,
+        rateScope: kyNgay.inProgress ? 'tới hôm nay' : undefined,
       })
     : null
 
@@ -507,9 +513,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Nhãn kỳ đứng TRƯỚC mọi con số: mọi phép so trên trang này đều cắt về số ngày đã
           trôi, không nói ra thì người đọc mặc định con số là của cả tháng. */}
-      {cmp?.partial && (
+      {kyNgay.inProgress && (
         <Num tone="muted" className="text-2xs">
-          {periodDaysLabel(cmp)}
+          {periodDaysLabel(kyNgay)}
         </Num>
       )}
 
@@ -528,12 +534,22 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           0, và một ô luôn bằng 0 chỉ dạy người đọc bỏ qua cả hàng. Ô thứ tư là "Còn tự
           do" — con số duy nhất trong hàng nói về phần CHƯA xảy ra của kỳ. */}
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <StatTile label={cmp?.partial ? `Chi tiêu · ${cmp.daysElapsed} ngày` : 'Chi tiêu'} center>
+        {/* "tới hôm nay" chứ không "23 ngày": số ngày đã in đúng một lần ở nhãn kỳ trên
+            đầu trang, theo quy ước chung. Con số cũ còn là số ngày SAU khi bỏ ngày đi vắng
+            — trong khi tổng chi ở đây gồm cả những ngày đó. */}
+        <StatTile label={kyNgay.inProgress ? 'Chi tiêu · tới hôm nay' : 'Chi tiêu'} center>
           <Swap on={sums.expense}>
             <Money amount={sums.expense} currency={base} tone="out" compact approx={sums.hasForeign} />
           </Swap>
         </StatTile>
-        <StatTile label="Không tiêu" center>
+        {/* Tỷ lệ giữ lại phải nói KỲ TÍNH: trang này có bốn tỷ lệ cùng tên đo trên bốn
+            khoảng khác nhau (xem MonthlyBarsCard, LongView). Ở đây là tháng đang xem —
+            đang dở thì chỉ tới hôm nay. */}
+        <StatTile
+          label="Không tiêu"
+          note={kyNgay.inProgress ? 'tháng này, tới hôm nay' : 'cả tháng'}
+          center
+        >
           <Swap
             on={headline?.ratePct ?? null}
             className={
@@ -718,7 +734,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
           <ReportBlock id="m-khong-tieu" no="04" title="Phần không tiêu đã đi đâu">
             <KeptWhereCard data={kept} nameOf={accountName} />
-            {remaining && <RemainingCard plan={remaining} base={base} />}
+            {remaining && <RemainingCard plan={remaining} ky={kyNgay} base={base} />}
           </ReportBlock>
 
           <ReportBlock id="m-dang-de-y" no="05" title="Đáng để ý">

@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom'
 import { Card, Money, Num } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import type { Headline } from '../reports/headline'
-import { dayMonthLabel, dueDateLabel } from '../../lib/dates'
+import { KE_CA_HOM_NAY, dayMonthLabel, dueDateLabel } from '../../lib/dates'
 import type { ToiNgayLuong } from './bulletin'
 import type { CurrencyCode } from '../../lib/money'
 
@@ -45,6 +45,11 @@ interface Props {
   hanMuc: number
   /** Câu kết luận của cả màn — null khi kỳ chưa có gì để nói. */
   headline: Headline | null
+  /**
+   * Câu kết luận CHƯA dựng được vì dữ liệu nhiều tháng chưa về — khác `headline = null`
+   * vì "không có gì để nói". Lúc đó góc phải nói "đang tính" thay vì im.
+   */
+  headlinePending?: boolean
 }
 
 export function HomNayPanel({
@@ -58,6 +63,7 @@ export function HomNayPanel({
   daTieu,
   hanMuc,
   headline,
+  headlinePending = false,
 }: Props) {
   const {
     soNgay,
@@ -119,8 +125,10 @@ export function HomNayPanel({
           aria-hidden
         />
       </span>
+      {/* "ngày 23/30" = hôm nay là ngày thứ 23 — KHÔNG "23 ngày đã qua": theo quy ước
+          chung thì đã qua 22 ngày và còn 8 ngày kể cả hôm nay (lib/dates periodDays). */}
       <Num tone="neutral">
-        {ngayDaQua} / {tongNgay} ngày
+        ngày {ngayDaQua}/{tongNgay}
       </Num>
       <span>Hạn mức</span>
       <span className="relative h-1.5 rounded-full bg-surface-sunken">
@@ -147,10 +155,14 @@ export function HomNayPanel({
     <Card elevation="panel" padding="panel" as="section">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         {eyebrow}
-        {headline && (
-          <ConclusionLine tone={headline.tone} short={headline.short}>
-            {headline.text}
-          </ConclusionLine>
+        {headlinePending ? (
+          <p className="text-sm text-fg-muted">Đang tính kết luận tháng…</p>
+        ) : (
+          headline && (
+            <ConclusionLine tone={headline.tone} short={headline.short}>
+              {headline.text}
+            </ConclusionLine>
+          )
         )}
       </div>
 
@@ -159,7 +171,8 @@ export function HomNayPanel({
         // nói thẳng là chưa biết, và đưa đúng MỘT lối ra. Số ngày vẫn giữ: đó là phần
         // duy nhất biết chắc mà không cần hạn mức nào.
         <p className="mt-2.5 text-sm text-fg-secondary">
-          Còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> tới {moc} —
+          Còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY} tới{' '}
+          {moc} —
           chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu được bao nhiêu.{' '}
           <Link to="/budget" className="font-medium text-fg-accent hover:underline">
             Đặt hạn mức
@@ -175,8 +188,8 @@ export function HomNayPanel({
           </p>
           <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary">
             Đã vượt hạn mức kỳ này — còn{' '}
-            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> nữa mới tới{' '}
-            {moc}.
+            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY} mới
+            tới {moc}.
           </p>
           {bars}
         </>
@@ -189,12 +202,12 @@ export function HomNayPanel({
             {camKet > 0 ? (
               <>
                 Hạn mức còn {so(conLai)} tới {moc} nhưng {so(camKet, 'warn')} đã cam kết — còn{' '}
-                <span className="font-semibold text-fg-primary">{soNgay} ngày</span>.
+                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}.
               </>
             ) : (
               <>
                 Hạn mức còn {so(conLai)} tới {moc} — còn{' '}
-                <span className="font-semibold text-fg-primary">{soNgay} ngày</span>.
+                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}.
               </>
             )}
           </p>
@@ -215,8 +228,8 @@ export function HomNayPanel({
           </p>
           <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary">
             Mức tiêu mỗi ngày cho{' '}
-            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> còn lại tới{' '}
-            {moc}
+            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> còn lại{' '}
+            {KE_CA_HOM_NAY} tới {moc}
             {/* Bằng chứng cho phép chia: không có vế này thì người đọc lấy hạn mức còn
                 chia số ngày ra một con số KHÁC và tưởng app tính sai. Cùng câu chữ với
                 trang Ngân sách ("đã trừ … cam kết chưa ra"). */}

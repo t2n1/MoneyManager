@@ -18,6 +18,7 @@ import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { Card, Collapse, Money, SectionTitle } from '../../components/ui'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
+import { daysLeftLabel } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
@@ -124,7 +125,7 @@ export function SpendableBlock({
                 className="text-kpi font-medium tracking-number"
               />
               <span className="text-sm text-fg-muted">
-                /ngày · {allowance.daysLeft} ngày còn lại
+                /ngày · {daysLeftLabel(allowance.daysLeft)}
               </span>
             </p>
           ) : (

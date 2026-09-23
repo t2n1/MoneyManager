@@ -29,11 +29,16 @@ interface Props {
   active: MonthKey
   base: CurrencyCode
   onPick: (key: MonthKey) => void
+  /**
+   * Dải nhiều tháng chưa về. Cột vẫn bấm được (dải là điều khiển đổi tháng), nhưng tên
+   * đọc được không được nói "thu ¥0, chi ¥0" — đó là số chưa biết, không phải số 0.
+   */
+  pending?: boolean
 }
 
 const same = (a: MonthKey, b: MonthKey) => a.year === b.year && a.month === b.month
 
-export function CashflowStrip({ points, active, base, onPick }: Props) {
+export function CashflowStrip({ points, active, base, onPick, pending = false }: Props) {
   // Một thang chung cho CẢ hai màu và cả tám tháng: mỗi cột tự co theo số của nó thì
   // tháng chi 5.000 trông cao bằng tháng chi 500.000 — biểu đồ nói ngược sự thật.
   const max = Math.max(1, ...points.flatMap((p) => [p.income, p.expense]))
@@ -56,7 +61,11 @@ export function CashflowStrip({ points, active, base, onPick }: Props) {
             onClick={() => onPick(p.key)}
             aria-current={on ? 'true' : undefined}
             // Tên đọc được của cột: đây là TOÀN BỘ nội dung của hình vẽ, nói bằng chữ.
-            aria-label={`${label} — thu ${formatMoney(p.income, base)}, chi ${formatMoney(p.expense, base)}`}
+            aria-label={
+              pending
+                ? `${label} — đang tải số liệu`
+                : `${label} — thu ${formatMoney(p.income, base)}, chi ${formatMoney(p.expense, base)}`
+            }
             title={label}
             className={`flex min-w-0 flex-1 flex-col gap-1 rounded-md border px-1.5 pb-1 pt-1.5 transition ${
               on

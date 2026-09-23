@@ -18,6 +18,12 @@ interface Props {
   /** Căn giữa — dùng khi nhiều ô nằm trong cùng một thẻ thay vì mỗi ô một thẻ. */
   center?: boolean
   className?: string
+  /**
+   * Dòng nhỏ dưới con số — nói KỲ TÍNH khi nhãn không tự nói được ("tháng này, tới hôm
+   * nay", "12 tháng đã xong"). Tách khỏi `label` vì nhãn là chữ hoa 11px: dài thêm
+   * một mệnh đề là xuống dòng ở lưới hai cột của mobile.
+   */
+  note?: ReactNode
 }
 
 export function StatTile({
@@ -26,6 +32,7 @@ export function StatTile({
   elevation = 'raised',
   center = false,
   className = '',
+  note,
 }: Props) {
   return (
     <Card elevation={elevation} className={`${center ? 'text-center' : ''} ${className}`.trim()}>
@@ -44,6 +51,7 @@ export function StatTile({
       <p className="mt-1.5 font-mono text-kpi font-medium tracking-number tabular-nums text-fg-primary">
         {children}
       </p>
+      {note && <p className="mt-1 text-2xs text-fg-muted">{note}</p>}
     </Card>
   )
 }

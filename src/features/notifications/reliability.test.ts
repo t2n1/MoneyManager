@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { HISTORY_TARGET_MONTHS, reliability, type ReliabilityInput } from './reliability'
+import {
+  HISTORY_TARGET_MONTHS,
+  historyCoverage,
+  monthSpansLabel,
+  reliability,
+  type ReliabilityInput,
+} from './reliability'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
@@ -115,5 +121,101 @@ describe('reliability', () => {
       }),
     )
     expect(r.pct).toBe(0)
+  })
+})
+
+// MỤC 15: "mới 8/12 tháng có dữ liệu" không bao giờ hết — Bản tin đếm trên chuỗi 8 tháng
+// của biểu đồ trong khi mục tiêu là 12. Giờ đếm đúng 12 tháng gần nhất và nói tháng nào thiếu.
+describe('historyCoverage — 12 tháng gần nhất', () => {
+  const cur = { year: 2026, month: 9 }
+  /** Một khoản chi mỗi tháng từ `from` tới 2026/09. */
+  const monthly = (from: { year: number; month: number }) => {
+    const out: TransactionRow[] = []
+    let y = from.year
+    let m = from.month
+    while (y < 2026 || (y === 2026 && m <= 9)) {
+      out.push(tx({ occurred_on: `${y}-${String(m).padStart(2, '0')}-10` }))
+      m++
+      if (m > 12) {
+        m = 1
+        y++
+      }
+    }
+    return out
+  }
+
+  it('sổ ghi đều từ 06/2025 → đủ 12/12, không còn tháng nào thiếu', () => {
+    const r = historyCoverage(monthly({ year: 2025, month: 6 }), cur, 1)
+    expect(r.withData).toBe(12)
+    expect(r.missing).toEqual([])
+  })
+
+  it('đủ 12 thì phần Lịch sử của chỉ số hết báo thiếu', () => {
+    const cov = historyCoverage(monthly({ year: 2025, month: 6 }), cur, 1)
+    const p = reliability(input({ monthsWithData: cov.withData, missingMonths: cov.missing })).parts.find(
+      (x) => x.key === 'history',
+    )!
+    expect(p.gap).toBe('')
+    expect(p.score).toBe(1)
+  })
+
+  it('sổ mới từ 03/2026 → 7/12, liệt kê đúng những tháng thiếu', () => {
+    const r = historyCoverage(monthly({ year: 2026, month: 3 }), cur, 1)
+    expect(r.withData).toBe(7)
+    expect(r.missing).toEqual([
+      { year: 2025, month: 10 },
+      { year: 2025, month: 11 },
+      { year: 2025, month: 12 },
+      { year: 2026, month: 1 },
+      { year: 2026, month: 2 },
+    ])
+  })
+
+  it('chuyển khoản và bút toán loại khỏi thống kê không tính là có dữ liệu', () => {
+    const r = historyCoverage(
+      [
+        tx({ occurred_on: '2026-09-02', type: 'transfer' }),
+        tx({ occurred_on: '2026-08-02', exclude_from_stats: true }),
+        tx({ occurred_on: '2026-07-02' }),
+      ],
+      cur,
+      1,
+    )
+    expect(r.withData).toBe(1)
+  })
+
+  it('theo ngày bắt đầu tháng: 20/9 với monthStartDay 25 thuộc tháng 8', () => {
+    const r = historyCoverage([tx({ occurred_on: '2026-09-20' })], cur, 25)
+    expect(r.missing).toContainEqual({ year: 2026, month: 9 })
+    expect(r.missing).not.toContainEqual({ year: 2026, month: 8 })
+  })
+
+  it('câu thiếu nêu tên tháng, gộp tháng liền nhau thành khoảng', () => {
+    const r = reliability(
+      input({
+        monthsWithData: 9,
+        missingMonths: [
+          { year: 2025, month: 10 },
+          { year: 2025, month: 11 },
+          { year: 2026, month: 4 },
+        ],
+      }),
+    )
+    expect(r.parts.find((x) => x.key === 'history')!.gap).toBe(
+      'mới 9/12 tháng có dữ liệu — thiếu 2025/10–2025/11, 2026/04',
+    )
+  })
+})
+
+describe('monthSpansLabel', () => {
+  it('một tháng lẻ, một dải, và dải vắt qua năm', () => {
+    expect(monthSpansLabel([{ year: 2026, month: 4 }])).toBe('2026/04')
+    expect(
+      monthSpansLabel([
+        { year: 2025, month: 12 },
+        { year: 2026, month: 1 },
+        { year: 2026, month: 2 },
+      ]),
+    ).toBe('2025/12–2026/02')
   })
 })

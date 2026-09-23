@@ -36,6 +36,13 @@ export interface HeadlineInput {
    * trên một ô đang cảnh báo.
    */
   savingsTargetShare?: number
+  /**
+   * Kỳ tính của tỷ lệ giữ lại, ghép vào cả câu lẫn bản ngắn — ví dụ "tới hôm nay" khi
+   * tháng đang dở. App có nhiều tỷ lệ giữ lại đo trên những khoảng khác nhau (tháng dở,
+   * 6 tháng đã xong, 12 tháng trên tổng thu), và một con số không nói kỳ thì người đọc
+   * đem so với con số bên cạnh rồi tưởng app tự mâu thuẫn. Bỏ trống = không ghi thêm.
+   */
+  rateScope?: string
 }
 
 export interface Headline {
@@ -55,7 +62,7 @@ export interface Headline {
 
 /** Trả null khi kỳ chưa có gì để nói (không thu, không chi). */
 export function headlineOf(input: HeadlineInput): Headline | null {
-  const { income, expense, priorExpense, periodNoun, pace, savingsTargetShare = 0.2 } = input
+  const { income, expense, priorExpense, periodNoun, pace, savingsTargetShare = 0.2, rateScope } = input
   if (income === 0 && expense === 0) return null
 
   const ratePct = income > 0 ? Math.round(((income - expense) / income) * 100) : null
@@ -80,6 +87,8 @@ export function headlineOf(input: HeadlineInput): Headline | null {
   // nó là nói một nửa. Không hạ xuống 'bad' — tiền vẫn đang dư, chưa có gì cháy.
   if (overBudget && tone === 'good') tone = 'warn'
 
+  const scopeLong = rateScope ? ` (tính ${rateScope})` : ''
+  const scopeShort = rateScope ? ` ${rateScope}` : ''
   const parts: string[] = []
   // Cố ý KHÔNG nhắc mốc Để dành (savingsTargetPct, theo phương pháp đang chọn) ở đây:
   // thẻ "Giữ lại được bao nhiêu" ngay bên dưới đã nói đúng câu đó. Câu tổng chỉ giữ
@@ -87,9 +96,9 @@ export function headlineOf(input: HeadlineInput): Headline | null {
   if (ratePct === null) {
     parts.push(`Chưa ghi khoản thu nào ${periodNoun}`)
   } else if (ratePct < 0) {
-    parts.push(`Chi vượt thu ${Math.abs(ratePct)}% ${periodNoun} — đang phải rút vào tiền cũ`)
+    parts.push(`Chi vượt thu ${Math.abs(ratePct)}% ${periodNoun}${scopeLong} — đang phải rút vào tiền cũ`)
   } else {
-    parts.push(`Giữ lại được ${ratePct}% thu nhập ${periodNoun}`)
+    parts.push(`Giữ lại được ${ratePct}% thu nhập ${periodNoun}${scopeLong}`)
   }
 
   // Đi ngang thì bỏ hẳn mệnh đề so sánh: "chi nhiều hơn kỳ trước 0%" là câu vô nghĩa.
@@ -111,8 +120,8 @@ export function headlineOf(input: HeadlineInput): Headline | null {
     ratePct === null
       ? 'Chưa có thu'
       : ratePct < 0
-        ? `Chi vượt thu ${Math.abs(ratePct)}%`
-        : `Giữ lại ${ratePct}%`
+        ? `Chi vượt thu ${Math.abs(ratePct)}%${scopeShort}`
+        : `Giữ lại ${ratePct}%${scopeShort}`
   // Bản ngắn ưu tiên mệnh đề VƯỢT TRẦN hơn mệnh đề so-với-kỳ-trước: chế độ Gọn là mặc
   // định của app, nên nếu chip chỉ mang "Giữ lại 65% · chi gấp 11,9 lần" thì phần lớn
   // người dùng không bao giờ thấy lời cảnh báo — tức việc thêm nó vào `text` thành vô ích.

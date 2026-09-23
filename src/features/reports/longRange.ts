@@ -377,3 +377,70 @@ export function remitMonthlyTotals(
   }
   return (k: MonthKey) => byMonth.get(`${k.year}-${k.month}`) ?? 0
 }
+
+// ---------------------------------------------------------------------------------
+// Tỷ lệ giữ lại TRÊN TỔNG THU của các tháng đã xong (ô thứ ba của Dài hạn)
+// ---------------------------------------------------------------------------------
+
+const ordOf = (k: MonthKey) => k.year * 12 + k.month
+
+export interface KeptShareOfTotal {
+  /** (Σ thu − Σ chi) / Σ thu. Có thể âm (chi vượt thu). */
+  ratio: number
+  /** Số tháng thật sự được cộng — có thể ít hơn phạm vi khi sổ còn mỏng. */
+  months: number
+  from: MonthKey
+  to: MonthKey
+}
+
+/**
+ * Tỷ lệ giữ lại của `scopeMonths` tháng ĐÃ XONG gần nhất, tính trên TỔNG thu và TỔNG chi.
+ *
+ * Thay cho "Giữ lại trung bình" cũ, sai ba chỗ cùng lúc: (1) cộng mọi tháng có dữ liệu,
+ * tới 24, bỏ qua bộ chọn phạm vi mà ô "Chi 12 tháng" ngay cạnh vẫn theo; (2) gồm cả tháng
+ * đang dở — đầu tháng lương đã về mà chi chưa kịp, tỷ lệ phồng lên giả; (3) cái tên
+ * "trung bình" gợi trung bình các tỷ lệ tháng, trong khi phép chia là trên tổng (tháng
+ * thu 100k và tháng thu 3 triệu KHÔNG nặng bằng nhau — và thế là đúng).
+ *
+ * Tháng trống ở rìa bị bỏ bằng `points` do nơi gọi đưa (đã cắt từ tháng đầu có dữ liệu).
+ * Không có tháng nào xong, hoặc tổng thu ≤ 0 → null (§14: chưa biết ≠ 0%).
+ */
+export function keptShareOfTotal(
+  points: readonly RangePoint[],
+  currentKey: MonthKey,
+  scopeMonths: number,
+): KeptShareOfTotal | null {
+  if (scopeMonths <= 0) return null
+  const done = points.filter((p) => ordOf(p.key) < ordOf(currentKey))
+  const win = done.slice(Math.max(0, done.length - scopeMonths))
+  if (win.length === 0) return null
+  const income = win.reduce((s, p) => s + p.income, 0)
+  if (income <= 0) return null
+  const expense = win.reduce((s, p) => s + p.expense, 0)
+  return {
+    ratio: (income - expense) / income,
+    months: win.length,
+    from: win[0].key,
+    to: win[win.length - 1].key,
+  }
+}
+
+export interface MonthSpan {
+  from: MonthKey
+  to: MonthKey
+}
+
+/**
+ * Hai khoảng tháng mà `halfPeriodShift` (trends.ts) so với nhau, để nhãn ghi được "nửa
+ * trước 2025/10–2026/03 · nửa sau 2026/04–2026/09" thay vì "6 th vs 6 th trước". CÙNG
+ * luật cắt với hàm đó: nửa = floor(n/2), số lẻ bỏ tháng giữa, dưới 4 tháng → null.
+ */
+export function halfSpans(keys: readonly MonthKey[]): { before: MonthSpan; after: MonthSpan } | null {
+  const n = keys.length
+  if (n < 4) return null
+  const half = Math.floor(n / 2)
+  return {
+    before: { from: keys[0], to: keys[half - 1] },
+    after: { from: keys[n - half], to: keys[n - 1] },
+  }
+}

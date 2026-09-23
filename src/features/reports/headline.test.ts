@@ -202,3 +202,24 @@ describe('headlineOf — mệnh đề trên-đà so với ngân sách', () => {
     expect(h.short).not.toContain('trên đà')
   })
 })
+
+// MỤC 14: tỷ lệ giữ lại có bốn cách tính trên bốn khoảng — nhãn phải nói kỳ tính.
+describe('headlineOf — rateScope nói kỳ tính của tỷ lệ giữ lại', () => {
+  const base = { income: 400_000, expense: 300_000, priorExpense: null, periodNoun: 'tháng này' }
+
+  it('tháng đang dở: câu và bản ngắn đều ghi "tới hôm nay"', () => {
+    const r = headlineOf({ ...base, rateScope: 'tới hôm nay' })
+    expect(r?.text).toBe('Giữ lại được 25% thu nhập tháng này (tính tới hôm nay).')
+    expect(r?.short).toBe('Giữ lại 25% tới hôm nay')
+  })
+
+  it('chi vượt thu cũng mang kỳ tính', () => {
+    const r = headlineOf({ ...base, expense: 500_000, rateScope: 'tới hôm nay' })
+    expect(r?.text).toContain('Chi vượt thu 25% tháng này (tính tới hôm nay)')
+    expect(r?.short).toBe('Chi vượt thu 25% tới hôm nay')
+  })
+
+  it('không truyền thì câu giữ nguyên như cũ', () => {
+    expect(headlineOf(base)?.text).toBe('Giữ lại được 25% thu nhập tháng này.')
+  })
+})

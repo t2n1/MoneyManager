@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { elapsedDays, periodCompare, periodDaysLabel, prorate } from './periodCompare'
+import { elapsedDays, periodCompare, prorate } from './periodCompare'
 
 describe('periodCompare', () => {
   /** Tháng 8: 18 ngày đầu chi 12 mỗi ngày. Tháng 7: 31 ngày, mỗi ngày chi 10. */
@@ -89,18 +89,6 @@ describe('elapsedDays', () => {
     expect(elapsedDays(-3, 31)).toBe(0)
     expect(elapsedDays(40, 31)).toBe(31)
     expect(elapsedDays(18.9, 31)).toBe(18)
-  })
-})
-
-describe('periodDaysLabel', () => {
-  it('kỳ đang dở in cả phần còn lại', () => {
-    expect(periodDaysLabel({ daysElapsed: 18, daysInPeriod: 31, daysLeft: 13 })).toBe(
-      '18/31 ngày · còn 13',
-    )
-  })
-
-  it('kỳ đã xong không in "còn 0"', () => {
-    expect(periodDaysLabel({ daysElapsed: 31, daysInPeriod: 31, daysLeft: 0 })).toBe('31 ngày')
   })
 })
 

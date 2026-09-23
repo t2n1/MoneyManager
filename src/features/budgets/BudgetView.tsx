@@ -10,7 +10,12 @@ import {
   useRates,
   useUpsertBudget,
 } from '../../hooks/queries'
-import { monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
+import {
+  daysLeftLabel,
+  monthKeyString,
+  toISODate,
+  type MonthKey,
+} from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { planAutoBudget } from './autoBudget'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -1028,8 +1033,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             {totalRemaining > 0 && totalAllowance && (
               <p className="mt-1.5 text-sm text-fg-secondary">
                 {visual
-                  ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
-                  : `Cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
+                  ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày (kể cả hôm nay)`
+                  : `Cho ${daysLeftLabel(totalAllowance.daysLeft)} — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
                 {/* B36.1 · Phải NÓI RA phần đã trừ, không âm thầm hạ số: người dùng thấy
                     con số tụt so với hôm qua và tưởng app tính sai. Ở cả hai chế độ mật độ
                     vì nó là số liệu, không phải lời giải thích. */}

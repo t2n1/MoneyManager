@@ -4,6 +4,8 @@ import {
   ALL_SCOPE_MIN_MONTHS,
   baselineLevel,
   findRegime,
+  halfSpans,
+  keptShareOfTotal,
   longScopeOptions,
   longTable,
   monthAverages,
@@ -290,5 +292,64 @@ describe('remitMonthlyTotals', () => {
     expect(amountOf({ year: 2026, month: 1 })).toBe(30_000)
     expect(amountOf({ year: 2026, month: 2 })).toBe(0)
     expect(amountOf({ year: 2026, month: 3 })).toBe(10_000)
+  })
+})
+
+// MỤC 14: ô "Giữ lại" của Dài hạn từng tính trên MỌI tháng có dữ liệu (tới 24), gồm cả
+// tháng đang dở, và bỏ qua bộ chọn phạm vi — trong khi ô bên cạnh ("Chi 12 tháng") theo
+// phạm vi. Giờ: đúng phạm vi, chỉ tháng đã xong, tỷ lệ trên TỔNG thu.
+describe('keptShareOfTotal', () => {
+  const cur = { year: 2026, month: 9 }
+
+  it('bỏ tháng đang dở, lấy đúng N tháng đã xong gần nhất', () => {
+    // 2025/09 … 2026/09 = 13 tháng; tháng 9/2026 đang dở, chi khổng lồ — không được tính.
+    const pts = seq({ year: 2025, month: 9 }, [...Array(12).fill(300_000), 900_000])
+    const r = keptShareOfTotal(pts, cur, 12)!
+    expect(r.months).toBe(12)
+    expect(r.from).toEqual({ year: 2025, month: 9 })
+    expect(r.to).toEqual({ year: 2026, month: 8 })
+    expect(r.ratio).toBeCloseTo(0.25, 10)
+  })
+
+  it('tính trên TỔNG, không phải trung bình các tỷ lệ tháng', () => {
+    const pts: RangePoint[] = [
+      { key: { year: 2026, month: 7 }, income: 100_000, expense: 0 },
+      { key: { year: 2026, month: 8 }, income: 900_000, expense: 900_000 },
+    ]
+    // Trung bình hai tỷ lệ = (100% + 0%)/2 = 50%; trên tổng = 100k/1tr = 10%.
+    expect(keptShareOfTotal(pts, cur, 12)!.ratio).toBeCloseTo(0.1, 10)
+  })
+
+  it('phạm vi ngắn hơn dữ liệu thì chỉ lấy phạm vi', () => {
+    const pts = seq({ year: 2025, month: 9 }, Array(13).fill(100_000))
+    const r = keptShareOfTotal(pts, cur, 6)!
+    expect(r.months).toBe(6)
+    expect(r.from).toEqual({ year: 2026, month: 3 })
+  })
+
+  it('chưa có tháng nào xong, hoặc không có thu → null', () => {
+    expect(keptShareOfTotal(seq(cur, [100]), cur, 12)).toBeNull()
+    expect(keptShareOfTotal(seq({ year: 2026, month: 7 }, [100, 100, 100], 0), cur, 12)).toBeNull()
+  })
+})
+
+describe('halfSpans — hai khoảng tháng của khối hai nửa kỳ', () => {
+  const keys = (n: number) => seq({ year: 2025, month: 10 }, Array(n).fill(0)).map((p) => p.key)
+
+  it('số tháng chẵn: hai nửa liền nhau', () => {
+    expect(halfSpans(keys(12))).toEqual({
+      before: { from: { year: 2025, month: 10 }, to: { year: 2026, month: 3 } },
+      after: { from: { year: 2026, month: 4 }, to: { year: 2026, month: 9 } },
+    })
+  })
+
+  it('số tháng lẻ: bỏ tháng giữa, đúng như halfPeriodShift', () => {
+    const r = halfSpans(keys(5))!
+    expect(r.before).toEqual({ from: { year: 2025, month: 10 }, to: { year: 2025, month: 11 } })
+    expect(r.after).toEqual({ from: { year: 2026, month: 1 }, to: { year: 2026, month: 2 } })
+  })
+
+  it('dưới 4 tháng → null, cùng ngưỡng halfPeriodShift', () => {
+    expect(halfSpans(keys(3))).toBeNull()
   })
 })

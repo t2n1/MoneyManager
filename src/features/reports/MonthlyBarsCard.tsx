@@ -314,7 +314,10 @@ export function MonthlyBarsCard({
         <div className="mt-1.5">
           <VerdictNote
             tone={saving.tone}
-            short={`Giữ lại ${Math.round(saving.rate * 100)}%${
+            // Bản ngắn cũng phải nói KỲ TÍNH: ngay trên trang còn "Giữ lại X%" của tháng
+            // đang dở (câu tổng, ô Không tiêu). Hai con số cùng tên mà không kỳ là hai con
+            // số người đọc đem so với nhau rồi tưởng app tính sai.
+            short={`Giữ lại ${Math.round(saving.rate * 100)}% · ${saving.months} tháng đã xong${
               saving.trend && saving.trend !== 'flat'
                 ? saving.trend === 'up'
                   ? ' · đang lên'
@@ -322,7 +325,8 @@ export function MonthlyBarsCard({
                 : ''
             }`}
           >
-            {saving.months} tháng đã xong: giữ lại <b>{Math.round(saving.rate * 100)}%</b> thu nhập
+            {saving.months} tháng đã xong (không tính tháng đang dở): giữ lại{' '}
+            <b>{Math.round(saving.rate * 100)}%</b> tổng thu nhập
             {saving.tone === 'good' && ` — đạt mốc ${Math.round(savingsShare * 100)}%`}
             {saving.tone === 'warn' && ` — chưa tới mốc ${Math.round(savingsShare * 100)}%`}
             {saving.tone === 'bad' && ' — tức là chi vượt thu, đang phải rút vào tiền cũ'}

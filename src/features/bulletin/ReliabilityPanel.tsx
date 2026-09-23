@@ -17,7 +17,20 @@ const TO: Record<string, string> = {
   assumptions: '/assets',
 }
 
-export function ReliabilityPanel({ data }: { data: Reliability }) {
+/**
+ * `data = null` = dữ liệu chưa về. KHÔNG tính chỉ số trên mảng rỗng: sổ trống được chấm
+ * 100% phần "đã phân loại" (sổ trống không phải sổ sai), nên vài giây đầu khối này từng
+ * khoe một con số cao rồi tụt xuống khi giao dịch về.
+ */
+export function ReliabilityPanel({ data }: { data: Reliability | null }) {
+  if (data === null) {
+    return (
+      <Card elevation="panel" padding="panel" as="section">
+        <SectionTitle>Độ tin cậy dữ liệu</SectionTitle>
+        <p className="mt-2.5 text-sm text-fg-muted">Đang tính…</p>
+      </Card>
+    )
+  }
   const thieu = data.parts.filter((p) => p.gap !== '')
 
   return (
@@ -66,7 +79,7 @@ export function ReliabilityPanel({ data }: { data: Reliability }) {
                 <span className="shrink-0 text-2xs uppercase tracking-label text-fg-muted">
                   {p.label}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{p.gap}</span>
+                <span className="min-w-0 flex-1">{p.gap}</span>
               </Link>
             </li>
           ))}

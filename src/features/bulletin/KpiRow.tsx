@@ -77,6 +77,25 @@ interface Props {
   netWorthSpark: number[]
   /** Có khoản chưa quy đổi được tỷ giá → mọi tổng đều là ƯỚC CHỪNG (§14). */
   approx: boolean
+  /**
+   * Dải nhiều tháng (nguồn của Thu/Chi/Giữ lại) CHƯA VỀ. Lúc đó ba ô in "Đang tính" chứ
+   * không in số: mảng mặc định `[]` của query chưa về cho ra ¥0 và "chưa có thu", tức
+   * một con số sai trông rất thật trong vài giây đầu mỗi lần mở app (§14: chưa biết ≠ 0).
+   */
+  pending?: boolean
+  /** Tài sản ròng chưa tính xong (số dư chưa về) — khác với "không tính được". */
+  netWorthPending?: boolean
+  /**
+   * Kỳ tính của tỷ lệ giữ lại, ghép vào nhãn ô — "tới hôm nay" khi tháng đang dở. App có
+   * nhiều tỷ lệ giữ lại đo trên những khoảng khác nhau; nhãn không nói kỳ thì người đọc
+   * đem so với con số ở Báo cáo rồi tưởng app tự mâu thuẫn.
+   */
+  keptScope?: string
+}
+
+/** Ô đang chờ dữ liệu: chữ thay cho số, cùng khung để hàng ô không nhảy. */
+function Pending() {
+  return <span className="font-sans text-sm text-fg-muted">Đang tính…</span>
 }
 
 export function KpiRow({
@@ -89,6 +108,9 @@ export function KpiRow({
   netWorth,
   netWorthSpark,
   approx,
+  pending = false,
+  netWorthPending = false,
+  keptScope,
 }: Props) {
   const { data: profile } = useProfile()
   const keptTargetPct = Math.round(savingsTargetShare(resolveMethod(profile)) * 100)
@@ -104,66 +126,74 @@ export function KpiRow({
     >
       <Tile
         label="Thu tháng"
-        swapOn={income.value}
+        swapOn={pending ? null : income.value}
         foot={
-          <>
-            {/* Thu bằng 0 thì KHÔNG in "-100%" đỏ: đầu tháng lương chưa về là chuyện
-                bình thường, mà "-100%" đọc như tai nạn. Câu kết luận đầu màn đã dùng
-                đúng chữ "chưa có thu" — hai chỗ phải nói cùng một giọng. */}
-            {income.value === 0 ? (
-              <span className="font-mono text-2xs text-fg-muted">chưa có thu</span>
-            ) : (
-              <Delta pct={income.deltaPct} />
-            )}
-            <Sparkline values={income.spark} label="Thu 8 tháng gần đây" />
-          </>
+          pending ? null : (
+            <>
+              {/* Thu bằng 0 thì KHÔNG in "-100%" đỏ: đầu tháng lương chưa về là chuyện
+                  bình thường, mà "-100%" đọc như tai nạn. Câu kết luận đầu màn đã dùng
+                  đúng chữ "chưa có thu" — hai chỗ phải nói cùng một giọng. */}
+              {income.value === 0 ? (
+                <span className="font-mono text-2xs text-fg-muted">chưa có thu</span>
+              ) : (
+                <Delta pct={income.deltaPct} />
+              )}
+              <Sparkline values={income.spark} label="Thu 8 tháng gần đây" />
+            </>
+          )
         }
       >
-        <Money amount={income.value} currency={base} tone="in" approx={approx} />
+        {pending ? <Pending /> : <Money amount={income.value} currency={base} tone="in" approx={approx} />}
       </Tile>
 
       <Tile
         label="Chi tháng"
-        swapOn={expense.value}
+        swapOn={pending ? null : expense.value}
         foot={
-          <>
-            <Delta pct={expense.deltaPct} invert />
-            <Sparkline values={expense.spark} label="Chi 8 tháng gần đây" />
-          </>
+          pending ? null : (
+            <>
+              <Delta pct={expense.deltaPct} invert />
+              <Sparkline values={expense.spark} label="Chi 8 tháng gần đây" />
+            </>
+          )
         }
       >
-        <Money amount={expense.value} currency={base} tone="out" approx={approx} />
+        {pending ? <Pending /> : <Money amount={expense.value} currency={base} tone="out" approx={approx} />}
       </Tile>
 
       <Tile
-        label="Giữ lại"
-        swapOn={keptPct}
+        label={keptScope ? `Giữ lại ${keptScope}` : 'Giữ lại'}
+        swapOn={pending ? null : keptPct}
         foot={
-          <>
-            {/* Thanh 4px có VẠCH MỐC (§4.1) — mốc Để dành của phương pháp trong hồ sơ.
-                Vạch nằm trong cùng khung với thanh nên nó đọc được là "còn bao xa tới
-                mốc", chứ một con số viết rời thì phải tự nhẩm. */}
-            <span className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-sunken">
-              <span
-                className={`absolute inset-y-0 left-0 rounded-full ${
-                  keptPct !== null && keptPct >= keptTargetPct ? 'bg-money-in' : 'bg-fg-warn'
-                }`}
-                style={{ width: `${keptBarPct(keptPct)}%` }}
-              />
-              <span
-                className="absolute inset-y-0 w-px bg-fg-muted"
-                style={{ left: `${keptTargetPct}%` }}
-                aria-hidden
-              />
-            </span>
-            <Sparkline values={keptSpark} label="Tiền giữ lại 8 tháng gần đây" />
-          </>
+          pending ? null : (
+            <>
+              {/* Thanh 4px có VẠCH MỐC (§4.1) — mốc Để dành của phương pháp trong hồ sơ.
+                  Vạch nằm trong cùng khung với thanh nên nó đọc được là "còn bao xa tới
+                  mốc", chứ một con số viết rời thì phải tự nhẩm. */}
+              <span className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-sunken">
+                <span
+                  className={`absolute inset-y-0 left-0 rounded-full ${
+                    keptPct !== null && keptPct >= keptTargetPct ? 'bg-money-in' : 'bg-fg-warn'
+                  }`}
+                  style={{ width: `${keptBarPct(keptPct)}%` }}
+                />
+                <span
+                  className="absolute inset-y-0 w-px bg-fg-muted"
+                  style={{ left: `${keptTargetPct}%` }}
+                  aria-hidden
+                />
+              </span>
+              <Sparkline values={keptSpark} label="Tiền giữ lại 8 tháng gần đây" />
+            </>
+          )
         }
       >
         {/* Chưa có thu thì KHÔNG in cả "—" lẫn số tiền: "giữ lại ¥0" đọc như "tháng này
             tiêu hết sạch", trong khi sự thật là chưa ghi khoản thu nào để mà tính (§14:
             chưa biết ≠ 0). Dòng dưới thanh nói lý do. */}
-        {keptPct === null ? (
+        {pending ? (
+          <Pending />
+        ) : keptPct === null ? (
           <span className="text-fg-muted">—</span>
         ) : (
           <>
@@ -183,13 +213,15 @@ export function KpiRow({
             {/* Thiếu tỷ giá thì assets/useAssetsData báo không tin cậy — nói ra thay vì
                 in một con số thiếu vài tài khoản. */}
             <span className="font-mono text-2xs text-fg-muted">
-              {netWorth === null ? 'chưa tính được' : 'sau nợ và cho vay'}
+              {netWorthPending ? 'đang tải' : netWorth === null ? 'chưa tính được' : 'sau nợ và cho vay'}
             </span>
             <Sparkline values={netWorthSpark} label="Tài sản ròng gần đây" />
           </>
         }
       >
-        {netWorth === null ? (
+        {netWorthPending ? (
+          <Pending />
+        ) : netWorth === null ? (
           <span className="text-fg-muted">—</span>
         ) : (
           <Money amount={netWorth} currency={base} tone="neutral" />

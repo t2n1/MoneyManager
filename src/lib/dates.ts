@@ -29,6 +29,52 @@ export function getMonthRange(key: MonthKey, monthStartDay = 1): MonthRange {
   return { start: toISODate(start), end: toISODate(end) }
 }
 
+/**
+ * Vị trí của hôm nay trong một kỳ — QUY ƯỚC CHUNG của cả app cho "còn mấy ngày".
+ *
+ * Có hàm này vì cùng ngày 23/9 (kỳ 1–30/9) Bản tin nói "còn 8 ngày" còn Báo cáo nói
+ * "còn 7": một bên đếm cả hôm nay, một bên không. Quy ước đã chốt:
+ *   · `left`   — còn N ngày KỂ CẢ HÔM NAY (hôm nay vẫn tiêu được) → 8.
+ *   · `passed` — số ngày đã trôi TRƯỚC hôm nay → 22. `passed + left = total`.
+ *   · `dayNo`  — hôm nay là ngày thứ mấy của kỳ → 23 (để in "ngày 23/30").
+ * Chữ in ra phải đi qua `daysLeftLabel` để luôn ghi rõ "kể cả hôm nay".
+ *
+ * Đây là quy ước HIỂN THỊ. Phép tính nào đang dùng quy ước khác (nhịp chi chia cho số
+ * ngày đã qua kể cả hôm nay, dự phóng cho các ngày SAU hôm nay) thì giữ phép tính của nó.
+ *
+ * `range.end` là mốc loại trừ, như mọi MonthRange.
+ */
+export interface PeriodDays {
+  total: number
+  passed: number
+  left: number
+  dayNo: number
+  /** Hôm nay nằm trong kỳ. */
+  inProgress: boolean
+}
+
+export function periodDays(range: MonthRange, todayISO: string): PeriodDays {
+  const total = daysBetween(range.start, range.end)
+  if (todayISO >= range.end) return { total, passed: total, left: 0, dayNo: total, inProgress: false }
+  if (todayISO < range.start) return { total, passed: 0, left: total, dayNo: 0, inProgress: false }
+  const passed = daysBetween(range.start, todayISO)
+  return { total, passed, left: total - passed, dayNo: passed + 1, inProgress: true }
+}
+
+/** Chú thích đi kèm MỌI con số "còn N ngày" — câu nào tự dựng quanh con số thì dùng nó. */
+export const KE_CA_HOM_NAY = '(kể cả hôm nay)'
+
+/** "còn 8 ngày (kể cả hôm nay)" — chữ DUY NHẤT cho số ngày còn lại của một kỳ. */
+export function daysLeftLabel(left: number): string {
+  return `còn ${left} ngày ${KE_CA_HOM_NAY}`
+}
+
+/** Nhãn kỳ: "đã qua 22 ngày · còn 8 ngày (kể cả hôm nay)"; kỳ đã xong chỉ còn "31 ngày". */
+export function periodDaysLabel(d: PeriodDays): string {
+  if (!d.inProgress) return `${d.total} ngày`
+  return `đã qua ${d.passed} ngày · ${daysLeftLabel(d.left)}`
+}
+
 /** Ngày ISO thuộc "tháng" nào (ngày trước monthStartDay thuộc tháng trước). */
 export function monthKeyForDate(dateISO: string, monthStartDay = 1): MonthKey {
   const [year, month, day] = dateISO.split('-').map(Number)

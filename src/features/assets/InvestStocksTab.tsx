@@ -15,6 +15,7 @@ import {
   useStockPrices,
   useStockTradesWithoutTransfer,
 } from '../../hooks/queries'
+import { loadStatus } from '../../lib/loadStatus'
 import { confirmDialog } from '../../lib/dialog'
 import { convertToBase } from '../../lib/rates'
 import { concentrationVerdict } from './concentration'
@@ -106,10 +107,12 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   const { data: priceRows = [] } = useStockPrices()
   const todayISO = toISODate(new Date())
   const accountIds = useMemo(() => new Set(shown.map((a) => a.id)), [shown])
-  const { data: txs = [], isLoading: dangTaiSo } = useRangeTransactions(
-    investTxRange(todayISO),
-    accountIds.size > 0,
-  )
+  const soQ = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
+  const txs = useMemo(() => soQ.data ?? [], [soQ.data])
+  const dangTaiSo = soQ.isLoading
+  // Cột Cổ tức (và Tổng lời/lỗ, vốn cộng cổ tức) chỉ tính khi sổ ĐÃ VỀ. Trước đây mặc định
+  // `[]` cho ra "—" ở mọi dòng trong vài giây đầu, tức nói "mã này chưa trả cổ tức".
+  const soTrangThai = loadStatus(soQ)
 
   /**
    * Nạp/rút người dùng tự ghi — đọc lại đúng `txs` ở trên, không thêm lượt đọc nào.
@@ -144,14 +147,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
     () =>
       positionTable({
         positions: portfolio.positions,
-        dividends: dividendsBySymbol(txs, accountIds),
+        dividends: soTrangThai === 'ready' ? dividendsBySymbol(txs, accountIds) : null,
         priorClose: new Map(
           priceRows
             .filter((r) => r.prior_close != null && r.prior_close > 0)
             .map((r) => [r.symbol, r.prior_close as number]),
         ),
       }),
-    [portfolio.positions, txs, accountIds, priceRows],
+    [portfolio.positions, txs, accountIds, priceRows, soTrangThai],
   )
 
   const dongTienGanMa = useMemo(() => taggableCashflows(txs, accountIds), [txs, accountIds])
@@ -379,6 +382,8 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
         concentration={tapTrung}
         cashflows={dongTienGanMa}
         allSymbols={moiMa}
+        dividendsStatus={soTrangThai}
+        onRetryDividends={() => void soQ.refetch()}
       />
 
       <InvestWeightDonut

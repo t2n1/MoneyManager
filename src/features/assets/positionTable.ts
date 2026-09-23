@@ -61,6 +61,13 @@ export interface PositionTableResult {
    * và UI nói nó ra thành một dòng riêng.
    */
   soldDividend: number
+  /**
+   * false = sổ giao dịch (nguồn của cổ tức) CHƯA VỀ. Lúc đó cột Cổ tức và cột Tổng lời/lỗ
+   * chưa biết — không phải 0: in "—" là nói "mã này chưa trả cổ tức" với người đã nhận
+   * cổ tức ba năm. Các trường tiền vẫn là số (để kiểu dữ liệu không đổi), nhưng mọi tỷ lệ
+   * phụ thuộc cổ tức là null và UI phải đọc cờ này trước khi in.
+   */
+  dividendsKnown: boolean
 }
 
 const tyLe = (phan: number, mau: number): number | null => (mau > 0 ? (phan / mau) * 100 : null)
@@ -97,12 +104,16 @@ export function dividendsBySymbol(
 
 export function positionTable(input: {
   positions: PortfolioPosition[]
-  /** mã → đồng, từ `dividendsBySymbol` */
-  dividends: Map<string, number>
+  /** mã → đồng, từ `dividendsBySymbol`. null = sổ giao dịch chưa về (xem `dividendsKnown`). */
+  dividends: Map<string, number> | null
   /** mã → đồng/cổ, giá tham chiếu phiên trước (`stock_prices.prior_close`) */
   priorClose: Map<string, number>
 }): PositionTableResult {
-  const { positions, dividends, priorClose } = input
+  const { positions, priorClose } = input
+  const dividendsKnown = input.dividends !== null
+  const dividends = input.dividends ?? new Map<string, number>()
+  // Tỷ lệ có dính cổ tức: chưa biết cổ tức thì chưa biết tỷ lệ.
+  const tyLeCoCoTuc = (phan: number, mau: number) => (dividendsKnown ? tyLe(phan, mau) : null)
 
   const tongGiaTri = positions.reduce((s, p) => s + p.value, 0)
 
@@ -130,9 +141,9 @@ export function positionTable(input: {
         pricePnl,
         pricePnlPercent: tyLe(pricePnl, p.costBasis),
         dividend,
-        dividendPercent: tyLe(dividend, p.costBasis),
+        dividendPercent: tyLeCoCoTuc(dividend, p.costBasis),
         totalPnl,
-        totalPnlPercent: tyLe(totalPnl, p.costBasis),
+        totalPnlPercent: tyLeCoCoTuc(totalPnl, p.costBasis),
         accountNames: p.accountNames,
       }
     })
@@ -156,11 +167,12 @@ export function positionTable(input: {
       pricePnl,
       pricePnlPercent: tyLe(pricePnl, cost),
       dividend,
-      dividendPercent: tyLe(dividend, cost),
+      dividendPercent: tyLeCoCoTuc(dividend, cost),
       totalPnl,
-      totalPnlPercent: tyLe(totalPnl, cost),
+      totalPnlPercent: tyLeCoCoTuc(totalPnl, cost),
     },
     soldDividend,
+    dividendsKnown,
   }
 }
 

@@ -3,15 +3,26 @@ import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight, ChevronUp, Plus } from 'lucide-react'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, toISODate } from '../../lib/dates'
+import { loadStatus, mergeLoad, pendingText, type LoadStatus } from '../../lib/loadStatus'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { Card, EmptyState, Money, PageHeader, STATUS_FILL, SectionTitle, actionButtonClass } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
 import { debtBalance, debtSummary, disbursedOf, remainingOf } from './aggregate'
 
 export function DebtsPage() {
-  const { data: debts = [], isLoading } = useDebts()
-  const { data: payments = [] } = useDebtPayments()
-  const { base, rates } = useRates()
+  const debtsQ = useDebts()
+  const paymentsQ = useDebtPayments()
+  const { data: debts = [] } = debtsQ
+  const { data: payments = [] } = paymentsQ
+  const { base, rates, isLoading: ratesLoading } = useRates()
+  // Số "còn lại" = gốc − các lần trả, nên phải chờ CẢ các lần trả. Bản trước chỉ chờ khoản
+  // nợ: vài giây đầu hai ô tổng và từng dòng in nguyên gốc như thể chưa trả đồng nào.
+  const load = mergeLoad(
+    loadStatus(debtsQ),
+    loadStatus(paymentsQ),
+    ratesLoading ? 'pending' : 'ready',
+  )
+  const ready = load === 'ready'
   const [showSettled, setShowSettled] = useState(false)
 
   const summary = useMemo(
@@ -41,7 +52,7 @@ export function DebtsPage() {
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
           <p className="text-sm font-medium text-fg-muted">Mình nợ</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-out">
-            {isLoading ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
+            {!ready ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
         </div>
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
@@ -49,11 +60,11 @@ export function DebtsPage() {
               khác bản chất — tiền mình đưa ra, và tiền công người ta chưa trả. */}
           <p className="text-sm font-medium text-fg-muted">Người ta nợ tôi</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-in">
-            {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
+            {!ready ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
         </div>
       </div>
-      {summary.hasOpen && (
+      {ready && summary.hasOpen && (
         <p className="-mt-2 mb-4 px-1 text-sm text-fg-muted">
           {summary.net < 0 ? 'Nợ ròng' : 'Cho vay ròng'} {approx}
           {formatMoney(Math.abs(summary.net), base)} · quy đổi {CURRENCIES[base].label}
@@ -64,19 +75,19 @@ export function DebtsPage() {
       <DebtSection
         title="Mình nợ"
         emptyLabel="Không có khoản nào bạn đang nợ"
-        debts={iOwe}
+        debts={ready ? iOwe : []}
         payments={payments}
-        loading={isLoading}
+        load={load}
       />
       <DebtSection
         title="Người ta nợ mình"
         emptyLabel="Chưa cho ai vay"
-        debts={owedToMe}
+        debts={ready ? owedToMe : []}
         payments={payments}
-        loading={isLoading}
+        load={load}
       />
 
-      {settled.length > 0 && (
+      {ready && settled.length > 0 && (
         <div className="mt-4">
           <button
             type="button"
@@ -130,10 +141,10 @@ interface SectionProps {
   emptyLabel: string
   debts: DebtRow[]
   payments: Parameters<typeof remainingOf>[1]
-  loading: boolean
+  load: LoadStatus
 }
 
-function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionProps) {
+function DebtSection({ title, emptyLabel, debts, payments, load }: SectionProps) {
   return (
     <section className="mb-4">
       <SectionTitle role="micro" className="mb-2 px-1">
@@ -221,7 +232,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
         })}
         {debts.length === 0 && (
           <EmptyState compact>
-            {loading ? 'Đang tải…' : emptyLabel}
+            {load !== 'ready' ? pendingText(load) : emptyLabel}
           </EmptyState>
         )}
       </Card>

@@ -40,8 +40,11 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
 
       {isLoading ? (
         <p className="mt-3 text-sm text-fg-muted">Đang tải…</p>
-      ) : !report || report.totalBudgeted === 0 ? (
+      ) : !report || report.lines.length === 0 ? (
         // Trạng thái rỗng: một câu + MỘT hành động (§5.0), không vẽ minh hoạ.
+        // "Chưa đặt" = KHÔNG CÓ dòng ngân sách nào, không phải tổng trần = 0: người chỉ đặt
+        // trần ¥0 cho vài mục (chủ ý không tiêu) mà lỡ chi thì phải thấy chữ "vượt", không
+        // phải lời mời đặt hạn mức.
         <p className="mt-3 text-sm text-fg-muted">
           Chưa đặt hạn mức nào tháng này.{' '}
           <Link to="/budget" className="font-medium text-fg-accent hover:underline">
@@ -92,9 +95,9 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
                       }`}
                     >
                       {/* Hạn mức ¥0 là hạn mức thật ("tháng này không tiêu ở đây") và ratio
-                          của nó bị kẹp về 1 (progress.ts) — in "100%" cho nó đọc như "vừa
-                          chạm trần" trong khi trang Ngân sách nói "chưa trần"/"vượt". Con
-                          số thật của dòng đó là tiền đã tiêu, không phải tỷ lệ. */}
+                          của nó bị kẹp về 1 (`budgetRatio`) — in "100%" cho nó đọc như "vừa
+                          chạm trần" trong khi trang Ngân sách và thông báo đều nói "vượt".
+                          Con số thật của dòng đó là tiền đã tiêu, không phải tỷ lệ. */}
                       {l.budgeted === 0 ? 'vượt' : `${Math.round(l.ratio * 100)}%`}
                     </span>
                   </div>

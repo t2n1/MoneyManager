@@ -145,7 +145,8 @@ function RestCell({
   base,
   onSunken = false,
 }: {
-  budgeted: number
+  /** null = CHƯA ĐẶT TRẦN (không có dòng ngân sách). ¥0 là trần thật, không phải null. */
+  budgeted: number | null
   spent: number
   status: BudgetStatus
   base: Parameters<typeof Money>[0]['currency']
@@ -156,13 +157,23 @@ function RestCell({
   // 1,25×) thì ô nở ra thay vì tràn lên thanh bên cạnh. Đo ở 375px: `w-28` cứng làm tên
   // danh mục chỉ còn 7 chữ ("Ăn uốn…").
   const box = 'min-w-24 shrink-0 whitespace-nowrap text-right text-sm'
-  if (budgeted <= 0) {
-    // Nhóm tổng-con mà con chưa đặt gì, hoặc trần ¥0: không có "còn" để nói. Hiện số đã
-    // chi để dòng không trống, và gọi thẳng tên tình trạng.
+  const muted = onSunken ? '!text-fg-on-track' : '!text-fg-muted'
+  if (budgeted === null) {
+    // Không có "còn" để nói. Hiện số đã chi để dòng không trống, và gọi thẳng tên tình trạng.
     return (
       <span className={box}>
-        <Money amount={spent} currency={base} className={onSunken ? '!text-fg-on-track' : '!text-fg-muted'} />
+        <Money amount={spent} currency={base} className={muted} />
         <span className={`ml-1 ${label}`}>chưa trần</span>
+      </span>
+    )
+  }
+  // Trần ¥0 chưa chi: đúng như đã hứa. "vừa hết hạn mức" ở đây là sai nghĩa — chưa tiêu gì.
+  // Chi rồi thì đi tiếp xuống dưới và thành "vượt ¥X" (trần ¥0 là trần thật, `budgetRatio`).
+  if (budgeted <= 0 && spent <= 0) {
+    return (
+      <span className={box}>
+        <span className={label}>trần </span>
+        <Money amount={0} currency={base} className={muted} />
       </span>
     )
   }

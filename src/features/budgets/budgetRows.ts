@@ -15,7 +15,7 @@
 import type { CategoryRow } from '../../types/database.types'
 import type { BudgetChildRow, BudgetDisplayItem, BudgetUnbudgetedGroup } from './budgetDisplay'
 import { spentOf } from './budgetSort'
-import { statusOf, type BudgetLine, type BudgetReport } from './progress'
+import { budgetRatio, statusOf, type BudgetLine, type BudgetReport } from './progress'
 
 /** Từ bao nhiêu mục "yên" trở lên thì mới gấp — một mục thì gấp cũng tốn đúng một dòng. */
 export const QUIET_MIN_FOLD = 2
@@ -124,7 +124,7 @@ export function childState(child: BudgetChildRow): ChildState {
 }
 
 function relined(l: BudgetLine, budgeted: number): BudgetLine {
-  const ratio = budgeted > 0 ? l.spent / budgeted : 0
+  const ratio = budgetRatio(l.spent, budgeted)
   return { ...l, budgeted, ratio, status: statusOf(ratio) }
 }
 

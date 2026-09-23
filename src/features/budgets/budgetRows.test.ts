@@ -202,6 +202,21 @@ describe('childState — trạng thái một mục con', () => {
 })
 
 describe('applyDraftLimit — số nhìn thấy trong lúc kéo', () => {
+  it('kéo trần về ¥0 khi đã chi thì dòng thành VƯỢT — cùng luật với báo cáo đã lưu', () => {
+    const truoc = {
+      lines: [{ categoryId: 'thuoc', budgeted: 5_000, carried: 0, spent: 460, ratio: 0.092, status: 'ok' as const, isMarker: false }],
+      totalBudgeted: 5_000,
+      totalSpent: 460,
+      totalStatus: 'ok' as const,
+      overCount: 0,
+      warnCount: 0,
+      hasMissingRate: false,
+      spentByCategory: new Map([['thuoc', 460]]),
+    }
+    const r = applyDraftLimit(truoc, [], 'thuoc', 0)
+    expect(r.lines[0].status).toBe('over')
+  })
+
   const base = report(
     [
       line('house', 133_000, 112_760),

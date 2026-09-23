@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryRow } from '../../types/database.types'
 import { buildBudgetDisplay } from './budgetDisplay'
-import { statusOf, type BudgetLine, type BudgetReport } from './progress'
+import { budgetRatio, statusOf, type BudgetLine, type BudgetReport } from './progress'
 
 let seq = 0
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
@@ -23,7 +23,7 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
 }
 
 function line(categoryId: string, budgeted: number, spent: number, isMarker = false): BudgetLine {
-  const ratio = budgeted > 0 ? spent / budgeted : 0
+  const ratio = budgetRatio(spent, budgeted)
   return { categoryId, budgeted, carried: 0, spent, ratio, status: statusOf(ratio), isMarker }
 }
 
@@ -154,5 +154,48 @@ describe('buildBudgetDisplay', () => {
     const r = report([line('a', 100, 50), line('b', 100, 90)]) // a 50%, b 90%
     const d = buildBudgetDisplay([a, b], r)
     expect(d.items.map((i) => (i.kind === 'leaf' ? i.cat.id : i.cat.id))).toEqual(['b', 'a'])
+  })
+})
+
+describe('trần ¥0 ở nhóm tổng-con', () => {
+  // Ca thật: cha Sức khỏe chưa đặt trần, con Thuốc trần ¥0, đã chi ¥460. Trang Ngân sách
+  // từng in "chưa trần" ở cả dòng nhóm lẫn dòng con, còn Bản tin in "460 / 0 — vượt".
+  const suc = cat({ id: 'suc', name: 'Sức khỏe' })
+  const thuoc = cat({ id: 'thuoc', name: 'Thuốc', parent_id: 'suc' })
+  const kham = cat({ id: 'kham', name: 'Khám', parent_id: 'suc' })
+
+  it('con có trần ¥0 mà đã chi → nhóm tổng-con VƯỢT, không phải ok', () => {
+    const d = buildBudgetDisplay(
+      [suc, thuoc, kham],
+      report([line('thuoc', 0, 460)], { thuoc: 460 }),
+    )
+    const g = d.items[0]
+    expect(g.kind).toBe('group')
+    if (g.kind !== 'group') return
+    expect(g.capped).toBe(false)
+    expect(g.budgeted).toBe(0)
+    expect(g.spent).toBe(460)
+    expect(g.status).toBe('over')
+    expect(g.children.find((k) => k.cat.id === 'thuoc')?.marker?.status).toBe('over')
+  })
+
+  it('tổng trần ¥0 chưa chi → nhóm có trần, ok; không rơi vào "chưa đặt"', () => {
+    const d = buildBudgetDisplay([suc, thuoc, kham], report([line('thuoc', 0, 0)]))
+    expect(d.unbudgeted).toEqual([])
+    expect(d.items[0].kind === 'group' && d.items[0].status).toBe('ok')
+  })
+
+  it('không con nào có dòng ngân sách → "chưa đặt", dù có chi', () => {
+    const d = buildBudgetDisplay([suc, thuoc, kham], report([], { thuoc: 460 }))
+    expect(d.items).toEqual([])
+    expect(d.unbudgeted.map((u) => u.cat.id)).toEqual(['suc'])
+  })
+})
+
+describe('budgetRatio', () => {
+  it('trần ¥0: chi > 0 là 1 (vượt), chưa chi là 0', () => {
+    expect(budgetRatio(460, 0)).toBe(1)
+    expect(budgetRatio(0, 0)).toBe(0)
+    expect(budgetRatio(50, 100)).toBe(0.5)
   })
 })

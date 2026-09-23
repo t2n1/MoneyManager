@@ -12,7 +12,13 @@
 import type { CategoryRow } from '../../types/database.types'
 import { isFlowCategory } from '../categories/flowCategories'
 import { isBudgetableCategory } from '../categories/kind'
-import { statusOf, type BudgetLine, type BudgetReport, type BudgetStatus } from './progress'
+import {
+  budgetRatio,
+  statusOf,
+  type BudgetLine,
+  type BudgetReport,
+  type BudgetStatus,
+} from './progress'
 
 export interface BudgetChildRow {
   cat: CategoryRow
@@ -55,8 +61,6 @@ export interface BudgetDisplay {
   /** Danh mục cha + lá độc lập chưa có hạn mức nào (để chào "đặt hạn mức"). */
   unbudgeted: BudgetUnbudgetedGroup[]
 }
-
-const ratioOf = (spent: number, budgeted: number) => (budgeted > 0 ? spent / budgeted : 0)
 
 /**
  * `expenseCats` là danh mục chi chưa lưu trữ, đã sắp theo sort_order. `report`
@@ -121,13 +125,18 @@ export function buildBudgetDisplay(
 
     // Cha chưa có trần: nếu có con nào được tính-vào-tổng (không marker) thì gộp
     // thành nhóm tổng-con (tương thích model cũ).
+    //
+    // Hai ca phải tách bạch: KHÔNG con nào có dòng ngân sách → "chưa đặt" (dưới cùng);
+    // có con mang trần mà tổng trần = ¥0 → nhóm CÓ trần ¥0, chi một đồng là vượt (cùng
+    // luật `budgetRatio` với từng dòng). Trước đây nhánh sau đi qua quy ước cũ
+    // (trần 0 → tỷ lệ 0 → xanh) và trang in "chưa trần" cho một mục đã chi quá trần.
     const counted = children
       .map((k) => lineOf.get(k.id))
       .filter((l): l is BudgetLine => !!l && !l.isMarker)
     if (counted.length > 0) {
       const budgeted = counted.reduce((s, l) => s + l.budgeted, 0)
       const spent = counted.reduce((s, l) => s + l.spent, 0)
-      const ratio = ratioOf(spent, budgeted)
+      const ratio = budgetRatio(spent, budgeted)
       items.push({
         kind: 'group',
         cat: c,

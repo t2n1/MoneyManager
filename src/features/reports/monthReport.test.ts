@@ -462,6 +462,14 @@ describe('budgetCellLabel', () => {
     expect(budgetCellLabel({ budgeted: null, thisMonth: 500, fixed: false }).text).toBe('—')
   })
 
+  it('trần ¥0 là trần thật: đã chi là "vượt", không phải dấu gạch như chưa đặt', () => {
+    expect(budgetCellLabel({ budgeted: 0, thisMonth: 460, fixed: false })).toEqual({
+      text: 'vượt',
+      tone: 'over',
+    })
+    expect(budgetCellLabel({ budgeted: 0, thisMonth: 0, fixed: false }).tone).toBe('ok')
+  })
+
   it('ĐÚNG BẰNG trần không phải "vượt"', () => {
     expect(budgetCellLabel({ budgeted: 1_000, thisMonth: 1_000, fixed: false })).toEqual({
       text: 'vừa hết',

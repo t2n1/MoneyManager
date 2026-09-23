@@ -5,6 +5,7 @@ import { ChevronRight, Banknote, Search, SplitSquareHorizontal } from 'lucide-re
 import { repo } from '../../data'
 import {
   useAccounts,
+  useCategories,
   useDebtPayments,
   useDeleteTransaction,
   useRates,
@@ -16,6 +17,8 @@ import { SplitSheet } from './SplitSheet'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 import { toNewTransaction } from './restore'
+import { laKhoanBu } from './splitTransaction'
+import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 import { provenanceLine, txProvenance } from './txProvenance'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
@@ -40,6 +43,11 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
   const remove = useDeleteTransaction()
   const [moChia, setMoChia] = useState(false)
   const { data: tagLinks = [] } = useTransactionTags()
+  const { data: categories = [] } = useCategories()
+  const laBu = laKhoanBu(
+    tx,
+    new Set(categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id)),
+  )
   const laiLich = provenanceLine(txProvenance(tx))
   // Tiền của giao dịch = tiền của TÀI KHOẢN NGUỒN, không phải base — `amount` được khai
   // theo đơn vị đó (xem chú thích cột amount ở database.types).
@@ -145,8 +153,15 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             link đi bằng chính nó. Chỉ hiện khi có ghi chú: không có thì tìm chuỗi rỗng
             sẽ trả về TOÀN BỘ sổ, đúng cái ngược với ý người bấm. */}
         {/* CHIA — chỉ cho khoản chi/thu có số dương. Chuyển khoản không chia được: nó
-            có hai đầu tài khoản, chia một đầu là làm lệch số dư đầu kia. */}
-        {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && (
+            có hai đầu tài khoản, chia một đầu là làm lệch số dư đầu kia. Khoản bù cũng
+            không: nó là phần chênh để sổ khớp số thật, không phải một lần mua nhiều thứ
+            (xem laKhoanBu). Nói lý do thay vì giấu nút, để người dùng khỏi đi tìm. */}
+        {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && laBu && (
+          <p className="mb-3 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-fg-secondary">
+            Khoản bù số dư không chia được. Nó chỉ để sổ khớp với số thật.
+          </p>
+        )}
+        {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && !laBu && (
           <button
             type="button"
             onClick={() => setMoChia(true)}

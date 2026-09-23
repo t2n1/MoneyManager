@@ -12,6 +12,8 @@
 // RÀNG BUỘC PHẢI GIỮ: tổng các phần = số gốc, KHÔNG sai một đồng. Vì thế phần cuối lấy
 // số DƯ chứ không lấy số người dùng gõ — xem `planSplit`.
 
+import type { AdjustKind } from '../../types/database.types'
+
 export interface SplitPart {
   /** minor units, cùng đơn vị với giao dịch gốc. Phải > 0. */
   amount: number
@@ -85,4 +87,22 @@ export function evenSplit(total: number, n: number): number[] {
   const out = Array.from({ length: n }, () => base)
   out[n - 1] = total - base * (n - 1)
   return out
+}
+
+/**
+ * Khoản bù ("Điều chỉnh số nợ / số dư", "Chỉnh cho khớp") — KHÔNG cho chia.
+ *
+ * Nó không phải một lần mua gồm nhiều thứ, mà là phần chênh để sổ khớp số thật. Chia ra
+ * thì các phần mất dấu `adjust_kind` (chúng là dòng mới), rơi vào danh mục thường, và khoản
+ * "bù tổng nợ" bị tính thành tiền quẹt — bảng "số bị rút" của thẻ sai.
+ *
+ * Nhận bằng dấu; dòng cũ chưa có dấu thì bằng danh mục bù (`adjustCategoryIds`). Không nhận
+ * bằng `exclude_from_stats`: đó là công tắc người dùng bật trên khoản thường.
+ */
+export function laKhoanBu(
+  tx: { adjust_kind?: AdjustKind | null; category_id: string | null },
+  adjustCategoryIds: ReadonlySet<string>,
+): boolean {
+  if (tx.adjust_kind != null) return true
+  return tx.category_id !== null && adjustCategoryIds.has(tx.category_id)
 }

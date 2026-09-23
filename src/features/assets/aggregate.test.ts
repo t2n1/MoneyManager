@@ -549,3 +549,37 @@ describe('nhóm ĐỨNG NGOÀI TỔNG — không được in ¥0 cạnh một de
     expect(g.nativeTotals).toEqual([{ currency: 'VND', amount: 100_000 }])
   })
 })
+
+describe('assetBreakdown — giá trị hiện tại truyền vào (accountCurrentValue)', () => {
+  it('không truyền map thì y như cũ: đọc ảnh chụp market_value', () => {
+    const nisa = acc({ balance: 80_809, market_value: 80_000, type: 'investment', asset_group: 'Đầu tư' })
+    const r = assetBreakdown([nisa], 'JPY', RATES)
+    expect(r.total).toBe(80_000)
+    expect(r.groups[0].accounts[0].marketValue).toBe(80_000)
+  })
+
+  it('giá từ sổ lệnh thắng ảnh chụp — cùng số với trang chi tiết', () => {
+    const nisa = acc({ balance: 80_809, market_value: 80_000, type: 'investment', asset_group: 'Đầu tư' })
+    const r = assetBreakdown([nisa], 'JPY', RATES, [], undefined, new Map([[nisa.id, { value: 78_913, basis: 'market' as const }]]))
+    expect(r.total).toBe(78_913)
+    const a = r.groups[0].accounts[0]
+    expect(a.marketValue).toBe(78_913)
+    expect(a.value).toBe(78_913)
+    expect(a.totalPnlBase).toBe(78_913 - 80_809)
+  })
+
+  it('có sổ lệnh mà không định giá được → số dư sổ, không rơi về ảnh chụp cũ', () => {
+    const nisa = acc({ balance: 80_809, market_value: 80_000, type: 'investment', asset_group: 'Đầu tư' })
+    const r = assetBreakdown([nisa], 'JPY', RATES, [], undefined, new Map([[nisa.id, { value: 80_809, basis: 'ledger' as const }]]))
+    expect(r.total).toBe(80_809)
+    expect(r.groups[0].accounts[0].marketValue).toBeNull()
+    expect(r.groups[0].accounts[0].totalPnlBase).toBeNull()
+  })
+
+  it('tài khoản vắng mặt trong map và tài khoản thường không bị đụng tới', () => {
+    const inv = acc({ balance: 1_000, market_value: 1_200, type: 'investment', asset_group: 'Đầu tư' })
+    const bank = acc({ balance: 5_000, asset_group: 'Tiêu dùng' })
+    const r = assetBreakdown([inv, bank], 'JPY', RATES, [], undefined, new Map([[bank.id, { value: 999, basis: 'balance' as const }]]))
+    expect(r.total).toBe(6_200)
+  })
+})

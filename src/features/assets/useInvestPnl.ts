@@ -92,6 +92,17 @@ export function accountRowPnl(
  * đó không tốn thêm lượt nào.
  */
 export function useInvestPnlByAccount(): Map<string, AccountPortfolioSummary> {
+  return useInvestPnlByAccountState().map
+}
+
+/**
+ * Như `useInvestPnlByAccount`, kèm cờ `loading`: Map rỗng vì CÒN ĐANG TẢI khác Map rỗng
+ * vì không có sổ lệnh nào. Nơi cần phân biệt (tổng tài sản ròng ghi vào lịch sử) đọc cờ này.
+ */
+export function useInvestPnlByAccountState(): {
+  map: Map<string, AccountPortfolioSummary>
+  loading: boolean
+} {
   const { data: accounts = [], isLoading: l1 } = useAccounts()
   const { data: balances = [], isLoading: l2 } = useAccountBalances()
   const coDauTu = accounts.some((a) => a.type === 'investment' && !a.is_archived)
@@ -104,7 +115,7 @@ export function useInvestPnlByAccount(): Map<string, AccountPortfolioSummary> {
   // là in một con số lời/lỗ rồi nó tự đổi — cùng lỗi useAccountPortfolio đã chặn.
   const dangTai = l1 || l2 || l3 || l4 || l5 || l6
 
-  return useMemo(
+  const map = useMemo(
     () =>
       dangTai
         ? new Map<string, AccountPortfolioSummary>()
@@ -116,4 +127,5 @@ export function useInvestPnlByAccount(): Map<string, AccountPortfolioSummary> {
           }),
     [dangTai, accounts, balances, stockTrades, stockPrices, fundTrades, fundPrices],
   )
+  return { map, loading: dangTai }
 }

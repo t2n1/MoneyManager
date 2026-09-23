@@ -7,6 +7,7 @@ import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, AccountType } from '../../types/database.types'
 import { depreciate } from './depreciation'
+import type { AccountCurrentValue } from './currentValue'
 
 /** Nhãn hiển thị cho tài khoản chưa gán nhóm. */
 export const UNGROUPED_LABEL = 'Chưa phân nhóm'
@@ -172,6 +173,15 @@ export function assetBreakdown(
   settings: AssetGroupSetting[] = [],
   /** Hôm nay (ISO) để tính khấu hao tài sản cố định; bỏ trống = không khấu hao. */
   todayISO?: string,
+  /**
+   * Giá trị hiện tại theo tài khoản (`accountCurrentValue` qua `useAccountCurrentValues`).
+   * Chỉ đọc cho tài khoản ĐẦU TƯ: có sổ lệnh thì giá thị trường tính tại máy thắng ảnh
+   * chụp `market_value` — không truyền thì tab Tài sản in ảnh chụp trong khi Cài đặt ›
+   * Tài khoản và trang chi tiết in giá từ sổ lệnh, hai màn lệch nhau. Tuỳ chọn: bỏ trống
+   * (hoặc tài khoản vắng mặt) thì y như cũ. Tài sản cố định giữ phép tính riêng ở dưới —
+   * cùng thứ tự nguồn với `accountCurrentValue` (định giá tay → khấu hao → số dư).
+   */
+  currentValues?: ReadonlyMap<string, AccountCurrentValue>,
 ): AssetBreakdown {
   const settingOf = new Map(settings.map((s) => [s.name, s]))
   const groups = new Map<string, AssetAccount[]>()
@@ -218,7 +228,15 @@ export function assetBreakdown(
     const isFixed = b.type === 'fixed'
     // Định giá nhập tay (account_valuations) luôn thắng công thức — người dùng
     // biết chiếc xe của mình bán được bao nhiêu, app thì không.
-    const snapshot = isInvestment || isFixed ? (b.market_value ?? null) : null
+    const cv = isInvestment ? currentValues?.get(b.id) : undefined
+    // `ledger` = có sổ lệnh mà chưa định giá được → số dư sổ, KHÔNG rơi về ảnh chụp cũ.
+    const snapshot = cv
+      ? cv.basis === 'ledger'
+        ? null
+        : cv.value
+      : isInvestment || isFixed
+        ? (b.market_value ?? null)
+        : null
     // Tài sản cố định chưa có snapshot: rơi về khấu hao tuyến tính nếu đã cấu hình.
     const auto =
       isFixed && snapshot == null && todayISO

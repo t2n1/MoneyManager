@@ -21,6 +21,7 @@ import {
   assetTypeGroups,
   type AssetGroupSetting,
 } from './aggregate'
+import { useAccountCurrentValuesState } from './useAccountCurrentValues'
 
 export function useAssetsData() {
   const todayISO = toISODate(new Date())
@@ -29,6 +30,9 @@ export function useAssetsData() {
   const debtsQ = useDebts()
   const debtPaymentsQ = useDebtPayments()
   const { base, rates, isLoading: ratesLoading } = useRates()
+  // Giá trị hiện tại (giá từ sổ lệnh với tài khoản đầu tư) — cùng số Cài đặt › Tài khoản
+  // và trang chi tiết in. Không có nó thì tổng tab Tài sản đọc ảnh chụp `market_value`.
+  const { values: currentValues, loading: currentValuesLoading } = useAccountCurrentValuesState()
   const balances = useMemo(() => balancesQ.data ?? [], [balancesQ.data])
   const groupSettings = useMemo(() => groupSettingsQ.data ?? [], [groupSettingsQ.data])
   const debts = useMemo(() => debtsQ.data ?? [], [debtsQ.data])
@@ -45,6 +49,10 @@ export function useAssetsData() {
     loadStatus(debtsQ),
     loadStatus(debtPaymentsQ),
     ratesLoading ? 'pending' : 'ready',
+    // Sổ lệnh + giá chưa về thì tài khoản đầu tư còn đứng ở ảnh chụp cũ, rồi tự đổi khi
+    // chúng về. Chờ luôn: ảnh chụp lịch sử tài sản ròng chỉ ghi MỘT lần mỗi lần mở, ghi
+    // lúc này là ghi số cũ vào DB.
+    currentValuesLoading ? 'pending' : 'ready',
   )
   /** Còn nguồn đang tải — nơi hiển thị in "Đang tính…", không in số. */
   const isLoading = load === 'pending'
@@ -69,8 +77,8 @@ export function useAssetsData() {
   )
 
   const breakdown = useMemo(
-    () => assetBreakdown(balances, base, rates ?? {}, settings, todayISO),
-    [balances, base, rates, settings, todayISO],
+    () => assetBreakdown(balances, base, rates ?? {}, settings, todayISO, currentValues),
+    [balances, base, rates, settings, todayISO, currentValues],
   )
 
   // Nhóm theo mục đích: bỏ nhóm ẩn / tài khoản ẩn, và nhóm rỗng

@@ -20,6 +20,7 @@ import { fetchRates } from '../../lib/rates'
 import { showToast } from '../../lib/dialog'
 import type { LifeScenarioRow } from '../../types/database.types'
 import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
+import { useAccountCurrentValuesState } from '../assets/useAccountCurrentValues'
 import { debtSummary } from '../debts/aggregate'
 import type { CurrencyOf } from '../reports/aggregate'
 import { suggestBaseline } from './baseline'
@@ -279,6 +280,10 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
   const { base: baseCurrency, rates, isSuccess: ratesOk } = useRates()
   const debtsQ = useDebts()
   const debtPaymentsQ = useDebtPayments(enabled)
+  // Giá trị hiện tại (giá từ sổ lệnh với tài khoản đầu tư) — cùng số với tab Tài sản, nên
+  // tài sản khởi điểm ở đây khớp tổng bên đó. Không gate theo `enabled`: TuongLaiPage đã
+  // gọi cùng hook này cho bản đồ khoản lớn, các truy vấn đã chạy sẵn.
+  const { values: currentValues, loading: currentValuesLoading } = useAccountCurrentValuesState()
 
   const settingsForBreakdown = useMemo<AssetGroupSetting[]>(
     () =>
@@ -291,8 +296,16 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     [groupSettingsQ.data],
   )
   const breakdown = useMemo(
-    () => assetBreakdown(balancesQ.data ?? [], baseCurrency, rates ?? {}, settingsForBreakdown, todayISO),
-    [balancesQ.data, baseCurrency, rates, settingsForBreakdown, todayISO],
+    () =>
+      assetBreakdown(
+        balancesQ.data ?? [],
+        baseCurrency,
+        rates ?? {},
+        settingsForBreakdown,
+        todayISO,
+        currentValues,
+      ),
+    [balancesQ.data, baseCurrency, rates, settingsForBreakdown, todayISO, currentValues],
   )
   const debtsAgg = useMemo(
     () => debtSummary(debtsQ.data ?? [], debtPaymentsQ.data ?? [], baseCurrency, rates ?? {}),
@@ -305,7 +318,8 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     !groupSettingsQ.isSuccess ||
     !ratesOk ||
     !debtsQ.isSuccess ||
-    !debtPaymentsQ.isSuccess
+    !debtPaymentsQ.isSuccess ||
+    currentValuesLoading
   // Đã tải xong NHƯNG thiếu tỷ giá cho một phần tài khoản/công nợ → tổng bị thiếu ÂM
   // THẦM (không phải bằng 0, mà là một số THẤP HƠN THẬT). Đây là ca `netWorthReliable`
   // ở AssetsPage.tsx tồn tại để bắt — không được lờ đi.

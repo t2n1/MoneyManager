@@ -116,6 +116,29 @@ describe('budget-over', () => {
   })
 })
 
+describe('trần ¥0 là trần THẬT, không phải "chưa đặt trần"', () => {
+  // Ca thật: con Thuốc đặt trần ¥0 (tháng này không mua), lỡ chi ¥460. Trang Ngân sách
+  // và Bản tin nói "vượt"; thông báo phải nói cùng một câu, không im.
+  it('chi vào trần ¥0 thì báo vượt, kèm đúng số đã chi', () => {
+    const out = budgetRules(
+      input({ budgetReport: report([line({ categoryId: 'c1', budgeted: 0, spent: 460 })]) }),
+    )
+    const hits = out.filter((n) => n.type === 'budget-over')
+    expect(hits).toHaveLength(1)
+    expect(hits[0].title).toBe('Ăn ngoài đã vượt ngân sách 460')
+  })
+
+  it('trần ¥0 chưa chi đồng nào thì im — kể cả khi tổng trần cũng là 0', () => {
+    const out = budgetRules(
+      input({
+        todayISO: '2026-07-25',
+        budgetReport: report([line({ categoryId: 'c1', budgeted: 0, spent: 0 })]),
+      }),
+    )
+    expect(out).toEqual([])
+  })
+})
+
 describe('budget-pace', () => {
   it('tiêu 71% khi mới qua 39% tháng thì báo', () => {
     const out = budgetRules(

@@ -8,6 +8,7 @@
 // việc của nó là chỉ ra chỗ kế hoạch không phủ nổi thực tế, xem `coverageGaps`.
 
 import type { PlannedExpenseRow, RecurringRuleRow } from '../../types/database.types'
+import { addDaysISO, dayMonthLabel, daysBetween } from '../../lib/dates'
 import { nthDueDate } from '../../lib/recurring'
 import type { CurrencyCode } from '../../lib/money'
 
@@ -21,8 +22,17 @@ export interface Commitment {
   amount: number
   /** số kỳ rơi vào tháng — khoản tuần có thể 4 hoặc 5 */
   times: number
-  /** kỳ đầu tiên rơi vào tháng */
+  /**
+   * Kỳ đầu tiên rơi vào tháng. Với `duePrecision = 'month'` đây là NGÀY 1 do quy ước lưu
+   * trữ, không phải hạn thật — đừng in nó ra, đừng so nó với hôm nay. Đi qua
+   * `isCommitmentOverdue` / `commitmentOverdueDays` / `commitmentDueLabel`.
+   */
   dueISO: string
+  /**
+   * 'day' = hạn đúng ngày `dueISO`; 'month' = khoản sắp chi mới biết THÁNG ("sửa nhà
+   * tháng 10"). Khoản định kỳ luôn là 'day'.
+   */
+  duePrecision: 'day' | 'month'
   /** khoản sắp chi ghi 0 = "chưa biết bao nhiêu", không phải miễn phí */
   unknownAmount: boolean
 }
@@ -101,6 +111,7 @@ export function collectCommitments(
       amount: one * dues.length,
       times: dues.length,
       dueISO: dues[0],
+      duePrecision: 'day',
       unknownAmount: false,
     })
   }
@@ -122,6 +133,7 @@ export function collectCommitments(
       amount: v,
       times: 1,
       dueISO: p.due_on,
+      duePrecision: p.due_precision === 'month' ? 'month' : 'day',
       unknownAmount: p.amount === 0,
     })
   }
@@ -170,6 +182,40 @@ export function spendableRemaining(
   return totalRemaining - committedRemaining
 }
 
+/**
+ * Ngày CUỐI CÙNG còn chưa trễ hạn: đúng `dueISO` với khoản có ngày, ngày cuối tháng
+ * dương lịch với khoản chỉ biết tháng — cùng cách `groupPlannedByMonth` gom theo tháng
+ * dương lịch ("tháng 10" trong đầu người ta không phải chu kỳ sổ sách).
+ */
+function deadlineISO(c: Pick<Commitment, 'dueISO' | 'duePrecision'>): string {
+  if (c.duePrecision !== 'month') return c.dueISO
+  const [y, m] = c.dueISO.split('-').map(Number)
+  const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
+  return addDaysISO(next, -1)
+}
+
+/** Đã trễ hạn chưa. Khoản chỉ biết tháng chỉ trễ khi CẢ THÁNG đó đã qua. */
+export function isCommitmentOverdue(
+  c: Pick<Commitment, 'dueISO' | 'duePrecision'>,
+  todayISO: string,
+): boolean {
+  return deadlineISO(c) < todayISO
+}
+
+/** Trễ bao nhiêu ngày (0 = chưa trễ), đếm từ hạn thật — cuối tháng với khoản chỉ biết tháng. */
+export function commitmentOverdueDays(
+  c: Pick<Commitment, 'dueISO' | 'duePrecision'>,
+  todayISO: string,
+): number {
+  return Math.max(0, daysBetween(deadlineISO(c), todayISO))
+}
+
+/** "9/15", hoặc "trong tháng 9" — in "9/1" cho khoản chỉ biết tháng là bịa độ chính xác. */
+export function commitmentDueLabel(c: Pick<Commitment, 'dueISO' | 'duePrecision'>): string {
+  if (c.duePrecision === 'month') return `trong tháng ${Number(c.dueISO.slice(5, 7))}`
+  return dayMonthLabel(c.dueISO)
+}
+
 /** Cam kết chưa ra, chia theo chỗ đứng của nó so với HÔM NAY. */
 export interface CommitmentSchedule {
   /** Tới hạn rồi mà chưa sinh giao dịch — hoặc quên trả, hoặc quên ghi. Cả hai đều cần biết. */
@@ -196,8 +242,8 @@ export function classifyCommitments(
   items: Commitment[],
   todayISO: string,
 ): CommitmentSchedule {
-  const overdue = items.filter((it) => it.dueISO < todayISO)
-  const upcoming = items.filter((it) => it.dueISO >= todayISO)
+  const overdue = items.filter((it) => isCommitmentOverdue(it, todayISO))
+  const upcoming = items.filter((it) => !isCommitmentOverdue(it, todayISO))
   const sum = (xs: Commitment[]) => xs.reduce((s, x) => s + x.amount, 0)
   return {
     overdue,

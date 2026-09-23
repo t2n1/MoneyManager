@@ -786,18 +786,24 @@ function daysUntil(fromISO, toISO) {
   const b = Date.parse(toISO + "T00:00:00Z");
   return Math.round((b - a) / 864e5);
 }
+function lastDayOfMonthISO(iso2) {
+  const [y, m] = iso2.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
 function plannedDue(rows, todayISO) {
   const out = [];
   for (const r of rows) {
     if (r.status !== "planned") continue;
     if (r.remind_days_before === null) continue;
-    const daysLeft = daysUntil(todayISO, r.due_on);
-    if (daysLeft > r.remind_days_before) continue;
+    if (daysUntil(todayISO, r.due_on) > r.remind_days_before) continue;
+    const month = r.due_precision === "month";
+    const daysLeft = daysUntil(todayISO, month ? lastDayOfMonthISO(r.due_on) : r.due_on);
     out.push({
       id: r.id,
       title: r.title,
       dueISO: r.due_on,
       daysLeft,
+      duePrecision: month ? "month" : "day",
       amount: r.amount,
       currency: r.currency
     });
@@ -818,7 +824,9 @@ function plannedRules(input) {
       type: "planned-due",
       // Quá hạn là mức đỏ — nổi lên cả dải nhắc ở đầu Sổ.
       severity: d.daysLeft < 0 ? "high" : d.daysLeft === 0 ? "medium" : "low",
-      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
+      // Khoản chỉ biết tháng: `dueISO` là ngày 1 do quy ước lưu, nói "N ngày nữa tới hạn"
+      // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
+      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.duePrecision === "month" ? `Trong th\xE1ng ${Number(d.dueISO.slice(5, 7))} c\u1EA7n chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
       detail: d.daysLeft < 0 ? `Qu\xE1 h\u1EA1n ${-d.daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.` : "B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa.",
       onISO: d.dueISO,
       to: "/planned"
@@ -842,7 +850,7 @@ function budgetRules(input) {
   const totalDays = daysBetween(range.start, range.end);
   const elapsedDays = daysBetween(range.start, input.todayISO);
   const elapsed = totalDays > 0 ? Math.min(1, Math.max(0, elapsedDays / totalDays)) : 0;
-  const realLines = report.lines.filter((l) => !l.isMarker && l.budgeted > 0);
+  const realLines = report.lines.filter((l) => !l.isMarker);
   const totalBudgeted = report.totalBudgeted;
   for (const l of realLines) {
     const children = input.categories.filter(
@@ -887,6 +895,7 @@ function budgetRules(input) {
       continue;
     }
     if (elapsed < PACE_MIN_ELAPSED) continue;
+    if (l.budgeted <= 0) continue;
     if (totalBudgeted > 0 && l.budgeted / totalBudgeted < PACE_MIN_SHARE) continue;
     const spentRatio = l.spent / l.budgeted;
     if (spentRatio - elapsed <= PACE_GAP) continue;
@@ -2161,6 +2170,9 @@ function statusOf(ratio) {
   if (ratio >= 0.8) return "warn";
   return "ok";
 }
+function budgetRatio(spent, budgeted) {
+  return budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0;
+}
 function isTrackingMarker(categoryId, parentOf, budgetedIds) {
   const parent = parentOf(categoryId);
   return parent != null && budgetedIds.has(parent);
@@ -2195,7 +2207,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0;
     const budgeted = b.amount + carried;
     const spent = isMarker ? spentByCat.get(b.category_id) ?? 0 : groupSpent(b.category_id);
-    const ratio = budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0;
+    const ratio = budgetRatio(spent, budgeted);
     const status = statusOf(ratio);
     if (!isMarker) {
       if (status === "over") overCount++;
@@ -2206,7 +2218,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
     lines2.push({ categoryId: b.category_id, budgeted, carried, spent, ratio, status, isMarker });
   }
   lines2.sort((a, b) => b.ratio - a.ratio);
-  const totalRatio = totalBudgeted > 0 ? totalSpent / totalBudgeted : 0;
+  const totalRatio = budgetRatio(totalSpent, totalBudgeted);
   const totalStatus = statusOf(totalRatio);
   return {
     lines: lines2,

@@ -16,6 +16,18 @@ export function statusOf(ratio: number): BudgetStatus {
 }
 
 /**
+ * Tỷ lệ đã chi / trần — MỘT luật cho mọi chỗ có dòng ngân sách thật.
+ *
+ * Trần ¥0 là trần THẬT ("tháng này không tiêu ở đây"), không phải "chưa đặt trần": chi
+ * một đồng là vượt. Quy về 1 chứ không Infinity vì nhiều chỗ in `Math.round(ratio*100)%`.
+ * "Chưa đặt trần" là KHÔNG CÓ dòng ngân sách — nơi gọi phải phân biệt bằng sự có mặt
+ * của dòng, không bằng `budgeted === 0`.
+ */
+export function budgetRatio(spent: number, budgeted: number): number {
+  return budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0
+}
+
+/**
  * Hạn mức của `categoryId` chỉ là MỐC THEO DÕI khi danh mục CHA của nó cũng có hạn
  * mức: lúc đó trần thật nằm ở cha, nên dòng con không được cộng vào tổng.
  *
@@ -132,7 +144,7 @@ export function buildBudgetReport(
     // Quy về 1 chứ KHÔNG phải Infinity: bốn chỗ in `Math.round(ratio * 100)%` (BudgetView
     // ×2, BudgetPanel, DayTagStrip) sẽ ra "Infinity%". Con số thật của dòng nằm ở "vượt ¥X"
     // lấy từ `spent − budgeted`, không lấy từ tỷ lệ.
-    const ratio = budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0
+    const ratio = budgetRatio(spent, budgeted)
     const status = statusOf(ratio)
     if (!isMarker) {
       if (status === 'over') overCount++
@@ -144,7 +156,9 @@ export function buildBudgetReport(
   }
   lines.sort((a, b) => b.ratio - a.ratio)
 
-  const totalRatio = totalBudgeted > 0 ? totalSpent / totalBudgeted : 0
+  // Không có dòng nào thì totalSpent = 0 nên vẫn ra 0; có dòng mà tổng trần ¥0 thì cùng
+  // luật với từng dòng.
+  const totalRatio = budgetRatio(totalSpent, totalBudgeted)
   const totalStatus = statusOf(totalRatio)
   return {
     lines,

@@ -774,7 +774,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     const laNhom = categories.some(
                       (k) => k.parent_id === g.categoryId && !k.is_archived,
                     )
-                    const chuaCoTran = g.budgeted === 0
+                    // "Chưa có hạn mức" = không có dòng ngân sách, KHÔNG phải trần ¥0: trần
+                    // ¥0 là trần thật, câu đúng cho nó là "hạn mức ¥0 chưa đủ".
+                    const chuaCoTran = !data.budgetedByCat.has(g.categoryId)
                     return (
                       <DecisionRow
                         key={`gap-${g.categoryId}`}

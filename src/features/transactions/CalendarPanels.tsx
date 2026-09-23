@@ -398,7 +398,10 @@ export function UpcomingBlock({
   const [open, setOpen] = useState(false)
   const rows = [
     ...schedule.overdue.map((c) => row(c, 'overdue')),
-    ...schedule.upcoming.map((c) => row(c, 'upcoming')),
+    // Khoản chỉ biết THÁNG đứng đầu phần còn phải trả, không lẫn vào dòng ngày: nó không
+    // có ngày nào, và lưới lịch cũng không đặt nó vào ô nào (xem `useCalendarMarks`).
+    ...schedule.upcoming.filter((c) => c.duePrecision === 'month').map((c) => row(c, 'upcoming')),
+    ...schedule.upcoming.filter((c) => c.duePrecision !== 'month').map((c) => row(c, 'upcoming')),
     ...cardDues.map(
       (d): Row => ({
         key: `card:${d.iso}:${d.title}`,
@@ -497,6 +500,8 @@ export function UpcomingBlock({
 interface Row {
   key: string
   dayISO: string
+  /** Chỉ biết tháng — ô bên trái in "T9" thay vì một ngày không có thật. */
+  monthOnly?: boolean
   title: string
   amount: number
   unknownAmount: boolean
@@ -507,10 +512,18 @@ interface Row {
 const row = (c: Commitment, when: 'overdue' | 'upcoming'): Row => ({
   key: c.key,
   dayISO: c.dueISO,
+  monthOnly: c.duePrecision === 'month',
   title: c.times > 1 ? `${c.title} ×${c.times}` : c.title,
   amount: c.amount,
   unknownAmount: c.unknownAmount,
-  chip: when === 'overdue' ? 'quá hạn' : c.kind === 'recurring' ? 'định kỳ' : 'sắp chi',
+  chip:
+    when === 'overdue'
+      ? 'quá hạn'
+      : c.duePrecision === 'month'
+        ? 'trong tháng'
+        : c.kind === 'recurring'
+          ? 'định kỳ'
+          : 'sắp chi',
   tone: when === 'overdue' ? 'warn' : 'info',
 })
 
@@ -519,9 +532,19 @@ function RowList({ rows, base }: { rows: Row[]; base: CurrencyCode }) {
     <ul className="flex flex-col gap-2">
       {rows.map((r) => (
         <li key={r.key} className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted">
-            {Number(r.dayISO.slice(8, 10))}
-          </span>
+          {r.monthOnly ? (
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted"
+              title={`Trong tháng ${Number(r.dayISO.slice(5, 7))}, chưa chốt ngày`}
+              aria-label={`trong tháng ${Number(r.dayISO.slice(5, 7))}`}
+            >
+              T{Number(r.dayISO.slice(5, 7))}
+            </span>
+          ) : (
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted">
+              {Number(r.dayISO.slice(8, 10))}
+            </span>
+          )}
           <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
             {r.title}
           </span>

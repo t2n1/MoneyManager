@@ -386,7 +386,12 @@ export function budgetCellLabel(row: Pick<MonthTableRow, 'budgeted' | 'thisMonth
   tone: 'over' | 'warn' | 'ok' | 'muted'
 } {
   if (row.fixed) return { text: 'cố định', tone: 'muted' }
-  if (row.budgeted === null || row.budgeted <= 0) return { text: '—', tone: 'muted' }
+  // null = chưa đặt trần. Trần ¥0 là trần THẬT (`budgetRatio`): chi một đồng là vượt, và
+  // "%" của nó vô nghĩa nên in thẳng chữ.
+  if (row.budgeted === null) return { text: '—', tone: 'muted' }
+  if (row.budgeted <= 0) {
+    return row.thisMonth > 0 ? { text: 'vượt', tone: 'over' } : { text: '0%', tone: 'ok' }
+  }
   const ratio = row.thisMonth / row.budgeted
   const pct = Math.round(ratio * 100)
   if (pct === 100) return { text: 'vừa hết', tone: 'warn' }

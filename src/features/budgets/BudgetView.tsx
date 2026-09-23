@@ -10,7 +10,7 @@ import {
   useRates,
   useUpsertBudget,
 } from '../../hooks/queries'
-import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
+import { monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { planAutoBudget } from './autoBudget'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -42,7 +42,14 @@ import {
   spentOf,
   type BudgetSortMode,
 } from './budgetSort'
-import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
+import {
+  classifyCommitments,
+  commitmentDueLabel,
+  commitmentOverdueDays,
+  coverageGaps,
+  isCommitmentOverdue,
+  spendableRemaining,
+} from './commitments'
 import { dailyAllowance } from './dailyAllowance'
 import { nenHoiLai } from './rebalance'
 import { useRebalance } from './useRebalance'
@@ -138,7 +145,8 @@ function RestCell({
   base,
   onSunken = false,
 }: {
-  budgeted: number
+  /** null = CHƯA ĐẶT TRẦN (không có dòng ngân sách). ¥0 là trần thật, không phải null. */
+  budgeted: number | null
   spent: number
   status: BudgetStatus
   base: Parameters<typeof Money>[0]['currency']
@@ -149,13 +157,23 @@ function RestCell({
   // 1,25×) thì ô nở ra thay vì tràn lên thanh bên cạnh. Đo ở 375px: `w-28` cứng làm tên
   // danh mục chỉ còn 7 chữ ("Ăn uốn…").
   const box = 'min-w-24 shrink-0 whitespace-nowrap text-right text-sm'
-  if (budgeted <= 0) {
-    // Nhóm tổng-con mà con chưa đặt gì, hoặc trần ¥0: không có "còn" để nói. Hiện số đã
-    // chi để dòng không trống, và gọi thẳng tên tình trạng.
+  const muted = onSunken ? '!text-fg-on-track' : '!text-fg-muted'
+  if (budgeted === null) {
+    // Không có "còn" để nói. Hiện số đã chi để dòng không trống, và gọi thẳng tên tình trạng.
     return (
       <span className={box}>
-        <Money amount={spent} currency={base} className={onSunken ? '!text-fg-on-track' : '!text-fg-muted'} />
+        <Money amount={spent} currency={base} className={muted} />
         <span className={`ml-1 ${label}`}>chưa trần</span>
+      </span>
+    )
+  }
+  // Trần ¥0 chưa chi: đúng như đã hứa. "vừa hết hạn mức" ở đây là sai nghĩa — chưa tiêu gì.
+  // Chi rồi thì đi tiếp xuống dưới và thành "vượt ¥X" (trần ¥0 là trần thật, `budgetRatio`).
+  if (budgeted <= 0 && spent <= 0) {
+    return (
+      <span className={box}>
+        <span className={label}>trần </span>
+        <Money amount={0} currency={base} className={muted} />
       </span>
     )
   }
@@ -1119,11 +1137,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           {deNghi.from ? (
             <>
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
-                vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
+                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
                 <Money amount={deNghi.amount} currency={base} /> từ{' '}
-                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này dự
-                báo còn dư <Money amount={deNghi.from.surplus} currency={base} />.
+                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này, kể
+                cả khoản còn phải trả, vẫn dư <Money amount={deNghi.from.surplus} currency={base} />.
               </p>
               <Guide className="mt-1 text-sm text-fg-muted">
                 Tổng ngân sách tháng không đổi: trừ bên này bao nhiêu, cộng bên kia bấy
@@ -1145,8 +1163,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   trước đây không bao giờ nói. Im ở đây là để người dùng tự phát hiện vào
                   ngày cuối tháng. */}
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
-                vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
+                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
                 <strong className="font-semibold">không mục nào còn dư để lấy</strong> —
                 tổng tháng này sẽ vượt.
               </p>
@@ -1187,8 +1205,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 quên trả — cả hai đều cần biết. */}
             {[...schedule.overdue, ...schedule.upcoming].map((it) => {
               const c = it.categoryId ? catOf(it.categoryId) : null
-              const quaHan = it.dueISO < todayISO
-              const soNgay = quaHan ? daysBetween(it.dueISO, todayISO) : 0
+              // Khoản sắp chi chỉ biết tháng lưu hạn là ngày 1 — so thẳng dueISO là báo
+              // "quá hạn 22 ngày" cho khoản người dùng chỉ ghi "trong tháng 9".
+              const quaHan = isCommitmentOverdue(it, todayISO)
+              const soNgay = commitmentOverdueDays(it, todayISO)
               return (
                 <li key={it.key} className="py-1.5">
                   <div className="flex items-center justify-between gap-2 text-sm">
@@ -1214,8 +1234,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     {it.times > 1 && ` ×${it.times}`}
                     {' · '}
                     {quaHan
-                      ? `tới hạn ${dayMonthLabel(it.dueISO)} — quá hạn ${soNgay} ngày, chưa ghi`
-                      : dayMonthLabel(it.dueISO)}
+                      ? `${it.duePrecision === 'month' ? 'hạn' : 'tới hạn'} ${commitmentDueLabel(it)} — quá hạn ${soNgay} ngày, chưa ghi`
+                      : commitmentDueLabel(it)}
                     {c ? ` → ${c.name}` : ' · chưa gắn danh mục'}
                   </p>
                 </li>

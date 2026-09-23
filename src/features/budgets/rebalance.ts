@@ -41,6 +41,37 @@ export interface RebalanceInput {
   lines: RebalanceLine[]
   daysElapsed: number
   daysInMonth: number
+  /**
+   * Cam kết CHƯA RA theo danh mục — đúng `CommitmentReport.byCategory`, cùng nguồn với
+   * khối "Còn phải trả". Thiếu nó thì dự báo chỉ nhìn số đã chi: nhóm còn ¥20.000 tiền
+   * nhà chưa tới ngày trả vẫn bị coi là "dư", và app đề nghị rút đúng tiền đã hứa.
+   */
+  committedByCat?: Map<string, number>
+  /** Để cam kết ghi ở con leo lên dòng trần của nhóm cha (cùng luật `coverageGaps`). */
+  parentOf?: (categoryId: string) => string | null
+}
+
+/**
+ * Gộp cam kết về DÒNG TRẦN mang nó: đúng danh mục nếu nó có dòng, không thì nhóm cha.
+ * Cam kết không rơi vào dòng nào (danh mục chưa đặt trần) thì không thuộc về ai ở đây.
+ */
+function committedPerLine(
+  lineIds: Set<string>,
+  byCat: Map<string, number> | undefined,
+  parentOf: (categoryId: string) => string | null,
+): Map<string, number> {
+  const out = new Map<string, number>()
+  if (!byCat) return out
+  for (const [categoryId, amount] of byCat) {
+    const parent = parentOf(categoryId)
+    const root = lineIds.has(categoryId)
+      ? categoryId
+      : parent !== null && lineIds.has(parent)
+        ? parent
+        : null
+    if (root !== null) out.set(root, (out.get(root) ?? 0) + amount)
+  }
+  return out
 }
 
 export interface RebalanceProposal {
@@ -86,10 +117,21 @@ export function nenHoiLai(deficitNow: number, deficitLucTuChoi: number | null): 
  *  · mục cho đo bằng `budgeted − high` — chỉ coi là dư phần mà kể cả trường hợp xấu nó
  *    vẫn không cần.
  * Lấy cùng một cận cho cả hai thì sẽ có lúc rút của một mục rồi chính mục đó vượt.
+ *
+ * Cả hai vế còn có một SÀN: đã chi + cam kết chưa ra. Dự báo chỉ nội suy từ số đã chi,
+ * nên khoản cố định chưa tới ngày trả không có mặt trong nó (xem `forecastMonthEnd`).
+ * Lấy max chứ không cộng: cam kết ở danh mục biến đổi có thể đã nằm sẵn trong phần nội
+ * suy, cộng thêm là đếm hai lần.
  */
 export function planRebalance(input: RebalanceInput): RebalanceProposal | null {
   const { lines, daysElapsed, daysInMonth } = input
   if (daysElapsed < MIN_DAY) return null
+
+  const committed = committedPerLine(
+    new Set(lines.map((l) => l.categoryId)),
+    input.committedByCat,
+    input.parentOf ?? (() => null),
+  )
 
   let worst: { line: RebalanceLine; deficit: number } | null = null
   const donors: { line: RebalanceLine; surplus: number }[] = []
@@ -104,13 +146,14 @@ export function planRebalance(input: RebalanceInput): RebalanceProposal | null {
     )
     if (!f) continue
 
-    const deficit = f.projected - l.budgeted
+    const floor = l.spent + (committed.get(l.categoryId) ?? 0)
+    const deficit = Math.max(f.projected, floor) - l.budgeted
     if (deficit >= MIN_DEFICIT && deficit >= l.budgeted * MIN_DEFICIT_RATIO) {
       if (!worst || deficit > worst.deficit) worst = { line: l, deficit }
     }
     // Không rút quá `amount` gốc: phần dồn làm `budgeted` trông dư nhiều, nhưng tiền
     // của tháng này chỉ có chừng đó.
-    const surplus = Math.min(l.budgeted - f.high, l.amount)
+    const surplus = Math.min(l.budgeted - Math.max(f.high, floor), l.amount)
     if (surplus > 0) donors.push({ line: l, surplus })
   }
 

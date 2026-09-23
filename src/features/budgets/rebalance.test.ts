@@ -164,6 +164,77 @@ describe('planRebalance', () => {
     expect(nhapNho!.amount).toBeLessThan(deu!.amount)
   })
 
+  it('mục còn cam kết chưa trả không được làm mục cho, dù số đã chi trông còn dư', () => {
+    // Ca thật: Nhà ở trần ¥100.000, đã chi ¥99.318 (toàn khoản cố định) → dự báo chỉ dựa
+    // trên số đã chi nên thấy "dư ¥682" và đề nghị lấy ¥500. Nhưng khối "Còn phải trả"
+    // ngay bên dưới nói nhóm này còn ¥20.000 tiền nhà chưa ra. Rút ¥500 là rút tiền đã hứa.
+    const lines = [
+      line({ categoryId: 'com-ngoai', amount: 60_000, spent: 40_000 }),
+      line({ categoryId: 'nha-o', amount: 100_000, spent: 99_318, fixedSpent: 99_318 }),
+    ]
+    const khongCamKet = planRebalance({ ...GIUA_THANG, lines })
+    expect(khongCamKet?.from?.categoryId).toBe('nha-o')
+    expect(khongCamKet?.amount).toBe(500)
+
+    const coCamKet = planRebalance({
+      ...GIUA_THANG,
+      lines,
+      committedByCat: new Map([['nha-o', 20_000]]),
+    })
+    expect(coCamKet?.to.categoryId).toBe('com-ngoai')
+    expect(coCamKet?.from).toBeNull()
+    expect(coCamKet?.amount).toBe(0)
+  })
+
+  it('dư khả dụng của mục cho trừ cả cam kết chưa trả', () => {
+    // Giải trí trần ¥30.000, đã chi ¥5.000 (dự báo ¥10.000), còn ¥15.000 vé đã đặt
+    // chưa trả → cần ít nhất ¥20.000, chỉ dư ¥10.000 chứ không phải ¥20.000.
+    const p = planRebalance({
+      ...GIUA_THANG,
+      lines: [
+        line({ categoryId: 'com-ngoai', amount: 60_000, spent: 40_000 }),
+        line({ categoryId: 'giai-tri', amount: 30_000, spent: 5_000 }),
+      ],
+      committedByCat: new Map([['giai-tri', 15_000]]),
+    })
+    expect(p?.from?.categoryId).toBe('giai-tri')
+    expect(p?.from?.surplus).toBe(10_000)
+    expect(p?.amount).toBe(10_000)
+  })
+
+  it('mục nhận: cam kết chưa trả tính vào nhu cầu dù tốc độ chi chưa vượt', () => {
+    // Nhà ở trần ¥100.000, mới chi ¥30.000 điện nước (biến đổi, dự báo ¥60.000 — chưa
+    // vượt) nhưng còn ¥85.000 cam kết chưa tới ngày trả → cần ít nhất ¥115.000, thiếu
+    // ¥15.000. Nhìn tốc độ chi thôi thì mục này còn bị coi là mục CHO.
+    const p = planRebalance({
+      ...GIUA_THANG,
+      lines: [
+        line({ categoryId: 'nha-o', amount: 100_000, spent: 30_000 }),
+        line({ categoryId: 'giai-tri', amount: 50_000, spent: 5_000 }),
+      ],
+      committedByCat: new Map([['nha-o', 85_000]]),
+    })
+    expect(p?.to.categoryId).toBe('nha-o')
+    expect(p?.to.deficit).toBe(15_000)
+    expect(p?.from?.categoryId).toBe('giai-tri')
+    expect(p?.amount).toBe(15_000)
+  })
+
+  it('cam kết ghi ở danh mục con leo lên dòng trần của nhóm cha', () => {
+    // Trần đặt ở nhóm Nhà ở, khoản tiền nhà chưa trả gắn ở con Tiền nhà — cùng luật
+    // với `coverageGaps` của khối "Còn phải trả".
+    const p = planRebalance({
+      ...GIUA_THANG,
+      lines: [
+        line({ categoryId: 'com-ngoai', amount: 60_000, spent: 40_000 }),
+        line({ categoryId: 'nha-o', amount: 100_000, spent: 99_318, fixedSpent: 99_318 }),
+      ],
+      committedByCat: new Map([['tien-nha', 20_000]]),
+      parentOf: (id) => (id === 'tien-nha' ? 'nha-o' : null),
+    })
+    expect(p?.from).toBeNull()
+  })
+
   it('không có dòng nào thì trả null, không nổ', () => {
     expect(planRebalance({ ...GIUA_THANG, lines: [] })).toBeNull()
   })

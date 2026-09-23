@@ -20,12 +20,16 @@ export function plannedRules(input: NotificationInput): AppNotification[] {
       type: 'planned-due',
       // Quá hạn là mức đỏ — nổi lên cả dải nhắc ở đầu Sổ.
       severity: d.daysLeft < 0 ? 'high' : d.daysLeft === 0 ? 'medium' : 'low',
+      // Khoản chỉ biết tháng: `dueISO` là ngày 1 do quy ước lưu, nói "N ngày nữa tới hạn"
+      // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
       title:
         d.daysLeft < 0
           ? `Chưa chi "${d.title}"${money}`
-          : d.daysLeft === 0
-            ? `Hôm nay tới hạn "${d.title}"${money}`
-            : `${d.daysLeft} ngày nữa tới hạn "${d.title}"${money}`,
+          : d.duePrecision === 'month'
+            ? `Trong tháng ${Number(d.dueISO.slice(5, 7))} cần chi "${d.title}"${money}`
+            : d.daysLeft === 0
+              ? `Hôm nay tới hạn "${d.title}"${money}`
+              : `${d.daysLeft} ngày nữa tới hạn "${d.title}"${money}`,
       detail:
         d.daysLeft < 0
           ? `Quá hạn ${-d.daysLeft} ngày. Bấm để ghi khoản này.`

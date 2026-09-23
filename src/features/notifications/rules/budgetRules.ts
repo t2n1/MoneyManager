@@ -38,7 +38,10 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
   const elapsedDays = daysBetween(range.start, input.todayISO)
   const elapsed = totalDays > 0 ? Math.min(1, Math.max(0, elapsedDays / totalDays)) : 0
 
-  const realLines = report.lines.filter((l) => !l.isMarker && l.budgeted > 0)
+  // Mọi dòng CÓ trong báo cáo đều là trần thật, kể cả trần ¥0 ("tháng này không tiêu ở
+  // đây") — chi vào đó là vượt, cùng câu với trang Ngân sách và Bản tin. "Chưa đặt trần"
+  // là không có dòng, nên nó vốn không vào đây.
+  const realLines = report.lines.filter((l) => !l.isMarker)
   // Mẫu số của luật nhịp lấy THẲNG từ báo cáo, không tự cộng lại: report.totalBudgeted
   // (progress.ts) cộng đúng cùng tập dòng này, nên tự cộng chỉ tạo thêm một chỗ có thể
   // trôi lệch khỏi con số mà trang Ngân sách đang hiện.
@@ -110,6 +113,9 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
 
     // --- Mục 6: tiêu nhanh hơn nhịp ---
     if (elapsed < PACE_MIN_ELAPSED) continue
+    // Trần ¥0 chưa chi: không có "nhịp" nào để lệch (chia cho 0). Chi rồi thì đã rơi
+    // vào nhánh vượt ở trên.
+    if (l.budgeted <= 0) continue
     if (totalBudgeted > 0 && l.budgeted / totalBudgeted < PACE_MIN_SHARE) continue
     const spentRatio = l.spent / l.budgeted
     if (spentRatio - elapsed <= PACE_GAP) continue

@@ -146,9 +146,16 @@ function LegacyDebtRedirect() {
  * `<Navigate to="/settings/categories">` trơn sẽ nuốt mất `?todo=1` và `?ids=a,b` — mà
  * đúng hai tham số đó là thứ làm nút "Phân loại 3 danh mục này" ở mặt lập kế hoạch mở ra
  * ba dòng chứ không phải cả sổ.
+ *
+ * Link TRẦN (không todo, không ids) thì thêm `todo=1`: người bấm "Phân loại nhanh" muốn
+ * vào chế độ phân loại, không phải danh sách danh mục thường. Trang đích chỉ bật chế độ
+ * đó khi có một trong hai tham số, nên sửa ở đây là đủ cho mọi link cũ.
  */
 function ClassifyRedirect() {
-  const { search } = useLocation()
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  if (!params.has('todo') && !params.has('ids')) params.set('todo', '1')
+  const search = `?${params.toString()}`
   // Đích viết thành hằng rồi ghép bằng OBJECT `{ pathname, search }`, không nội suy vào
   // chuỗi: routeLinks.test.ts đọc đường dẫn viết cứng để canh mọi link trỏ vào route
   // thật, mà một segment có `${...}` thì nó phải coi là không khớp (đó là cái bẫy

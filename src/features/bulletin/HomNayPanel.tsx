@@ -24,6 +24,7 @@ import { ConclusionLine } from '../../components/VerdictNote'
 import type { Headline } from '../reports/headline'
 import { KE_CA_HOM_NAY, dayMonthLabel, dueDateLabel } from '../../lib/dates'
 import type { ToiNgayLuong } from './bulletin'
+import { budgetRatio } from '../budgets/progress'
 import type { CurrencyCode } from '../../lib/money'
 
 interface Props {
@@ -113,7 +114,8 @@ export function HomNayPanel({
   // ngay, không cần nhẩm hai phân số. Hình là bằng chứng, con số thật đứng cạnh từng
   // thanh nên cả hàng không cần vai trò ảnh.
   const timePct = tongNgay > 0 ? Math.min((ngayDaQua / tongNgay) * 100, 100) : 0
-  const spentPct = hanMuc > 0 ? Math.min((daTieu / hanMuc) * 100, 100) : 0
+  // `budgetRatio`: trần ¥0 mà đã chi là thanh đầy (vượt), không chia cho 0.
+  const spentPct = Math.min(budgetRatio(daTieu, hanMuc) * 100, 100)
   const spentBar = conLai < 0 ? 'bg-money-out' : hutTruocLuong ? 'bg-fg-warn' : 'bg-money-in'
   const bars = !chuaDatHanMuc && (
     <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 font-mono text-2xs text-fg-muted">
@@ -199,7 +201,15 @@ export function HomNayPanel({
         // đầu câu đọc như vẫn ổn.
         <>
           <p className="mt-2.5 text-sm text-fg-secondary">
-            {camKet > 0 ? (
+            {hanMuc <= 0 ? (
+              // Trần ¥0 chưa chi (chi rồi thì đã rơi vào nhánh "vượt" ở trên). "Hạn mức còn
+              // ¥0" đọc như vừa tiêu hết — sai: chưa tiêu gì, đúng như đã hứa.
+              <>
+                Trần kỳ này là {so(0)} và chưa chi đồng nào — còn{' '}
+                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}{' '}
+                tới {moc}.
+              </>
+            ) : camKet > 0 ? (
               <>
                 Hạn mức còn {so(conLai)} tới {moc} nhưng {so(camKet, 'warn')} đã cam kết — còn{' '}
                 <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}.

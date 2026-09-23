@@ -28,6 +28,26 @@ export function budgetRatio(spent: number, budgeted: number): number {
 }
 
 /**
+ * Tình trạng TỔNG TRẦN của một báo cáo — cùng luật với `budgetRatio`, cho các thẻ tổng.
+ *
+ *  · 'unset' — không có dòng ngân sách nào (tính-vào-tổng): chưa đặt trần, mời đặt.
+ *  · 'zero'  — có dòng mà tổng trần = ¥0: trần THẬT. Chi rồi là vượt; chưa chi thì in
+ *              "trần ¥0", không chia cho 0 ra ¥/ngày.
+ *  · 'set'   — tổng trần > 0.
+ *
+ * Mọi thẻ tổng đọc hàm này thay vì so `totalBudgeted` với 0 — so như thế là gộp hai ca
+ * đầu làm một, và người đặt trần ¥0 rồi lỡ chi được mời "đặt hạn mức" thay vì thấy vượt.
+ */
+export type TotalCap = 'unset' | 'zero' | 'set'
+
+export function totalCapOf(
+  report: Pick<BudgetReport, 'lines' | 'totalBudgeted'> | undefined | null,
+): TotalCap {
+  if (!report || !report.lines.some((l) => !l.isMarker)) return 'unset'
+  return report.totalBudgeted > 0 ? 'set' : 'zero'
+}
+
+/**
  * Hạn mức của `categoryId` chỉ là MỐC THEO DÕI khi danh mục CHA của nó cũng có hạn
  * mức: lúc đó trần thật nằm ở cha, nên dòng con không được cộng vào tổng.
  *

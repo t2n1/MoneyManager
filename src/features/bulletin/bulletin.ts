@@ -205,6 +205,12 @@ export interface ToiNgayLuongInput {
    * "Còn phải trả" của trang Ngân sách. Không truyền = 0 (tương thích ngược).
    */
   camKet?: number
+  /**
+   * Kỳ có ít nhất một dòng ngân sách không (`totalCapOf(report) !== 'unset'`). "Chưa đặt"
+   * là KHÔNG CÓ dòng nào, không phải `hanMuc = 0`: trần ¥0 là trần thật, chi một đồng là
+   * vượt. Không truyền = suy từ `hanMuc > 0` (tương thích ngược, gộp hai ca làm một).
+   */
+  coDongHanMuc?: boolean
 }
 
 /**
@@ -214,6 +220,7 @@ export interface ToiNgayLuongInput {
  */
 export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
   const { todayISO, kyBatDauISO, ngayLuongISO, hanMuc, daTieu, camKet = 0 } = input
+  const coDongHanMuc = input.coDongHanMuc ?? hanMuc > 0
   const soNgay = daysBetween(todayISO, ngayLuongISO)
   const daQua = daysBetween(kyBatDauISO, todayISO)
   // Ngoài kỳ, hoặc mốc ngược đời.
@@ -251,6 +258,6 @@ export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
     canTruocLuong,
     ngayDaQua: daQua + 1,
     tongNgay: daQua + soNgay,
-    chuaDatHanMuc: hanMuc <= 0,
+    chuaDatHanMuc: !coDongHanMuc,
   }
 }

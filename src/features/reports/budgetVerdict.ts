@@ -29,7 +29,11 @@ export type BudgetVerdict =
 export function pickBudgetVerdict(pace: MonthPace): BudgetVerdict | null {
   const { hasSpend, forecast, budgetForecast, totalBudgeted, budgetedCount } = pace
   if (!hasSpend || !forecast) return null
-  if (totalBudgeted === 0) return { kind: 'unset' }
+  // "Chưa đặt" = KHÔNG CÓ dòng ngân sách nào (`budgetedCount` đếm dòng tính-vào-tổng),
+  // không phải tổng trần = 0. Trần ¥0 là trần thật: đi tiếp xuống phép so bên dưới, nên
+  // chi một đồng trong phạm vi là 'over' (cận dưới ≥ đã chi > 0), chưa chi là 'under'.
+  // Không có phép chia nào ở đây nên ¥0 không sinh NaN.
+  if (budgetedCount === 0) return { kind: 'unset' }
   if (!budgetForecast) return null
 
   // So cận DƯỚI: chỉ nói "sẽ vượt" khi ngay cả kịch bản chi ít nhất cũng vượt. Nói chắc

@@ -60,7 +60,7 @@ import { nenHoiLai } from './rebalance'
 import { useRebalance } from './useRebalance'
 import { useCommitments } from './useCommitments'
 import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
-import type { BudgetStatus } from './progress'
+import { budgetRatio, totalCapOf, type BudgetStatus } from './progress'
 import type { CategoryRow } from '../../types/database.types'
 import {
   BudgetVerdictLine,
@@ -511,8 +511,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     // Nói con số MỚI cạnh con số CŨ: một mình "Tổng ¥432,000" không cho biết đây là tăng
     // hay giảm, mà đó đúng là điều người dùng đang cân nhắc khi ngón tay ở trên nút.
     const currentTotal = report?.totalBudgeted ?? 0
+    // "đang là ¥0" vẫn phải nói khi đã có dòng trần ¥0 — đó là một tổng thật.
     const head =
-      currentTotal > 0
+      totalCapOf(report) !== 'unset'
         ? `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)} — đang là ${formatMoney(currentTotal, base)}.`
         : `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)}.`
     const ok = await confirmDialog({
@@ -556,7 +557,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     return <EmptyState>Đang tải…</EmptyState>
   }
 
-  const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
+  // "Chưa đặt" = không có dòng ngân sách; tổng trần ¥0 là trần thật (`totalCapOf`). Tỷ lệ
+  // đi qua `budgetRatio` để ¥0 mà đã chi là thanh đầy đỏ, không chia cho 0.
+  const totalCap = totalCapOf(report)
+  const totalPct = budgetRatio(report.totalSpent, report.totalBudgeted) * 100
   const totalRemaining = restOf(report.totalBudgeted, report.totalSpent)
 
   // B36 · "Tiêu ¥X/ngày" KHÔNG được chia cả tiền đã hứa cho người khác.
@@ -1001,9 +1005,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             (12px), tức con số nhỏ nhất màn hình lại là câu trả lời duy nhất người ta mở
             màn Ngân sách để hỏi, còn số to nhất chỉ kể chuyện đã rồi. Đo trên demo:
             18px/700 so với 12px/600.
-            Khi CHƯA đặt hạn mức (totalBudgeted = 0) thì không có "còn lại" nào để nói,
-            lúc đó số đã chi mới là số chính — giữ nguyên như cũ. */}
-        {report.totalBudgeted > 0 ? (
+            Khi CHƯA đặt hạn mức (không có dòng ngân sách nào) thì không có "còn lại" nào
+            để nói, lúc đó số đã chi mới là số chính — giữ nguyên như cũ. Tổng trần ¥0
+            KHÔNG phải ca đó: nó đi nhánh này, chi rồi là "đã vượt". */}
+        {totalCap !== 'unset' ? (
           <>
             <div className="flex items-baseline gap-2">
               <span
@@ -1014,7 +1019,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 {formatMoney(Math.abs(totalRemaining), base)}
               </span>
               <span className="text-sm text-fg-secondary">
-                {totalRemaining > 0 ? 'còn lại' : totalRemaining === 0 ? 'vừa đủ' : 'đã vượt'}
+                {totalRemaining > 0
+                  ? 'còn lại'
+                  : totalRemaining < 0
+                    ? 'đã vượt'
+                    : totalCap === 'zero'
+                      ? // Trần ¥0 chưa chi: "vừa đủ" là sai nghĩa — chưa tiêu gì cả.
+                        'trần tháng này · chưa chi đồng nào'
+                      : 'vừa đủ'}
               </span>
             </div>
             <p className="mt-1.5 text-sm text-fg-secondary">

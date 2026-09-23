@@ -32,7 +32,9 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
   // Có hạn mức → biểu đồ và câu kết luận đều chỉ tính phạm vi đã đặt hạn mức.
   // Lấy TOÀN BỘ chi đem so với hạn mức của vài mục là so lệch phạm vi: ai mới đặt
   // vài hạn mức cũng thấy "vượt" khổng lồ, và thôi tin cả thẻ.
-  const scoped = totalBudgeted > 0 && budgetDaily !== null
+  // "Có hạn mức" = có dòng ngân sách (`budgetedCount`), không phải tổng trần > 0: trần ¥0
+  // là trần thật, và biểu đồ của nó vẫn phải chỉ vẽ phạm vi đã đặt.
+  const scoped = budgetedCount > 0 && budgetDaily !== null
   return (
     <div className="flex flex-col gap-2">
       <SpendVsBudgetCard

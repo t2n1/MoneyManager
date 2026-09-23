@@ -23,6 +23,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import type { Commitment, CommitmentSchedule } from '../budgets/commitments'
+import type { TotalCap } from '../budgets/progress'
 import type { DailyAllowance, SpendableSegments } from '../budgets/dailyAllowance'
 import type { TagBudgetReport } from '../tags/budget'
 import { TagBudgetLines } from '../tags/TagBudgetLines'
@@ -55,8 +56,13 @@ const SEG = {
 } as const
 
 export interface SpendableInfo {
-  /** Tổng hạn mức tháng; 0 = chưa đặt hạn mức nào. */
+  /** Tổng hạn mức tháng. ¥0 KHÔNG có nghĩa "chưa đặt" — xem `cap`. */
   budgeted: number
+  /**
+   * `totalCapOf(report)`: 'unset' = không có dòng ngân sách nào (mời đặt); 'zero' = có
+   * dòng mà tổng trần ¥0 — trần thật, chi một đồng là vượt; 'set' = tổng trần > 0.
+   */
+  cap: TotalCap
   spent: number
   /** Cam kết CHƯA RA đã trừ khỏi mức mỗi ngày (chỉ ở tháng đang chạy). */
   committed: number
@@ -97,7 +103,7 @@ export function SpendableBlock({
     <Card elevation="panel" padding="panel" as="section" className={className}>
       <SectionTitle role="micro">Còn được tiêu</SectionTitle>
 
-      {info.budgeted <= 0 ? (
+      {info.cap === 'unset' ? (
         <>
           <p className="mt-1.5 flex items-baseline gap-2">
             <Money
@@ -127,6 +133,15 @@ export function SpendableBlock({
               <span className="text-sm text-fg-muted">
                 /ngày · {daysLeftLabel(allowance.daysLeft)}
               </span>
+            </p>
+          ) : info.cap === 'zero' && info.spent <= 0 ? (
+            // Trần ¥0 chưa chi: đúng như đã hứa. Không có gì để chia mỗi ngày, và "¥0 còn
+            // lại trong trần" đọc như vừa tiêu hết — cùng chữ với ô "trần ¥0" ở trang Ngân
+            // sách. Chi rồi thì rơi xuống nhánh dưới và thành "đã vượt trần".
+            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+              <span className="text-sm text-fg-muted">Trần</span>
+              <Money amount={0} currency={base} className="text-kpi font-medium tracking-number" />
+              <span className="text-sm text-fg-muted">· chưa chi đồng nào</span>
             </p>
           ) : (
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">

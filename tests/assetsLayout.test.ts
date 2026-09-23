@@ -32,7 +32,9 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const SRC = join(fileURLToPath(new URL('..', import.meta.url)), 'src', 'features', 'assets')
-const read = (f: string) => readFileSync(join(SRC, f), 'utf8')
+// Chuẩn hoá EOL: cây làm việc chính checkout CRLF (autocrlf=true), worktree thì LF — phép
+// thử chuỗi nhiều dòng phải cho cùng kết quả ở cả hai.
+const read = (f: string) => readFileSync(join(SRC, f), 'utf8').replace(/\r\n/g, '\n')
 
 const now = read('AssetsNowView.tsx')
 const trend = read('AssetsTrendView.tsx')

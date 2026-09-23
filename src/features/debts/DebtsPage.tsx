@@ -4,9 +4,9 @@ import { ChevronDown, ChevronRight, ChevronUp, Plus } from 'lucide-react'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
-import { Card, EmptyState, PageHeader, STATUS_FILL, SectionTitle, actionButtonClass } from '../../components/ui'
+import { Card, EmptyState, Money, PageHeader, STATUS_FILL, SectionTitle, actionButtonClass } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
-import { debtSummary, disbursedOf, remainingOf } from './aggregate'
+import { debtBalance, debtSummary, disbursedOf, remainingOf } from './aggregate'
 
 export function DebtsPage() {
   const { data: debts = [], isLoading } = useDebts()
@@ -88,21 +88,35 @@ export function DebtsPage() {
           </button>
           {showSettled && (
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
-              {settled.map((d) => (
-                <Link
-                  key={d.id}
-                  to={`/debts/${d.id}`}
-                  className="flex items-center gap-2 px-3 py-2.5 opacity-70 hover:bg-surface-sunken"
-                >
-                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary line-through">
-                    {d.counterparty}
-                  </span>
-                  <span className="shrink-0 text-sm tabular-nums text-fg-muted">
-                    {formatMoney(disbursedOf(d, payments), d.currency)}
-                  </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
-                </Link>
-              ))}
+              {settled.map((d) => {
+                // Số CHÍNH là số còn lại (khớp trang chi tiết), gốc chỉ là số phụ có nhãn.
+                // Trước đây dòng này in trơn disbursedOf (gốc + giải ngân) → "¥30.000"
+                // cạnh một khoản đã xong, đọc như còn nợ ¥30.000.
+                const b = debtBalance(d, payments)
+                return (
+                  <Link
+                    key={d.id}
+                    to={`/debts/${d.id}`}
+                    className="flex items-center gap-2 px-3 py-2.5 hover:bg-surface-sunken"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-fg-secondary">{d.counterparty}</span>
+                      <span className="block text-2xs text-fg-muted">
+                        gốc <Money amount={disbursedOf(d, payments)} currency={d.currency} tone="muted" />
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right text-sm text-fg-muted">
+                      Đã tất toán ·{' '}
+                      {b.overpaid > 0 ? (
+                        <>trả thừa <Money amount={b.overpaid} currency={d.currency} tone="warn" /></>
+                      ) : (
+                        <>còn <Money amount={b.remaining} currency={d.currency} tone="muted" /></>
+                      )}
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
+                  </Link>
+                )
+              })}
             </Card>
           )}
         </div>
@@ -127,7 +141,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
       </SectionTitle>
       <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {debts.map((d) => {
-          const remaining = Math.max(remainingOf(d, payments), 0)
+          const { remaining, overpaid } = debtBalance(d, payments)
           const disbursed = disbursedOf(d, payments)
           const paidRatio = disbursed > 0 ? 1 - remaining / disbursed : 0
           const overdue = isOverdue(d)
@@ -150,13 +164,20 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                     tiền công
                   </span>
                 )}
-                <span
-                  className={`shrink-0 text-sm font-semibold tabular-nums ${
-                    d.direction === 'i_owe' ? 'text-money-out' : 'text-money-in'
-                  }`}
-                >
-                  {formatMoney(remaining, d.currency)}
-                </span>
+                {overpaid > 0 ? (
+                  // Trả thừa: đừng giấu thành ¥0 — người dùng cần biết để trả lại / đòi lại.
+                  <span className="shrink-0 text-sm font-semibold text-fg-warn">
+                    Trả thừa <Money amount={overpaid} currency={d.currency} tone="warn" />
+                  </span>
+                ) : (
+                  <span
+                    className={`shrink-0 text-sm font-semibold tabular-nums ${
+                      d.direction === 'i_owe' ? 'text-money-out' : 'text-money-in'
+                    }`}
+                  >
+                    {formatMoney(remaining, d.currency)}
+                  </span>
+                )}
                 <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
               </div>
               <div className="mt-1.5 flex items-center gap-2">

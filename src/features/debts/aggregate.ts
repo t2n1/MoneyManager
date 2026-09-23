@@ -36,6 +36,30 @@ export function remainingOf(debt: DebtRow, payments: DebtPaymentRow[]): number {
   return debt.principal - paidOf(debt.id, payments)
 }
 
+export interface DebtBalance {
+  /** Còn phải trả, kẹp ≥ 0 (minor units theo currency của nợ). */
+  remaining: number
+  /** Phần đã trả VƯỢT số nợ (≥ 0). Hiện ra thành "Trả thừa ¥X", đừng giấu thành ¥0. */
+  overpaid: number
+  /** Đã trả hết (còn ≤ 0) — không còn gì để "Ghi nhận trả". */
+  paidOff: boolean
+}
+
+/** Tách số còn lại (có thể âm) thành hai con số dương để hiển thị, cộng cờ đã trả hết. */
+export function debtBalance(debt: DebtRow, payments: DebtPaymentRow[]): DebtBalance {
+  const r = remainingOf(debt, payments)
+  return { remaining: Math.max(r, 0), overpaid: Math.max(-r, 0), paidOff: r <= 0 }
+}
+
+/**
+ * Một lần trả `amount` vượt số còn lại bao nhiêu (≥ 0). Còn lại đã ≤ 0 thì cả lần trả là
+ * thừa. Biểu mẫu dùng để CẢNH BÁO và đòi xác nhận riêng — không chặn cứng, vì người ta
+ * có thể thật sự bị trả thừa.
+ */
+export function overpayOf(remaining: number, amount: number): number {
+  return Math.max(amount - Math.max(remaining, 0), 0)
+}
+
 export interface DebtSummary {
   /** tổng mình nợ còn lại, quy đổi base (minor units) */
   iOwe: number

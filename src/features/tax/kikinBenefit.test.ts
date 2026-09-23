@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { benefitAt, SHEET_2025_08 } from './kikinBenefit'
+import { benefitAt, BUILTIN_SHEETS, SHEET_2025_08, sheetCaveat, sheetForPeriod, type BuiltinSheet } from './kikinBenefit'
 
 describe('SHEET_2025_08', () => {
   it('ba điểm, đúng số trên sheet của 基金', () => {
@@ -73,5 +73,43 @@ describe('benefitAt', () => {
   it('điểm neo đưa vào lộn xộn thứ tự vẫn ra đúng', () => {
     const daoNguoc = [...SHEET_2025_08].reverse()
     expect(benefitAt(20_000, daoNguoc)?.savedAnnual).toBe(63_072)
+  })
+})
+
+describe('sheetForPeriod — chọn bảng mới nhất có hiệu lực tại kỳ đang tính', () => {
+  const pts = SHEET_2025_08
+  const A: BuiltinSheet = { dated: '2025-08', effectiveFrom: '2025-08', points: pts, includesKodomoShienkin: false }
+  const B: BuiltinSheet = { dated: '2026-08', effectiveFrom: '2026-09', points: pts, includesKodomoShienkin: true }
+
+  it('danh sách dựng sẵn hiện chỉ có bảng 2025-08', () => {
+    expect(BUILTIN_SHEETS.map((s) => s.dated)).toEqual(['2025-08'])
+    expect(sheetForPeriod('2026-09')?.dated).toBe('2025-08')
+  })
+  it('chọn bảng mới nhất có effectiveFrom ≤ kỳ, không phụ thuộc thứ tự danh sách', () => {
+    expect(sheetForPeriod('2026-08', [B, A])?.dated).toBe('2025-08')
+    expect(sheetForPeriod('2026-09', [B, A])?.dated).toBe('2026-08')
+    expect(sheetForPeriod('2027-01', [A, B])?.dated).toBe('2026-08')
+  })
+  it('kỳ trước mọi bảng → null (không dùng bảng chưa có hiệu lực)', () => {
+    expect(sheetForPeriod('2025-07', [A, B])).toBeNull()
+    expect(sheetForPeriod('2026-09', [])).toBeNull()
+  })
+})
+
+describe('sheetCaveat — một dòng giới hạn đặt ngay cạnh con số', () => {
+  it('bảng 2025-08 ở kỳ từ 4/2026 → nói chưa tính 子ども・子育て支援金 nên số tiết kiệm hơi cao', () => {
+    expect(sheetCaveat({ dated: '2025-08', includesKodomoShienkin: false }, '2026-09')).toBe(
+      'Ước tính theo bảng 2025-08 · chưa tính 子ども・子育て支援金 từ 4/2026 nên số tiết kiệm hơi cao',
+    )
+  })
+  it('kỳ trước 4/2026 → chỉ nói bảng nào', () => {
+    expect(sheetCaveat({ dated: '2025-08', includesKodomoShienkin: false }, '2026-03')).toBe('Ước tính theo bảng 2025-08')
+  })
+  it('bảng đã tính khoản đó → chỉ nói bảng nào', () => {
+    expect(sheetCaveat({ dated: '2026-08', includesKodomoShienkin: true }, '2026-09')).toBe('Ước tính theo bảng 2026-08')
+  })
+  it('bảng người dùng khai (không có cờ): coi là đã tính nếu in từ 4/2026', () => {
+    expect(sheetCaveat({ dated: '2026-05' }, '2026-09')).toBe('Ước tính theo bảng 2026-05')
+    expect(sheetCaveat({ dated: '2025-10' }, '2026-09')).toMatch(/chưa tính 子ども・子育て支援金/)
   })
 })

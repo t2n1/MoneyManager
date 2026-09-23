@@ -16,8 +16,9 @@ import { useEscClose } from '../../hooks/useEscClose'
 import { debtFlowCategoryId } from '../transactions/roleSave'
 import { accountsForDebt } from '../transactions/debtPick'
 import { impliedRate, nextCounterAmount } from './crossPayment'
+import { overpayOf } from './aggregate'
 import { formatRateLine } from '../../lib/rates'
-import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { ActionButton, Money, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 interface Props {
   debt: DebtRow
@@ -53,6 +54,8 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   /** Số THẬT vào/ra ví — chỉ dùng khi ví khác tệ với khoản nợ. */
   const [received, setReceived] = useState(0)
+  /** Số trả thừa người dùng đã xác nhận; gõ số khác thì phải xác nhận lại. */
+  const [overConfirmedAt, setOverConfirmedAt] = useState<number | null>(null)
   /** Đã gõ tay ô "thực nhận" chưa — gõ rồi thì tỷ giá thị trường không được đè lên. */
   const [receivedTouched, setReceivedTouched] = useState(false)
 
@@ -91,7 +94,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
     accCurrency,
     impliedRate(amount, debt.currency, received, accCurrency) ?? 0,
   )
-  const canSave = amount > 0 && !saving && (!realOn || (!!accountId && txAmount > 0))
+  // Trả vượt số còn lại: KHÔNG chặn cứng (người ta có thể thật sự bị trả thừa), nhưng
+  // phải bấm xác nhận riêng cho đúng số đó mới lưu được — gõ nhầm thêm một số 0 là ca thường.
+  const overpay = overpayOf(remaining, amount)
+  const overOk = overpay === 0 || overConfirmedAt === amount
+  const canSave = amount > 0 && overOk && !saving && (!realOn || (!!accountId && txAmount > 0))
 
   async function handleSave() {
     if (!canSave) return
@@ -161,6 +168,22 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
         </div>
+
+        {overpay > 0 && (
+          <div role="alert" className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg p-3 text-sm text-state-warn-fg">
+            <p>
+              Nhiều hơn số còn lại — trả thừa <Money amount={overpay} currency={debt.currency} tone="warn" />.
+            </p>
+            <ActionButton
+              variant="outline"
+              className="mt-2"
+              aria-pressed={overConfirmedAt === amount}
+              onClick={() => setOverConfirmedAt(overConfirmedAt === amount ? null : amount)}
+            >
+              {overConfirmedAt === amount ? 'Đã xác nhận trả thừa ✓' : 'Đúng, ghi trả thừa'}
+            </ActionButton>
+          </div>
+        )}
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày trả</span>

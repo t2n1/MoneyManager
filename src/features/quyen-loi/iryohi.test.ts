@@ -123,9 +123,43 @@ describe('tinhIryohi — phạm vi đếm và ca biên', () => {
     expect(r.ketLuan.ly_do.join(' ')).toContain('danh mục')
   })
 
-  it('ly_do luôn nói rõ ba méo mó của phép ước (cận dưới)', () => {
+  it('ly_do nói số CÓ THỂ CAO HƠN thực tế (đếm dư, chưa trừ bảo hiểm) — không gọi là "cận dưới"', () => {
     const r = chay([tx('bv', 200_000, '2026-02-01')])
     const lyDo = r.ketLuan.ly_do.join(' ')
     expect(lyDo).toContain('bảo hiểm')
+    expect(lyDo).toMatch(/cao hơn thực tế/)
+    expect(lyDo).not.toMatch(/cận dưới/i)
+  })
+})
+
+describe('tinhIryohi — tiêu đề theo đúng nhánh thắng', () => {
+  it('chi y tế 91.811 < 100.000, chỉ nhánh thuốc dương → KHÔNG nói "vượt ngưỡng" của 医療費控除', () => {
+    const r = chay([tx('thuoc', 40_000, '2026-02-01'), tx('bv', 51_811, '2026-03-01')])
+    expect(r.chi_y).toBe(91_811)
+    expect(r.khau_tru_chinh).toBe(0)
+    expect(r.khau_tru_self).toBe(28_000)
+    expect(r.nhanh).toBe('self')
+    expect(r.ketLuan.trang_thai).toBe('thieu')
+    expect(r.ketLuan.viec).toMatch(/セルフメディケーション/)
+    expect(r.ketLuan.viec).not.toMatch(/Chi y tế đã vượt/)
+    expect(r.ketLuan.viec).not.toMatch(/khai 医療費控除/)
+  })
+  it('nhánh chính thắng → tiêu đề nói 医療費控除 và ngưỡng 100.000', () => {
+    const r = chay([tx('bv', 150_000, '2026-03-01')])
+    expect(r.nhanh).toBe('chinh')
+    expect(r.ketLuan.viec).toMatch(/医療費控除/)
+    expect(r.ketLuan.viec).toContain('100,000')
+  })
+  it('trả đủ số của từng chế độ: ngưỡng/trần riêng của nhánh thuốc', () => {
+    const r = chay([tx('thuoc', 20_000, '2026-02-01')])
+    expect(r.nguong_self).toBe(12_000)
+    expect(r.tran_self).toBe(88_000)
+    expect(r.self_ap_dung).toBe(true)
+    expect(chay([], { year: 2027, todayISO: '2027-09-05' }).self_ap_dung).toBe(false)
+  })
+  it('năm cũ nhánh thuốc thắng → het-han, câu nêu đúng nhánh', () => {
+    const r = chay([tx('thuoc', 60_000, '2025-02-01')], { year: 2025 })
+    expect(r.ketLuan.trang_thai).toBe('het-han')
+    expect(r.ketLuan.viec).toMatch(/セルフメディケーション/)
   })
 })

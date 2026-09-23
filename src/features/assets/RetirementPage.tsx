@@ -239,7 +239,7 @@ export function RetirementPage() {
               )}
             </dd>
           </div>
-          <div className="flex items-baseline justify-between gap-3 py-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
             <dt>所得税 + 住民税</dt>
             <dd className="flex shrink-0 items-baseline">
               {d.benefit ? (
@@ -258,6 +258,10 @@ export function RetirementPage() {
                 <span className="text-2xs text-fg-muted">chưa có sheet hiệu chuẩn</span>
               )}
             </dd>
+            {/* Giới hạn của phép ước đứng NGAY dưới con số, không để cuối thẻ. */}
+            {d.benefit && d.sheet.caveat && (
+              <p className="basis-full text-2xs text-fg-muted">{d.sheet.caveat}</p>
+            )}
           </div>
         </dl>
 
@@ -281,12 +285,6 @@ export function RetirementPage() {
           </p>
         )}
 
-        {d.sheet.isDefault && (
-          <p className="mt-2 text-2xs text-fg-muted">
-            Đang dùng sheet {d.sheet.dated} dựng sẵn trong app. Sheet đó không tính khoản
-            子ども・子育て支援金 (0,23%, áp từ 4/2026), nên phần tiết kiệm hơi lạc quan.
-          </p>
-        )}
       </Card>
 
       {/* ── ĐÁNH ĐỔI ─────────────────────────────────────────────────── */}
@@ -364,6 +362,7 @@ export function RetirementPage() {
                 <span className="ml-1 text-2xs text-fg-muted">/năm</span>
                 <EstimateMark reason={`Nội suy từ sheet mô phỏng của 基金 (${d.sheet.dated}). Sheet chỉ đo ba mức đóng; giữa hai mức là nội suy.`} />
               </dd>
+              {d.sheet.caveat && <p className="mt-0.5 text-2xs text-fg-muted">{d.sheet.caveat}</p>}
             </div>
           </dl>
         )}

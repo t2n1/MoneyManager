@@ -13,6 +13,19 @@ describe('tinhShelterYearEnd', () => {
     const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-09-03', accounts: [acc({})], txs: [nap(100_000, '2026-02-01')], fmt: fmtYen })
     expect(r.tai_khoan[0]).toMatchObject({ used: 100_000, remaining: 1_100_000 })
     expect(r.ketLuan.trang_thai).toBe('du')
+    // Câu nói SỐ TIỀN đã nạp, không đếm số tài khoản.
+    expect(r.ketLuan.viec).toContain('100,000')
+    expect(r.ketLuan.viec).not.toMatch(/1 tài khoản/)
+  })
+  it('có tài khoản NISA nhưng nạp ¥0 → chua-dung, không phải du', () => {
+    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-09-03', accounts: [acc({})], txs: [], fmt: fmtYen })
+    expect(r.da_nap).toBe(0)
+    expect(r.ketLuan.trang_thai).toBe('chua-dung')
+    expect(r.ketLuan.viec).toMatch(/Chưa nạp/)
+  })
+  it('năm cũ nạp ¥0 → chua-dung; khoản nạp năm khác không tính', () => {
+    const r = tinhShelterYearEnd({ year: 2025, todayISO: '2026-09-03', accounts: [acc({})], txs: [nap(100_000, '2026-02-01')], fmt: fmtYen })
+    expect(r.ketLuan.trang_thai).toBe('chua-dung')
   })
   it('từ 1/10 còn hạn mức → thieu, câu có tổng còn lại', () => {
     const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({}), acc({ id: 'g', name: 'Growth', tax_shelter: 'nisa_growth', shelter_annual_limit: 2_400_000 })], txs: [nap(100_000, '2026-02-01')], fmt: fmtYen })

@@ -107,9 +107,18 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
   } else if (tran === null) {
     trang_thai = 'thieu-du-lieu'
     viec = 'Nhập phiếu lương (所得税) để ước trần ふるさと納税'
+  } else if (!co_danh_muc) {
+    // Không đếm được đã gửi bao nhiêu → không được nói "Xong" hay "còn nguyên trần" (chưa biết ≠ 0).
+    trang_thai = 'thieu-du-lieu'
+    viec = `Trần ≈ ${input.fmt(tran)} · tạo danh mục "${FURUSATO_CATEGORY_NAME}" để app đếm được đã gửi bao nhiêu`
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = 'thieu'
     viec = `Còn ≈ ${input.fmt(con_lai)} furusato chưa dùng · hết 31/12`
+  } else if (da_gui <= 0) {
+    trang_thai = 'chua-dung'
+    viec = input.year < namNay
+      ? `Năm ${input.year} chưa gửi ふるさと納税 nào · trần khi đó ≈ ${input.fmt(tran)}`
+      : `Chưa gửi ふるさと納税 nào năm nay · trần ≈ ${input.fmt(tran)}, hết 31/12`
   } else if (input.year < namNay) {
     trang_thai = 'het-han'
     viec = `Năm ${input.year} đã gửi ${input.fmt(da_gui)} trên trần ≈ ${input.fmt(tran)}`

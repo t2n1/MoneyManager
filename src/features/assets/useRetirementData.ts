@@ -21,7 +21,7 @@ import {
 } from '../../lib/dates'
 import type { AccountRow, KikinSheet } from '../../types/database.types'
 import { TEN_TK_HUU } from '../phieu-luong/nhap'
-import { benefitAt, SHEET_2025_08, type CalibrationPoint, type KikinBenefit } from '../tax/kikinBenefit'
+import { benefitAt, sheetCaveat, sheetForPeriod, type CalibrationPoint, type KikinBenefit } from '../tax/kikinBenefit'
 import { annualPensionLoss } from '../tax/nenkinLoss'
 import {
   KIKIN_GIVE_RATE_BPS_2025,
@@ -80,8 +80,8 @@ export interface RetirementData {
   // ── ƯỚC ───────────────────────────────────────────────────────────────────
   /** Phần lợi ở mức đang đóng; null = không đủ điểm hiệu chuẩn. */
   benefit: KikinBenefit | null
-  /** Ba điểm hiệu chuẩn đang dùng, và ngày của sheet. */
-  sheet: { dated: string; points: readonly CalibrationPoint[]; isDefault: boolean }
+  /** Ba điểm hiệu chuẩn đang dùng, ngày của sheet, và MỘT dòng giới hạn để đặt cạnh số kết quả. */
+  sheet: { dated: string; points: readonly CalibrationPoint[]; isDefault: boolean; caveat: string }
   /** Lương hưu 厚生年金 mất mỗi năm nếu giữ mức tụt bậc hiện tại tới `toYear`. */
   pensionLossAnnual: number
   /** Tính phần lợi ở một mức đóng khác — cho ô "thử mức đóng khác". */
@@ -198,6 +198,7 @@ export function useRetirementData(): RetirementData {
   )
 
   const sheet = useMemo(() => {
+    const ky = monthKeyString(thangNay)
     const khai: KikinSheet | null = profile?.kikin_sheet ?? null
     if (khai && khai.points.length >= 2) {
       return {
@@ -208,10 +209,14 @@ export function useRetirementData(): RetirementData {
           taxAnnual: p.tax,
         })),
         isDefault: false,
+        caveat: sheetCaveat({ dated: khai.dated }, ky),
       }
     }
-    return { dated: '2025-08', points: SHEET_2025_08, isDefault: true }
-  }, [profile])
+    // Bảng dựng sẵn: chọn bảng mới nhất có hiệu lực tại kỳ đang tính (tháng này).
+    const dung = sheetForPeriod(ky)
+    if (!dung) return { dated: '', points: [], isDefault: true, caveat: '' }
+    return { dated: dung.dated, points: dung.points, isDefault: true, caveat: sheetCaveat(dung, ky) }
+  }, [profile, thangNay])
 
   const benefit = useMemo(
     () => benefitAt(contribution.minorPerMonth, sheet.points),

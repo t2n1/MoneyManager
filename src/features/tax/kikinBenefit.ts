@@ -38,6 +38,55 @@ export const SHEET_2025_08: readonly CalibrationPoint[] = [
   { monthlyContribution: 73_000, socialInsuranceAnnual: 524_616, taxAnnual: 220_440 },
 ]
 
+/** Tháng (`YYYY-MM`) 子ども・子育て支援金 bắt đầu thu (0,23%, 施行 2026年4月). */
+export const KODOMO_SHIENKIN_FROM = '2026-04'
+
+/** Một bảng hiệu chuẩn dựng sẵn, kèm tháng bắt đầu có hiệu lực. */
+export interface BuiltinSheet {
+  /** Tháng in trên sheet (`YYYY-MM`). */
+  dated: string
+  /** Từ kỳ (`YYYY-MM`) nào bảng này là bảng đúng để dùng. */
+  effectiveFrom: string
+  points: readonly CalibrationPoint[]
+  /** Sheet đã tính 子ども・子育て支援金 chưa. */
+  includesKodomoShienkin: boolean
+}
+
+/**
+ * Mọi bảng dựng sẵn. Có sheet mới của 基金 thì THÊM một dòng (đừng sửa dòng cũ) — kỳ cũ vẫn
+ * phải tính bằng bảng cũ. Hiện chỉ có một bảng; không bịa số cho bảng chưa có.
+ */
+export const BUILTIN_SHEETS: readonly BuiltinSheet[] = [
+  { dated: '2025-08', effectiveFrom: '2025-08', points: SHEET_2025_08, includesKodomoShienkin: false },
+]
+
+/** Bảng MỚI NHẤT có hiệu lực tại kỳ `periodYM` (`YYYY-MM`); null = chưa bảng nào có hiệu lực. */
+export function sheetForPeriod(
+  periodYM: string,
+  sheets: readonly BuiltinSheet[] = BUILTIN_SHEETS,
+): BuiltinSheet | null {
+  let chon: BuiltinSheet | null = null
+  for (const s of sheets) {
+    if (s.effectiveFrom > periodYM) continue
+    if (chon === null || s.effectiveFrom > chon.effectiveFrom) chon = s
+  }
+  return chon
+}
+
+/**
+ * Một dòng giới hạn của phép ước, để đặt NGAY CẠNH con số kết quả. Sheet không có cờ
+ * (người dùng tự khai) thì coi là đã tính 子ども・子育て支援金 nếu in từ 4/2026.
+ */
+export function sheetCaveat(
+  sheet: { dated: string; includesKodomoShienkin?: boolean },
+  periodYM: string,
+): string {
+  const daTinh = sheet.includesKodomoShienkin ?? sheet.dated >= KODOMO_SHIENKIN_FROM
+  const base = `Ước tính theo bảng ${sheet.dated}`
+  if (daTinh || periodYM < KODOMO_SHIENKIN_FROM) return base
+  return `${base} · chưa tính 子ども・子育て支援金 từ 4/2026 nên số tiết kiệm hơi cao`
+}
+
 export interface KikinBenefit {
   socialInsuranceAnnual: number
   taxAnnual: number

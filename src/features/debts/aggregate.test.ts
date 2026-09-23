@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { DebtDirection, DebtPaymentRow, DebtRow, DebtStatus } from '../../types/database.types'
-import { debtSummary, disbursedOf, paidOf, remainingOf, repaidOf } from './aggregate'
+import { debtBalance, debtSummary, disbursedOf, overpayOf, paidOf, remainingOf, repaidOf } from './aggregate'
 
 let seq = 0
 function debt(
@@ -122,5 +122,38 @@ describe('debtSummary', () => {
     const debts = [debt({ id: 'd1', direction: 'owed_to_me', currency: 'VND', principal: 1_700_000 })]
     const s = debtSummary(debts, [], BASE, RATES)
     expect(s.owedToMe).toBe(10_000) // 1.700.000 / 170
+  })
+})
+
+describe('debtBalance — còn lại / trả thừa / đã trả hết', () => {
+  it('còn nợ → remaining dương, không trả thừa, chưa hết', () => {
+    const d = debt({ id: 'd1', direction: 'owed_to_me', currency: 'JPY', principal: 30_000 })
+    expect(debtBalance(d, [payment('d1', 10_000)])).toEqual({ remaining: 20_000, overpaid: 0, paidOff: false })
+  })
+  it('trả vừa đủ → remaining 0, paidOff', () => {
+    const d = debt({ id: 'd1', direction: 'owed_to_me', currency: 'JPY', principal: 30_000 })
+    expect(debtBalance(d, [payment('d1', 30_000)])).toEqual({ remaining: 0, overpaid: 0, paidOff: true })
+  })
+  it('trả thừa → remaining 0, overpaid = phần thừa (không bị giấu thành ¥0)', () => {
+    const d = debt({ id: 'd1', direction: 'owed_to_me', currency: 'JPY', principal: 30_000 })
+    expect(debtBalance(d, [payment('d1', 33_000)])).toEqual({ remaining: 0, overpaid: 3_000, paidOff: true })
+  })
+  it('giải ngân thêm được tính vào còn lại', () => {
+    const d = debt({ id: 'd1', direction: 'i_owe', currency: 'JPY', principal: 30_000 })
+    expect(debtBalance(d, [payment('d1', 30_000), payment('d1', -5_000)])).toEqual({ remaining: 5_000, overpaid: 0, paidOff: false })
+  })
+})
+
+describe('overpayOf — số trả vượt số còn lại', () => {
+  it('trả ít hơn hoặc bằng số còn lại → 0', () => {
+    expect(overpayOf(20_000, 15_000)).toBe(0)
+    expect(overpayOf(20_000, 20_000)).toBe(0)
+  })
+  it('trả nhiều hơn → phần thừa', () => {
+    expect(overpayOf(20_000, 23_000)).toBe(3_000)
+  })
+  it('còn lại đã ≤ 0 → cả số trả là thừa', () => {
+    expect(overpayOf(0, 5_000)).toBe(5_000)
+    expect(overpayOf(-2_000, 5_000)).toBe(5_000)
   })
 })

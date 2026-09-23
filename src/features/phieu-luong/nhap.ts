@@ -90,6 +90,8 @@ export const TEN_NO_CONG_TY = 'KOME'
 export interface NoCongTy {
   id: string
   conLai: number
+  /** Tên đối tác của khoản nợ đã chọn — cho câu báo lỗi và ghi chú. Thiếu thì dùng TEN_NO_CONG_TY. */
+  ten?: string
 }
 
 /**
@@ -429,7 +431,7 @@ function dungCap(
   const duongNo = laTheo > 0 && no !== null
   if (duongNo && no.conLai < laTheo) {
     throw new Error(
-      `nợ '${TEN_NO_CONG_TY}' còn ${no.conLai} < ${NHAN_LA_THEO} ${laTheo} — ` +
+      `nợ '${no.ten ?? TEN_NO_CONG_TY}' còn ${no.conLai} < ${NHAN_LA_THEO} ${laTheo} — ` +
         `có lần ứng chưa ghi vào khoản nợ`,
     )
   }
@@ -498,7 +500,7 @@ function dungCap(
         dong: {
           ...chung, type: 'income', amount: laTheo,
           category_id: neo.category_id, account_id: neo.account_id,
-          note: `${dau} · ${NHAN_LA_THEO} → trả nợ ${TEN_NO_CONG_TY}`,
+          note: `${dau} · ${NHAN_LA_THEO} → trả nợ ${no.ten ?? TEN_NO_CONG_TY}`,
         },
       }
     : null

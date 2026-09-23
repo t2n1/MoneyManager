@@ -5,9 +5,13 @@
 //   · self-med   (NTA No.1132): (chi THUỐC − 1,2万) kẹp 8,8万, hết hạn 2026-12-31,
 //     cần 一定の取組 (健康診断 công ty là đủ — người làm công ăn lương gần như mặc nhiên có)
 //
-// MỌI SỐ LÀ CẬN DƯỚI CÓ CHỦ Ý: ngưỡng thật = min(10万, 5% × 総所得金額等) nhưng app không
-// ước nổi 総所得金額等 tử tế — dùng thẳng 10万 thì người thu nhập thấp có khấu trừ thật CHỈ
-// LỚN HƠN số app hứa. Thà hứa ít giao nhiều. Ba méo mó khác nằm trong `ly_do`.
+// SỐ KHÔNG PHẢI CẬN DƯỚI. Méo mó đi CẢ HAI chiều nên phải nói thẳng từng chiều (`ly_do`):
+//   · làm số CAO hơn thực tế: đếm cả khoản không thuộc diện (thực phẩm chức năng, thuốc
+//     không ★ ở nhánh thuốc…) và chưa trừ tiền bảo hiểm bù — hai cái này thường lớn nhất;
+//   · làm số THẤP hơn: tiền tàu đi viện nằm ở Tàu điện, và ngưỡng thật =
+//     min(10万, 5% × 総所得金額等) — app dùng thẳng 10万 vì không ước nổi 総所得金額等.
+// Tiêu đề (`viec`) đi theo NHÁNH THẮNG: chỉ nhánh thuốc dương thì không được nói "chi y tế
+// vượt ngưỡng 医療費控除" (chi y tế có thể còn dưới 10万).
 //
 // THUẦN: không React, không Date — vào bundle edge cùng bốn khoản kia.
 import { calendarYearOf, calendarYearRange } from '../../lib/dates'
@@ -44,6 +48,11 @@ export interface IryohiKetQua {
   khau_tru: number
   /** Nhánh thắng; null khi cả hai bằng 0. */
   nhanh: 'chinh' | 'self' | null
+  /** Ngưỡng và trần của nhánh セルフメディケーション (chi thuốc). */
+  nguong_self: number
+  tran_self: number
+  /** Nhánh thuốc còn áp dụng cho năm này (luật có hạn 2026-12-31). */
+  self_ap_dung: boolean
   co_danh_muc: boolean
 }
 
@@ -94,9 +103,10 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
       ? tienTietKiem(khau_tru, khau_tru, input.suatBien, luat)
       : null
 
-  // Ba méo mó của phép ước — nói ra thay vì im (spec §3), + điều kiện riêng từng nhánh.
+  // Méo mó của phép ước — nói ra thay vì im (spec §3), + điều kiện riêng từng nhánh.
   const ly_do = [
-    'Số ước là CẬN DƯỚI: app đếm cả khoản không thuộc diện (thực phẩm chức năng…), bỏ sót tiền tàu đi viện (nằm ở Tàu điện), và không trừ được tiền bảo hiểm bù — ngưỡng thật còn có thể thấp hơn 10万 nếu thu nhập thấp.',
+    'Số có thể cao hơn thực tế: app đếm cả khoản không thuộc diện (thực phẩm chức năng…) và chưa trừ tiền bảo hiểm bù.',
+    'Ngược lại, tiền tàu đi viện (ghi ở Tàu điện) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100.000.',
   ]
   if (!co_danh_muc)
     ly_do.push(`Chưa có danh mục "${IRYOHI_CATEGORY_NAMES.join('" / "')}" nên không đếm được.`)
@@ -112,15 +122,21 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
   let trang_thai: KetLuan['trang_thai']
   let viec: string
   let han: string | null = null
-  if (khau_tru > 0 && input.year === namNay) {
+  const toKhai = input.deXuatKhaiThue ? 'cùng tờ 確定申告 của khoản phụ thuộc' : 'trong 確定申告'
+  if (nhanh === 'chinh' && input.year === namNay) {
     trang_thai = 'thieu'
     han = `${input.year + 1}-03-15`
-    viec = `Chi y tế đã vượt ngưỡng — giữ hoá đơn, khai 医療費控除 ${
-      input.deXuatKhaiThue ? 'cùng tờ 確定申告 của khoản phụ thuộc' : 'trong 確定申告'
-    } trước 15/3`
-  } else if (khau_tru > 0) {
+    viec = `Chi y tế ${input.fmt(chi_y)} đã vượt ngưỡng ${input.fmt(luat.iryohi.nguong)} — giữ hoá đơn, khai 医療費控除 ${toKhai} trước 15/3`
+  } else if (nhanh === 'self' && input.year === namNay) {
+    trang_thai = 'thieu'
+    han = `${input.year + 1}-03-15`
+    viec = `Chi thuốc ${input.fmt(chi_thuoc)} đã vượt ngưỡng ${input.fmt(luat.iryohi.selfMed.nguong)} — giữ hoá đơn thuốc ★, khai セルフメディケーション ${toKhai} trước 15/3`
+  } else if (nhanh !== null) {
     trang_thai = 'het-han'
-    viec = `Năm ${input.year} chi y tế ${input.fmt(chi_y)}, khấu trừ được ≈ ${input.fmt(khau_tru)}`
+    viec =
+      nhanh === 'chinh'
+        ? `Năm ${input.year} chi y tế ${input.fmt(chi_y)}, 医療費控除 được ≈ ${input.fmt(khau_tru)}`
+        : `Năm ${input.year} chi thuốc ${input.fmt(chi_thuoc)}, セルフメディケーション được ≈ ${input.fmt(khau_tru)}`
   } else {
     trang_thai = 'du'
     viec = `Chi y tế ${input.fmt(chi_y)} / ngưỡng ${input.fmt(luat.iryohi.nguong)} — chưa tới mức khấu trừ`
@@ -144,6 +160,9 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
     khau_tru_self,
     khau_tru,
     nhanh,
+    nguong_self: luat.iryohi.selfMed.nguong,
+    tran_self: luat.iryohi.selfMed.tran,
+    self_ap_dung: selfConHieuLuc,
     co_danh_muc,
   }
 }

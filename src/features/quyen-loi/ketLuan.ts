@@ -9,8 +9,11 @@ export type KetLuanId = 'fuyo' | 'remit-unassigned' | 'refund' | 'furusato' | 's
  * 'thieu'        = còn việc phải làm và còn hạn → thành thông báo việc-cần-làm
  * 'het-han'      = đã qua hạn, chỉ còn để biết
  * 'thieu-du-lieu'= app không nói được vì thiếu dữ liệu — KHÔNG phải 0 (§14: chưa biết ≠ 0)
+ * 'chua-dung'    = ĐẾM ĐƯỢC và bằng 0 (vd. có danh mục furusato mà gửi ¥0, có NISA mà nạp ¥0).
+ *                  Khác 'du' (đã dùng) và khác 'thieu-du-lieu' (không đếm được). Chưa tới mùa
+ *                  nhắc nên không phải việc-cần-làm; từ 1/10 bộ kiểm tự đổi sang 'thieu'.
  */
-export type TrangThai = 'du' | 'thieu' | 'het-han' | 'thieu-du-lieu'
+export type TrangThai = 'du' | 'thieu' | 'het-han' | 'thieu-du-lieu' | 'chua-dung'
 
 export interface KetLuan {
   id: KetLuanId

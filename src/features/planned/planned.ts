@@ -20,10 +20,21 @@ export interface PlannedDue {
   id: string
   title: string
   dueISO: string
-  /** Số ngày tới hạn; ÂM = đã quá hạn bấy nhiêu ngày. */
+  /**
+   * Số ngày tới hạn; ÂM = đã quá hạn bấy nhiêu ngày. Khoản chỉ biết tháng thì hạn là
+   * NGÀY CUỐI tháng đó, không phải ngày 1 đang lưu trong `dueISO`.
+   */
   daysLeft: number
+  /** 'month' = chỉ biết tháng — `dueISO` là ngày 1 do quy ước lưu, đừng in ra. */
+  duePrecision: 'day' | 'month'
   amount: number
   currency: CurrencyCode
+}
+
+/** Ngày cuối tháng dương lịch của một ngày ISO. */
+function lastDayOfMonthISO(iso: string): string {
+  const [y, m] = iso.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
 }
 
 /**
@@ -35,6 +46,9 @@ export interface PlannedDue {
  * Khoản đã quá hạn thì KHÔNG tự tắt: một việc phải chi mà quá ngày vẫn là việc phải
  * chi. Nó chỉ hết khi được đánh dấu đã chi hoặc bỏ.
  *
+ * Khoản chỉ biết THÁNG: tầm nhắc tính từ ĐẦU tháng (nhắc trước 3 ngày = từ 29 tháng
+ * trước), nhưng chỉ quá hạn khi cả tháng đã qua — ngày 1 chỉ là quy ước lưu trữ.
+ *
  * Xếp theo hạn tăng dần: trễ nhất lên đầu.
  */
 export function plannedDue(rows: PlannedExpenseRow[], todayISO: string): PlannedDue[] {
@@ -42,13 +56,15 @@ export function plannedDue(rows: PlannedExpenseRow[], todayISO: string): Planned
   for (const r of rows) {
     if (r.status !== 'planned') continue
     if (r.remind_days_before === null) continue
-    const daysLeft = daysUntil(todayISO, r.due_on)
-    if (daysLeft > r.remind_days_before) continue
+    if (daysUntil(todayISO, r.due_on) > r.remind_days_before) continue
+    const month = r.due_precision === 'month'
+    const daysLeft = daysUntil(todayISO, month ? lastDayOfMonthISO(r.due_on) : r.due_on)
     out.push({
       id: r.id,
       title: r.title,
       dueISO: r.due_on,
       daysLeft,
+      duePrecision: month ? 'month' : 'day',
       amount: r.amount,
       currency: r.currency,
     })

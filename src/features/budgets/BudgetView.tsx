@@ -10,7 +10,7 @@ import {
   useRates,
   useUpsertBudget,
 } from '../../hooks/queries'
-import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
+import { monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { planAutoBudget } from './autoBudget'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -42,7 +42,14 @@ import {
   spentOf,
   type BudgetSortMode,
 } from './budgetSort'
-import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
+import {
+  classifyCommitments,
+  commitmentDueLabel,
+  commitmentOverdueDays,
+  coverageGaps,
+  isCommitmentOverdue,
+  spendableRemaining,
+} from './commitments'
 import { dailyAllowance } from './dailyAllowance'
 import { nenHoiLai } from './rebalance'
 import { useRebalance } from './useRebalance'
@@ -1187,8 +1194,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 quên trả — cả hai đều cần biết. */}
             {[...schedule.overdue, ...schedule.upcoming].map((it) => {
               const c = it.categoryId ? catOf(it.categoryId) : null
-              const quaHan = it.dueISO < todayISO
-              const soNgay = quaHan ? daysBetween(it.dueISO, todayISO) : 0
+              // Khoản sắp chi chỉ biết tháng lưu hạn là ngày 1 — so thẳng dueISO là báo
+              // "quá hạn 22 ngày" cho khoản người dùng chỉ ghi "trong tháng 9".
+              const quaHan = isCommitmentOverdue(it, todayISO)
+              const soNgay = commitmentOverdueDays(it, todayISO)
               return (
                 <li key={it.key} className="py-1.5">
                   <div className="flex items-center justify-between gap-2 text-sm">
@@ -1214,8 +1223,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     {it.times > 1 && ` ×${it.times}`}
                     {' · '}
                     {quaHan
-                      ? `tới hạn ${dayMonthLabel(it.dueISO)} — quá hạn ${soNgay} ngày, chưa ghi`
-                      : dayMonthLabel(it.dueISO)}
+                      ? `${it.duePrecision === 'month' ? 'hạn' : 'tới hạn'} ${commitmentDueLabel(it)} — quá hạn ${soNgay} ngày, chưa ghi`
+                      : commitmentDueLabel(it)}
                     {c ? ` → ${c.name}` : ' · chưa gắn danh mục'}
                   </p>
                 </li>

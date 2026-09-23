@@ -131,7 +131,10 @@ export function useCalendarMarks(args: CalendarMarksArgs): CalendarMarks {
 
   const marks = useMemo(
     () => [
-      ...commitments.items.map(
+      // Khoản sắp chi chỉ biết THÁNG không có ô ngày nào để đứng: `dueISO` của nó là ngày 1
+      // do quy ước lưu trữ. Đặt vào ô ngày 1 là bịa ra một ngày hạn — nó đứng ở đầu khối
+      // "Sắp tới trong tháng" thay vì trên lưới.
+      ...commitments.items.filter((it) => it.duePrecision === 'day').map(
         (it): DayMarkInput => ({
           iso: it.dueISO,
           kind: it.kind,

@@ -72,6 +72,29 @@ describe('plannedDue', () => {
   })
 })
 
+describe('plannedDue — khoản chỉ biết THÁNG', () => {
+  // Lưu thành ngày 1 + due_precision 'month'. Đọc ngày 1 như hạn thật là ngày 2/9 đã
+  // báo "Quá hạn 1 ngày" cho khoản người dùng chỉ ghi "trong tháng 9".
+  const thang = plan({ id: 'm', due_on: '2026-09-01', due_precision: 'month', remind_days_before: 3 })
+
+  it('giữa tháng đó chưa quá hạn — số ngày đếm tới cuối tháng', () => {
+    const out = plannedDue([thang], '2026-09-23')
+    expect(out).toHaveLength(1)
+    expect(out[0].duePrecision).toBe('month')
+    expect(out[0].daysLeft).toBe(7)
+  })
+
+  it('qua hết tháng mới quá hạn, đếm từ ngày cuối tháng', () => {
+    expect(plannedDue([thang], '2026-09-30')[0].daysLeft).toBe(0)
+    expect(plannedDue([thang], '2026-10-03')[0].daysLeft).toBe(-3)
+  })
+
+  it('tầm nhắc vẫn mở trước ĐẦU tháng, không đợi tới cuối tháng', () => {
+    expect(plannedDue([thang], '2026-08-29')).toHaveLength(1)
+    expect(plannedDue([thang], '2026-08-28')).toEqual([])
+  })
+})
+
 describe('groupPlannedByMonth', () => {
   it('gom theo tháng đến hạn, tháng gần nhất trước', () => {
     const g = groupPlannedByMonth(

@@ -786,18 +786,24 @@ function daysUntil(fromISO, toISO) {
   const b = Date.parse(toISO + "T00:00:00Z");
   return Math.round((b - a) / 864e5);
 }
+function lastDayOfMonthISO(iso2) {
+  const [y, m] = iso2.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
 function plannedDue(rows, todayISO) {
   const out = [];
   for (const r of rows) {
     if (r.status !== "planned") continue;
     if (r.remind_days_before === null) continue;
-    const daysLeft = daysUntil(todayISO, r.due_on);
-    if (daysLeft > r.remind_days_before) continue;
+    if (daysUntil(todayISO, r.due_on) > r.remind_days_before) continue;
+    const month = r.due_precision === "month";
+    const daysLeft = daysUntil(todayISO, month ? lastDayOfMonthISO(r.due_on) : r.due_on);
     out.push({
       id: r.id,
       title: r.title,
       dueISO: r.due_on,
       daysLeft,
+      duePrecision: month ? "month" : "day",
       amount: r.amount,
       currency: r.currency
     });
@@ -818,7 +824,9 @@ function plannedRules(input) {
       type: "planned-due",
       // Quá hạn là mức đỏ — nổi lên cả dải nhắc ở đầu Sổ.
       severity: d.daysLeft < 0 ? "high" : d.daysLeft === 0 ? "medium" : "low",
-      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
+      // Khoản chỉ biết tháng: `dueISO` là ngày 1 do quy ước lưu, nói "N ngày nữa tới hạn"
+      // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
+      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.duePrecision === "month" ? `Trong th\xE1ng ${Number(d.dueISO.slice(5, 7))} c\u1EA7n chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
       detail: d.daysLeft < 0 ? `Qu\xE1 h\u1EA1n ${-d.daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.` : "B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa.",
       onISO: d.dueISO,
       to: "/planned"

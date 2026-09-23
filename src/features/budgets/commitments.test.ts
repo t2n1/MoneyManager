@@ -4,6 +4,8 @@ import type { CurrencyCode } from '../../lib/money'
 import {
   classifyCommitments,
   collectCommitments,
+  commitmentDueLabel,
+  commitmentOverdueDays,
   coverageGaps,
   spendableRemaining,
 } from './commitments'
@@ -337,7 +339,12 @@ describe('spendableRemaining', () => {
 })
 
 describe('classifyCommitments', () => {
-  const it0 = (key: string, dueISO: string, amount: number) => ({
+  const it0 = (
+    key: string,
+    dueISO: string,
+    amount: number,
+    duePrecision: 'day' | 'month' = 'day',
+  ) => ({
     key,
     kind: 'recurring' as const,
     title: key,
@@ -345,6 +352,7 @@ describe('classifyCommitments', () => {
     amount,
     times: 1,
     dueISO,
+    duePrecision,
     unknownAmount: false,
   })
 
@@ -363,5 +371,64 @@ describe('classifyCommitments', () => {
     const r = classifyCommitments([it0('dien', '2026-08-18', 100)], '2026-08-18')
     expect(r.overdue).toEqual([])
     expect(r.upcoming).toHaveLength(1)
+  })
+})
+
+describe('khoản sắp chi chỉ biết THÁNG', () => {
+  // Lưu thành due_on = ngày 1 + due_precision = 'month' (quy ước lưu trữ, không phải ngày
+  // thật). Đọc due_on như một ngày là ra "tới hạn 9/1 — quá hạn 22 ngày" cho một khoản
+  // người dùng chỉ ghi "trong tháng 9".
+  const thang = (key: string, monthISO: string) => ({
+    key,
+    kind: 'planned' as const,
+    title: key,
+    categoryId: null,
+    amount: 20_000,
+    times: 1,
+    dueISO: monthISO,
+    duePrecision: 'month' as const,
+    unknownAmount: false,
+  })
+  const ngay = (key: string, iso: string) => ({
+    ...thang(key, iso),
+    kind: 'recurring' as const,
+    duePrecision: 'day' as const,
+  })
+
+  it('collectCommitments mang độ chính xác của hạn theo khoản', () => {
+    const r = collect(
+      [rule({ id: 'nha', start_on: '2026-01-10' })],
+      [
+        plan({ id: 'sua', due_on: '2026-09-01', due_precision: 'month' }),
+        plan({ id: 'phi', due_on: '2026-09-15', due_precision: 'day' }),
+      ],
+    )
+    const by = new Map(r.items.map((x) => [x.key, x.duePrecision]))
+    expect(by.get('planned:sua')).toBe('month')
+    expect(by.get('planned:phi')).toBe('day')
+    // Định kỳ luôn có ngày thật.
+    expect(by.get('rule:nha')).toBe('day')
+  })
+
+  it('giữa tháng đó thì chưa quá hạn — ngày 1 không phải hạn', () => {
+    const r = classifyCommitments([thang('sua', '2026-09-01')], '2026-09-23')
+    expect(r.overdue).toEqual([])
+    expect(r.upcoming).toHaveLength(1)
+  })
+
+  it('ngày cuối tháng vẫn chưa quá hạn; qua tháng sau mới quá hạn', () => {
+    expect(classifyCommitments([thang('sua', '2026-09-01')], '2026-09-30').overdue).toEqual([])
+    expect(classifyCommitments([thang('sua', '2026-09-01')], '2026-10-01').overdue).toHaveLength(1)
+  })
+
+  it('số ngày quá hạn đếm từ cuối tháng, không từ ngày 1', () => {
+    expect(commitmentOverdueDays(thang('sua', '2026-08-01'), '2026-09-23')).toBe(23)
+    expect(commitmentOverdueDays(ngay('dien', '2026-09-01'), '2026-09-23')).toBe(22)
+    expect(commitmentOverdueDays(thang('sua', '2026-09-01'), '2026-09-23')).toBe(0)
+  })
+
+  it('nhãn hạn: "trong tháng 9" chứ không bịa ra "9/1"', () => {
+    expect(commitmentDueLabel(thang('sua', '2026-09-01'))).toBe('trong tháng 9')
+    expect(commitmentDueLabel(ngay('dien', '2026-09-15'))).toBe('9/15')
   })
 })

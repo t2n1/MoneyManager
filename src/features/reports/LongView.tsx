@@ -65,6 +65,8 @@ import { remitTrueCost, remittanceStats, remittanceTiming } from '../remittance/
 import { categoryBreakdown, monthlySeries } from './aggregate'
 import {
   findRegime,
+  halfSpans,
+  keptShareOfTotal,
   longScopeOptions,
   longTable,
   monthAverages,
@@ -160,12 +162,18 @@ export function LongView() {
   const seasonal = useMemo(() => monthAverages(active), [active])
 
   // Hai nửa kỳ: chỉ lấy phạm vi đang xem × 2 để "nửa trước" đúng là kỳ liền trước.
-  const shift = useMemo(() => {
+  // `spans` là hai khoảng tháng THẬT của hai nửa, cắt cùng luật với halfPeriodShift —
+  // nhãn phải nói ra chúng, không thì "Tỷ lệ giữ lại tăng từ 20% lên 30%" không nói được
+  // là của những tháng nào (và nửa sau có gồm tháng đang dở hay không).
+  const { shift, spans } = useMemo(() => {
     const win = active.slice(Math.max(0, active.length - scopeMonths * 2))
-    return halfPeriodShift(
-      win.map((p) => p.income),
-      win.map((p) => p.expense),
-    )
+    return {
+      shift: halfPeriodShift(
+        win.map((p) => p.income),
+        win.map((p) => p.expense),
+      ),
+      spans: halfSpans(win.map((p) => p.key)),
+    }
   }, [active, scopeMonths])
 
   // Rổ quen thuộc: hai đoạn `scopeMonths` liền nhau, so theo danh mục.
@@ -258,8 +266,10 @@ export function LongView() {
 
   const money = (v: number) => formatMoney(Math.round(v), base)
   const avgIncome = dataMonths > 0 ? active.reduce((s, p) => s + p.income, 0) / dataMonths : 0
-  const avgExpense = dataMonths > 0 ? active.reduce((s, p) => s + p.expense, 0) / dataMonths : 0
-  const keptPct = avgIncome > 0 ? Math.round(((avgIncome - avgExpense) / avgIncome) * 100) : null
+  // Ô "Giữ lại": ĐÚNG phạm vi đang chọn như ô "Chi N tháng" bên cạnh, chỉ tháng đã xong,
+  // chia trên TỔNG thu — xem keptShareOfTotal cho ba chỗ bản cũ sai.
+  const kept = keptShareOfTotal(active, anchor, scopeMonths)
+  const keptRatio = kept?.ratio ?? null
 
   if (!isFetched) {
     return <EmptyState>Đang tải…</EmptyState>
@@ -374,8 +384,16 @@ export function LongView() {
             )}
           </Swap>
         </StatTile>
-        <StatTile label="Giữ lại trung bình" center>
-          <Swap on={keptPct}>{keptPct === null ? '—' : `${keptPct}%`}</Swap>
+        <StatTile
+          label="Giữ lại / tổng thu"
+          note={
+            kept
+              ? `${kept.months} tháng đã xong · ${monthLabel(kept.from)}–${monthLabel(kept.to)}`
+              : 'chưa có tháng nào xong'
+          }
+          center
+        >
+          <Swap on={keptRatio}>{keptRatio === null ? '—' : pctText(keptRatio)}</Swap>
         </StatTile>
         <StatTile label="Tháng nặng nhất" center>
           <Swap on={seasonal.heaviest?.month ?? null}>
@@ -740,7 +758,16 @@ export function LongView() {
                   {Math.abs(Math.round(shift.expenseChangePct))}%
                 </SectionTitle>
                 <span className="text-2xs text-fg-muted">
-                  TB tháng · {shift.monthsPerHalf} th vs {shift.monthsPerHalf} th trước
+                  TB tháng ·{' '}
+                  {spans
+                    ? `nửa trước ${monthLabel(spans.before.from)}–${monthLabel(spans.before.to)} · nửa sau ${monthLabel(spans.after.from)}–${monthLabel(spans.after.to)}`
+                    : `${shift.monthsPerHalf} th vs ${shift.monthsPerHalf} th trước`}
+                  {/* Nửa sau luôn kết thúc ở tháng NÀY — đang dở thì nói ra, không thì chi
+                      của nó trông thấp giả và tỷ lệ giữ lại nửa sau phồng lên. */}
+                  {spans &&
+                    spans.after.to.year === anchor.year &&
+                    spans.after.to.month === anchor.month &&
+                    ' (tháng này chưa hết)'}
                 </span>
               </div>
               <ul className="flex flex-col gap-1.5">
@@ -778,15 +805,17 @@ export function LongView() {
               </ul>
               {shift.keptRateBefore !== null && shift.keptRateAfter !== null && (
                 <p className="mt-2.5 text-sm text-fg-primary">
-                  Tỷ lệ giữ lại{' '}
+                  {/* Kỳ tính nói ra ngay trong câu: hai tỷ lệ này là trên TỔNG thu của từng
+                      nửa (khoảng tháng in ở góc phải), không phải của tháng này. */}
+                  Tỷ lệ giữ lại (trên tổng thu mỗi nửa){' '}
                   <b>{shift.keptRateAfter >= shift.keptRateBefore ? 'tăng' : 'giảm'}</b> từ{' '}
                   {/* `pctText`, không phải `${n}%`: tỷ lệ giữ lại ÂM là chuyện thật (chi
                       vượt thu) và `${-3}%` của JS ra "-3%" với dấu hyphen. */}
-                  <b>{pctText(shift.keptRateBefore)}</b>{' '}
+                  <b>{pctText(shift.keptRateBefore)}</b> ở nửa trước{' '}
                   {/* "lên"/"xuống" phải theo chiều: "giảm từ 33% lên 0%" là câu đã in ra
                       thật trên production 09/2026. */}
                   {shift.keptRateAfter >= shift.keptRateBefore ? 'lên' : 'xuống'}{' '}
-                  <b>{pctText(shift.keptRateAfter)}</b>.
+                  <b>{pctText(shift.keptRateAfter)}</b> ở nửa sau.
                 </p>
               )}
               {splitByRegime && (

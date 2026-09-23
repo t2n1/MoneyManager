@@ -54,8 +54,11 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               nói vì sao, nên đọc thành "thẻ này tự mâu thuẫn". */}
           <p className="text-sm text-fg-muted">
             {scoped ? 'Cả tháng đã chi ' : 'Đã chi '}
-            {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
-            {forecast.daysInMonth} ngày{scoped ? ' — gồm cả mục chưa đặt hạn mức.' : '.'}
+            {/* "tới hôm nay" chứ không "sau 23/30 ngày": cặp số đó là mẫu số của DỰ BÁO
+                (đã bỏ ngày đi vắng), không phải lịch — in ra thì nó cãi với nhãn kỳ "đã
+                qua 22 ngày · còn 8 ngày (kể cả hôm nay)" ở đầu trang (lib/dates periodDays). */}
+            {formatMoney(forecast.spentSoFar, base)} tính tới hôm nay
+            {scoped ? ' — gồm cả mục chưa đặt hạn mức.' : '.'}
           </p>
           {/* Nói KHOẢNG chứ không một con số: cùng một mức chi trung bình, người tiêu đều
               mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}

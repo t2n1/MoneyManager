@@ -14,7 +14,7 @@ import { ChevronRight } from 'lucide-react'
 import { Card, Money, Num, SectionTitle, deltaTone, signedPct } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { dayMonthLabel } from '../../lib/dates'
+import { dayMonthLabel, daysLeftLabel, type PeriodDays } from '../../lib/dates'
 import type { KeptDestinations, OutflowTier, RemainingPlan, SpendShape } from './monthReport'
 
 function PanelTitle({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
@@ -294,15 +294,29 @@ export function KeptWhereCard({
   )
 }
 
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+
 // ---------------------------------------------------------------------------------
 // Khối 04 · Mấy ngày còn lại
 // ---------------------------------------------------------------------------------
 
-export function RemainingCard({ plan, base }: { plan: RemainingPlan; base: CurrencyCode }) {
+export function RemainingCard({
+  plan,
+  ky,
+  base,
+}: {
+  plan: RemainingPlan
+  /** Vị trí hôm nay trong kỳ — nguồn của chữ "còn N ngày", theo quy ước chung của app. */
+  ky: PeriodDays
+  base: CurrencyCode
+}) {
   const rows = [
     { label: 'Đã cam kết · định kỳ chưa trừ', value: plan.committed, tone: 'out' as const },
     {
-      label: `Nhịp dự kiến · ${formatMoney(plan.dailyPace, base)} × ${plan.daysLeft}`,
+      // `plan.daysLeft` là số ngày SAU hôm nay — chi hôm nay đã nằm trong "đã tiêu", nên
+      // phép nhân chỉ chiếu cho những ngày sau. Nói rõ điều đó thay vì in một số ngày
+      // khác với tiêu đề ("còn 8 ngày, kể cả hôm nay") mà không giải thích.
+      label: `Nhịp dự kiến · ${formatMoney(plan.dailyPace, base)} × ${plan.daysLeft} ngày sau hôm nay`,
       value: plan.expected,
       tone: 'out' as const,
     },
@@ -310,7 +324,7 @@ export function RemainingCard({ plan, base }: { plan: RemainingPlan; base: Curre
   return (
     <Card as="section" elevation="panel" padding="panel">
       <PanelTitle meta={`hết kỳ ${dayMonthLabel(plan.lastISO)}`}>
-        {plan.daysLeft} ngày còn lại
+        {capitalize(daysLeftLabel(ky.left))}
       </PanelTitle>
 
       <ul className="flex flex-col">

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   addDaysISO,
   addMonths,
+  daysLeftLabel,
+  periodDays,
+  periodDaysLabel,
   calendarYearOf,
   calendarYearRange,
   clampMonthStartDay,
@@ -249,5 +252,74 @@ describe('calendarYearRange / calendarYearOf', () => {
   })
   it('calendarYearOf đọc 4 ký tự đầu', () => {
     expect(calendarYearOf('2025-12-28')).toBe(2025)
+  })
+})
+
+// MỤC 13 (2026-09-23): Bản tin nói "còn 8 ngày", Báo cáo nói "còn 7" cho cùng ngày 23/9.
+// Một quy ước cho cả app: còn N ngày KỂ CẢ HÔM NAY, đã qua = số ngày TRƯỚC hôm nay.
+describe('periodDays — quy ước chung "còn N ngày, kể cả hôm nay"', () => {
+  const ky = { start: '2026-09-01', end: '2026-10-01' }
+
+  it('23/9 trong kỳ 1–30/9: đã qua 22, còn 8 (kể cả hôm nay), tổng 30', () => {
+    expect(periodDays(ky, '2026-09-23')).toEqual({
+      total: 30,
+      passed: 22,
+      left: 8,
+      dayNo: 23,
+      inProgress: true,
+    })
+  })
+
+  it('ngày đầu kỳ: đã qua 0, còn trọn kỳ', () => {
+    expect(periodDays(ky, '2026-09-01')).toMatchObject({ passed: 0, left: 30, dayNo: 1 })
+  })
+
+  it('ngày cuối kỳ: còn đúng 1 ngày là hôm nay', () => {
+    expect(periodDays(ky, '2026-09-30')).toMatchObject({ passed: 29, left: 1, dayNo: 30 })
+  })
+
+  it('kỳ đã xong: còn 0, không đang chạy', () => {
+    expect(periodDays(ky, '2026-10-05')).toEqual({
+      total: 30,
+      passed: 30,
+      left: 0,
+      dayNo: 30,
+      inProgress: false,
+    })
+  })
+
+  it('kỳ chưa tới: chưa qua ngày nào, không đang chạy', () => {
+    expect(periodDays(ky, '2026-08-20')).toMatchObject({ passed: 0, left: 30, inProgress: false })
+  })
+
+  it('kỳ lệch tháng lịch (bắt đầu ngày 25)', () => {
+    expect(periodDays({ start: '2026-08-25', end: '2026-09-25' }, '2026-09-23')).toMatchObject({
+      total: 31,
+      passed: 29,
+      left: 2,
+    })
+  })
+
+  it('khớp số ngày của toiNgayLuong: left = daysBetween(hôm nay, end)', () => {
+    expect(periodDays(ky, '2026-09-23').left).toBe(daysBetween('2026-09-23', ky.end))
+  })
+})
+
+describe('daysLeftLabel / periodDaysLabel', () => {
+  it('luôn ghi rõ "kể cả hôm nay"', () => {
+    expect(daysLeftLabel(8)).toBe('còn 8 ngày (kể cả hôm nay)')
+    expect(daysLeftLabel(1)).toBe('còn 1 ngày (kể cả hôm nay)')
+  })
+
+  it('kỳ đang dở: đã qua + còn lại cộng lại đúng tổng', () => {
+    expect(periodDaysLabel(periodDays({ start: '2026-09-01', end: '2026-10-01' }, '2026-09-23'))).toBe(
+      'đã qua 22 ngày · còn 8 ngày (kể cả hôm nay)',
+    )
+  })
+
+  it('kỳ đã xong không in "còn 0"', () => {
+    expect(periodDaysLabel(periodDays({ start: '2026-08-01', end: '2026-09-01' }, '2026-09-23'))).toBe(
+      '31 ngày',
+    )
   })
 })

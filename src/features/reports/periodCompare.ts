@@ -46,7 +46,11 @@ export interface PeriodCompare {
   partial: boolean
   daysElapsed: number
   daysInPeriod: number
-  /** Số ngày còn lại của kỳ. */
+  /**
+   * Số ngày SAU `daysElapsed` (không tính hôm nay, đã bỏ ngày đi vắng) — số của phép
+   * tính, KHÔNG để in ra. Chữ "còn N ngày" đi qua `periodDays`/`daysLeftLabel` (lib/dates)
+   * để cả app một quy ước "kể cả hôm nay".
+   */
   daysLeft: number
 }
 
@@ -84,15 +88,6 @@ export function periodCompare(input: PeriodCompareInput): PeriodCompare | null {
     daysInPeriod,
     daysLeft: Math.max(0, daysInPeriod - days),
   }
-}
-
-/**
- * Nhãn kỳ cho header: `18/31 ngày · còn 13`. Kỳ đã xong thì chỉ còn `31 ngày` — không
- * in "còn 0", vì "còn 0 ngày" đọc như một cảnh báo chứ không như một sự thật hiển nhiên.
- */
-export function periodDaysLabel(c: Pick<PeriodCompare, 'daysElapsed' | 'daysInPeriod' | 'daysLeft'>): string {
-  if (c.daysLeft <= 0) return `${c.daysInPeriod} ngày`
-  return `${c.daysElapsed}/${c.daysInPeriod} ngày · còn ${c.daysLeft}`
 }
 
 /**

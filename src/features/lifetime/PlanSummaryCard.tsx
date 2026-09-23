@@ -25,7 +25,7 @@ export interface PlanSummaryCardProps {
   phaseCount: number
   /** `input.events.length`. */
   eventCount: number
-  /** `lifetimeVerdict(rows, birthYear).fireYear` / `.fireAge` — null = chưa đạt. */
+  /** `lifetimeVerdict(rows, birthYear, endAge).fireYear` / `.fireAge` — null = chưa đạt. */
   fireYear: number | null
   fireAge: number | null
   /** `input.endAge` — dùng để ghép nhãn "Lúc N tuổi" đúng tuổi chiếu tới. */

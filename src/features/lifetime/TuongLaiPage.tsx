@@ -10,7 +10,7 @@
 // gì — vùng vẽ là `TimelinePlot`, bố cục là `ConsoleFrame`, còn dock / dải chặng / bảng
 // chọn nhanh (`PlanDock`/`PhaseLane`/`QuickAddBoard`) cắm vào đúng ô đã chừa.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Plus, Star, Trash2 } from 'lucide-react'
 import {
   ActionButton,
@@ -42,7 +42,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery'
 import type { CurrencyCode } from '../../lib/currencies'
 import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import { fetchRates, formatRateLine } from '../../lib/rates'
+import { formatRateLine } from '../../lib/rates'
 import { suggestBaseline } from './baseline'
 import { biggestExpenseItem, buildBigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import { BigExpenseMapPane } from './BigExpenseMapPane'
@@ -73,9 +73,15 @@ import {
 import { DraftBanner } from './DraftBanner'
 import { dragPhaseStart } from './dragPhase'
 import { changeParts } from './draftText'
-import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import {
+  convertMinorToday,
+  currencyAt,
+  missingRateCurrencies as findMissingRateCurrencies,
+  normalizeToPhaseCurrency,
+} from './fxModel'
 import { assetsAtAge, firstNegativeYear } from './insights'
 import { InsightCards } from './InsightCards'
+import { TuongLaiMobile } from './TuongLaiMobile'
 import { setPhaseStarts, type PhaseStart } from './phaseOrder'
 import { PhaseLane } from './PhaseLane'
 import { phasePresetToDraft, type PhasePreset } from './phasePresets'
@@ -104,7 +110,7 @@ import { QuickTuneRow } from './QuickTuneRow'
 import { realityCheck } from './realityCheck'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { defaultStress, StressPanel } from './StressPanel'
-import { lifetimeVerdict } from './summary'
+import { lifetimeVerdict, verdictHeadline } from './summary'
 import { topLayer } from './topLayer'
 import {
   TimelinePlot,
@@ -196,12 +202,22 @@ const ZOOM_ITEMS = [
 ] as const
 
 export function TuongLaiPage() {
+  // Cổng DỮ LIỆU của console — không quyết định render (xem lời ghi ở `TuongLaiConsole`).
+  const isDesktop = useMediaQuery(CONSOLE_BREAKPOINT_QUERY)
+  // MỘT `useLifetime` cho cả hai bề rộng (2026-09-23, mục 22): bản đọc trên điện thoại và
+  // console đọc cùng một bộ kịch bản / cùng lựa chọn kịch bản / cùng bản chiếu. Hai lượt
+  // gọi hook là hai `activeId` riêng — chọn kịch bản trên điện thoại rồi phóng rộng cửa sổ
+  // thì console lại mở kịch bản khác.
+  const lt = useLifetime({ enabled: isDesktop })
+
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <PageHeader title="Tương lai" flush />
 
       {/* Console dòng thời gian là màn CHỈ CHO MÁY TÍNH (quyết định 2026-09-09, xem spec
-          §1). Cần 1280px để chứa rail + vùng vẽ + dock 24,5rem cùng lúc.
+          §1). Cần 1280px để chứa rail + vùng vẽ + dock 24,5rem cùng lúc. Dưới mốc đó
+          (từ 2026-09-23, mục 22) là một bản ĐỌC gọn — `TuongLaiMobile` — thay cho lời
+          nhắn "cần máy tính" từng chặn cả trang.
 
           Cổng bằng CSS chứ không đo bằng JS: đọc `innerWidth` trong render thì lần vẽ đầu
           luôn sai ở SSR/hydrate, và không nghe theo Cài đặt → Cỡ chữ (src/lib/fontScale.ts
@@ -212,17 +228,18 @@ export function TuongLaiPage() {
           không có `@theme` nào khai lại `--breakpoint-xl` hay `screens` trong
           src/index.css (đã kiểm bằng grep). Đúng luôn 1280px cần, không phải bịa tiện ích
           mới. */}
-      <div className="xl:hidden">
-        <EmptyState>
-          Màn Tương lai cần máy tính (từ 1280px) để đủ chỗ cho rail, vùng vẽ và bảng vặn
-          thử cùng lúc. Mở lại bằng máy tính, hoặc phóng rộng cửa sổ trình duyệt.
-        </EmptyState>
+      {/* Cả hai nhánh LUÔN dựng, cổng chỉ là CSS: nếu đổi cây theo `isDesktop` thì kéo
+          cửa sổ qua mốc 1280px (hoặc đổi Cỡ chữ) là tháo console — mất luôn bản nháp chưa
+          lưu. Cổng năm sinh đặt Ở ĐÂY cho nhánh hẹp vì `BirthYearCard` dùng được ở mọi bề
+          rộng; console tự có cổng riêng của nó. */}
+      <div className="min-w-0 xl:hidden">
+        {!lt.isLoading && lt.needsBirthYear ? <BirthYearCard /> : <TuongLaiMobile lt={lt} />}
       </div>
       {/* `block` chứ không `flex`: chính `ConsoleFrame` bên trong là khối flex, và cái
           bọc này chỉ có một việc — bật/tắt theo bề ngang. `min-w-0` để cột vẽ bên trong
           co được (không có nó thì SVG 100% đẩy cả trang cuộn ngang). */}
       <div className="hidden min-w-0 xl:block">
-        <TuongLaiConsole />
+        <TuongLaiConsole lt={lt} isDesktop={isDesktop} />
       </div>
     </div>
   )
@@ -237,18 +254,22 @@ export function TuongLaiPage() {
  * 2026-09-09: bản comment cũ ở đây từng nói ngược lại.)
  *
  * Vì vậy DATA không được gate bằng cổng CSS: nó gate bằng `isDesktop` (`useMediaQuery`,
- * khai ngay dưới) truyền vào tham số `enabled` của các query mà console SỞ HỮU riêng —
+ * khai ở `TuongLaiPage` rồi truyền xuống) vào tham số `enabled` của các query mà console SỞ HỮU riêng —
  * nặng nhất là dải 366 ngày giao dịch cho baseline (xem khối "SỐ THẬT 12 THÁNG" bên dưới).
  * `matchMedia` thay vì đọc `innerWidth` trong lúc render vì đây là quyết định TẢI DỮ LIỆU,
  * không phải LAYOUT: sai ở lần vẽ đầu chỉ trễ hoặc bỏ một lượt tải rồi tự sửa ở lượt render
  * kế — khác layout, nơi sai là một MÀN HÌNH SAI nhìn thấy được (lý do cổng layout phải là
  * CSS, xem lời ghi ở `TuongLaiPage`). Không dùng `isDesktop` để quyết định render gì ở đây.
  */
-function TuongLaiConsole() {
-  // Cổng DỮ LIỆU của console — không quyết định render (xem lời ghi ở trên). Khai TRƯỚC
-  // `useLifetime` vì hook đó cần `isDesktop` để tự gate các query nó sở hữu riêng.
-  const isDesktop = useMediaQuery(CONSOLE_BREAKPOINT_QUERY)
-
+function TuongLaiConsole({
+  lt,
+  isDesktop,
+}: {
+  /** Kết quả `useLifetime` của trang — dùng chung với bản đọc trên điện thoại. */
+  lt: ReturnType<typeof useLifetime>
+  /** Cổng DỮ LIỆU của console — không quyết định render (xem lời ghi ở trên). */
+  isDesktop: boolean
+}) {
   const {
     scenarios,
     active,
@@ -271,7 +292,8 @@ function TuongLaiConsole() {
     duplicatingScenario,
     deleteScenario,
     deletingScenario,
-  } = useLifetime({ enabled: isDesktop })
+    fxOf: pageFxOf,
+  } = lt
 
   // --- Cách ĐỌC bản chiếu (không thuộc kịch bản, không được ghi) ----------------------
   const [zoom, setZoom] = useState<PlotZoom>('all')
@@ -405,30 +427,11 @@ function TuongLaiConsole() {
     setStress(defaultStress(input.currentYear, rows[0]?.expenseMinor ?? 0))
   }, [active, input, rows])
 
-  /**
-   * Tỷ giá HÔM NAY, nền là tiền hiển thị của kịch bản. CÙNG `queryKey` với `useLifetime`
-   * nên React Query trả thẳng từ cache — không có lượt tải thứ hai.
-   *
-   * Trang cần nó cho đúng một việc: biết bản chiếu có dòng nào KHÔNG quy đổi được hay
-   * không. `useLifetime` chuẩn hoá tiền bên trong rồi bỏ cờ `hasMissingRate` đi, nên nếu
-   * không tự tra lại thì màn này im lặng về một tổng đang bị thiếu.
-   *
-   * `enabled` gồm cả `isDesktop`: hai instance CÙNG `queryKey` (cái này và cái trong
-   * `useLifetime`) phải cùng gate theo cùng điều kiện — gate một cái mà để cái kia bật vô
-   * điều kiện thì cái còn bật vẫn tự kích lượt tải, gate coi như vô nghĩa.
-   */
-  const ratesQ = useQuery({
-    queryKey: ['lifetime-rates-for', active?.display_currency],
-    queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
-    enabled: isDesktop && !!active,
-    staleTime: 12 * 3600_000,
-    gcTime: 24 * 3600_000,
-    retry: 1,
-  })
-  const pageFxOf = useMemo(
-    () => fxOfRates((active?.display_currency as CurrencyCode) ?? 'JPY', ratesQ.data ?? {}),
-    [active?.display_currency, ratesQ.data],
-  )
+  // `pageFxOf` — tỷ giá HÔM NAY theo tiền hiển thị của kịch bản — nay lấy thẳng từ
+  // `useLifetime` (`fxOf`), cùng bảng đã ra `rows`. Trước 2026-09-23 trang tự gọi lại
+  // `useQuery` cùng key; một nguồn thì không có hai điều kiện `enabled` để lệch nhau.
+  // Trang cần nó để biết bản chiếu có dòng nào KHÔNG quy đổi được: `useLifetime` chuẩn
+  // hoá tiền bên trong rồi bỏ cờ `hasMissingRate`, nên phải tự tra lại.
 
   /**
    * Đổi TÊN kịch bản — hàng 2 của bản vẽ (dòng 104), ô viền gạch nối 132px.
@@ -690,16 +693,13 @@ function TuongLaiConsole() {
    * nhất không có nó): hai con số của dải thống kê hàng 3 (`≈`), thẻ Tóm tắt kế hoạch
    * trong dock (`hasMissingRate` → `≈`), Bản đồ khoản lớn (`hasMissingFx`), và một câu
    * dưới chú giải nói rõ đơn vị nào chưa tra được. TIÊU ĐỀ hàng 3 là một câu KẾT LUẬN
-   * ("Đủ tiền tới hết đời"), không phải một con số — `≈` không gắn vào chữ được; nó dựa
+   * ("Tài sản chưa cạn tới tuổi 70…"), không phải một con số — `≈` không gắn vào chữ được; nó dựa
    * vào hai con số mang cờ đứng ngay cạnh nó trên cùng hàng.
    */
-  const missingRateCurrencies = useMemo(() => {
-    if (!shownInput) return []
-    const coTien = new Set<CurrencyCode>()
-    for (const p of shownInput.phases) coTien.add(p.currency)
-    for (const e of shownInput.events) coTien.add(e.currency)
-    return [...coTien].filter((c) => pageFxOf(c, shownInput.displayCurrency) === null)
-  }, [shownInput, pageFxOf])
+  const missingRateCurrencies = useMemo(
+    () => (shownInput ? findMissingRateCurrencies(shownInput, pageFxOf) : []),
+    [shownInput, pageFxOf],
+  )
 
   // Ngày hôm nay ở dạng ISO — cần TRƯỚC `biggestExpense` bên dưới (bản đồ khoản lớn tính
   // "còn bao nhiêu tháng" từ ngày này), nên khai sớm hơn vị trí cũ (đứng cạnh `verdict`).
@@ -800,7 +800,10 @@ function TuongLaiConsole() {
 
   // --- Kết luận (dải thống kê hàng 3) -------------------------------------------------
   const verdict = useMemo(
-    () => (shownInput && shownRows.length > 0 ? lifetimeVerdict(shownRows, shownInput.birthYear) : null),
+    () =>
+      shownInput && shownRows.length > 0
+        ? lifetimeVerdict(shownRows, shownInput.birthYear, shownInput.endAge)
+        : null,
     [shownInput, shownRows],
   )
   const atEnd = useMemo(
@@ -964,7 +967,7 @@ function TuongLaiConsole() {
   )
   const verdictNow = useMemo((): VerdictPoint | null => {
     if (!input || rows.length === 0) return null
-    const v = lifetimeVerdict(rows, input.birthYear)
+    const v = lifetimeVerdict(rows, input.birthYear, input.endAge)
     const end = assetsAtAge(rows, input.endAge)
     if (!end) return null
     return {
@@ -1904,13 +1907,9 @@ function TuongLaiConsole() {
           <Card as="section" padding="panel" elevation="panel">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <SectionTitle role="block" className="shrink-0">
-                {verdict === null
-                  ? 'Chưa chiếu được năm nào'
-                  : verdict.negativeYear !== null
-                    ? `Nhánh bi quan cạn tiền từ ${verdict.negativeYear}`
-                    : verdict.fireYear !== null
-                      ? 'Đủ tiền tới hết đời, và có đạt tự do tài chính'
-                      : 'Đủ tiền tới hết đời, nhưng chưa đạt tự do tài chính'}
+                {/* Câu có PHẠM VI ("tới tuổi X"), không bao giờ "hết đời" — mục 23. Một
+                    chỗ ghép câu (`verdictHeadline`) cho cả console lẫn bản điện thoại. */}
+                {verdictHeadline(verdict)}
               </SectionTitle>
 
               <StatCell label="Tự do tài chính">
@@ -2262,6 +2261,8 @@ function TuongLaiConsole() {
           <PhaseRowTools
             onAddPhase={addBlankPhase}
             onOpenPresetBoard={() => plotRef.current?.openPresetBoard()}
+            // Cùng nguồn mà vùng vẽ dùng để vẽ ghim mốc (`shownInput.events`).
+            eventCount={shownInput.events.length}
           />
 
           <PhaseLane
@@ -2311,7 +2312,7 @@ function TuongLaiConsole() {
       // ===== HÀNG 9–12: phần cuộn bên dưới =====
       below={
         <div className="flex min-w-0 flex-col gap-2.5">
-          {/* --- HÀNG 9: vặn nhanh (3 thanh trượt + Lưu / Bỏ) --------------------- */}
+          {/* --- HÀNG 9: chỉnh nhanh giả định (3 thanh trượt + Lưu / Bỏ) ---------- */}
           <QuickTuneRow
             returnBps={working.realReturnBps}
             onReturnBps={(bps) => editDraft((d) => ({ ...d, realReturnBps: bps }))}
@@ -2520,6 +2521,9 @@ function LegendItem({
 
 /** Cổng 2: chưa khai năm sinh — hỏi một ô, kèm lý do vì sao cần. */
 function BirthYearCard() {
+  // useId chứ không id cố định: ô này có thể dựng HAI lần cùng lúc (nhánh điện thoại và
+  // console, một cái bị CSS ẩn), và hai id trùng thì nhãn trỏ nhầm ô.
+  const inputId = useId()
   const qc = useQueryClient()
   const [value, setValue] = useState('')
   const saveMut = useMutation({
@@ -2537,11 +2541,11 @@ function BirthYearCard() {
         đổi qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài
         chính…). Thiếu năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
       </p>
-      <label htmlFor="tuong-lai-birth-year" className="mt-3 block text-sm font-medium text-fg-muted">
+      <label htmlFor={inputId} className="mt-3 block text-sm font-medium text-fg-muted">
         Năm sinh
       </label>
       <input
-        id="tuong-lai-birth-year"
+        id={inputId}
         type="number"
         inputMode="numeric"
         value={value}

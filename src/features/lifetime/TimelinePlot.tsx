@@ -32,8 +32,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { Guide } from '../../components/Guide'
-import { ActionButton, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
+import { EmptyState, Money, Num } from '../../components/ui'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
 import type { CurrencyCode } from '../../lib/currencies'
 import { PHASE_BAND_FADE, PHASE_BAND_OPACITY, phaseColorKey } from './planColors'
@@ -946,42 +945,10 @@ export function TimelinePlot({
             </>
           )}
 
-          {/* TRẠNG THÁI RỖNG: kế hoạch chưa có mốc nào (Task 15).
-              KHÁC hẳn hai trạng thái rỗng đã có của màn này (chưa có kịch bản · chưa khai
-              năm sinh, cả hai ở `TuongLaiPage`) và khác cả nhánh `rows.length === 0` ngay
-              trên: ở đây bản chiếu CHẠY ĐƯỢC và đường đồ thị đang vẽ bình thường, chỉ
-              thiếu MỐC. Gộp ba thứ đó lại là nói "chưa có gì" trong khi đồ thị đang có
-              một đường. */}
-          {events.length === 0 && (
-            <div
-              className="absolute left-1/2 z-30 w-[24rem] max-w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-dashed border-border-strong bg-surface-chrome p-4 text-center"
-              style={{ top: (plotTop + plotBottom) / 2 }}
-              // Chặn cử chỉ nền: không có nó thì bấm nút bên dưới mở bảng HAI lần — một
-              // lần từ `onClick` của nút, một lần từ cú bấm nền nổi bọt lên hộp ngoài.
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <SectionTitle role="card" as="h3">
-                Kế hoạch chưa có mốc nào
-              </SectionTitle>
-              {/* Câu CHỈ ĐƯỜNG nằm NGOÀI <Guide>, phần DẠY nằm trong — đúng ngoại lệ đã
-                  ghi ở đầu `Guide.tsx`: mặc định của app là chế độ Gọn (Guide biến mất ở
-                  đó), mà ở một thẻ rỗng thì câu "bấm gì để bắt đầu" là thứ duy nhất còn
-                  lại trên màn. */}
-              <p className="mt-1 text-2xs text-fg-muted">Bấm một năm trên đồ thị để thêm mốc.</p>
-              <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
-                Đường đang vẽ chỉ tính thu chi nền của các chặng đời. Mốc cuộc đời (cưới,
-                sinh con, mua nhà, nghỉ hưu…) là thứ bẻ nó — thêm một cái để thấy đường
-                đổi hình.
-              </Guide>
-              {/* "Thêm từ mẫu", KHÔNG phải "Chọn mốc từ mẫu" như trước 2026-09-10: cửa mở
-                  ra nay có HAI nhóm và nhóm mức sống đứng trên, nên hứa "mốc" rồi mở ra một
-                  danh sách bắt đầu bằng chặng là hứa sai. Cùng chữ với nút ở hàng 8 vì cùng
-                  một cửa — xem lời ghi 7 đầu `QuickAddBoard.tsx`. */}
-              <ActionButton onClick={openAtMiddle} className="mt-2.5">
-                + Thêm từ mẫu
-              </ActionButton>
-            </div>
-          )}
+          {/* TRẠNG THÁI RỖNG "chưa có mốc nào" KHÔNG còn nằm ở đây (mục 24, soát 2026-09-23):
+              nó từng là một hộp nền đục z-30 đặt giữa vùng vẽ, che đúng đường đồ thị mà câu
+              của nó bảo người dùng nhìn. Nay nó là một dòng thường ở hàng công cụ ngay dưới
+              đồ thị — `PhaseRowTools`, cạnh nút "+ Thêm từ mẫu". */}
 
           {/* Vạch rê chuột + chấm + chip đọc số. Lớp phủ HTML chứ không phải SVG: chip
               mang CHỮ, và chữ trong SVG không co theo Cỡ chữ.

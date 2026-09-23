@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import {
+  convertMinorToday,
+  currencyAt,
+  fxOfRates,
+  missingRateCurrencies,
+  normalizeToPhaseCurrency,
+} from './fxModel'
 import { convertLifetimeMinor } from './project'
 import type { LifetimeEvent, LifetimePhase } from './project'
 
@@ -200,5 +206,27 @@ describe('convertMinorToday', () => {
 
   it('thiếu tỷ giá thì trả null, không quy 1:1', () => {
     expect(convertMinorToday(500_00, 'USD', 'JPY', fxOfRates('JPY', {}))).toBeNull()
+  })
+})
+
+describe('missingRateCurrencies', () => {
+  it('đủ tỷ giá thì rỗng', () => {
+    const phases = [phase({ startYear: 2026, currency: 'JPY' }), phase({ startYear: 2040, currency: 'VND' })]
+    expect(missingRateCurrencies({ phases, events: [], displayCurrency: 'JPY' }, fx)).toEqual([])
+  })
+
+  it('liệt kê MỖI đơn vị thiếu một lần, gồm cả đơn vị riêng của mốc', () => {
+    const none = fxOfRates('JPY', {})
+    const phases = [phase({ startYear: 2026, currency: 'USD' }), phase({ startYear: 2040, currency: 'USD' })]
+    const events = [event({ id: 'a', startYear: 2030, currency: 'VND' })]
+    expect(missingRateCurrencies({ phases, events, displayCurrency: 'JPY' }, none)).toEqual([
+      'USD',
+      'VND',
+    ])
+  })
+
+  it('đơn vị trùng tiền hiển thị không bao giờ thiếu', () => {
+    const phases = [phase({ startYear: 2026, currency: 'JPY' })]
+    expect(missingRateCurrencies({ phases, events: [], displayCurrency: 'JPY' }, fxOfRates('JPY', {}))).toEqual([])
   })
 })

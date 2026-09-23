@@ -65,8 +65,9 @@ const DEFAULT_BAND_SPREAD_BPS = 150
 
 /**
  * `enabled` (mặc định true) — gate cho các query mà KHÔNG trang nào khác của app đã nạp sẵn
- * (`ratesQ`, `groupSettingsQ`, `debtPaymentsQ`, `txsQ` bên dưới có lời ghi tại chỗ nói rõ vì
- * sao đúng bốn cái này — KHÔNG phải mọi query trong hook). Mặc định `true` giữ nguyên
+ * (`groupSettingsQ`, `debtPaymentsQ`, `txsQ` bên dưới có lời ghi tại chỗ nói rõ vì sao đúng
+ * ba cái này — KHÔNG phải mọi query trong hook; `ratesQ` từng nằm trong danh sách, đã rời ra
+ * 2026-09-23 vì bản đọc trên điện thoại cần nó). Mặc định `true` giữ nguyên
  * phòng khi có caller khác không truyền tham số này — `TuongLaiPage` (chỗ gọi duy nhất
  * hiện tại) luôn truyền `{ enabled: isDesktop }`, xem ngay dưới.
  *
@@ -109,13 +110,14 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
   //
   // `staleTime` 12 giờ: nguồn chỉ đổi số một lần mỗi ngày (xem lib/rates.ts).
   //
-  // `enabled` gồm cả `enabled` (tham số của hook, cổng console) — KHÁC `useRates()` (tỷ giá
-  // chung app đã nạp sẵn ở AppLayout cho mọi trang), key này (`lifetime-rates-for`) chỉ
-  // console Tương lai gọi nên không có ai khác nạp hộ.
+  // KHÔNG gate theo `enabled` (đổi 2026-09-23, mục 22): `rows` cần bảng này ở MỌI bề rộng —
+  // dưới 1280px trang hiện một bản ĐỌC (`TuongLaiMobile`) bằng chính `rows` này, và thiếu
+  // tỷ giá thì mọi chặng ngoại tệ lệch khỏi bản chiếu. Một lượt tải nhỏ, 12 giờ mới tải lại.
+  // Ba query nặng hơn bên dưới vẫn gate theo `enabled` như cũ.
   const ratesQ = useQuery({
     queryKey: ['lifetime-rates-for', active?.display_currency],
     queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
-    enabled: enabled && !!active,
+    enabled: !!active,
     staleTime: 12 * 3600_000,
     gcTime: 24 * 3600_000,
     retry: 1,
@@ -227,6 +229,13 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
   }, [active, profileQ.data, buildInputFor])
 
   const rows = useMemo(() => (input ? projectLifetime(input) : []), [input])
+
+  /** Tỷ giá hôm nay theo tiền hiển thị của kịch bản đang xem — cho chỗ hiện số tự tra
+   *  `missingRateCurrencies` (fxModel.ts). Cùng bảng đã dùng để ra `rows`. */
+  const fxOf = useMemo(
+    () => fxOfRates((active?.display_currency as CurrencyCode) ?? 'JPY', ratesQ.data ?? {}),
+    [active?.display_currency, ratesQ.data],
+  )
 
   // Chiếu một kịch bản BẤT KỲ theo id — dùng cho chế độ so sánh (Task 8 Step 4, nút "So
   // sánh" ở LifetimePage). Đi qua đúng `buildInputFor` ở trên, không dựng input theo lối
@@ -538,6 +547,7 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     rows,
     /** `LifetimeInput` đã dùng để ra `rows` — Task 9 (`InsightCards`) cần nguyên bản này. */
     input,
+    fxOf,
     /** Chiếu một kịch bản khác theo id, dùng cho chế độ so sánh của `TuongLaiPage`
      *  (nút "So sánh", Task 8). Trả `[]` nếu id không khớp kịch bản nào hoặc chưa có
      *  năm sinh. */

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { inflationRow, lifetimeVerdict, phaseRange, phaseSavings } from './summary'
+import {
+  FIRE_MEANING,
+  inflationRow,
+  lifetimeVerdict,
+  phaseRange,
+  phaseSavings,
+  verdictHeadline,
+  verdictShort,
+} from './summary'
 import { projectLifetime, type LifetimeInput, type LifetimePhase } from './project'
 
 function phase(over: Partial<LifetimePhase> = {}): LifetimePhase {
@@ -34,7 +42,7 @@ function inputOf(over: Partial<LifetimeInput> = {}): LifetimeInput {
 
 describe('lifetimeVerdict', () => {
   it('để dành đều thì không năm nào âm và có năm tự do tài chính', () => {
-    const v = lifetimeVerdict(projectLifetime(inputOf()), 1994)
+    const v = lifetimeVerdict(projectLifetime(inputOf()), 1994, 90)
     expect(v.negativeYear).toBeNull()
     expect(v.negativeAge).toBeNull()
     expect(v.fireYear).not.toBeNull()
@@ -42,7 +50,7 @@ describe('lifetimeVerdict', () => {
   })
 
   it('tuổi suy từ năm sinh, không phải từ dòng đầu bản chiếu', () => {
-    const v = lifetimeVerdict(projectLifetime(inputOf()), 1994)
+    const v = lifetimeVerdict(projectLifetime(inputOf()), 1994, 90)
     expect(v.fireAge).toBe((v.fireYear as number) - 1994)
   })
 
@@ -57,7 +65,7 @@ describe('lifetimeVerdict', () => {
         phases: [phase({ annualIncomeMinor: 1_000_000, annualExpenseMinor: 2_000_000 })],
       }),
     )
-    const v = lifetimeVerdict(rows, 1994)
+    const v = lifetimeVerdict(rows, 1994, 90)
     expect(v.negativeYear).toBe(2026)
     expect(v.negativeAge).toBe(32)
     expect(v.tone).toBe('bad')
@@ -74,21 +82,82 @@ describe('lifetimeVerdict', () => {
         phases: [phase({ annualIncomeMinor: 2_000_000, annualExpenseMinor: 2_000_000 })],
       }),
     )
-    const v = lifetimeVerdict(rows, 1994)
+    const v = lifetimeVerdict(rows, 1994, 90)
     expect(v.negativeYear).toBeNull()
     expect(v.fireYear).toBeNull()
     expect(v.tone).toBe('warn')
   })
 
   it('bản chiếu rỗng không ném, trả về ca không đạt', () => {
-    const v = lifetimeVerdict([], 1994)
+    const v = lifetimeVerdict([], 1994, 70)
     expect(v).toEqual({
       negativeYear: null,
       negativeAge: null,
       fireYear: null,
       fireAge: null,
+      endAge: 70,
       tone: 'warn',
     })
+  })
+})
+
+// Mục 23 (soát 2026-09-23): câu kết luận từng nói "Đủ tiền tới hết đời" trong khi bản
+// chiếu dừng ở tuổi 70. Mọi câu kết luận phải nói phạm vi của nó — tuổi chiếu tới.
+describe('verdictHeadline', () => {
+  const base = { negativeYear: null, negativeAge: null, fireYear: null, fireAge: null }
+
+  it('không bao giờ nói "hết đời" — nói rõ tuổi chiếu tới', () => {
+    const cases = [
+      { ...base, endAge: 70, tone: 'warn' as const },
+      { ...base, fireYear: 2040, fireAge: 46, endAge: 70, tone: 'good' as const },
+      { ...base, negativeYear: 2060, negativeAge: 66, endAge: 70, tone: 'bad' as const },
+    ]
+    for (const v of cases) {
+      const s = verdictHeadline(v)
+      expect(s).not.toMatch(/hết đời/)
+      expect(s).toMatch(/70|2060/)
+    }
+  })
+
+  it('không âm: nói "chưa cạn tới tuổi X", kể cả nhánh bi quan', () => {
+    const s = verdictHeadline({ ...base, endAge: 70, tone: 'warn' })
+    expect(s).toContain('Theo kịch bản hiện tại')
+    expect(s).toContain('chưa cạn tới tuổi 70')
+    expect(s).toContain('bi quan')
+    expect(s).toContain('chưa đạt tự do tài chính')
+  })
+
+  it('tuổi chiếu đổi thì câu đổi theo', () => {
+    expect(verdictHeadline({ ...base, endAge: 90, tone: 'warn' })).toContain('tuổi 90')
+  })
+
+  it('có đạt tự do tài chính thì câu nói ra', () => {
+    const s = verdictHeadline({ ...base, fireYear: 2040, fireAge: 46, endAge: 70, tone: 'good' })
+    expect(s).toContain('có đạt tự do tài chính')
+  })
+
+  it('cạn tiền ở nhánh bi quan: nói năm và tuổi', () => {
+    const s = verdictHeadline({ ...base, negativeYear: 2060, negativeAge: 66, endAge: 70, tone: 'bad' })
+    expect(s).toContain('2060')
+    expect(s).toContain('66')
+    expect(s).toContain('bi quan')
+  })
+
+  it('chưa có verdict thì nói chưa chiếu được', () => {
+    expect(verdictHeadline(null)).toBe('Chưa chiếu được năm nào')
+  })
+
+  it('bản ngắn (chế độ Gọn) cũng có phạm vi, không dùng chữ FIRE', () => {
+    const ok = verdictShort({ ...base, fireYear: 2040, fireAge: 46, endAge: 70, tone: 'good' })
+    expect(ok).toBe('Chưa cạn tới tuổi 70 · tự do tài chính 2040')
+    expect(verdictShort({ ...base, negativeYear: 2060, negativeAge: 66, endAge: 70, tone: 'bad' })).toBe(
+      'Cạn tiền 2060 · chưa đạt tự do tài chính',
+    )
+    expect(ok).not.toMatch(/FIRE|hết đời/)
+  })
+
+  it('FIRE_MEANING nói bội số khớp quy tắc 4% (25 lần chi một năm)', () => {
+    expect(FIRE_MEANING).toContain('25 lần chi một năm')
   })
 })
 

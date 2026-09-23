@@ -481,8 +481,8 @@ export function InsightCards({
             minReturn === null
               ? undefined
               : minReturn === 0
-                ? 'thu chi tự đủ, không năm nào âm'
-                : 'để không năm nào âm'
+                ? `thu chi tự đủ, không năm nào âm tới tuổi ${input.endAge}`
+                : `để không năm nào âm tới tuổi ${input.endAge}`
           }
         />
 

@@ -123,7 +123,7 @@ import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './
 import { UNDO_WINDOW_MS, makeUndo } from './undoStack'
 import { useBigExpenseMap } from './useBigExpenseMap'
 import { useConsoleKeys } from './useConsoleKeys'
-import { baselineRange, makeCurrencyOf, useLifetime } from './useLifetime'
+import { baselineRange, DEFAULT_END_AGE, makeCurrencyOf, useLifetime } from './useLifetime'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
 import { YearTablePane } from './YearTableView'
 
@@ -1302,9 +1302,9 @@ function TuongLaiConsole({
     return (
       <Card as="section">
         <p className="text-sm text-fg-secondary">
-          Màn này chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
-          (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
-          không cần khai tay từng con số.
+          Màn này chiếu tài sản ròng của bạn tới năm bạn {DEFAULT_END_AGE} tuổi, dựa trên thu
+          chi nền và các mốc (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi
+          tiêu thật của bạn — không cần khai tay từng con số.
         </p>
 
         {/* Tài sản khởi điểm của kịch bản = tài sản ròng hiện tại. Hiện rõ số này TRƯỚC
@@ -2537,7 +2537,8 @@ function BirthYearCard() {
   return (
     <Card as="section">
       <p className="text-sm text-fg-secondary">
-        Màn này chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để
+        Màn này chiếu tài sản ròng của bạn theo từng năm tới tuổi cuối của kịch bản (mặc
+        định {DEFAULT_END_AGE} tuổi), nên cần năm sinh để
         đổi qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài
         chính…). Thiếu năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
       </p>

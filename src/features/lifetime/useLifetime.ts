@@ -59,7 +59,8 @@ export function makeCurrencyOf(
 
 // Khớp default của DB (migration 0031) — dùng khi tạo kịch bản đầu tiên từ chi tiêu
 // thật, vì lúc đó người dùng chưa chỉnh gì nên cứ để đúng mặc định của cột.
-const DEFAULT_END_AGE = 90
+// Export: đoạn giới thiệu của TuongLaiPage nói "tới năm bạn N tuổi" bằng chính số này.
+export const DEFAULT_END_AGE = 90
 const DEFAULT_REAL_RETURN_BPS = 200
 const DEFAULT_BAND_SPREAD_BPS = 150
 

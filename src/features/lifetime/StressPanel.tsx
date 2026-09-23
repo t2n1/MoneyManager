@@ -15,6 +15,7 @@ import { Card, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact } from '../../lib/money'
 import type { StressConfig } from './project'
+import { stressVerdict } from './stressVerdict'
 
 /**
  * Giá trị khởi đầu của sáu cú sốc, suy TỪ CHÍNH kịch bản đang xem.
@@ -332,11 +333,14 @@ export function StressPanel({
         <p className="mt-2 flex items-start gap-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm leading-relaxed text-state-warn-fg">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>
-            {stressNegativeYear === null
-              ? 'Kịch bản chịu được các cú sốc đang bật: vẫn không năm nào âm.'
-              : baseNegativeYear === null
-                ? `Cú sốc làm nhánh bi quan âm từ ${stressNegativeYear} (tuổi ${stressNegativeYear - birthYear}) — kịch bản gốc vốn không năm nào âm.`
-                : `Cú sốc kéo năm âm từ ${baseNegativeYear} lên ${stressNegativeYear}.`}
+            {stressVerdict({
+              baseNegativeYear,
+              stressNegativeYear,
+              birthYear,
+              // `maxYear` là năm cuối của bản chiếu GỐC (birthYear + endAge).
+              baseEndAge: maxYear - birthYear,
+              longevityYears: value.longevity.on ? value.longevity.years : 0,
+            })}
           </span>
         </p>
       )}

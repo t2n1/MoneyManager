@@ -52038,7 +52038,7 @@ function dungServer(du) {
   server.registerTool(
     "ngan_sach",
     {
-      description: "M\u1ED0C \u0110\u1ED0I CHI\u1EBEU: h\u1EA1n m\u1EE9c, \u0111\xE3 ti\xEAu, c\xF2n l\u1EA1i c\u1EE7a t\u1EEBng ng\xE2n s\xE1ch trong m\u1ED9t th\xE1ng \u2014 \u0111\xFAng b\u1EB1ng s\u1ED1 tab Ng\xE2n s\xE1ch hi\u1EC7n. D\xF2ng c\xF3 chi_la_moc_theo_doi = true l\xE0 m\u1ED1c theo d\xF5i c\u1EE7a m\u1ED9t danh m\u1EE5c con, KH\xD4NG ph\u1EA3i m\u1ED9t tr\u1EA7n th\u1EADt; \u0111\u1EEBng c\u1ED9ng n\xF3 v\xE0o t\u1ED5ng.",
+      description: 'M\u1ED0C \u0110\u1ED0I CHI\u1EBEU: h\u1EA1n m\u1EE9c, \u0111\xE3 ti\xEAu, c\xF2n l\u1EA1i c\u1EE7a t\u1EEBng ng\xE2n s\xE1ch trong m\u1ED9t th\xE1ng \u2014 \u0111\xFAng b\u1EB1ng s\u1ED1 tab Ng\xE2n s\xE1ch hi\u1EC7n. D\xF2ng c\xF3 chi_la_moc_theo_doi = true l\xE0 m\u1ED1c theo d\xF5i c\u1EE7a m\u1ED9t danh m\u1EE5c con, KH\xD4NG ph\u1EA3i m\u1ED9t tr\u1EA7n th\u1EADt; \u0111\u1EEBng c\u1ED9ng n\xF3 v\xE0o t\u1ED5ng. han_muc = \xA50 l\xE0 tr\u1EA7n TH\u1EACT (ng\u01B0\u1EDDi d\xF9ng ch\u1ECDn kh\xF4ng chi kho\u1EA3n \u0111\xF3 th\xE1ng n\xE0y), kh\xF4ng ph\u1EA3i "ch\u01B0a \u0111\u1EB7t": chi b\u1EA5t k\u1EF3 s\u1ED1 n\xE0o l\u1EDBn h\u01A1n 0 l\xE0 v\u01B0\u1EE3t.',
       inputSchema: external_exports.object({ thang: external_exports.string().describe("'YYYY-MM'") })
     },
     async (input) => ra(nganSach(input, du))

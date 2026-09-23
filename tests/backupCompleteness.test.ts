@@ -141,6 +141,27 @@ describe('sao lưu — khôi phục không được bỏ sót cột hồ sơ', (
     ).toEqual([])
   })
 
+  /**
+   * `transactions` cùng cái bẫy, và đã sập thật: khối chèn giao dịch của importAll chép
+   * danh sách cột cố định từ trước 0054, nên khôi phục sao lưu làm rơi adjust_kind (khoản
+   * bù mất dấu), owner (khoản của vợ thành của mình), stock_trade_id (lệnh mất dòng tiền).
+   */
+  it('khối chèn giao dịch của importAll nhắc tới mọi cột giao dịch', () => {
+    const from = supabaseRepo.indexOf('data.transactions.map((t) => ({')
+    expect(from, 'không tìm thấy data.transactions.map trong importAll').toBeGreaterThan(-1)
+    const block = supabaseRepo.slice(from, supabaseRepo.indexOf('})),', from))
+    const start = types.indexOf('export type TransactionRow = {')
+    expect(start, 'không tìm thấy TransactionRow').toBeGreaterThan(-1)
+    const body = types.slice(start, types.indexOf('\n}', start))
+    const cols = [...body.matchAll(/^\s{2}(\w+)\??:/gm)].map((m) => m[1])
+    expect(cols).toContain('adjust_kind')
+    // `created_at`/`updated_at` là mốc của DB đích.
+    const thieu = cols.filter(
+      (c) => c !== 'created_at' && c !== 'updated_at' && !new RegExp(`\\b${c}:`).test(block),
+    )
+    expect(thieu, `Thiếu ở khối chèn giao dịch trong importAll: ${thieu.join(', ')}.`).toEqual([])
+  })
+
   it('demoRepo cũng đặt mặc định cho cột mới khi nhập bản lưu cũ', () => {
     // Bản lưu xuất trước một migration thì thiếu hẳn trường. demoRepo phải điền default,
     // không thì profile trong localStorage mang `undefined` và mọi chỗ đọc nó phải tự

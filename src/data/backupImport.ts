@@ -10,6 +10,7 @@
 // - `chunk` cắt nhỏ mảng để không nhồi 14.000 dòng vào một request (dễ vượt giới hạn
 //   kích thước body và statement timeout của Postgres, và khi đứt thì đứt cả cục).
 
+import type { AdjustKind } from '../types/database.types'
 import type { BackupData } from './repo'
 
 /** Cỡ lô chèn: đủ lớn để nhanh, đủ nhỏ để không vượt giới hạn request/timeout. */
@@ -25,6 +26,9 @@ export function chunk<T>(rows: readonly T[], size: number): T[][] {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Giá trị mà CHECK transactions_adjust_kind_check (migration 0072) cho phép. */
+const ADJUST_KINDS: ReadonlySet<string> = new Set<AdjustKind>(['balance', 'statement_month'])
 
 /** Gom các lỗi cùng loại thành một dòng "n chỗ" + vài ví dụ, thay vì in ra hàng nghìn dòng. */
 class Problems {
@@ -93,6 +97,7 @@ export function validateBackupPayload(data: BackupData): string[] {
       p.add('Danh mục cha không có trong file', `${c.name} → ${c.parent_id}`)
 
   // Giao dịch: nơi hầu hết dữ liệu nằm, cũng là nơi hay hỏng nhất.
+  const stockTradeIds = new Set((data.stockTrades ?? []).map((st) => st.id))
   for (const t of data.transactions ?? []) {
     const at = `${t.occurred_on} ${t.amount}`
     if (!accountIds.has(t.account_id))
@@ -121,6 +126,13 @@ export function validateBackupPayload(data: BackupData): string[] {
       p.add('to_amount phải là số dương', `${at} → ${String(t.to_amount)}`)
     if (t.recurring_rule_id && !recurringIds.has(t.recurring_rule_id))
       p.add('Giao dịch trỏ tới quy tắc định kỳ không có trong file', `${at} → ${t.recurring_rule_id}`)
+    // FK stock_trade_id -> stock_trades (0054): khôi phục bản thật chèn sổ lệnh TRƯỚC giao
+    // dịch và giữ liên kết, nên lệnh không có trong file là nổ FK sau khi đã xoá hết.
+    if (t.stock_trade_id && !stockTradeIds.has(t.stock_trade_id))
+      p.add('Giao dịch trỏ tới lệnh cổ phiếu không có trong file', `${at} → ${t.stock_trade_id}`)
+    // CHECK transactions_adjust_kind_check (0072).
+    if (t.adjust_kind != null && !ADJUST_KINDS.has(t.adjust_kind))
+      p.add('Dấu khoản bù không hợp lệ', `${at} → ${String(t.adjust_kind)}`)
   }
 
   const budgetKey = uniques('ngân sách (danh mục + tháng)')

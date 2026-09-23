@@ -10,7 +10,7 @@
 // gì — vùng vẽ là `TimelinePlot`, bố cục là `ConsoleFrame`, còn dock / dải chặng / bảng
 // chọn nhanh (`PlanDock`/`PhaseLane`/`QuickAddBoard`) cắm vào đúng ô đã chừa.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Plus, Star, Trash2 } from 'lucide-react'
 import {
   ActionButton,
@@ -27,7 +27,6 @@ import {
   type SegmentedItem,
 } from '../../components/ui'
 import { EstimateMark } from '../../components/EstimateMark'
-import { repo } from '../../data'
 import {
   useAccountBalances,
   useAccounts,
@@ -36,6 +35,7 @@ import {
   usePlannedExpenses,
   useRangeTransactions,
   useSavingsGoals,
+  useUpdateProfile,
   useUpsertLifetimeVerdictSnapshot,
 } from '../../hooks/queries'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
@@ -2527,12 +2527,8 @@ function BirthYearCard() {
   // useId chứ không id cố định: ô này có thể dựng HAI lần cùng lúc (nhánh điện thoại và
   // console, một cái bị CSS ẩn), và hai id trùng thì nhãn trỏ nhầm ô.
   const inputId = useId()
-  const qc = useQueryClient()
   const [value, setValue] = useState('')
-  const saveMut = useMutation({
-    mutationFn: (birthYear: number) => repo.updateProfile({ birth_year: birthYear }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
-  })
+  const saveMut = useUpdateProfile()
 
   const year = Number(value)
   const valid = Number.isInteger(year) && year >= MIN_BIRTH_YEAR && year <= MAX_BIRTH_YEAR
@@ -2560,7 +2556,7 @@ function BirthYearCard() {
       <button
         type="button"
         disabled={!valid || saveMut.isPending}
-        onClick={() => saveMut.mutate(year)}
+        onClick={() => saveMut.mutate({ birth_year: year })}
         className={actionButtonClass('primary', 'mt-3 w-full')}
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}

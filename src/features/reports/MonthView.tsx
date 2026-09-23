@@ -144,7 +144,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   const thangVang = useMemo(() => thangCoChuyenDi(trips, monthStartDay), [trips, monthStartDay])
   const { data: tagLinks = [] } = useTransactionTags()
   const { data: recurringRules = [], isSuccess: recurringReady } = useRecurringRules()
-  const { data: plannedExpenses = [] } = usePlannedExpenses()
+  const { data: plannedExpenses = [], isSuccess: plannedReady } = usePlannedExpenses()
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -348,9 +348,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cutoffDay, todayISO, range.end, recurringRules, plannedExpenses, accounts, base, rates])
 
+  // Chưa có đủ định kỳ + khoản sắp chi thì `committed` là 0 giả — tiền tự do sẽ loé cao
+  // rồi tụt. Chờ cả hai thay vì in số tạm như số thật.
+  const commitmentsReady = recurringReady && plannedReady
   const remaining = useMemo(
     () =>
-      remainingPlan({
+      !commitmentsReady ? null : remainingPlan({
         incomeSoFar: sums.income,
         spentSoFar: sums.expense,
         committed,
@@ -361,7 +364,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         // trong một trang là hai con số cãi nhau về cùng phần còn lại của kỳ.
         projectedMonthEnd: pace.forecast?.projected ?? null,
       }),
-    [sums, committed, daysElapsed, daysInPeriod, range.start, pace.forecast],
+    [commitmentsReady, sums, committed, daysElapsed, daysInPeriod, range.start, pace.forecast],
   )
 
   // ---------------------------------------------------------------- khối 05
@@ -587,7 +590,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                 approx={sums.hasForeign}
               />
             ) : (
-              <span className="text-fg-muted">—</span>
+              <span className="text-fg-muted">{commitmentsReady ? '—' : 'Đang tính…'}</span>
             )}
           </Swap>
         </StatTile>

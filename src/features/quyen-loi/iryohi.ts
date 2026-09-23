@@ -106,7 +106,7 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
   // Méo mó của phép ước — nói ra thay vì im (spec §3), + điều kiện riêng từng nhánh.
   const ly_do = [
     'Số có thể cao hơn thực tế: app đếm cả khoản không thuộc diện (thực phẩm chức năng…) và chưa trừ tiền bảo hiểm bù.',
-    'Ngược lại, tiền tàu đi viện (ghi ở Tàu điện) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100.000.',
+    'Ngược lại, tiền tàu đi viện (ghi ở Tàu điện) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100,000.',
   ]
   if (!co_danh_muc)
     ly_do.push(`Chưa có danh mục "${IRYOHI_CATEGORY_NAMES.join('" / "')}" nên không đếm được.`)

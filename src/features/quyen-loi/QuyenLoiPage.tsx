@@ -305,7 +305,7 @@ export function QuyenLoiPage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <CheDoIryohi
                 ten="医療費控除"
-                dieuKien="Chi khám, chữa bệnh, thuốc trong năm — phần vượt ngưỡng được trừ (tối đa ¥2.000.000)."
+                dieuKien="Chi khám, chữa bệnh, thuốc trong năm — phần vượt ngưỡng được trừ (tối đa ¥2,000,000)."
                 nhanChi="Chi y tế"
                 chi={ketQua.iryohi.chi_y}
                 nguong={ketQua.iryohi.nguong}

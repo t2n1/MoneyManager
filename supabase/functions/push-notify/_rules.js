@@ -2856,7 +2856,7 @@ function tinhIryohi(input) {
   const tiet_kiem_uoc = khau_tru > 0 && input.suatBien !== null ? tienTietKiem(khau_tru, khau_tru, input.suatBien, luat) : null;
   const ly_do = [
     "S\u1ED1 c\xF3 th\u1EC3 cao h\u01A1n th\u1EF1c t\u1EBF: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026) v\xE0 ch\u01B0a tr\u1EEB ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9.",
-    "Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF T\xE0u \u0111i\u1EC7n) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100.000."
+    "Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF T\xE0u \u0111i\u1EC7n) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100,000."
   ];
   if (!co_danh_muc)
     ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${IRYOHI_CATEGORY_NAMES.join('" / "')}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.`);

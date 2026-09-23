@@ -80,6 +80,7 @@ import {
   normalizeToPhaseCurrency,
 } from './fxModel'
 import { assetsAtAge, firstNegativeYear } from './insights'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { InsightCards } from './InsightCards'
 import { TuongLaiMobile } from './TuongLaiMobile'
 import { setPhaseStarts, type PhaseStart } from './phaseOrder'
@@ -716,6 +717,7 @@ function TuongLaiConsole({
   const { data: plannedForBigMap = [] } = usePlannedExpenses()
   const { data: goalsForBigMap = [] } = useSavingsGoals()
   const { data: balancesForBigMap = [] } = useAccountBalances()
+  const currentValuesForBigMap = useAccountCurrentValues()
   const biggestExpense = useMemo(() => {
     if (!shownInput) return null
     const balanceById = new Map(balancesForBigMap.map((b) => [b.id, b]))
@@ -725,7 +727,8 @@ function TuongLaiConsole({
         id: g.id,
         name: g.name,
         targetMinor: g.target_amount,
-        progressMinor: acc ? (acc.market_value ?? acc.balance) : 0,
+        // Giá trị hiện tại — cùng số với useBigExpenseMap và khối Mục tiêu ở tab Tài sản.
+        progressMinor: acc ? (currentValuesForBigMap.get(acc.id)?.value ?? acc.balance) : 0,
         currency: (acc?.currency ?? shownInput.displayCurrency) as CurrencyCode,
         targetDate: g.target_date,
       }
@@ -742,7 +745,7 @@ function TuongLaiConsole({
     return item && item.remainingMinor !== null
       ? { label: item.label, amountMinor: item.remainingMinor }
       : null
-  }, [shownInput, balancesForBigMap, goalsForBigMap, plannedForBigMap, pageFxOf, todayISO])
+  }, [shownInput, balancesForBigMap, currentValuesForBigMap, goalsForBigMap, plannedForBigMap, pageFxOf, todayISO])
 
   // --- Kịch bản so sánh ---------------------------------------------------------------
   //

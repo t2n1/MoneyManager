@@ -12,6 +12,7 @@
 import { useMemo } from 'react'
 import { useAccountBalances, usePlannedExpenses, useSavingsGoals } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { buildBigExpenseMap, type BigExpenseMap, type GoalLikeInput } from './bigExpenses'
 import type { FxOf } from './fxModel'
 import { buildLifetimeCostMap, type LifetimeCostMap } from './lifetimeCost'
@@ -40,6 +41,7 @@ export function useBigExpenseMap({
   const { data: planned = [] } = usePlannedExpenses()
   const { data: goals = [] } = useSavingsGoals()
   const { data: balances = [] } = useAccountBalances()
+  const currentValues = useAccountCurrentValues()
 
   const life = useMemo(() => buildLifetimeCostMap({ rows }), [rows])
 
@@ -51,8 +53,9 @@ export function useBigExpenseMap({
         id: g.id,
         name: g.name,
         targetMinor: g.target_amount,
-        // Đầu tư đọc định giá, còn lại đọc số dư — đúng thứ tự của assets/aggregate.ts.
-        progressMinor: acc ? (acc.market_value ?? acc.balance) : 0,
+        // Giá trị hiện tại (accountCurrentValue) — cùng số khối Mục tiêu ở tab Tài sản
+        // in tiến độ. Bản trước đọc ảnh chụp `market_value`, bỏ qua giá từ sổ lệnh.
+        progressMinor: acc ? (currentValues.get(acc.id)?.value ?? acc.balance) : 0,
         currency: (acc?.currency ?? displayCurrency) as CurrencyCode,
         targetDate: g.target_date,
       }
@@ -65,7 +68,7 @@ export function useBigExpenseMap({
       goals: goalInputs,
       fxOf,
     })
-  }, [balances, goals, planned, events, displayCurrency, fxOf, todayISO])
+  }, [balances, currentValues, goals, planned, events, displayCurrency, fxOf, todayISO])
 
   return { map, life }
 }

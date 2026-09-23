@@ -71,6 +71,26 @@ describe('planAutoBudget', () => {
     expect(p.overwrite).toBe(0)
   })
 
+  // Trần ¥0 là trần THẬT ("tháng này không tiêu ở đây"). Bản trước so `current > 0` nên
+  // hộp xác nhận nói "Không mục nào đang có hạn mức bị đụng" rồi đè luôn trần ¥0.
+  it('trần ¥0 là ĐANG CÓ hạn mức: đè thì phải đếm vào overwrite', () => {
+    const p = planAutoBudget(input({ current: new Map([['nha', 0]]) }))
+    expect(p.overwrite).toBe(1)
+    expect(p.lines.find((l) => l.categoryId === 'nha')!.current).toBe(0)
+  })
+
+  it('keepExisting giữ nguyên cả trần ¥0', () => {
+    const p = planAutoBudget(input({ current: new Map([['nha', 0]]), keepExisting: true }))
+    expect(p.lines.map((l) => l.categoryId)).toEqual(['an', 'xe'])
+    expect(p.overwrite).toBe(0)
+  })
+
+  it('chưa đặt (không có dòng) thì current = null, không phải 0', () => {
+    const p = planAutoBudget(input())
+    expect(p.lines.every((l) => l.current === null)).toBe(true)
+    expect(p.overwrite).toBe(0)
+  })
+
   it('làm tròn xong TRÙNG hạn mức đang có thì không phải một thay đổi', () => {
     const p = planAutoBudget(input({ current: new Map([['nha', 68_000]]) }))
     expect(p.lines.some((l) => l.categoryId === 'nha')).toBe(false)

@@ -10,13 +10,16 @@
 
 import { isTrackingMarker } from './progress'
 
-/** Một dòng đề xuất. `current` là hạn mức đang có (0 = chưa đặt). */
+/** Một dòng đề xuất. `current` là hạn mức đang có (null = chưa đặt). */
 export interface AutoBudgetLine {
   categoryId: string
   /** Số đề xuất, base minor. Luôn > 0. */
   amount: number
-  /** Hạn mức đang có. 0 = chưa đặt bao giờ. */
-  current: number
+  /**
+   * Hạn mức đang có. `null` = CHƯA ĐẶT (không có dòng ngân sách). `0` = trần ¥0 THẬT
+   * ("tháng này không tiêu ở đây") — đè lên nó là đè một hạn mức, phải đếm và phải nói.
+   */
+  current: number | null
   /** Trung bình lịch sử (base minor) — để UI hiện "vì sao là số này". */
   average: number
 }
@@ -91,8 +94,9 @@ export function planAutoBudget(input: AutoBudgetInput): AutoBudgetPlan {
   for (const categoryId of input.eligible) {
     const average = input.averages.get(categoryId) ?? 0
     if (average <= 0 || average < min) continue
-    const current = input.current.get(categoryId) ?? 0
-    if (input.keepExisting && current > 0) continue
+    // Có dòng (kể cả ¥0) = đang có hạn mức. So `> 0` là coi trần ¥0 như chỗ trống.
+    const current = input.current.get(categoryId) ?? null
+    if (input.keepExisting && current !== null) continue
     const amount = roundLimit(average)
     if (amount <= 0) continue
     // Làm tròn xong mà trùng đúng hạn mức đang có thì đây không phải một thay đổi —
@@ -103,7 +107,7 @@ export function planAutoBudget(input: AutoBudgetInput): AutoBudgetPlan {
   lines.sort((a, b) => b.amount - a.amount)
   return {
     lines,
-    overwrite: lines.filter((l) => l.current > 0).length,
+    overwrite: lines.filter((l) => l.current !== null).length,
     total: totalAfterWrite(lines, input),
   }
 }

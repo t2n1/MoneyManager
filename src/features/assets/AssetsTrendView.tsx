@@ -23,6 +23,7 @@ import { Guide } from '../../components/Guide'
 import { useCategories, useNetWorthSnapshots, useRangeTransactions } from '../../hooks/queries'
 import { addDaysISO } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
+import { loadStatus, mergeLoad, pendingText, type LoadStatus } from '../../lib/loadStatus'
 import { lastReconciledMap } from '../notifications/reconciledAt'
 import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { AssetsKpi } from './AssetsKpi'
@@ -52,6 +53,8 @@ interface Props {
 export function AssetsTrendView({ viewCur, range, span }: Props) {
   const {
     todayISO,
+    isLoading,
+    loadFailed,
     base,
     rates,
     balances,
@@ -69,7 +72,11 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
     [base, displayCur, rates],
   )
 
-  const { data: snapshots = [] } = useNetWorthSnapshots()
+  const snapQ = useNetWorthSnapshots()
+  const snapshots = useMemo(() => snapQ.data ?? [], [snapQ.data])
+  // Lịch sử chưa về thì chân ô Ròng nói "Đang tính…", không nói "chưa đủ hai mốc" — câu đó
+  // là một KẾT LUẬN về sổ, còn lúc này app chưa đọc được mốc nào.
+  const snapLoad = loadStatus(snapQ)
   const series = useMemo(() => netWorthSeries(snapshots, span.startISO), [snapshots, span.startISO])
 
   /**
@@ -83,8 +90,18 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
    * `accountRowStats` tự lọc theo `windowStartISO`, nên cùng một mảng giao dịch phục vụ
    * được cả cửa sổ 30 ngày và cửa sổ người dùng chọn.
    */
-  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO))
-  const { data: categories = [] } = useCategories()
+  const txQ = useRangeTransactions(investTxRange(todayISO))
+  const categoriesQ = useCategories()
+  const txs = useMemo(() => txQ.data ?? [], [txQ.data])
+  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
+  // Hai cột Δ và câu kết ở chân bảng chỉ tính khi sổ, danh mục và số dư đều đã về. Mặc
+  // định `[]` cho ra "—" ở mọi ô (tức "không đổi") trong lúc sổ mười năm còn đang tải.
+  const statsLoad = mergeLoad(
+    loadStatus(txQ),
+    loadStatus(categoriesQ),
+    loadFailed ? 'failed' : isLoading ? 'pending' : 'ready',
+  )
+  const statsReady = statsLoad === 'ready'
   const statsArgs = useMemo(
     () => ({
       balanceById: new Map(balances.map((b) => [b.id, b.balance])),
@@ -130,7 +147,13 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
   )
   // Câu kết ở chân bảng đo trên cửa sổ 30 ngày, vì đó là cửa sổ mà ô KPI "Tài sản ròng"
   // ở chế độ Hôm nay dùng — hai chỗ nói về cùng một cú sụt thì phải cùng một cửa sổ.
-  const tapTrung = useMemo(() => concentrationNote(delta30), [delta30])
+  const tapTrung = useMemo(
+    () => (statsReady ? concentrationNote(delta30) : null),
+    [statsReady, delta30],
+  )
+  // Bảng nhóm chờ đủ nguồn: nhóm chưa về thì mọi tài khoản dồn vào "chưa phân nhóm".
+  const chuaDu = isLoading || loadFailed
+  const bangNhom = chuaDu ? [] : purposeGroups
 
 
   const colorByName = useMemo(() => groupColorMap(purposeGroups), [purposeGroups])
@@ -147,7 +170,9 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
         viewCur={viewCur}
         tail="invested"
         netWorthFoot={
-          series.delta == null ? (
+          snapLoad !== 'ready' ? (
+            <span>{pendingText(snapLoad)}</span>
+          ) : series.delta == null ? (
             <span>chưa đủ hai mốc trong khoảng này</span>
           ) : (
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -207,9 +232,11 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
           <SectionTitle role="micro">
             Danh sách tài khoản
           </SectionTitle>
-          <span className="text-2xs text-fg-muted">
-            {purposeGroups.length} nhóm · {accountCount} tài khoản
-          </span>
+          {!chuaDu && (
+            <span className="text-2xs text-fg-muted">
+              {purposeGroups.length} nhóm · {accountCount} tài khoản
+            </span>
+          )}
           <Guide as="span" className="ml-auto text-2xs text-fg-muted">
             Mở <span className="text-fg-secondary">Hôm nay</span> để xem từng tài khoản
           </Guide>
@@ -225,7 +252,12 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
           <span className="w-[10rem] shrink-0 text-right">Số dư</span>
         </div>
 
-        {purposeGroups.map((g) => {
+        {chuaDu && (
+          <p className="px-4 py-6 text-center text-sm text-fg-muted">
+            {loadFailed ? 'Chưa tải được danh sách tài khoản — thử tải lại trang.' : 'Đang tải…'}
+          </p>
+        )}
+        {bangNhom.map((g) => {
           const outsideTotals = !g.includeInTotals || (g.total === 0 && g.rawTotal !== 0)
           return (
             <div
@@ -275,6 +307,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
                 </span>
                 <DeltaCell
                   d={delta30.get(g.name)}
+                  load={statsLoad}
                   label={`${DELTA_DAYS} ngày`}
                   view={mv}
                   className="lg:w-[8.125rem]"
@@ -282,6 +315,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
                 {showRangeCol && (
                   <DeltaCell
                     d={deltaRange.get(g.name)}
+                    load={statsLoad}
                     label={RANGE_NOUN[range]}
                     view={mv}
                     className="lg:w-[8.125rem]"
@@ -341,11 +375,14 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
 /** Ô Δ của một nhóm. Nhãn hiện dưới lg (không có tên cột) và ẩn từ lg (có tên cột). */
 function DeltaCell({
   d,
+  load,
   label,
   view,
   className,
 }: {
   d: GroupDelta | undefined
+  /** Sổ chưa về (hoặc hỏng) → "…", không phải "—": "—" nghĩa là nhóm này không đổi. */
+  load: LoadStatus
   label: string
   view: ReturnType<typeof makeMoneyView>
   className: string
@@ -353,7 +390,9 @@ function DeltaCell({
   return (
     <span className={`flex shrink-0 items-center justify-end gap-1 ${className}`}>
       <span className="lg:hidden">{label}</span>
-      {d?.delta == null || d.delta === 0 ? (
+      {load !== 'ready' ? (
+        <span aria-label={pendingText(load)}>…</span>
+      ) : d?.delta == null || d.delta === 0 ? (
         <span>—</span>
       ) : (
         <Money

@@ -65,7 +65,7 @@ describe('bố cục trang Tài sản', () => {
       { name: 'Dải KPI', mark: '<AssetsKpi' },
       { name: 'Thẻ tín dụng', mark: '<CardsSection' },
       { name: 'Cơ cấu', mark: '<StructureBar' },
-      { name: 'Bảng nhóm & tài khoản', mark: '{displayGroups.map((g) => {' },
+      { name: 'Bảng nhóm & tài khoản', mark: '{bangNhom.map((g) => {' },
     ]
 
     it('các khối nằm đúng thứ tự ưu tiên trong DOM', () => {
@@ -96,7 +96,7 @@ describe('bố cục trang Tài sản', () => {
       // Mốc là chuỗi CẤU TRÚC, không phải tiêu đề: chữ "Danh sách tài khoản" còn xuất
       // hiện trong chú thích và trong nhãn cột, mà `at()` đòi mốc phải duy nhất.
       const panel = at(now, 'AssetsNowView.tsx', 'className="flex flex-col overflow-hidden"')
-      const rows = at(now, 'AssetsNowView.tsx', '{displayGroups.map((g) => {')
+      const rows = at(now, 'AssetsNowView.tsx', '{bangNhom.map((g) => {')
       expect(panel).toBeLessThan(picker)
       expect(picker).toBeLessThan(rows)
       // Và nó phải đứng SAU khối Cơ cấu — nó cũng đổi số lát của vạch, nên để nó ở trên
@@ -129,7 +129,7 @@ describe('bố cục trang Tài sản', () => {
       { name: 'Đầu tư theo thời gian', mark: '<InvestmentValueHistorySection' },
       { name: 'Hiệu quả đầu tư', mark: '<InvestmentPerformanceSection' },
       { name: 'Mục tiêu tiết kiệm', mark: '<SavingsGoalsSection' },
-      { name: 'Bảng nhóm', mark: '{purposeGroups.map((g) => {' },
+      { name: 'Bảng nhóm', mark: '{bangNhom.map((g) => {' },
     ]
 
     it('biểu đồ lên NGAY dưới dải số, không bị bảng chen vào giữa', () => {

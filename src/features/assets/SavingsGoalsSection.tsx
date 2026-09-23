@@ -39,9 +39,12 @@ interface Props {
 
 /** Khu "Mục tiêu tiết kiệm" trên trang Tài sản (mục AD). */
 export function SavingsGoalsSection({ view }: Props) {
-  const { data: goals = [] } = useSavingsGoals()
-  const { data: accounts = [] } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
+  const { data: goals = [], isLoading: dangTaiMucTieu, isError: loiMucTieu } = useSavingsGoals()
+  const { data: accounts = [], isLoading: dangTaiTk } = useAccounts()
+  const { data: balances = [], isLoading: dangTaiSoDu } = useAccountBalances()
+  // Chưa đủ nguồn thì chưa in tiến độ nào: số dư chưa về là mọi thanh 0%, mục tiêu chưa về
+  // là câu "Chưa có mục tiêu nào" với người đã đặt ba mục tiêu.
+  const dangTai = dangTaiMucTieu || dangTaiTk || dangTaiSoDu
   const { data: profile } = useProfile()
   const [sheet, setSheet] = useState<{ open: boolean; goal?: SavingsGoalRow }>({ open: false })
 
@@ -65,15 +68,17 @@ export function SavingsGoalsSection({ view }: Props) {
   // Tiền đã gom cho mục tiêu thì không còn sẵn cho lúc mất thu nhập. Trang Sức
   // khỏe trừ đúng con số này khỏi quỹ dự phòng, nên tính bằng chung một hàm để
   // hai trang không bao giờ nói hai số khác nhau.
+  //
+  // Đã có bao nhiêu = GIÁ TRỊ HIỆN TẠI của tài khoản gắn mục tiêu (giá thị trường với tài
+  // khoản đầu tư), cùng hàm với trang chi tiết tài khoản và tab Quyết định. Phần "có chủ"
+  // đo bằng CHÍNH giá trị đó, không phải số dư sổ — không thì thanh tiến độ và dòng
+  // "đang có chủ" ngay dưới nói hai con số cho cùng một tài khoản.
+  const currentValues = useAccountCurrentValues()
   const { base, rates } = useRates()
   const earmarked = useMemo(
-    () => earmarkedForGoals(goals, balances, base, rates ?? {}),
-    [goals, balances, base, rates],
+    () => earmarkedForGoals(goals, balances, base, rates ?? {}, currentValues),
+    [goals, balances, base, rates, currentValues],
   )
-
-  // Đã có bao nhiêu = GIÁ TRỊ HIỆN TẠI của tài khoản gắn mục tiêu (giá thị trường với tài
-  // khoản đầu tư), cùng hàm với trang chi tiết tài khoản và tab Quyết định.
-  const currentValues = useAccountCurrentValues()
 
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
@@ -94,7 +99,13 @@ export function SavingsGoalsSection({ view }: Props) {
         </button>
       </div>
 
-      {goals.length === 0 ? (
+      {dangTai ? (
+        <p className="mt-3 text-center text-sm text-fg-muted">Đang tải…</p>
+      ) : loiMucTieu && goals.length === 0 ? (
+        <p className="mt-3 text-center text-sm text-fg-muted">
+          Chưa tải được mục tiêu — thử tải lại trang.
+        </p>
+      ) : goals.length === 0 ? (
         <p className="mt-3 text-center text-sm text-fg-muted">
           Chưa có mục tiêu nào.
           <Guide as="span"> Đặt một đích tiết kiệm để theo dõi tiến độ.</Guide>
@@ -184,7 +195,7 @@ export function SavingsGoalsSection({ view }: Props) {
         </ul>
       )}
 
-      {earmarked.total > 0 && (
+      {!dangTai && earmarked.total > 0 && (
         <p className="mt-3 border-t border-border-subtle pt-2.5 text-2xs leading-relaxed text-fg-muted">
           <b className="tabular-nums text-fg-primary">
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}

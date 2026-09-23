@@ -26,12 +26,21 @@ export interface Earmarked {
  * - Bỏ qua tài khoản không lỏng / đã ẩn / không tính vào tổng, đúng bằng bộ lọc
  *   mà `buildHealthSnapshot` dùng cho `liquidAssets` — hai số phải cùng gốc thì
  *   phép trừ mới có nghĩa.
+ *
+ * "Số dư" ở đây là GIÁ TRỊ HIỆN TẠI của tài khoản khi nơi gọi đưa `currentValues`
+ * (`accountCurrentValue` qua hook `useAccountCurrentValues`) — đúng con số mà khối Mục tiêu
+ * tiết kiệm dùng để đo "đã có bao nhiêu". Không đưa, hoặc tài khoản vắng trong map, thì rơi
+ * về số dư sổ. Với tài khoản lỏng thường (tiền mặt, ngân hàng, IC, ví) hai số là MỘT —
+ * `accountCurrentValue` trả thẳng số dư — nên chỉ ca tài khoản đầu tư/tài sản cố định được
+ * đánh dấu "rút ngay được" là đổi số. Ca đó `liquidAssets` của trang Sức khỏe vẫn cộng số dư
+ * sổ (xem ghi chú ở HealthView), nên phép trừ được kẹp ≥ 0 ở nơi gọi.
  */
 export function earmarkedForGoals(
   goals: SavingsGoalRow[],
   balances: AccountBalanceRow[],
   base: CurrencyCode,
   rates: Rates,
+  currentValues?: ReadonlyMap<string, { value: number }>,
 ): Earmarked {
   const targetByAccount = new Map<string, number>()
   for (const g of goals) {
@@ -47,7 +56,8 @@ export function earmarkedForGoals(
     // Cùng phép hỏi với `buildHealthSnapshot`: hai bên lệch nhau thì phép trừ
     // "quỹ dự phòng đã trừ phần gom cho mục tiêu" ra một số không thuộc rổ nào.
     if (!isLiquidAccount(b)) continue
-    const held = Math.min(Math.max(b.balance, 0), target)
+    const coNgay = currentValues?.get(b.id)?.value ?? b.balance
+    const held = Math.min(Math.max(coNgay, 0), target)
     if (held <= 0) continue
     const v = convertToBase(held, b.currency, base, rates)
     if (v === null) hasMissingRate = true

@@ -11,7 +11,8 @@
 // Mọi phép tính ở positionTable.ts. File này chỉ xếp chữ.
 import { EstimateMark } from '../../components/EstimateMark'
 import { Guide } from '../../components/Guide'
-import { Card, Money, Num, SectionTitle, signedPct, pct1 } from '../../components/ui'
+import { ActionButton, Card, Money, Num, SectionTitle, signedPct, pct1 } from '../../components/ui'
+import { pendingText, type LoadStatus } from '../../lib/loadStatus'
 import { InvestDividendTagger } from './InvestDividendTagger'
 import { share, sliceColor } from './investFormat'
 import type { PositionRow, PositionTableResult, TaggableCashflow } from './positionTable'
@@ -30,6 +31,24 @@ interface Props {
   cashflows: TaggableCashflow[]
   /** Mọi mã đã từng giao dịch (gồm cả mã đã bán hết). */
   allSymbols: string[]
+  /** Sổ giao dịch (nguồn của cột Cổ tức) đang ở đâu — xem `table.dividendsKnown`. */
+  dividendsStatus: LoadStatus
+  onRetryDividends: () => void
+}
+
+/** Cổ tức chưa biết: sổ giao dịch còn đang tải, hoặc tải hỏng. null = đã biết. */
+type ChuaBiet = Exclude<LoadStatus, 'ready'> | null
+
+/**
+ * Ô chưa tính được vì sổ giao dịch chưa về. KHÔNG phải "—": "—" ở cột Cổ tức là một kết
+ * luận ("mã này chưa trả cổ tức"), còn lúc này app chưa biết gì cả.
+ */
+function OChuaBiet({ s }: { s: Exclude<LoadStatus, 'ready'> }) {
+  return (
+    <span className="text-fg-muted" aria-label={pendingText(s)} title={pendingText(s)}>
+      …
+    </span>
+  )
 }
 
 /** "+8,5%" / "−12,6%" / "—" từ một phần trăm đã ở thang 100. */
@@ -44,8 +63,15 @@ export function InvestAllocationSection({
   concentration,
   cashflows,
   allSymbols,
+  dividendsStatus,
+  onRetryDividends,
 }: Props) {
   const { rows, totals, soldDividend } = table
+  const chuaBiet: ChuaBiet = table.dividendsKnown
+    ? null
+    : dividendsStatus === 'failed'
+      ? 'failed'
+      : 'pending'
 
   return (
     <Card as="section">
@@ -63,14 +89,24 @@ export function InvestAllocationSection({
             totals={totals}
             symbolFilter={symbolFilter}
             onToggleSymbol={onToggleSymbol}
+            chuaBiet={chuaBiet}
           />
           <TheDienThoai
             rows={rows}
             nameBySymbol={nameBySymbol}
             symbolFilter={symbolFilter}
             onToggleSymbol={onToggleSymbol}
+            chuaBiet={chuaBiet}
           />
         </>
+      )}
+
+      {/* Sổ hỏng hẳn thì nói ra và cho thử lại — không để cột Cổ tức đứng "…" mãi. */}
+      {rows.length > 0 && chuaBiet === 'failed' && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-fg-secondary">
+          Không tải được sổ giao dịch nên chưa tính được cổ tức và tổng lãi/lỗ.
+          <ActionButton onClick={onRetryDividends}>Thử lại</ActionButton>
+        </p>
       )}
 
       {soldDividend !== 0 && (
@@ -101,11 +137,13 @@ function BangDesktop({
   totals,
   symbolFilter,
   onToggleSymbol,
+  chuaBiet,
 }: {
   rows: PositionRow[]
   totals: PositionTableResult['totals']
   symbolFilter: string | null
   onToggleSymbol: (s: string) => void
+  chuaBiet: ChuaBiet
 }) {
   return (
     // `overflow-x-auto` dù bảng đã vừa ở 1024px: cỡ chữ 1,25× nới mọi cột ra, và luật
@@ -190,7 +228,9 @@ function BangDesktop({
                 </Num>
               </Td>
               <Td>
-                {r.dividend === 0 ? (
+                {chuaBiet ? (
+                  <OChuaBiet s={chuaBiet} />
+                ) : r.dividend === 0 ? (
                   <span className="text-fg-muted">—</span>
                 ) : (
                   <>
@@ -203,17 +243,23 @@ function BangDesktop({
                 )}
               </Td>
               <Td>
-                <Money
-                  amount={Math.abs(r.totalPnl)}
-                  currency={VND}
-                  tone={tone(r.totalPnl)}
-                  showSign
-                  className="font-semibold"
-                />
-                <br />
-                <Num tone={tone(r.totalPnlPercent)} className="text-2xs">
-                  {p(r.totalPnlPercent)}
-                </Num>
+                {chuaBiet ? (
+                  <OChuaBiet s={chuaBiet} />
+                ) : (
+                  <>
+                    <Money
+                      amount={Math.abs(r.totalPnl)}
+                      currency={VND}
+                      tone={tone(r.totalPnl)}
+                      showSign
+                      className="font-semibold"
+                    />
+                    <br />
+                    <Num tone={tone(r.totalPnlPercent)} className="text-2xs">
+                      {p(r.totalPnlPercent)}
+                    </Num>
+                  </>
+                )}
               </Td>
             </tr>
           ))}
@@ -247,7 +293,9 @@ function BangDesktop({
               </Num>
             </Td>
             <Td>
-              {totals.dividend === 0 ? (
+              {chuaBiet ? (
+                <OChuaBiet s={chuaBiet} />
+              ) : totals.dividend === 0 ? (
                 <span className="text-fg-muted">—</span>
               ) : (
                 <>
@@ -260,16 +308,22 @@ function BangDesktop({
               )}
             </Td>
             <Td>
-              <Money
-                amount={Math.abs(totals.totalPnl)}
-                currency={VND}
-                tone={tone(totals.totalPnl)}
-                showSign
-              />
-              <br />
-              <Num tone={tone(totals.totalPnlPercent)} className="text-2xs">
-                {p(totals.totalPnlPercent)}
-              </Num>
+              {chuaBiet ? (
+                <OChuaBiet s={chuaBiet} />
+              ) : (
+                <>
+                  <Money
+                    amount={Math.abs(totals.totalPnl)}
+                    currency={VND}
+                    tone={tone(totals.totalPnl)}
+                    showSign
+                  />
+                  <br />
+                  <Num tone={tone(totals.totalPnlPercent)} className="text-2xs">
+                    {p(totals.totalPnlPercent)}
+                  </Num>
+                </>
+              )}
             </Td>
           </tr>
         </tfoot>
@@ -297,11 +351,13 @@ function TheDienThoai({
   nameBySymbol,
   symbolFilter,
   onToggleSymbol,
+  chuaBiet,
 }: {
   rows: PositionRow[]
   nameBySymbol: Map<string, string>
   symbolFilter: string | null
   onToggleSymbol: (s: string) => void
+  chuaBiet: ChuaBiet
 }) {
   return (
     <ul className="mt-1 divide-y divide-border-subtle lg:hidden">
@@ -335,16 +391,22 @@ function TheDienThoai({
                 {/* `flex-wrap` + `justify-end`: ở 375px với cỡ chữ 1,25× hai con số này
                     không đứng nổi cùng hàng, và tràn thì chúng đè lên cột bên trái. */}
                 <p className="flex flex-wrap items-baseline justify-end gap-x-1 text-2xs">
-                  <Money
-                    amount={Math.abs(r.totalPnl)}
-                    currency={VND}
-                    tone={tone(r.totalPnl)}
-                    showSign
-                    className="text-2xs"
-                  />
-                  <Num tone={tone(r.totalPnlPercent)} className="text-2xs">
-                    {p(r.totalPnlPercent)}
-                  </Num>
+                  {chuaBiet ? (
+                    <span className="text-fg-muted">{pendingText(chuaBiet)}</span>
+                  ) : (
+                    <>
+                      <Money
+                        amount={Math.abs(r.totalPnl)}
+                        currency={VND}
+                        tone={tone(r.totalPnl)}
+                        showSign
+                        className="text-2xs"
+                      />
+                      <Num tone={tone(r.totalPnlPercent)} className="text-2xs">
+                        {p(r.totalPnlPercent)}
+                      </Num>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -373,7 +435,7 @@ function TheDienThoai({
                   <Money amount={r.price} currency={VND} className="text-2xs" />
                 </>
               )}
-              {r.dividend !== 0 && (
+              {!chuaBiet && r.dividend !== 0 && (
                 <>
                   <span>· cổ tức</span>
                   <Money

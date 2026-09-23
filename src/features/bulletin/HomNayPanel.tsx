@@ -51,6 +51,8 @@ interface Props {
    * vì "không có gì để nói". Lúc đó góc phải nói "đang tính" thay vì im.
    */
   headlinePending?: boolean
+  /** Dữ liệu cho câu kết luận tải HỎNG — nói thẳng thay vì "đang tính" mãi. */
+  headlineFailed?: boolean
 }
 
 export function HomNayPanel({
@@ -65,6 +67,7 @@ export function HomNayPanel({
   hanMuc,
   headline,
   headlinePending = false,
+  headlineFailed = false,
 }: Props) {
   const {
     soNgay,
@@ -158,7 +161,9 @@ export function HomNayPanel({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         {eyebrow}
         {headlinePending ? (
-          <p className="text-sm text-fg-muted">Đang tính kết luận tháng…</p>
+          <p className="text-sm text-fg-muted">
+            {headlineFailed ? 'Chưa tính được kết luận tháng.' : 'Đang tính kết luận tháng…'}
+          </p>
         ) : (
           headline && (
             <ConclusionLine tone={headline.tone} short={headline.short}>

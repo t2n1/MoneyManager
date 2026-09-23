@@ -38,10 +38,16 @@ interface Props {
   tail: 'loans' | 'invested'
 }
 
+/** Chỗ của một con số chưa có: đang tải thì "…", hỏng hẳn thì nói thẳng. Không bao giờ in số tạm. */
+function ChoSo({ failed }: { failed: boolean }) {
+  return <span className="text-sm text-fg-muted">{failed ? 'Chưa tải được' : '…'}</span>
+}
+
 export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
   const {
     todayISO,
     isLoading,
+    loadFailed,
     base,
     rates,
     balances,
@@ -91,17 +97,21 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
 
   // Ô "Phải trả" chỉ dựng khi có thẻ đang nợ: một ô "—" chiếm một phần tư dải để nói
   // "không có gì" là đổi chỗ đắt nhất trang lấy một tin rỗng.
-  const showDue = summary.billedBase != null
+  // Chưa đủ nguồn (đang tải hoặc hỏng) thì CHƯA dựng hai ô phụ: số dư về trước nợ/cho vay
+  // thì ô cuối loé "Tổng nợ thẻ" rồi mới đổi thành "Cho vay còn lại".
+  const chuaDu = isLoading || loadFailed
+  const showDue = !chuaDu && summary.billedBase != null
   const dueFunding = funding.groups.find((g) => g.totalOwed > 0) ?? null
   const showTail =
-    tail === 'invested' ? investmentAccounts.length > 0 : debtsSummary.owedToMe > 0 || cardOwed > 0
+    !chuaDu &&
+    (tail === 'invested' ? investmentAccounts.length > 0 : debtsSummary.owedToMe > 0 || cardOwed > 0)
   const count = 2 + (showDue ? 1 : 0) + (showTail ? 1 : 0)
 
   return (
     <KpiStrip cols={KPI_COLS[count] ?? KPI_COLS[4]}>
       <KpiCell label="Tài sản ròng" foot={netWorthFoot}>
-        {isLoading ? (
-          <span className="text-fg-muted">…</span>
+        {chuaDu ? (
+          <ChoSo failed={loadFailed} />
         ) : (
           <Money {...netView} approx={netApprox || netView.approx} />
         )}
@@ -110,7 +120,7 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
       <KpiCell
         label="Tổng tài sản"
         foot={
-          !isLoading && (
+          !chuaDu && (
             <>
               {accountCount} tài khoản · {purposeGroups.length} nhóm
               {hasValuation && (
@@ -128,8 +138,8 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
           )
         }
       >
-        {isLoading ? (
-          <span className="text-fg-muted">…</span>
+        {chuaDu ? (
+          <ChoSo failed={loadFailed} />
         ) : (
           <Money
             {...totalView}

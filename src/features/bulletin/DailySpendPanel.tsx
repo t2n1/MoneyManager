@@ -178,6 +178,12 @@ interface Props {
   monthPending?: boolean
   seriesPending?: boolean
   tagsPending?: boolean
+  /**
+   * Hai cờ "tải hỏng" đi kèm hai cờ pending ở trên: cờ pending vẫn bật (không có số nào để
+   * in), cờ này chỉ đổi CHỮ từ "đang tải" sang "chưa tải được" để thẻ không kẹt mãi.
+   */
+  monthFailed?: boolean
+  seriesFailed?: boolean
 }
 
 /** Tên một khoản chi: ghi chú của người dùng nếu có, không thì tên danh mục. */
@@ -762,6 +768,8 @@ export function DailySpendPanel({
   monthPending = false,
   seriesPending = false,
   tagsPending = false,
+  monthFailed = false,
+  seriesFailed = false,
 }: Props) {
   const { days, typical, peakIndex } = series
   const [plotRef, colWidth] = useColumnWidth(days.length)
@@ -852,7 +860,7 @@ export function DailySpendPanel({
         )}
         <p className="ml-auto font-mono text-2xs text-fg-muted">
           {monthPending ? (
-            'Đang tải…'
+            monthFailed ? 'Chưa tải được' : 'Đang tải…'
           ) : (
             <>
               {/* "ngày 23/30" khi tháng đang dở — KHÔNG "23 ngày": theo quy ước chung của app
@@ -874,7 +882,7 @@ export function DailySpendPanel({
                 <>
                   {' / '}
                   {seriesPending ? (
-                    'đang tính'
+                    seriesFailed ? 'chưa tải được' : 'đang tính'
                   ) : (
                     <Money amount={fullTotal} currency={base} approx={approx} />
                   )}{' '}
@@ -917,11 +925,14 @@ export function DailySpendPanel({
           base={base}
           onPick={onPickMonth}
           pending={seriesPending}
+          failed={seriesFailed}
         />
       </div>
 
       {monthPending ? (
-        <p className="mt-3 text-sm text-fg-muted">Đang tải chi từng ngày…</p>
+        <p className="mt-3 text-sm text-fg-muted">
+          {monthFailed ? 'Chưa tải được chi từng ngày.' : 'Đang tải chi từng ngày…'}
+        </p>
       ) : peak === null ? (
         <p className="mt-3 text-sm text-fg-muted">
           Chưa ghi khoản chi nào trong tháng này.

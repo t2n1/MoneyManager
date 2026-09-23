@@ -47,8 +47,9 @@ import {
 } from '../../hooks/queries'
 import { addDaysISO, dayMonthLabel } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { loadStatus, mergeLoad } from '../../lib/loadStatus'
 import { lastReconciledMap } from '../notifications/reconciledAt'
-import { accountRowStats, DELTA_DAYS } from './accountRowStats'
+import { accountRowStats, DELTA_DAYS, type AccountRowStat } from './accountRowStats'
 import { ACCOUNT_TYPE_LABELS, UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { AssetsKpi } from './AssetsKpi'
 import { CardsSection } from './CardsSection'
@@ -102,6 +103,7 @@ export function AssetsNowView({ viewCur }: Props) {
   const {
     todayISO,
     isLoading,
+    loadFailed,
     base,
     rates,
     balances,
@@ -151,6 +153,9 @@ export function AssetsNowView({ viewCur }: Props) {
   }, [groupSettings])
   const rebalance = useMemo<RebalanceUi | null>(() => {
     if (groupMode !== 'purpose') return null
+    // Nhóm/tỷ trọng mục tiêu chưa về thì chưa có kế hoạch nào để nói — kế hoạch dựng trên
+    // mục tiêu rỗng là "chưa đặt tỷ trọng" với người đã đặt.
+    if (isLoading || loadFailed) return null
     const plan = rebalancePlan(purposeGroups, targets)
     // Dưới hai nhóm thì "tỷ trọng" không có nghĩa gì để khai.
     if (plan === null || plan.rows.length < 2) return null
@@ -160,7 +165,7 @@ export function AssetsNowView({ viewCur }: Props) {
       onSetTarget: (name, bps) => upsertGroup.mutate({ name, patch: { target_bps: bps } }),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupMode, purposeGroups, targets])
+  }, [groupMode, purposeGroups, targets, isLoading, loadFailed])
   // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ NHÓM. Nhưng chỉ "Mục đích" cho kéo
   // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
   // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
@@ -188,11 +193,25 @@ export function AssetsNowView({ viewCur }: Props) {
     () => ({ start: addDaysISO(todayISO, -DELTA_DAYS), end: addDaysISO(todayISO, 1) }),
     [todayISO],
   )
-  const { data: deltaTxs = [] } = useRangeTransactions(deltaRange)
-  const { data: categories = [] } = useCategories()
+  const deltaQ = useRangeTransactions(deltaRange)
+  const categoriesQ = useCategories()
+  const deltaTxs = useMemo(() => deltaQ.data ?? [], [deltaQ.data])
+  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
+  // Δ và ngày đối chiếu chỉ tính khi CẢ sổ 30 ngày, danh mục lẫn số dư đã về. Bản trước
+  // đọc mặc định `[]`: vài giây đầu mọi dòng Δ in "—" (tức "không đổi"), và tệ hơn, chưa
+  // thấy giao dịch bù nào nên MỌI tài khoản hiện nút "Đối chiếu" quá hạn — một cảnh báo
+  // giả rồi tự tắt. Chưa đủ thì Map rỗng: dòng tài khoản im lặng, cột Δ in "…".
+  const statsLoad = mergeLoad(
+    loadStatus(deltaQ),
+    loadStatus(categoriesQ),
+    loadFailed ? 'failed' : isLoading ? 'pending' : 'ready',
+  )
+  const statsReady = statsLoad === 'ready'
   const rowStats = useMemo(
     () =>
-      accountRowStats({
+      !statsReady
+        ? new Map<string, AccountRowStat>()
+        : accountRowStats({
         balanceById: new Map(balances.map((b) => [b.id, b.balance])),
         txs: deltaTxs,
         // Cột `last_reconciled_at` + giao dịch bù, lấy cái muộn hơn — cùng một hàm với
@@ -201,7 +220,7 @@ export function AssetsNowView({ viewCur }: Props) {
         todayISO,
         windowStartISO: deltaRange.start,
       }),
-    [balances, deltaTxs, categories, todayISO, deltaRange.start],
+    [statsReady, balances, deltaTxs, categories, todayISO, deltaRange.start],
   )
 
   // --- Kéo–thả tài khoản ngay trên trang Tài sản (trong nhóm & xuyên nhóm) ---
@@ -498,6 +517,12 @@ export function AssetsNowView({ viewCur }: Props) {
   // hay không. Cố ý không ghép chuỗi bên trong một biểu thức điều kiện: hai điều kiện
   // rời nhau thì có đúng một cách để câu ra rỗng, và cách đó chỉ lộ ra khi một nhánh
   // bật mà nhánh kia tắt.
+  // Nguồn của cả tab chưa đủ (đang tải hoặc hỏng) → vạch cơ cấu và bảng tài khoản CHƯA
+  // dựng. Số dư về trước nhóm thì mọi tài khoản dồn vào "chưa phân nhóm" một nhịp rồi
+  // mới nhảy về đúng nhóm.
+  const chuaDu = isLoading || loadFailed
+  const bangNhom = chuaDu ? [] : displayGroups
+
   const thieuTyGia = [
     breakdown.hasMissingRate && 'tài sản',
     (debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && 'công nợ',
@@ -512,6 +537,11 @@ export function AssetsNowView({ viewCur }: Props) {
       {/* MỘT dòng cảnh báo thiếu tỷ giá cho cả tab. Trước đây câu này in HAI lần, gần
           như y hệt, ở hai độ cao khác nhau — người đọc lần thứ hai không biết nó có
           phải chuyện mới không. Gộp lên đầu và nói RÕ chỗ nào đang thiếu. */}
+      {loadFailed && (
+        <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
+          Không tải được dữ liệu tài sản — thử tải lại trang.
+        </p>
+      )}
       {thieuTyGia.length > 0 && (
         <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
           Chưa quy đổi được tỷ giá cho một phần {thieuTyGia.join(' và ')} — mọi tổng trên tab
@@ -544,11 +574,12 @@ export function AssetsNowView({ viewCur }: Props) {
         <CardsSection cards={visibleCards} panel={cardsPanel} view={mv} />
         <div className="flex lg:w-[27rem] lg:shrink-0">
           <StructureBar
-            groups={displayGroups}
+            groups={bangNhom}
             colorOf={colorOf}
             modeLabel={modeLabel}
             view={mv}
             isLoading={isLoading}
+            loadFailed={loadFailed}
             rebalance={rebalance}
           />
         </div>
@@ -613,7 +644,12 @@ export function AssetsNowView({ viewCur }: Props) {
           <span className="w-4 shrink-0" aria-hidden />
         </div>
 
-        {displayGroups.map((g) => {
+        {chuaDu && (
+          <p className="px-4 py-8 text-center text-sm text-fg-muted">
+            {loadFailed ? 'Chưa tải được danh sách tài khoản.' : 'Đang tải…'}
+          </p>
+        )}
+        {bangNhom.map((g) => {
           const rowIds = dragEnabled ? displayIdsOf(g.name) : g.accounts.map((a) => a.id)
           const isDropTarget = dragEnabled && dragAcc != null && dropAt?.group === g.name
           // "Ngoài tổng" gồm CẢ hai lối vào trạng thái đó: cờ của nhóm, và ca nhóm còn
@@ -676,7 +712,14 @@ export function AssetsNowView({ viewCur }: Props) {
                   )}
                 </span>
                 <span className={`${COL.delta} hidden shrink-0 justify-end text-right lg:flex`}>
-                  {gd?.delta == null || gd.delta === 0 ? (
+                  {!statsReady ? (
+                    <span
+                      className="text-2xs text-fg-muted"
+                      aria-label={statsLoad === 'failed' ? 'Chưa tải được' : 'Đang tính'}
+                    >
+                      …
+                    </span>
+                  ) : gd?.delta == null || gd.delta === 0 ? (
                     <span className="text-2xs text-fg-muted">—</span>
                   ) : (
                     <Money
@@ -832,6 +875,17 @@ export function AssetsNowView({ viewCur }: Props) {
                             NHÓM. In tỷ trọng từng tài khoản trong tổng là thêm chín con
                             số mà không ai so chúng với nhau. */}
                         <span className={`${COL.share} hidden shrink-0 lg:block`} aria-hidden />
+                        {!statsReady && (
+                          <span
+                            className={`${COL.delta} hidden shrink-0 justify-end text-right text-2xs text-fg-muted sm:flex`}
+                            aria-label={statsLoad === 'failed' ? 'Chưa tải được' : 'Đang tính'}
+                          >
+                            …
+                          </span>
+                        )}
+                        {!statsReady && (
+                          <span className={`${COL.spark} hidden shrink-0 sm:block`} aria-hidden />
+                        )}
                         {stat && (
                           <span
                             className={`${COL.delta} hidden shrink-0 justify-end text-right sm:flex`}

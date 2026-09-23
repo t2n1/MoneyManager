@@ -8,6 +8,7 @@
 import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../../components/ui'
 import type { Reliability } from '../notifications/reliability'
+import { pendingText } from '../../lib/loadStatus'
 
 /** Mỗi thành phần thiếu dẫn đi đâu để sửa. */
 const TO: Record<string, string> = {
@@ -22,12 +23,21 @@ const TO: Record<string, string> = {
  * 100% phần "đã phân loại" (sổ trống không phải sổ sai), nên vài giây đầu khối này từng
  * khoe một con số cao rồi tụt xuống khi giao dịch về.
  */
-export function ReliabilityPanel({ data }: { data: Reliability | null }) {
+export function ReliabilityPanel({
+  data,
+  failed = false,
+}: {
+  data: Reliability | null
+  /** Nguồn tải hỏng hẳn — `data` vẫn null, nhưng nói "Chưa tải được" chứ không "Đang tính…". */
+  failed?: boolean
+}) {
   if (data === null) {
     return (
       <Card elevation="panel" padding="panel" as="section">
         <SectionTitle>Độ tin cậy dữ liệu</SectionTitle>
-        <p className="mt-2.5 text-sm text-fg-muted">Đang tính…</p>
+        <p className="mt-2.5 text-sm text-fg-muted">
+          {pendingText(failed ? 'failed' : 'pending')}
+        </p>
       </Card>
     )
   }

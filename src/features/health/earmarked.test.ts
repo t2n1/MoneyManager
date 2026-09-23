@@ -137,6 +137,41 @@ describe('earmarkedForGoals', () => {
     expect(missing.total).toBe(0)
   })
 
+  it('có GIÁ TRỊ HIỆN TẠI thì dùng nó thay số dư sổ — cùng số với khối Mục tiêu', () => {
+    // Ví chứng khoán đánh dấu rút ngay được: sổ ghi ¥80.809 (tiền đã nạp), giá thị trường
+    // ¥78.913. Mục tiêu tiết kiệm in ¥78.913 → phần "có chủ" cũng phải là ¥78.913.
+    const r = earmarkedForGoals(
+      [goal('a', 100_000)],
+      [bal({ id: 'a', balance: 80_809, type: 'investment', is_liquid: true })],
+      'JPY',
+      RATES,
+      new Map([['a', { value: 78_913 }]]),
+    )
+    expect(r.total).toBe(78_913)
+  })
+
+  it('giá trị hiện tại vẫn bị kẹp theo đích', () => {
+    const r = earmarkedForGoals(
+      [goal('a', 50_000)],
+      [bal({ id: 'a', balance: 10_000 })],
+      'JPY',
+      RATES,
+      new Map([['a', { value: 90_000 }]]),
+    )
+    expect(r.total).toBe(50_000)
+  })
+
+  it('tài khoản không có trong bảng giá trị hiện tại → rơi về số dư sổ', () => {
+    const r = earmarkedForGoals(
+      [goal('a', 500_000)],
+      [bal({ id: 'a', balance: 200_000 })],
+      'JPY',
+      RATES,
+      new Map(),
+    )
+    expect(r.total).toBe(200_000)
+  })
+
   it('mục tiêu trỏ tới tài khoản đã xoá thì bỏ qua', () => {
     const r = earmarkedForGoals([goal('khong-co', 100_000)], [], 'JPY', RATES)
     expect(r.total).toBe(0)

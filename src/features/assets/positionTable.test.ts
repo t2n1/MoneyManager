@@ -153,6 +153,24 @@ describe('positionTable', () => {
     expect(r.soldDividend).toBe(90_000)
   })
 
+  it('sổ giao dịch CHƯA VỀ (dividends = null) → cờ chưa biết, không có cổ tức giả 0', () => {
+    const r = chay({ dividends: null })
+    expect(r.dividendsKnown).toBe(false)
+    // Không tỷ lệ nào được coi là đã tính: cổ tức và tổng lời/lỗ đều null.
+    expect(r.rows[0].dividendPercent).toBeNull()
+    expect(r.rows[0].totalPnlPercent).toBeNull()
+    expect(r.totals.dividendPercent).toBeNull()
+    expect(r.totals.totalPnlPercent).toBeNull()
+    expect(r.soldDividend).toBe(0)
+    // Phần KHÔNG phụ thuộc sổ giao dịch vẫn tính bình thường.
+    expect(r.rows[0].pricePnl).toBe(170_000)
+    expect(r.rows[0].pricePnlPercent).toBeCloseTo(8.5, 6)
+  })
+
+  it('sổ đã về → dividendsKnown = true, kể cả khi không có cổ tức nào', () => {
+    expect(chay().dividendsKnown).toBe(true)
+  })
+
   it('giữ nguyên tên tài khoản — dòng phải nói được mã này nằm ở đâu', () => {
     const { rows } = chay({ positions: [vt({ accountNames: ['CK', 'Đầu tư VN'] })] })
     expect(rows[0].accountNames).toEqual(['CK', 'Đầu tư VN'])

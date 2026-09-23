@@ -11,6 +11,7 @@ import { keptBarPct } from './bulletin'
 import type { CurrencyCode } from '../../lib/money'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
+import { pendingText } from '../../lib/loadStatus'
 
 /** Nhãn eyebrow + số 22px mono — khung chung của cả bốn ô. */
 function Tile({
@@ -83,6 +84,11 @@ interface Props {
    * một con số sai trông rất thật trong vài giây đầu mỗi lần mở app (§14: chưa biết ≠ 0).
    */
   pending?: boolean
+  /**
+   * Dải nhiều tháng tải HỎNG hẳn (không còn đang thử lại). Ba ô vẫn không in số, nhưng nói
+   * "Chưa tải được" thay vì "Đang tính…" — không thì ô đứng "đang tính" mãi mãi.
+   */
+  failed?: boolean
   /** Tài sản ròng chưa tính xong (số dư chưa về) — khác với "không tính được". */
   netWorthPending?: boolean
   /**
@@ -94,8 +100,12 @@ interface Props {
 }
 
 /** Ô đang chờ dữ liệu: chữ thay cho số, cùng khung để hàng ô không nhảy. */
-function Pending() {
-  return <span className="font-sans text-sm text-fg-muted">Đang tính…</span>
+function Pending({ failed = false }: { failed?: boolean }) {
+  return (
+    <span className="font-sans text-sm text-fg-muted">
+      {pendingText(failed ? 'failed' : 'pending')}
+    </span>
+  )
 }
 
 export function KpiRow({
@@ -109,6 +119,7 @@ export function KpiRow({
   netWorthSpark,
   approx,
   pending = false,
+  failed = false,
   netWorthPending = false,
   keptScope,
 }: Props) {
@@ -143,7 +154,7 @@ export function KpiRow({
           )
         }
       >
-        {pending ? <Pending /> : <Money amount={income.value} currency={base} tone="in" approx={approx} />}
+        {pending ? <Pending failed={failed} /> : <Money amount={income.value} currency={base} tone="in" approx={approx} />}
       </Tile>
 
       <Tile
@@ -158,7 +169,7 @@ export function KpiRow({
           )
         }
       >
-        {pending ? <Pending /> : <Money amount={expense.value} currency={base} tone="out" approx={approx} />}
+        {pending ? <Pending failed={failed} /> : <Money amount={expense.value} currency={base} tone="out" approx={approx} />}
       </Tile>
 
       <Tile
@@ -192,7 +203,7 @@ export function KpiRow({
             tiêu hết sạch", trong khi sự thật là chưa ghi khoản thu nào để mà tính (§14:
             chưa biết ≠ 0). Dòng dưới thanh nói lý do. */}
         {pending ? (
-          <Pending />
+          <Pending failed={failed} />
         ) : keptPct === null ? (
           <span className="text-fg-muted">—</span>
         ) : (

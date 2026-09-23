@@ -152,7 +152,7 @@ export function CalendarView({
   )
 
   // --- Dấu trong ô: cam kết chưa ra · kỳ thẻ tới hạn · ngày lương -----------------------
-  const { marks, schedule, cardDues } = useCalendarMarks({
+  const { marks, schedule, cardDues, commitmentsReady } = useCalendarMarks({
     monthKey,
     monthStartDay,
     transactions,
@@ -188,15 +188,20 @@ export function CalendarView({
     const totalRemaining = Math.round(budgeted - spent)
     const committed = pace.isCurrentMonth ? schedule.overdueTotal + schedule.upcomingTotal : 0
     const free = spendableRemaining(totalRemaining, committed)
+    // Cam kết chưa tải xong thì `committed` là 0 giả: mức mỗi ngày loé CAO hơn thật và
+    // câu "thiếu trước cuối tháng" im oan. Chờ — không chia, không cảnh báo.
+    const pending = pace.isCurrentMonth && !commitmentsReady
     return {
       budgeted,
       cap: totalCapOf(report),
       spent,
       committed,
-      segments: spendableSegments(budgeted, spent, committed),
-      allowance: pace.isCurrentMonth
-        ? dailyAllowance(free, pace.paceDaysElapsed, pace.paceDaysInMonth)
-        : null,
+      pending,
+      segments: pending ? null : spendableSegments(budgeted, spent, committed),
+      allowance:
+        pace.isCurrentMonth && !pending
+          ? dailyAllowance(free, pace.paceDaysElapsed, pace.paceDaysInMonth)
+          : null,
       // `budgetDaily` khi có hạn mức: cùng phạm vi với `spent`/`budgeted` ở trên, nên
       // "nhịp 7 ngày qua" đặt cạnh "còn tiêu được mỗi ngày" là so được. `monthDaily` chỉ
       // là đường lùi khi chưa đặt hạn mức nào (lúc đó khối này cũng không in mức cho phép).
@@ -204,10 +209,12 @@ export function CalendarView({
         ? recentPace((pace.budgetDaily ?? pace.monthDaily).points, todayISO)
         : null,
       short:
-        pace.isCurrentMonth && totalRemaining > 0 && committed > 0 && free <= 0 ? -free : null,
+        pace.isCurrentMonth && !pending && totalRemaining > 0 && committed > 0 && free <= 0
+          ? -free
+          : null,
       hasMissingRate,
     }
-  }, [report, pace, schedule, todayISO, hasMissingRate])
+  }, [report, pace, schedule, todayISO, hasMissingRate, commitmentsReady])
 
   const tagBudgets = useTagBudgets(monthKey)
 

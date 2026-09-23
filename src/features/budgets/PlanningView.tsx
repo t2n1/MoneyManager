@@ -306,8 +306,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   // Câu phán: ngưỡng, cách nối mệnh đề và ca "chưa biết thu nhập" nằm ở planVerdict.ts
   // cùng test của nó — ở đây chỉ có việc bày ra.
   const verdict = useMemo(
-    () => planVerdict({ summary, gapCount: data.gaps.length }),
-    [summary, data.gaps.length],
+    // Cam kết chưa tải xong thì `gaps` rỗng giả — phán lúc đó là khen "phủ hết" oan.
+    () => (data.commitmentsReady ? planVerdict({ summary, gapCount: data.gaps.length }) : null),
+    [summary, data.gaps.length, data.commitmentsReady],
   )
 
   /**
@@ -503,13 +504,17 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     />
                   </PlanTile>
                   <PlanTile label="Cam kết đã biết">
-                    <Money
-                      amount={data.commitments.total}
-                      currency={base}
-                      tone="neutral"
-                      approx={data.hasMissingRate}
-                      compact
-                    />
+                    {data.commitmentsReady ? (
+                      <Money
+                        amount={data.commitments.total}
+                        currency={base}
+                        tone="neutral"
+                        approx={data.hasMissingRate}
+                        compact
+                      />
+                    ) : (
+                      <span className="text-sm text-fg-muted">Đang tính…</span>
+                    )}
                   </PlanTile>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">

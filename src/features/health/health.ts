@@ -220,6 +220,47 @@ export function monteCarloRunway(
 }
 
 /**
+ * "Cầm cự nếu mất việc": thu nhập = 0, tiền lỏng bị trừ dần bởi TỔNG CHI của một tháng
+ * bốc ngẫu nhiên trong các tháng chi thật. Cùng bộ máy Monte Carlo với `monteCarloRunway`,
+ * chỉ khác đầu vào — dòng tiền mỗi tháng là −chi, không phải thu − chi.
+ *
+ * Vì sao không đưa dòng ròng vào như bản trước: người đang dư mỗi tháng thì dòng ròng
+ * dương, cộng mãi không bao giờ âm, nên chỉ số mang tên "nếu mất việc" ra ≥ 60 tháng
+ * trong khi chính nó vẫn giả định có lương. Mất việc là mất đúng phần thu đó.
+ *
+ * Tháng chi âm (hoàn nhiều hơn chi) tính là 0: một khoản hoàn tiền không phải thu nhập
+ * sẽ còn tới khi đã mất việc. `monthlyExpenses` cần ≥ 3 tháng, ít hơn → null.
+ */
+export function jobLossRunway(
+  liquidAssets: number,
+  monthlyExpenses: readonly number[],
+  opts: Partial<RunwayOptions> = {},
+): RunwayResult | null {
+  return monteCarloRunway(
+    liquidAssets,
+    monthlyExpenses.map((e) => -Math.max(0, e)),
+    opts,
+  )
+}
+
+/**
+ * Dịch dãy chi từng tháng cho trung bình bằng `target`, GIỮ tỷ lệ giữa các tháng — để
+ * thanh trượt "Chi mỗi tháng" đổi MỨC chi mà vẫn giữ độ dao động thật của nó.
+ *
+ * Lệch dưới 1 đơn vị so với trung bình (thanh trượt đang ở mức mặc định, chỉ bị làm tròn)
+ * → trả NGUYÊN dãy cũ, để mô phỏng ở mức mặc định ra đúng từng tháng như dòng "Cầm cự
+ * nếu mất việc" chứ không lệch vì sai số nhân. Trung bình ≤ 0 → mỗi tháng bằng `target`.
+ */
+export function scaleExpenses(monthlyExpenses: readonly number[], target: number): readonly number[] {
+  if (monthlyExpenses.length === 0) return monthlyExpenses
+  const mean = monthlyExpenses.reduce((s, x) => s + x, 0) / monthlyExpenses.length
+  if (mean <= 0) return monthlyExpenses.map(() => target)
+  if (Math.abs(target - mean) < 1) return monthlyExpenses
+  const k = target / mean
+  return monthlyExpenses.map((e) => e * k)
+}
+
+/**
  * Runway "phép chia" để đối chiếu: tài sản lỏng / mức đốt tiền trung bình mỗi
  * tháng. Dòng tiền trung bình ≥ 0 (đang tích lũy) → null: không có ngày cạn.
  */

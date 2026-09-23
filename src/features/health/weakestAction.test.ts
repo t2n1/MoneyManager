@@ -137,7 +137,10 @@ describe('weakestAction — ba chỉ số không đo bằng tiền', () => {
     expect(a?.amount).toBeNull()
     expect(a?.etaMonths).toBeNull()
     expect(a?.text).toContain('2.000 kịch bản')
-    expect(a?.text).toContain('cắt hết chi linh hoạt')
+    // Nhánh "cắt hết chi linh hoạt" đã bỏ khỏi màn — câu phải trỏ vào thứ đang có thật.
+    expect(a?.text).not.toContain('cắt hết chi linh hoạt')
+    expect(a?.text).toContain('Chi mỗi tháng')
+    expect(a?.text).toContain('không có lương')
   })
 
   it('Phụ thuộc một nguồn thu: chữa bằng nguồn thu thứ hai', () => {

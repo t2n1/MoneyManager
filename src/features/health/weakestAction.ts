@@ -166,10 +166,11 @@ export function weakestAction({
       const zones = HEALTH_ZONES.runway
       return {
         text:
-          `Số tháng cầm cự ra từ 2.000 kịch bản bốc từ chính lịch sử thu chi của bạn, nên không có ` +
-          `một con số "nạp thêm bấy nhiêu là đạt"${nangKy}. Hai đường thật sự dịch được nó: tăng tiền ` +
-          `lỏng, hoặc hạ chi thường tháng — xem nhánh "cắt hết chi linh hoạt" ở thẻ Nếu mất việc để ` +
-          `biết cắt thì được thêm bao lâu. Mốc gần nhất là ${zones[0].upTo} tháng.`,
+          `Số tháng cầm cự ra từ 2.000 kịch bản: mỗi tháng không có lương, trừ một mức chi bốc từ ` +
+          `chính các tháng chi thật của bạn — nên không có một con số "nạp thêm bấy nhiêu là ` +
+          `đạt"${nangKy}. Hai đường thật sự dịch được nó: tăng tiền lỏng, hoặc hạ tổng chi mỗi ` +
+          `tháng — kéo thanh "Chi mỗi tháng" ở thẻ Nếu mất việc để xem hạ chi thì được thêm bao ` +
+          `lâu. Mốc gần nhất là ${zones[0].upTo} tháng.`,
         amount: null,
         amountText: null,
         etaMonths: null,

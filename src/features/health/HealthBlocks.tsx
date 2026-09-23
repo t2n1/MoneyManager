@@ -12,7 +12,7 @@ import { Card, Money, Num, SectionTitle, StatusChip } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-import { monteCarloRunway, type Verdict } from './health'
+import { jobLossRunway, scaleExpenses, type Verdict } from './health'
 
 /**
  * Ba vùng của dải điểm — cùng hai mốc 40/70 với `verdictFromScore`, nên "70" trên dải và
@@ -183,42 +183,59 @@ interface Scenario {
 export function JobLossPanel({
   liquidAssets,
   investableAssets,
-  monthlyIncomes,
+  monthlyExpenses,
   baseExpense,
   oldRegimeExpense,
-  fundMonths,
+  runwayMonths,
+  runwayLabel,
   fundLabel,
   base,
   monthsCounted,
 }: {
   liquidAssets: number
   investableAssets: number
-  /** Thu từng tháng đã hoàn tất — mô phỏng đặt chúng về 0 (mất việc). */
-  monthlyIncomes: readonly number[]
-  /** Chi mỗi tháng theo nếp hiện tại (mặc định của thanh trượt). */
+  /**
+   * Chi GỘP từng tháng đã hoàn tất — CÙNG dãy mà dòng "Cầm cự nếu mất việc" dùng. Mô phỏng
+   * bốc từ dãy này (đã dịch về mức thanh trượt), nên ở mức chi mặc định và 0% đầu tư nó
+   * ra đúng con số của dòng đó.
+   */
+  monthlyExpenses: readonly number[]
+  /** Trung bình của `monthlyExpenses` (mặc định của thanh trượt). */
   baseExpense: number
   /** Chi mỗi tháng của nếp CŨ trước cú đổi nếp; null = không có cú đổi nào. */
   oldRegimeExpense: number | null
-  /** Quỹ dự phòng ở bảng trên — để chứng minh mối liên hệ khi kéo đầu tư về 0%. */
-  fundMonths: number | null
   /**
-   * Quỹ dự phòng ĐÃ ĐỊNH DẠNG theo đúng quy ước của bảng ("5,0 tháng" / "≥ 60 tháng").
+   * "Cầm cự nếu mất việc" ở bảng trên (p50). null = dòng đó chưa tính được, và lúc đó khối
+   * này KHÔNG hứa "khớp với bảng trên".
+   */
+  runwayMonths: number | null
+  /**
+   * Hai nhãn ĐÃ ĐỊNH DẠNG theo đúng quy ước của bảng ("5,0 tháng" / "≥ 60 tháng").
    *
    * Truyền chuỗi thay vì tự `toFixed(1)` ở đây: quy ước chặn-ở-60 nằm trong `months1` của
    * HealthView, và tự định dạng lại làm khối này in "866,2 tháng" trong khi bảng ngay trên
    * in "≥ 60 tháng" — hai con số cho cùng một chỉ số, trên cùng một màn.
    */
-  fundLabel: string
+  runwayLabel: string
+  /** Quỹ dự phòng — chỉ để nói vì sao nó KHÔNG khớp mô phỏng (mẫu số là chi cố định). */
+  fundLabel: string | null
   base: CurrencyCode
   monthsCounted: number
 }) {
-  const [expense, setExpense] = useState(Math.round(baseExpense))
+  const defaultExpense = Math.round(baseExpense)
+  const [expense, setExpense] = useState(defaultExpense)
   const [sellPct, setSellPct] = useState(100)
 
   // Sàn suy từ CHÍNH mức chi hiện tại, không phải một hằng số: đặt sàn cứng ¥10,000 thì
   // với người chi ¥8,500/tháng thanh trượt có `min` LỚN HƠN `value`, và trình duyệt tự
   // kéo tay cầm về `min` — tức con số hiện ra không phải con số của họ.
-  const MIN = Math.max(1_000, Math.round(baseExpense * 0.5))
+  //
+  // Sàn còn được ĐẶT TRÊN LƯỚI bước 1.000 tính từ mức mặc định: bước của thanh trượt đếm
+  // từ `min`, nên sàn lệch lưới thì kéo đi rồi không bao giờ về lại đúng mức mặc định —
+  // mà câu "dòng đầu bằng đúng số Cầm cự" bên dưới chỉ đúng ở chính mức đó.
+  const rawMin = Math.max(1_000, Math.round(baseExpense * 0.5))
+  const MIN =
+    defaultExpense - Math.max(0, Math.floor((defaultExpense - rawMin) / 1_000)) * 1_000
   const MAX = Math.max(MIN + 1_000, Math.round(baseExpense * 1.8))
 
   const assets = liquidAssets + Math.round((investableAssets * sellPct) / 100)
@@ -243,21 +260,27 @@ export function JobLossPanel({
       : []),
   ]
 
-  // Mô phỏng: MẤT VIỆC nghĩa là thu = 0, nên dòng tiền ròng mỗi tháng là −chi. Vẫn bốc
-  // ngẫu nhiên từ dãy để giữ ĐỘ DAO ĐỘNG thật của chi, chỉ dịch mức trung bình về mức
-  // thanh trượt đang chọn.
+  // Mô phỏng: MẤT VIỆC nghĩa là thu = 0. Bốc ngẫu nhiên từ chính các tháng chi thật để
+  // giữ ĐỘ DAO ĐỘNG của chi, chỉ dịch mức trung bình về mức thanh trượt đang chọn. Cùng
+  // hàm, cùng hạt giống, cùng số kịch bản với dòng "Cầm cự nếu mất việc" — nên ở mức chi
+  // mặc định và 0% đầu tư, dòng đầu ở đây ra ĐÚNG con số của bảng trên.
+  // Dưới 3 tháng dữ liệu thì không bốc được: rơi về mức chi cố định mỗi tháng (dòng của
+  // bảng lúc đó là "—", và câu "khớp bảng trên" bên dưới cũng ẩn theo).
   const results = useMemo(() => {
-    const n = Math.max(monthlyIncomes.length, 3)
     return scenarios.map((sc) => {
-      const flows = Array.from({ length: n }, () => -sc.monthlyExpense)
-      const r = monteCarloRunway(assets, flows, { iterations: 400 })
+      const flows =
+        monthlyExpenses.length >= 3
+          ? scaleExpenses(monthlyExpenses, sc.monthlyExpense)
+          : [sc.monthlyExpense, sc.monthlyExpense, sc.monthlyExpense]
+      const r = jobLossRunway(assets, flows)
       return { ...sc, months: r?.p50 ?? null, horizon: r?.horizon ?? 60 }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assets, expense, sellPct, oldRegimeExpense, monthlyIncomes.length])
+  }, [assets, expense, sellPct, oldRegimeExpense, monthlyExpenses])
 
   const axisMax = 60
-  const zeroSell = sellPct === 0
+  // Chỉ còn tiền lỏng: kéo đầu tư về 0%, hoặc chưa có đầu tư nào để bán.
+  const liquidOnly = sellPct === 0 || investableAssets <= 0
 
   return (
     <Card as="section" elevation="panel" padding="panel">
@@ -362,23 +385,37 @@ export function JobLossPanel({
         .
       </p>
 
-      {/* Đây là cách GIẢI THÍCH BẰNG TƯƠNG TÁC cho việc "5 tháng đệm" nằm cạnh "≥60 tháng
-          cầm cự": kéo đầu tư về 0% thì con số tụt về đúng quỹ dự phòng. */}
-      {/* Câu này CHỈ nói "xấp xỉ bằng nhau" khi hai con số thật sự so được: quỹ dự phòng
-          dưới ngưỡng 60 tháng. Trên ngưỡng đó cả hai đều bị chặn ở "≥ 60" nên khẳng định
-          chúng khớp nhau là khẳng định về hai cái trần, không về hai phép tính. */}
-      {zeroSell && fundMonths !== null && (
+      {/* GIẢI THÍCH BẰNG TƯƠNG TÁC: chỉ còn tiền lỏng (0% đầu tư, hoặc chưa có đầu tư) thì
+          dòng đầu ở đây là CÙNG phép tính với dòng "Cầm cự nếu mất việc" — cùng rổ tiền lỏng,
+          cùng dãy tổng chi, cùng hạt giống. Chỉ hứa "bằng đúng" khi thanh chi còn ở mức mặc
+          định; kéo đi rồi thì nói cách kéo về.
+          Quỹ dự phòng thì KHÔNG khớp và không được hứa khớp: nó chia cho chi CỐ ĐỊNH, còn mô
+          phỏng trừ TỔNG chi — hai mẫu số khác nhau (bản trước hứa hai số đó "gặp nhau"). */}
+      {liquidOnly && runwayMonths !== null && (
         <p className="mt-1.5 rounded-md border border-state-good-border bg-state-good-bg px-2.5 py-2 text-2xs text-state-good-fg">
-          Ở <b>0%</b> đầu tư, mô phỏng chỉ còn tiền lỏng.{' '}
-          {fundMonths < 60 ? (
+          {investableAssets > 0 ? (
             <>
-              Con số trên xấp xỉ đúng <b>{fundLabel}</b> của quỹ dự phòng ở bảng trên — hai chỉ
-              số đó không đá nhau, chúng chỉ đếm hai rổ khác nhau.
+              Ở <b>0%</b> đầu tư, mô phỏng chỉ còn tiền lỏng.{' '}
+            </>
+          ) : (
+            <>Mô phỏng đang chỉ tính tiền lỏng. </>
+          )}
+          {expense === defaultExpense ? (
+            <>
+              Dòng đầu vì thế bằng đúng <b>{runwayLabel}</b> của “Cầm cự nếu mất việc” ở bảng
+              trên.
             </>
           ) : (
             <>
-              Quỹ dự phòng ở bảng trên cũng đang là <b>{fundLabel}</b>: cả hai đều vượt trần 60
-              tháng của thang, nên chúng không còn phân biệt được nhau ở mức này.
+              Kéo “Chi mỗi tháng” về <Money amount={defaultExpense} currency={base} className="font-semibold" /> thì dòng đầu
+              bằng đúng <b>{runwayLabel}</b> của “Cầm cự nếu mất việc” ở bảng trên.
+            </>
+          )}
+          {fundLabel !== null && (
+            <>
+              {' '}
+              Quỹ dự phòng (<b>{fundLabel}</b>) là số khác: nó chỉ chia cho chi cố định, còn ở
+              đây trừ cả tổng chi.
             </>
           )}
         </p>
@@ -391,8 +428,8 @@ export function JobLossPanel({
       )}
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Mô phỏng đặt thu nhập về <b>0</b> và trừ dần mức chi bạn chọn, chạy 400 kịch bản trên{' '}
-        {monthsCounted} tháng dữ liệu. KHÔNG tính lạm phát, KHÔNG tính thuế khi bán tài sản, và
+        Mô phỏng đặt thu nhập về <b>0</b> và mỗi tháng trừ một mức chi bốc từ{' '}
+        {monthsCounted} tháng chi thật (dịch theo mức bạn chọn), chạy 2.000 kịch bản. KHÔNG tính lạm phát, KHÔNG tính thuế khi bán tài sản, và
         không tính trợ cấp thất nghiệp — nên đọc nó là mốc thô để so ba nếp chi với nhau, không
         phải một dự báo.
       </Guide>

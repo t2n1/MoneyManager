@@ -6,8 +6,10 @@ import {
   emergencyFundMonths,
   healthScore,
   incomeConcentration,
+  jobLossRunway,
   liquidityRatio,
   monteCarloRunway,
+  scaleExpenses,
   scaleGeometry,
   scoreFromZones,
   seededRandom,
@@ -185,6 +187,59 @@ describe('simpleRunway', () => {
 
   it('trung bình không âm → null (không có ngày cạn)', () => {
     expect(simpleRunway(600_000, [100_000, -50_000, 10_000])).toBeNull()
+  })
+})
+
+describe('jobLossRunway — mất việc là thu bằng 0', () => {
+  it('trừ TỔNG CHI mỗi tháng, không cộng lương', () => {
+    // 1.200.000 lỏng, chi 200.000 mỗi tháng → hết sau 6 tháng, dù người này vẫn dư mỗi tháng
+    const r = jobLossRunway(1_200_000, [200_000, 200_000, 200_000], { iterations: 200 })
+    expect(r?.p50).toBe(6)
+    expect(r?.survivalRate).toBe(0)
+  })
+
+  it('lỗi cũ: dòng ròng dương thì không bao giờ cạn — ở đây phải cạn', () => {
+    // Cùng người đó nếu cộng dòng ròng (thu 300k − chi 200k = +100k) thì ra trần 60.
+    const cu = monteCarloRunway(1_200_000, [100_000, 100_000, 100_000], { iterations: 200 })
+    expect(cu?.p50).toBe(60)
+    const moi = jobLossRunway(1_200_000, [200_000, 200_000, 200_000], { iterations: 200 })
+    expect(moi?.p50).toBeLessThan(60)
+  })
+
+  it('tháng chi âm (hoàn nhiều hơn chi) tính là 0, không thành tiền vào', () => {
+    const a = jobLossRunway(300_000, [-50_000, 100_000, 100_000], { seed: 3, iterations: 500 })
+    const b = jobLossRunway(300_000, [0, 100_000, 100_000], { seed: 3, iterations: 500 })
+    expect(a).toEqual(b)
+  })
+
+  it('dưới 3 tháng hoặc không còn tiền lỏng → null', () => {
+    expect(jobLossRunway(300_000, [100_000, 100_000])).toBeNull()
+    expect(jobLossRunway(0, [100_000, 100_000, 100_000])).toBeNull()
+  })
+})
+
+describe('scaleExpenses', () => {
+  it('dịch trung bình về mức chọn nhưng giữ tỷ lệ giữa các tháng', () => {
+    const out = scaleExpenses([100_000, 200_000, 300_000], 400_000)
+    expect(out).toEqual([200_000, 400_000, 600_000])
+  })
+
+  it('mức chọn bằng trung bình (lệch dưới 1 đơn vị) → trả NGUYÊN dãy cũ', () => {
+    const src = [100_000, 200_000, 300_001]
+    const mean = (100_000 + 200_000 + 300_001) / 3
+    expect(scaleExpenses(src, Math.round(mean))).toBe(src)
+  })
+
+  it('trung bình ≤ 0 → mỗi tháng đúng bằng mức chọn', () => {
+    expect(scaleExpenses([0, 0, 0], 50_000)).toEqual([50_000, 50_000, 50_000])
+  })
+
+  it('ở mức chi mặc định, mô phỏng cho đúng số của dòng Cầm cự', () => {
+    const exp = [180_000, 220_000, 150_000, 250_000]
+    const mean = exp.reduce((s, x) => s + x, 0) / exp.length
+    const dong = jobLossRunway(900_000, exp)
+    const moPhong = jobLossRunway(900_000, scaleExpenses(exp, Math.round(mean)))
+    expect(moPhong).toEqual(dong)
   })
 })
 

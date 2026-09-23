@@ -54,7 +54,7 @@ import {
   HEALTH_ZONES,
   incomeConcentration,
   liquidityRatio,
-  monteCarloRunway,
+  jobLossRunway,
   scoreFromZones,
   taxBurden,
   verdictFor,
@@ -72,7 +72,8 @@ import { weakestAction } from './weakestAction'
 // thì bấm vào chip thứ ba lại nhảy xuống khối thứ năm.
 //
 // "Quỹ dự phòng" và "Nếu mất việc" đứng LIỀN NHAU và không được tách (B15.2): cùng một rổ
-// tiền, khác mẫu số, nên rời nhau ra là hai con số 5,0 và ≥60 đọc thành mâu thuẫn.
+// tiền, khác mẫu số (chi cố định vs tổng chi), nên rời nhau ra là hai con số 10,7 và 2,0
+// đọc thành mâu thuẫn.
 const SECTIONS: readonly IndexItem[] = [
   { id: 'hl-yeu-nhat', label: 'Chỗ yếu nhất' },
   { id: 'hl-diem', label: 'Điểm' },
@@ -93,14 +94,20 @@ const months1 = (v: number) => (v >= 60 ? '≥ 60 tháng' : `${num1(v)} tháng`)
 export function HealthView() {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const { base, rates } = useRates()
+  const { base, rates, isLoading: ratesLoading } = useRates()
   const r = rates ?? {}
-  const { data: accounts = [] } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
-  const { data: categories = [] } = useCategories()
-  const { data: debts = [] } = useDebts()
-  const { data: debtPayments = [] } = useDebtPayments()
-  const { data: goals = [] } = useSavingsGoals()
+  const accountsQ = useAccounts()
+  const balancesQ = useAccountBalances()
+  const categoriesQ = useCategories()
+  const debtsQ = useDebts()
+  const debtPaymentsQ = useDebtPayments()
+  const goalsQ = useSavingsGoals()
+  const accounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data])
+  const balances = useMemo(() => balancesQ.data ?? [], [balancesQ.data])
+  const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
+  const debts = useMemo(() => debtsQ.data ?? [], [debtsQ.data])
+  const debtPayments = useMemo(() => debtPaymentsQ.data ?? [], [debtPaymentsQ.data])
+  const goals = useMemo(() => goalsQ.data ?? [], [goalsQ.data])
   const transferIds = useTransferCategoryIds()
 
   const todayISO = toISODate(new Date())
@@ -117,7 +124,23 @@ export function HealthView() {
     }),
     [allMonths, monthStartDay],
   )
-  const { data: txs = [], isFetched } = useRangeTransactions(range, !!profile)
+  const { data: txs = [], isFetched: txsFetched } = useRangeTransactions(range, !!profile)
+
+  // ĐỦ DỮ LIỆU mới được hiện số. Bản trước chỉ chờ giao dịch: lúc `accounts` còn [] thì
+  // `currencyOf` trả base cho MỌI tài khoản (khoản VND bị đếm như JPY), lúc tỷ giá chưa về
+  // thì `rates ?? {}` làm mọi khoản ngoại tệ rơi khỏi tổng — và trang in ra điểm, kết luận,
+  // cảnh báo dựng trên hai lỗ đó. Dùng `isFetched` (không phải `isSuccess`): query lỗi vẫn
+  // phải qua được cổng, lúc đó số thiếu tự bật cờ `hasMissingRate` và hiện cảnh báo.
+  // Tỷ giá đọc `!ratesLoading`: lỗi tỷ giá là hết loading, `rates` vẫn undefined.
+  const isFetched =
+    txsFetched &&
+    !ratesLoading &&
+    accountsQ.isFetched &&
+    balancesQ.isFetched &&
+    categoriesQ.isFetched &&
+    debtsQ.isFetched &&
+    debtPaymentsQ.isFetched &&
+    goalsQ.isFetched
 
   // Người mới dùng app chỉ có vài tháng dữ liệu → chia cho 12 sẽ ra trung bình
   // thấp giả tạo. Chỉ tính từ tháng đầu tiên CÓ giao dịch trở đi.
@@ -188,9 +211,14 @@ export function HealthView() {
   const conc = incomeConcentration(snap.incomeSlices)
   const concVerdict: Verdict = conc === null ? 'unknown' : verdictFor(conc.topShare, 0.95, 0.7, false)
 
+  // "Cầm cự nếu mất việc": thu = 0, tiền lỏng trừ dần bởi TỔNG CHI bốc từ các tháng thật.
+  // Bản trước đưa dòng ròng (thu − chi) vào — người đang dư mỗi tháng thì không bao giờ
+  // cạn, ra "≥ 60 tháng" cho một chỉ số tên là mất việc mà vẫn giả định có lương. Chỉ số
+  // dòng ròng đó bỏ hẳn, không đổi tên giữ lại: một con số ≥ 60 nằm cạnh 2,0 tháng chỉ làm
+  // người đọc hoang mang, và nó không trả lời câu hỏi nào mà trang này đặt ra.
   const runway = useMemo(
-    () => monteCarloRunway(snap.liquidAssets, snap.netFlows),
-    [snap.liquidAssets, snap.netFlows],
+    () => jobLossRunway(snap.liquidAssets, snap.monthlyExpenses),
+    [snap.liquidAssets, snap.monthlyExpenses],
   )
   const runwayVerdict: Verdict = runway === null ? 'unknown' : verdictFor(runway.p50, 6, 18)
   // Kịch bản "cắt sạch chi linh hoạt" của bản trước KHÔNG còn là một con số cố định: 27b
@@ -371,7 +399,7 @@ export function HealthView() {
   //
   // Thứ tự khai KHÔNG quyết định thứ tự hiện: HealthTable tự xếp rủi ro trước. Nhưng hai
   // dòng "Quỹ dự phòng" và "Cầm cự nếu mất việc" LUÔN mang nhãn rổ + mẫu số của chúng
-  // (B15.2) — đó là điều duy nhất giải thích được vì sao 5,0 tháng nằm cạnh ≥60 tháng.
+  // (B15.2) — đó là điều duy nhất giải thích được vì sao 10,7 tháng nằm cạnh 2,0 tháng.
   const rows: HealthRow[] = [
     {
       key: 'liq',
@@ -454,7 +482,7 @@ export function HealthView() {
     {
       key: 'runway',
       label: 'Cầm cự nếu mất việc',
-      note: 'tiền mặt ÷ thu chi ròng thật',
+      note: 'tiền mặt ÷ tổng chi, không có lương',
       display: runway === null ? '—' : months1(runway.p50),
       value: runway?.p50 ?? null,
       zones: runwayZones,
@@ -462,9 +490,10 @@ export function HealthView() {
       weight: 20,
       meaning: (
         <>
-          Bốc lại những mức thu–chi ròng bạn ĐÃ từng trải qua trong {snap.monthsCounted} tháng,
-          cộng dồn vào tiền mặt cho tới khi âm. Cùng rổ tiền với quỹ dự phòng, khác mẫu số —
-          xem khối mô phỏng bên dưới để kéo thử.
+          Giả định <b>thu bằng 0</b>: mỗi tháng tiền mặt dùng được bị trừ TỔNG CHI của một
+          tháng bốc ngẫu nhiên trong {snap.monthsCounted} tháng chi thật của bạn, tới khi hết.
+          Cùng rổ tiền với quỹ dự phòng, khác mẫu số — quỹ dự phòng chỉ chia cho chi cố định.
+          Xem khối mô phỏng bên dưới để kéo thử.
         </>
       ),
     },
@@ -506,6 +535,14 @@ export function HealthView() {
           { label: 'Nguồn thu lớn nhất', value: null, text: conc ? pct(conc.topShare) : '—' },
           { label: 'Số nguồn thu', value: null, text: conc ? String(conc.sourceCount) : '—' },
           { label: 'Thu nhập mỗi tháng', value: snap.monthlyIncome },
+        ]
+      case 'runway':
+        // Mất việc là thu = 0 — in "Thu mỗi tháng" ở đây là in đúng con số mà chỉ số này
+        // giả định đã mất.
+        return [
+          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
+          { label: 'Tổng chi mỗi tháng', value: snap.monthlyExpense },
+          { label: 'Chi cố định mỗi tháng', value: snap.monthlyFixedExpense },
         ]
       default:
         return [
@@ -612,18 +649,18 @@ export function HealthView() {
                 nhau. Thiếu điều kiện đó thì câu tự nói "vì sao ≥60 tháng đệm mà cầm cự tới
                 lâu hơn nhiều" — một câu hỏi về một nghịch lý không tồn tại. Nhưng phần
                 KHAI RỔ thì luôn in, ở mọi trường hợp: đó là yêu cầu B15.2. */}
-            {fund !== null && runway !== null && runway.p50 > fund + 1 ? (
+            {fund !== null && runway !== null && fund > runway.p50 + 1 ? (
               <b>
-                Vì sao {months1(fund)} đệm mà cầm cự tới {months1(runway.p50)}:{' '}
+                Vì sao quỹ dự phòng {months1(fund)} mà cầm cự chỉ {months1(runway.p50)}:{' '}
               </b>
             ) : (
               <b>Hai chỉ số quỹ dự phòng và cầm cự đo gì: </b>
             )}
-            chúng đếm <b>cùng một rổ tiền</b> — tiền mặt, ngân hàng, IC, ví điện tử; tiền đầu
-            tư không nằm trong cả hai. Khác nhau ở <b>mẫu số</b>: quỹ dự phòng giả định thu
-            bằng 0 và chia cho chi cố định, còn phần cầm cự bốc lại những mức thu–chi ròng đã
-            từng xảy ra trong {snap.monthsCounted} tháng gần nhất. Kéo thanh trượt ở khối dưới
-            về 0% đầu tư để thấy hai con số gặp nhau.
+            cả hai đều giả định <b>thu bằng 0</b> và đếm <b>cùng một rổ tiền</b> — tiền mặt,
+            ngân hàng, IC, ví điện tử; tiền đầu tư không nằm trong cả hai. Khác nhau ở{' '}
+            <b>mẫu số</b>: quỹ dự phòng chỉ chia cho chi CỐ ĐỊNH (phần không cắt được), còn phần
+            cầm cự trừ TỔNG CHI thật của {snap.monthsCounted} tháng gần nhất. Ở khối dưới, kéo
+            đầu tư về 0% thì mô phỏng ra đúng con số cầm cự.
           </p>
         </ReportBlock>
       </Section>
@@ -631,13 +668,17 @@ export function HealthView() {
       <Section id="hl-mat-viec">
         <ReportBlock no="02" title="Nếu mất việc — thử các nếp chi">
           <JobLossPanel
+            // Mức chi mặc định là state của thanh trượt; dữ liệu đổi (cache làm mới) thì
+            // dựng lại khối để thanh trượt về đúng mức mới thay vì giữ mức cũ.
+            key={Math.round(snap.monthlyExpense)}
             liquidAssets={snap.liquidAssets}
             investableAssets={snap.investableAssets}
-            monthlyIncomes={monthSums.map((m) => m.income)}
+            monthlyExpenses={snap.monthlyExpenses}
             baseExpense={snap.monthlyExpense}
             oldRegimeExpense={oldRegimeExpense}
-            fundMonths={fund}
-            fundLabel={fund === null ? '—' : months1(fund)}
+            runwayMonths={runway?.p50 ?? null}
+            runwayLabel={runway === null ? '—' : months1(runway.p50)}
+            fundLabel={fund === null ? null : months1(fund)}
             base={base}
             monthsCounted={snap.monthsCounted}
           />

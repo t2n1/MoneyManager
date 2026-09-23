@@ -310,6 +310,22 @@ describe('buildHealthSnapshot — dòng tiền', () => {
     expect(s.monthsCounted).toBe(3)
   })
 
+  it('chi gộp từng tháng: không trừ thu, có trừ hoàn tiền, bỏ khoản ngoài thống kê', () => {
+    const s = build({
+      txs: [
+        tx({ type: 'income', amount: 300_000, occurred_on: '2026-04-25', category_id: 'luong' }),
+        tx({ type: 'expense', amount: 100_000, occurred_on: '2026-04-26' }),
+        tx({ type: 'expense', amount: 40_000, occurred_on: '2026-05-03' }),
+        tx({ type: 'expense', amount: 10_000, occurred_on: '2026-05-04', is_refund: true }),
+        tx({ type: 'expense', amount: 500_000, occurred_on: '2026-05-05', exclude_from_stats: true }),
+        tx({ type: 'expense', amount: 50_000, occurred_on: '2026-06-01' }),
+      ],
+    })
+    // Thu 300k của tháng 4 KHÔNG được trừ vào: mất việc là không có nó.
+    expect(s.monthlyExpenses).toEqual([100_000, 30_000, 50_000])
+    expect(s.monthlyExpenses.reduce((a, b) => a + b, 0) / 3).toBe(s.monthlyExpense)
+  })
+
   it('gom thu nhập theo danh mục cho chỉ số tập trung thu nhập', () => {
     const s = build({
       txs: [

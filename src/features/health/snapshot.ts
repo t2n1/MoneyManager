@@ -59,8 +59,16 @@ export interface HealthSnapshot {
   annualIncome: number
   /** tiền trả nợ trung bình mỗi tháng */
   monthlyDebtPayment: number
-  /** dòng tiền ròng từng tháng đã hoàn tất (đầu vào cho Monte Carlo) */
+  /**
+   * Dòng tiền ròng (thu − chi) từng tháng đã hoàn tất. KHÔNG dùng cho "Cầm cự nếu mất
+   * việc": mất việc là thu = 0, còn dãy này vẫn chứa lương — xem `monthlyExpenses`.
+   */
   netFlows: number[]
+  /**
+   * Chi GỘP từng tháng đã hoàn tất, cũ → mới (cùng phép cộng với `monthlyExpense`, hoàn
+   * tiền đã trừ). Đầu vào của "Cầm cự nếu mất việc" và của khối mô phỏng mất việc.
+   */
+  monthlyExpenses: number[]
   /**
    * Như `netFlows` nhưng đã bỏ hết chi mang need_level cắt được (flexible/
    * education/giving) — kịch bản "thắt lưng buộc bụng". Danh mục CHƯA phân
@@ -255,6 +263,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   }
 
   const monthsCounted = months.length
+  const monthlyExpenses = months.map((k) => expense.get(monthId(k)) ?? 0)
   const netFlows = months.map((k) => {
     const id = monthId(k)
     return (income.get(id) ?? 0) - (expense.get(id) ?? 0)
@@ -284,6 +293,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     annualIncome,
     monthlyDebtPayment: avg(debtPaid),
     netFlows,
+    monthlyExpenses,
     essentialNetFlows,
     incomeSlices: [...incomeByCategory.entries()].map(([key, amount]) => ({ key, amount })),
     taxAndSocial,

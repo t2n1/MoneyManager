@@ -24,6 +24,7 @@ import {
 import type { CurrencyCode } from '../../lib/money'
 import { dailyExpenseTotals } from '../reports/aggregate'
 import { planRebalance, type RebalanceLine, type RebalanceProposal } from './rebalance'
+import { useCommitments } from './useCommitments'
 
 /** null khi không phải tháng hiện tại, chưa có báo cáo, hoặc chưa có gì đáng đề nghị. */
 export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
@@ -36,6 +37,9 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
   const { data: categories = [] } = useCategories()
   const { data: budgets = [] } = useBudgets(monthKeyString(monthKey))
   const { report } = useBudgetReport(monthKey)
+  // CÙNG nguồn với khối "Còn phải trả" ngay dưới đề nghị. Hai khối đọc hai nguồn thì
+  // một khối bảo nhóm còn dư, khối kia bảo nhóm còn nợ — đúng lỗi đã gặp với Nhà ở.
+  const commitments = useCommitments(monthKey)
   const r = rates ?? {}
 
   return useMemo(() => {
@@ -94,6 +98,12 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
         }
       })
 
-    return planRebalance({ lines, daysElapsed, daysInMonth })
-  }, [report, monthKey, monthStartDay, accounts, categories, budgets, monthTxs, base, r, transferIds])
+    return planRebalance({
+      lines,
+      daysElapsed,
+      daysInMonth,
+      committedByCat: commitments.byCategory,
+      parentOf: (id) => catById.get(id)?.parent_id ?? null,
+    })
+  }, [report, monthKey, monthStartDay, accounts, categories, budgets, monthTxs, base, r, transferIds, commitments.byCategory])
 }

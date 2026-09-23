@@ -1119,11 +1119,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           {deNghi.from ? (
             <>
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
-                vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
+                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
                 <Money amount={deNghi.amount} currency={base} /> từ{' '}
-                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này dự
-                báo còn dư <Money amount={deNghi.from.surplus} currency={base} />.
+                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này, kể
+                cả khoản còn phải trả, vẫn dư <Money amount={deNghi.from.surplus} currency={base} />.
               </p>
               <Guide className="mt-1 text-sm text-fg-muted">
                 Tổng ngân sách tháng không đổi: trừ bên này bao nhiêu, cộng bên kia bấy
@@ -1145,8 +1145,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   trước đây không bao giờ nói. Im ở đây là để người dùng tự phát hiện vào
                   ngày cuối tháng. */}
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này sẽ
-                vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
+                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
+                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
                 <strong className="font-semibold">không mục nào còn dư để lấy</strong> —
                 tổng tháng này sẽ vượt.
               </p>

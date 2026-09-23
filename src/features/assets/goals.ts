@@ -3,6 +3,8 @@
 // (mục tiêu luôn gắn với đúng một tài khoản nên không cần quy đổi).
 
 import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
+import type { CurrencyCode } from '../../lib/currencies'
+import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 
 /**
@@ -146,4 +148,38 @@ export function monthlyNeeded(
     deadline.year * 12 + deadline.month - (fromMonth.year * 12 + fromMonth.month) + 1
   if (months <= 0) return null
   return Math.ceil(remaining / months)
+}
+
+/**
+ * Tổng số cần để riêng MỖI THÁNG cho mọi mục tiêu, quy về `base` — con số trang Ngân
+ * sách nhận từ khu Mục tiêu.
+ *
+ * `valueOf` trả GIÁ TRỊ HIỆN TẠI của tài khoản gắn mục tiêu (`accountCurrentValue`) — cùng
+ * số mà khối Mục tiêu dùng để in tiến độ. Bản trước trừ số dư sổ: với tài khoản đầu tư, hai
+ * màn nói hai số còn thiếu khác nhau cho cùng một mục tiêu. Tài khoản không tìm thấy coi
+ * như 0; giá trị âm cũng coi như 0 (chưa góp được gì). Thiếu tỷ giá thì LOẠI khoản đó ra,
+ * không quy 1:1.
+ */
+export function goalsMonthlyNeed(
+  goals: readonly { account_id: string; target_amount: number; target_date: string | null }[],
+  valueOf: (accountId: string) => { value: number; currency: CurrencyCode } | undefined,
+  fromMonth: MonthKey,
+  base: CurrencyCode,
+  rates: Rates,
+  monthStartDay = 1,
+): number {
+  let sum = 0
+  for (const g of goals) {
+    const cur = valueOf(g.account_id)
+    const need = monthlyNeeded(
+      Math.max(0, g.target_amount - Math.max(0, cur?.value ?? 0)),
+      g.target_date,
+      fromMonth,
+      monthStartDay,
+    )
+    if (need === null) continue
+    const v = convertToBase(need, cur?.currency ?? base, base, rates)
+    if (v !== null) sum += v
+  }
+  return sum
 }

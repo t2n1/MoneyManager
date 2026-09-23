@@ -20,6 +20,7 @@ import {
   toISODate,
 } from '../../lib/dates'
 import type { AccountRow, KikinSheet } from '../../types/database.types'
+import { accountCurrentValue } from './currentValue'
 import { TEN_TK_HUU } from '../phieu-luong/nhap'
 import { benefitAt, sheetCaveat, sheetForPeriod, type CalibrationPoint, type KikinBenefit } from '../tax/kikinBenefit'
 import { annualPensionLoss } from '../tax/nenkinLoss'
@@ -133,8 +134,12 @@ export function useRetirementData(): RetirementData {
   const balance = useMemo(() => {
     if (!account) return 0
     const b = balanceRows.find((r) => r.id === account.id)
-    return b?.market_value ?? b?.balance ?? 0
-  }, [account, balanceRows])
+    // Qua `accountCurrentValue` như mọi chỗ in giá trị tài khoản. 退職金 không có sổ lệnh
+    // (`portfolio` = null) nên kết quả vẫn là lần định giá gần nhất, chưa có thì số dư sổ —
+    // không cần kéo thêm sổ lệnh / bảng giá chỉ để ra đúng con số ấy.
+    return accountCurrentValue(account, b?.balance ?? 0, b?.market_value ?? null, null, todayISO)
+      .value
+  }, [account, balanceRows, todayISO])
 
   const tenDanhMuc = useMemo(
     () => new Map(categories.map((c) => [c.id, c.name])),

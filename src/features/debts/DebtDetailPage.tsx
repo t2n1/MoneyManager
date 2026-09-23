@@ -9,6 +9,7 @@ import {
   useTransaction,
   useUpdateDebt,
 } from '../../hooks/queries'
+import { loadStatus, mergeLoad, pendingText } from '../../lib/loadStatus'
 import { formatMoney } from '../../lib/money'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
@@ -22,8 +23,13 @@ import { Card, EmptyState, Money, PageHeader, SectionTitle, actionButtonClass } 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
   const navigate = useNavigate()
-  const { data: debts = [], isLoading } = useDebts()
-  const { data: allPayments = [] } = useDebtPayments()
+  const debtsQ = useDebts()
+  const paymentsQ = useDebtPayments()
+  const { data: debts = [] } = debtsQ
+  const { data: allPayments = [] } = paymentsQ
+  // Chờ CẢ các lần trả: bản trước chỉ chờ khoản nợ, nên vài giây đầu "còn lại" bằng nguyên
+  // gốc và nút ghi trả bật cả với khoản đã trả xong.
+  const load = mergeLoad(loadStatus(debtsQ), loadStatus(paymentsQ))
   const updateDebt = useUpdateDebt()
   const deleteDebt = useDeleteDebt()
   const deletePayment = useDeleteDebtPayment()
@@ -38,11 +44,12 @@ export function DebtDetailPage() {
     [allPayments, debtId],
   )
 
-  if (!debt) {
+  if (load !== 'ready' || !debt) {
+    const waiting = load === 'pending'
     return (
       <div className="p-6 text-center text-sm text-fg-muted">
-        {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
-        {!isLoading && (
+        {load !== 'ready' ? pendingText(load) : 'Không tìm thấy khoản nợ.'}
+        {!waiting && (
           <div className="mt-3">
             <Link to="/debts" className="text-fg-accent underline">
               Về danh sách

@@ -41,6 +41,7 @@ import {
   toISODate,
 } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { loadStatus, mergeLoad, pendingText } from '../../lib/loadStatus'
 import { convertToBase } from '../../lib/rates'
 import { accountMonthlyGrowth, GOAL_SPEED_MONTHS, goalSpeedMonths } from '../assets/goals'
 import { inferredCount, isLiquidAccount } from '../assets/liquidity'
@@ -78,18 +79,26 @@ const TIER_WORD: Record<string, string> = {
 }
 
 export function DecideView() {
-  const { data: profile } = useProfile()
+  const profileQ = useProfile()
+  const profile = profileQ.data
   const monthStartDay = profile?.month_start_day ?? 1
-  const { base, rates } = useRates()
+  const { base, rates, isLoading: ratesLoading } = useRates()
   const r = rates ?? {}
   const transferIds = useTransferCategoryIds()
-  const { data: accounts = [] } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
-  const { data: categories = [] } = useCategories()
-  const { data: debts = [] } = useDebts()
-  const { data: debtPayments = [] } = useDebtPayments()
-  const { data: goals = [] } = useSavingsGoals()
-  const { data: recurringRules = [] } = useRecurringRules()
+  const accountsQ = useAccounts()
+  const balancesQ = useAccountBalances()
+  const categoriesQ = useCategories()
+  const debtsQ = useDebts()
+  const debtPaymentsQ = useDebtPayments()
+  const goalsQ = useSavingsGoals()
+  const recurringQ = useRecurringRules()
+  const { data: accounts = [] } = accountsQ
+  const { data: balances = [] } = balancesQ
+  const { data: categories = [] } = categoriesQ
+  const { data: debts = [] } = debtsQ
+  const { data: debtPayments = [] } = debtPaymentsQ
+  const { data: goals = [] } = goalsQ
+  const { data: recurringRules = [] } = recurringQ
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -106,7 +115,24 @@ export function DecideView() {
     }),
     [months, monthStartDay],
   )
-  const { data: txs = [], isFetched } = useRangeTransactions(range, !!profile)
+  const txQ = useRangeTransactions(range, !!profile)
+  const { data: txs = [] } = txQ
+  // Cả tab chờ ĐỦ nguồn. Bản trước chỉ chờ giao dịch: nợ / số dư / mục tiêu về sau thì vài
+  // giây đầu trang in "Tiền mặt đã đủ trả hết nợ tới hạn", "Không có gì cần đổi", "Chưa có
+  // mục tiêu nào" và giấu khối Nợ — kết luận dựng trên mảng rỗng, rồi tự đổi. Tỷ giá chỉ chờ
+  // lúc đang tải: lỗi tỷ giá là thiếu thật, không phải chưa về.
+  const load = mergeLoad(
+    loadStatus(profileQ),
+    loadStatus(txQ),
+    loadStatus(accountsQ),
+    loadStatus(balancesQ),
+    loadStatus(categoriesQ),
+    loadStatus(debtsQ),
+    loadStatus(debtPaymentsQ),
+    loadStatus(goalsQ),
+    loadStatus(recurringQ),
+    ratesLoading ? 'pending' : 'ready',
+  )
 
   const series = useMemo(
     () => monthlySeries(txs, months, monthStartDay, currencyOf, base, r, transferIds),
@@ -333,8 +359,8 @@ export function DecideView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goals, currentValues, balances, accounts, txs, currentMonth.year, currentMonth.month, monthStartDay])
 
-  if (!isFetched) {
-    return <EmptyState>Đang tính…</EmptyState>
+  if (load !== 'ready') {
+    return <EmptyState>{pendingText(load)}</EmptyState>
   }
   if (monthsCounted === 0) {
     return (

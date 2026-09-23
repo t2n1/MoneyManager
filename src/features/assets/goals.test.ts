@@ -5,6 +5,7 @@ import {
   GOAL_SPEED_MONTHS,
   goalForecast,
   goalSpeedMonths,
+  goalsMonthlyNeed,
   monthlyNeeded,
 } from './goals'
 
@@ -200,5 +201,50 @@ describe('goalSpeedMonths', () => {
 
   it('vắt qua năm', () => {
     expect(goalSpeedMonths({ year: 2026, month: 2 })[0]).toEqual({ year: 2025, month: 8 })
+  })
+})
+
+describe('goalsMonthlyNeed', () => {
+  const sep = { year: 2026, month: 9 }
+  const goal = (account_id: string, target_amount: number, target_date: string | null) => ({
+    account_id,
+    target_amount,
+    target_date,
+  })
+
+  it('tru GIA TRI HIEN TAI, khong tru so du so', () => {
+    // NISA: so du so 80.809 (tien da nap), gia thi truong 78.913. Khoi Muc tieu in tien do
+    // tu 78.913 thi so can de rieng moi thang cung phai tinh tu 78.913.
+    const need = goalsMonthlyNeed(
+      [goal('nisa', 100_000, '2026-12-15')],
+      () => ({ value: 78_913, currency: 'JPY' }),
+      sep,
+      'JPY',
+      {},
+    )
+    // con 21.087, chia 4 thang (9..12) lam tron len
+    expect(need).toBe(Math.ceil(21_087 / 4))
+  })
+
+  it('gia tri am coi nhu 0, tai khoan vang mat coi nhu 0', () => {
+    const need = goalsMonthlyNeed(
+      [goal('a', 40_000, '2026-12-01'), goal('missing', 40_000, '2026-12-01')],
+      (id) => (id === 'a' ? { value: -5_000, currency: 'JPY' } : undefined),
+      sep,
+      'JPY',
+      {},
+    )
+    expect(need).toBe(20_000)
+  })
+
+  it('bo qua muc tieu khong co han, va khoan thieu ty gia', () => {
+    const need = goalsMonthlyNeed(
+      [goal('a', 40_000, null), goal('vnd', 4_000_000, '2026-12-01')],
+      () => ({ value: 0, currency: 'VND' }),
+      sep,
+      'JPY',
+      {},
+    )
+    expect(need).toBe(0)
   })
 })

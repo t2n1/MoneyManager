@@ -50,6 +50,7 @@ import {
   type AssetGroupSetting,
 } from './aggregate'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
+import { useAccountCurrentValues } from './useAccountCurrentValues'
 import {
   ActionButton,
   Card,
@@ -150,9 +151,11 @@ export function AssetGroupsPage() {
     [groupSettings],
   )
 
+  // Cùng giá trị hiện tại với tab Tài sản — tổng nhóm ở đây khớp tổng nhóm bên đó.
+  const currentValues = useAccountCurrentValues()
   const breakdown = useMemo(
-    () => assetBreakdown(balances, base, rates ?? {}, settings),
-    [balances, base, rates, settings],
+    () => assetBreakdown(balances, base, rates ?? {}, settings, undefined, currentValues),
+    [balances, base, rates, settings, currentValues],
   )
 
   // Nhóm hiển thị = nhóm có tài khoản + nhóm chỉ có cấu hình (mới tạo, chưa gán tài khoản)

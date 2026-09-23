@@ -7,15 +7,29 @@ import { useMemo } from 'react'
 import { useAccountBalances, useAccounts } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { accountCurrentValue, type AccountCurrentValue } from './currentValue'
-import { useInvestPnlByAccount } from './useInvestPnl'
+import { useInvestPnlByAccountState } from './useInvestPnl'
 
 export function useAccountCurrentValues(): Map<string, AccountCurrentValue> {
-  const { data: accounts = [] } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
-  const portfolios = useInvestPnlByAccount()
-  const todayISO = toISODate(new Date())
+  return useAccountCurrentValuesState().values
+}
 
-  return useMemo(() => {
+/**
+ * Như `useAccountCurrentValues`, kèm cờ `loading` (tài khoản / số dư / sổ lệnh / giá còn
+ * đang tải). Lúc đang tải, tài khoản đầu tư rơi về lần định giá gần nhất — số thật nhưng
+ * CŨ, sẽ đổi khi sổ lệnh về. Nơi không được in hay ghi số tạm (tổng tài sản ròng, ảnh chụp
+ * lịch sử) chờ cờ này tắt.
+ */
+export function useAccountCurrentValuesState(): {
+  values: Map<string, AccountCurrentValue>
+  loading: boolean
+} {
+  const { data: accounts = [], isLoading: l1 } = useAccounts()
+  const { data: balances = [], isLoading: l2 } = useAccountBalances()
+  const { map: portfolios, loading: l3 } = useInvestPnlByAccountState()
+  const todayISO = toISODate(new Date())
+  const loading = l1 || l2 || l3
+
+  const values = useMemo(() => {
     const balanceById = new Map(balances.map((b) => [b.id, b]))
     const out = new Map<string, AccountCurrentValue>()
     for (const a of accounts) {
@@ -35,4 +49,5 @@ export function useAccountCurrentValues(): Map<string, AccountCurrentValue> {
     }
     return out
   }, [accounts, balances, portfolios, todayISO])
+  return { values, loading }
 }

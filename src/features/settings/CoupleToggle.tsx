@@ -1,4 +1,4 @@
-// Bật/tắt chiều "ai chi" — bước đầu của việc dùng chung hai người.
+// Bật/tắt chiều "của ai" (cả khoản chi lẫn khoản thu) — bước đầu của việc dùng chung hai người.
 //
 // Dáng theo đúng khuôn DensityToggle (hai nút có nhãn, không phải switch): switch chỉ có
 // tên cho MỘT trạng thái, người đọc phải tự suy tắt nghĩa là gì. Hai nút thì cả hai lựa
@@ -16,7 +16,7 @@ import { useProfile, useUpdateProfile } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
 
 const OPTIONS: { value: boolean; label: string; hint: string; Icon: LucideIcon }[] = [
-  { value: false, label: 'Một mình', hint: 'Không hỏi ai chi khoản nào', Icon: User },
+  { value: false, label: 'Một mình', hint: 'Không hỏi khoản này của ai', Icon: User },
   { value: true, label: 'Hai người', hint: 'Ghi thêm: mình / người ấy / chung', Icon: Users },
 ]
 
@@ -32,7 +32,7 @@ export function CoupleToggle() {
     } catch {
       return
     }
-    showToast(value ? 'Đã bật chiều “ai chi”' : 'Đã tắt chiều “ai chi”', 'success')
+    showToast(value ? 'Đã bật ghi “của ai”' : 'Đã tắt ghi “của ai”', 'success')
   }
 
   return (

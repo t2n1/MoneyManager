@@ -10,10 +10,16 @@
 // khác nhau (tháng, phần trăm, tiền) là bảng không so được, mà so được mới là lý do nó tồn
 // tại.
 
-import { addMonthsISO, type MonthKey } from '../../lib/dates'
+import type { MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
-import type { DebtPaymentRow, DebtRow, SavingsGoalRow } from '../../types/database.types'
+import type {
+  DebtPaymentRow,
+  DebtRow,
+  SavingsGoalRow,
+  TransactionRow,
+} from '../../types/database.types'
+import { goalForecast } from '../assets/goals'
 import { buildSchedule } from '../debts/amortization'
 import { remainingOf } from '../debts/aggregate'
 
@@ -22,7 +28,7 @@ import { remainingOf } from '../debts/aggregate'
 // ---------------------------------------------------------------------------------
 
 export interface KeptTier {
-  key: 'invest' | 'remit' | 'cash' | 'other'
+  key: 'invest' | 'investOut' | 'remit' | 'cash' | 'outside' | 'other'
   label: string
   /**
    * Nhịp mỗi tháng, ĐỂ NGUYÊN SỐ. Không định dạng ở đây: file này thuần, còn `formatMoney`
@@ -32,11 +38,15 @@ export interface KeptTier {
   perMonth: number | null
   /** Ghi chú CHỮ sau nhãn (không phải số). '' = không có. */
   note: string
+  /** ÂM = tầng này là tiền ĐỔ VÀO các tài khoản được đếm, không phải chỗ phần giữ lại đi. */
   amount: number
-  /** Phần trăm trên tổng giữ lại; null khi tổng ≤ 0. */
+  /** Phần trăm trên tổng giữ lại; null khi tổng ≤ 0 hoặc khi tầng âm (vô nghĩa). */
   pct: number | null
-  /** Rút ra được ngay hay không — đây là trục thật của khối này. */
-  liquid: 'now' | 'sell' | 'gone'
+  /**
+   * Rút ra được ngay hay không — đây là trục thật của khối này. 'in' = tầng ÂM, tiền chuyển
+   * VÀO từ chỗ khác (rút đầu tư, tài khoản ngoài tổng) — không thuộc trục đó.
+   */
+  liquid: 'now' | 'sell' | 'gone' | 'in'
 }
 
 export interface KeptFlow {
@@ -44,11 +54,27 @@ export interface KeptFlow {
   kept: number
   /** Tiền mặt dày thêm bao nhiêu trong cùng cửa sổ. */
   cashGrowth: number
-  /** Phần KHÔNG rút ra ngay được, tính theo phần trăm phần giữ lại; null khi kept ≤ 0. */
+  /**
+   * Phần KHÔNG rút ra ngay được, tính theo phần trăm phần giữ lại; null khi kept ≤ 0 HOẶC
+   * khi `verdict` là 'unclear' (không có số nào đáng in).
+   */
   illiquidPct: number | null
+  /**
+   * 'none'    — không giữ lại được gì, không có gì để nói nó đi đâu.
+   * 'unclear' — các tầng lệch nhau quá xa (tiền mặt dày hơn hẳn phần giữ lại, hoặc phần chưa
+   *             tách được lớn hơn cả phần giữ lại): KHÔNG được kết luận phần giữ lại nằm ở đâu.
+   * 'ok'      — kết luận được.
+   */
+  verdict: 'none' | 'unclear' | 'ok'
   tiers: KeptTier[]
   months: number
 }
+
+/**
+ * Tiền mặt dày thêm vượt phần giữ lại quá tỷ lệ này thì không kết luận. Dưới ngưỡng là lệch
+ * làm tròn giữa hai nguồn đo (thu − chi vs biến động số dư) — vẫn nói "nằm hết ở tiền mặt".
+ */
+const CASH_OVERSHOOT = 1.1
 
 /**
  * Phần giữ lại đi đâu, chia theo trục "rút ra được ngay hay không".
@@ -57,6 +83,17 @@ export interface KeptFlow {
  * tốt nhất" trong khi tab Sức khỏe nói "rủi ro thanh khoản", và CẢ HAI đều đúng. Hai tab
  * đo hai thứ khác nhau — một cái đo tiền không tiêu, một cái đo tiền rút được ngay — và
  * chênh lệch giữa chúng chính là phần đã sang chỗ khác.
+ *
+ * TIỀN ĐỔ VÀO TỪ NGOÀI. "Tiền mặt dày thêm" là biến động số dư, nên nó gồm cả tiền chuyển
+ * sang từ tài khoản đầu tư và từ tài khoản không được đếm (ẩn, lưu trữ, ngoài tổng). Bản
+ * trước không tách hai dòng đó: sổ thật giữ lại ¥241.891 mà tiền mặt dày ¥5.894.972, "chỗ
+ * khác" ra −¥5.653.081 với ghi chú "trả nợ gốc…" (sai chiều), rồi tỷ lệ kẹp về 0% và trang
+ * kết luận "phần giữ lại nằm hết ở tiền mặt". Nay:
+ *   - `investGrowth` ÂM thành tầng "Rút từ đầu tư";
+ *   - `outsideIn` (chuyển khoản ròng từ tài khoản không được đếm VÀO tài khoản được đếm)
+ *     thành tầng riêng, dấu ngược lại;
+ *   - "Chỗ khác" ghi chú theo đúng chiều;
+ *   - lệch quá xa thì `verdict = 'unclear'`, nơi gọi không được kết luận.
  */
 export function keptFlow(input: {
   kept: number
@@ -64,9 +101,13 @@ export function keptFlow(input: {
   investGrowth: number
   remitTotal: number
   months: number
+  /** Chuyển khoản RÒNG từ tài khoản không được đếm vào tài khoản được đếm (base). */
+  outsideIn?: number
 }): KeptFlow {
   const { kept, cashGrowth, investGrowth, remitTotal, months } = input
-  const pct = (v: number) => (kept > 0 ? Math.round((v / kept) * 100) : null)
+  const outsideIn = input.outsideIn ?? 0
+  // Tầng âm không có "phần trăm của phần giữ lại" nào có nghĩa (−2337% là một câu vô nghĩa).
+  const pct = (v: number) => (kept > 0 && v >= 0 ? Math.round((v / kept) * 100) : null)
   const perMonth = (v: number) => (months > 0 ? Math.round(v / months) : 0)
 
   const tiers: KeptTier[] = []
@@ -79,6 +120,16 @@ export function keptFlow(input: {
       amount: investGrowth,
       pct: pct(investGrowth),
       liquid: 'sell',
+    })
+  } else if (investGrowth < 0) {
+    tiers.push({
+      key: 'investOut',
+      label: 'Rút từ đầu tư',
+      perMonth: perMonth(investGrowth),
+      note: '',
+      amount: investGrowth,
+      pct: null,
+      liquid: 'in',
     })
   }
   if (remitTotal > 0) {
@@ -101,9 +152,24 @@ export function keptFlow(input: {
     pct: pct(cashGrowth),
     liquid: 'now',
   })
+  if (outsideIn !== 0) {
+    // Tiền vào từ ngoài làm các tài khoản được đếm dày thêm mà KHÔNG phải phần giữ lại →
+    // trừ lại. Chiều ngược (chuyển ra) là phần giữ lại đã sang chỗ app không đếm.
+    tiers.push({
+      key: 'outside',
+      label: outsideIn > 0 ? 'Chuyển vào từ tài khoản ngoài tổng' : 'Chuyển ra tài khoản ngoài tổng',
+      perMonth: perMonth(-outsideIn),
+      note: outsideIn > 0 ? '' : 'ẩn, lưu trữ hoặc ngoài tổng',
+      amount: -outsideIn,
+      pct: pct(-outsideIn),
+      liquid: outsideIn > 0 ? 'in' : 'sell',
+    })
+  }
 
-  // Phần còn lại không rơi vào ba tầng trên (trả nợ gốc, mua tài sản cố định…). In ra thay
-  // vì bỏ đi: ba tầng không cộng đủ thì người đọc thấy tổng không khớp và không biết vì sao.
+  // Phần còn lại không rơi vào các tầng trên. In ra thay vì bỏ đi: các tầng không cộng đủ
+  // thì người đọc thấy tổng không khớp và không biết vì sao. Ghi chú theo ĐÚNG CHIỀU: dương
+  // là phần giữ lại đi vào chỗ app chưa tách (trả nợ, tài sản cố định…), âm là tiền ĐỔ VÀO
+  // từ chỗ app chưa tách — ghi "trả nợ gốc" cạnh một số âm là nói ngược.
   const accounted = tiers.reduce((s, t) => s + t.amount, 0)
   const other = kept - accounted
   if (Math.abs(other) > 1 && kept > 0) {
@@ -111,25 +177,80 @@ export function keptFlow(input: {
       key: 'other',
       label: 'Chỗ khác',
       perMonth: null,
-      note: 'trả nợ gốc, tài sản cố định…',
+      note:
+        other > 0
+          ? 'trả nợ gốc, tài sản cố định…'
+          : 'tiền vào từ chỗ app chưa tách được — bán tài sản, vay thêm…',
       amount: other,
       pct: pct(other),
-      liquid: 'sell',
+      liquid: other > 0 ? 'sell' : 'in',
     })
   }
+
+  const verdict: KeptFlow['verdict'] =
+    kept <= 0
+      ? 'none'
+      : Math.abs(other) > kept || cashGrowth > kept * CASH_OVERSHOOT
+        ? 'unclear'
+        : 'ok'
 
   return {
     kept,
     cashGrowth,
-    // KẸP về [0, 100]: tiền mặt dày thêm có thể LỚN HƠN phần giữ lại (bán tài sản, rút
-    // đầu tư, hoặc chỉ là làm tròn giữa hai nguồn đo khác nhau), và lúc đó công thức ra số
-    // ÂM — "−1% phần giữ lại không rút ngay được" là một câu vô nghĩa. Kẹp về 0 nói đúng
-    // điều đang xảy ra: không có phần nào bị kẹt.
+    // KẸP về [0, 100] khi kết luận được: tiền mặt dày thêm có thể nhỉnh hơn phần giữ lại
+    // (lệch làm tròn giữa hai nguồn đo), và lúc đó công thức ra số ÂM — "−1% không rút ngay
+    // được" là câu vô nghĩa. Lệch QUÁ ngưỡng thì không in tỷ lệ nào: kẹp về 0 lúc đó chính
+    // là cách bản trước kết luận "nằm hết ở tiền mặt" từ các thành phần lệch nhau cả triệu.
     illiquidPct:
-      kept > 0 ? Math.min(100, Math.max(0, Math.round(((kept - cashGrowth) / kept) * 100))) : null,
+      verdict === 'ok'
+        ? Math.min(100, Math.max(0, Math.round(((kept - cashGrowth) / kept) * 100)))
+        : null,
+    verdict,
     tiers,
     months,
   }
+}
+
+/**
+ * Chuyển khoản RÒNG từ tài khoản KHÔNG được đếm vào tài khoản được đếm, quy đổi base.
+ * Dương = tiền đổ vào; âm = tiền chuyển ra.
+ *
+ * "Không được đếm" = không nằm trong `countedIds` (ẩn, lưu trữ, ngoài tổng — cùng rổ với
+ * các nhịp của tab Quyết định). Cùng bộ lọc với `keptDestinations`: bỏ `is_debt_flow`,
+ * `exclude_from_stats`, ngoài cửa sổ — để tầng này trừ đúng phần đã vào "tiền mặt dày thêm".
+ * Chuyển khoản mà cả hai đầu cùng được đếm (hoặc cùng không) triệt tiêu nên không tính.
+ *
+ * Thiếu tỷ giá: loại khoản đó ra và bật cờ, không coi 1:1.
+ */
+export function outsideTransfersIn(
+  txs: readonly TransactionRow[],
+  countedIds: ReadonlySet<string>,
+  startISO: string,
+  lastISO: string,
+  currencyOf: (accountId: string) => CurrencyCode,
+  base: CurrencyCode,
+  rates: Rates,
+): { net: number; hasMissingRate: boolean } {
+  let net = 0
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type !== 'transfer' || !t.to_account_id) continue
+    if (t.occurred_on < startISO || t.occurred_on > lastISO) continue
+    if (t.is_debt_flow || t.exclude_from_stats) continue
+    const fromIn = countedIds.has(t.account_id)
+    const toIn = countedIds.has(t.to_account_id)
+    if (fromIn === toIn) continue
+    // Đo ở ĐẦU ĐƯỢC ĐẾM, bằng tiền của đầu đó — đúng con số đã vào biến động số dư của nó.
+    const v = toIn
+      ? convertToBase(t.to_amount ?? t.amount, currencyOf(t.to_account_id), base, rates)
+      : convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    net += toIn ? v : -v
+  }
+  return { net, hasMissingRate }
 }
 
 // ---------------------------------------------------------------------------------
@@ -311,16 +432,30 @@ export function debtBreakdown(
 export interface GoalLine {
   id: string
   name: string
+  /** Số đích và số đã có — ĐƠN VỊ TIỀN CỦA TÀI KHOẢN gắn mục tiêu, không phải base. */
   target: number
   current: number
+  currency: CurrencyCode
   /** 0..1, kẹp ở 1. */
   ratio: number
   /** Ngày đích người dùng đặt; null = không đặt. */
   targetDate: string | null
-  /** Theo nhịp hiện tại thì tới khi nào (ISO đầu tháng); null = nhịp ≤ 0 hoặc đã xong. */
-  etaISO: string | null
+  /** Nhịp vào/ra mỗi tháng của CHÍNH tài khoản gắn mục tiêu (có thể âm; 0 = chưa đo được). */
+  monthlyGrowth: number
+  /** Theo nhịp đó thì tới tháng nào; null = không đo được nhịp, nhịp ≤ 0, hoặc đã xong. */
+  etaMonth: MonthKey | null
+  /** So với hạn tự đặt — y như trang Tài sản. */
+  vsDeadline: 'ahead' | 'behind' | null
   /** Đã xong. */
   done: boolean
+}
+
+export interface GoalInput {
+  /** Giá trị hiện tại của tài khoản gắn mục tiêu (`accountCurrentValue`); null = không thấy. */
+  current: number | null
+  currency: CurrencyCode
+  /** `accountMonthlyGrowth` trên `goalSpeedMonths`; null = không đo được. */
+  monthlyGrowth: number | null
 }
 
 /**
@@ -331,29 +466,42 @@ export interface GoalLine {
  * dùng bằng chuẩn sách vở vì không biết họ muốn gì; với người Việt ở Nhật gửi tiền về nhà,
  * mục tiêu thật có thể khác hẳn.
  *
- * `balanceOf` trả số dư hiện tại của tài khoản gắn với mục tiêu (đơn vị của tài khoản đó).
+ * NHỊP CỦA TỪNG MỤC TIÊU, không phải nhịp tiền mặt chung. Bản trước chia khoảng cách của
+ * MỌI mục tiêu cho cùng một `cashPace` (tiền mặt dày thêm của mọi tài khoản thanh khoản,
+ * tính theo base) — nên tab này hứa "EB-3 đạt 11/2026" trong khi khu Mục tiêu ở trang Tài
+ * sản nói "chưa đo được tốc độ tích lũy", và còn chia một khoảng cách theo tiền tài khoản
+ * cho một nhịp theo base. Nay gọi đúng `goalForecast` của trang Tài sản với nhịp của chính
+ * tài khoản gắn mục tiêu: hai màn không còn nói hai ngày khác nhau được.
  */
 export function goalProgress(
   goals: readonly SavingsGoalRow[],
-  balanceOf: (accountId: string) => number | null,
-  monthlyPace: number,
-  todayISO: string,
+  inputOf: (goal: SavingsGoalRow) => GoalInput,
+  currentMonth: MonthKey,
+  monthStartDay: number,
 ): GoalLine[] {
   return goals
     .map((g) => {
-      const current = Math.max(0, balanceOf(g.account_id) ?? 0)
-      const ratio = g.target_amount > 0 ? Math.min(1, current / g.target_amount) : 0
-      const gap = Math.max(0, g.target_amount - current)
-      const months = monthsToClose(gap, monthlyPace)
+      const { current, currency, monthlyGrowth } = inputOf(g)
+      const f = goalForecast(
+        current ?? 0,
+        g.target_amount,
+        monthlyGrowth,
+        currentMonth,
+        g.target_date,
+        monthStartDay,
+      )
       return {
         id: g.id,
         name: g.name.trim() || 'Mục tiêu',
         target: g.target_amount,
-        current,
-        ratio,
+        current: f.current,
+        currency,
+        ratio: f.ratio,
         targetDate: g.target_date,
-        etaISO: gap <= 0 || months === null ? null : addMonthsISO(todayISO, Math.ceil(months)),
-        done: gap <= 0,
+        monthlyGrowth: f.monthlyGrowth,
+        etaMonth: f.done ? null : f.etaMonth,
+        vsDeadline: f.vsDeadline,
+        done: f.done,
       }
     })
     .sort((a, b) => b.ratio - a.ratio)

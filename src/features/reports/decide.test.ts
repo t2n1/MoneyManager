@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { Rates } from '../../lib/rates'
-import type { DebtPaymentRow, DebtRow, SavingsGoalRow } from '../../types/database.types'
+import type {
+  DebtPaymentRow,
+  DebtRow,
+  SavingsGoalRow,
+  TransactionRow,
+} from '../../types/database.types'
+import { goalForecast } from '../assets/goals'
 import {
   debtBreakdown,
   goalProgress,
   keptFlow,
   monthsToClose,
-  monthYearLabel,
+  outsideTransfersIn,
+  shortMonth,
   sortLevers,
   type LeverRow,
 } from './decide'
@@ -263,34 +270,63 @@ function goal(p: Partial<SavingsGoalRow> & Pick<SavingsGoalRow, 'name' | 'target
 }
 
 describe('goalProgress', () => {
-  it('tiến độ + mốc theo nhịp hiện tại', () => {
+  const AUG = { year: 2026, month: 8 }
+  const input =
+    (current: number | null, monthlyGrowth: number | null, currency: 'JPY' | 'VND' = 'JPY') =>
+    () => ({ current, monthlyGrowth, currency })
+
+  it('tiến độ + mốc theo nhịp CỦA TÀI KHOẢN gắn mục tiêu', () => {
     const g = goal({ name: 'Đủ 1× trả nợ', target_amount: 649_898 })
-    const [line] = goalProgress([g], () => 389_939, 26_022, '2026-08-18')
+    const [line] = goalProgress([g], input(389_939, 26_022), AUG, 1)
     expect(Math.round(line.ratio * 100)).toBe(60)
     expect(line.done).toBe(false)
-    expect(monthYearLabel(line.etaISO!)).toBe('06/2027')
+    expect(shortMonth(line.etaMonth!)).toBe('06/2027')
   })
 
-  it('đã đạt → done, không in mốc tương lai', () => {
+  it('CÙNG số với khu Mục tiêu của trang Tài sản — cùng hàm goalForecast', () => {
+    const g = goal({ name: 'EB-3', target_amount: 2_000_000, target_date: '2027-03-01' })
+    const [line] = goalProgress([g], input(1_200_000, 90_000), AUG, 25)
+    const f = goalForecast(1_200_000, 2_000_000, 90_000, AUG, '2027-03-01', 25)
+    expect(line.etaMonth).toEqual(f.etaMonth)
+    expect(line.vsDeadline).toBe(f.vsDeadline)
+    expect(line.ratio).toBe(f.ratio)
+  })
+
+  it('không đo được nhịp (null) → KHÔNG hứa ngày nào, như trang Tài sản', () => {
+    // Bản trước dùng nhịp tiền mặt CHUNG của mọi tài khoản nên vẫn hứa "đạt 11/2026" cho
+    // một mục tiêu mà trang Tài sản nói "chưa đo được tốc độ tích lũy".
+    const g = goal({ name: 'EB-3', target_amount: 1_000_000 })
+    const [line] = goalProgress([g], input(100_000, null), AUG, 1)
+    expect(line.etaMonth).toBeNull()
+    expect(line.monthlyGrowth).toBe(0)
+  })
+
+  it('số dư đang giảm → không có mốc, nhịp âm được giữ để nói ra', () => {
+    const g = goal({ name: 'X', target_amount: 1_000_000 })
+    const [line] = goalProgress([g], input(100_000, -5_000), AUG, 1)
+    expect(line.etaMonth).toBeNull()
+    expect(line.monthlyGrowth).toBe(-5_000)
+  })
+
+  it('đã đạt → done', () => {
     const g = goal({ name: 'Xong', target_amount: 100_000 })
-    const [line] = goalProgress([g], () => 150_000, 10_000, '2026-08-18')
+    const [line] = goalProgress([g], input(150_000, 10_000), AUG, 1)
     expect(line.done).toBe(true)
     expect(line.ratio).toBe(1)
-    expect(line.etaISO).toBeNull()
   })
 
-  it('nhịp = 0 → không bịa ra mốc', () => {
-    const g = goal({ name: 'Xa', target_amount: 1_000_000 })
-    expect(goalProgress([g], () => 0, 0, '2026-08-18')[0].etaISO).toBeNull()
+  it('giữ loại tiền CỦA TÀI KHOẢN — số đích nhập theo tiền tài khoản, không phải base', () => {
+    const g = goal({ name: 'VN', target_amount: 500_000_000 })
+    expect(goalProgress([g], input(100_000_000, 1, 'VND'), AUG, 1)[0].currency).toBe('VND')
   })
 
   it('CHƯA đặt mục tiêu nào → mảng rỗng (chỗ hiển thị mời đặt, không dựng chuẩn sách vở)', () => {
-    expect(goalProgress([], () => 100, 100, '2026-08-18')).toEqual([])
+    expect(goalProgress([], input(100, 100), AUG, 1)).toEqual([])
   })
 
   it('tài khoản không tìm được số dư → coi là 0, không nổ', () => {
     const g = goal({ name: 'X', target_amount: 100 })
-    expect(goalProgress([g], () => null, 10, '2026-08-18')[0].current).toBe(0)
+    expect(goalProgress([g], input(null, 10), AUG, 1)[0].current).toBe(0)
   })
 
   it('xếp theo tiến độ giảm dần', () => {
@@ -299,10 +335,158 @@ describe('goalProgress', () => {
         goal({ name: 'Ít', target_amount: 1_000, account_id: 'a' }),
         goal({ name: 'Nhiều', target_amount: 100, account_id: 'b' }),
       ],
-      (id) => (id === 'a' ? 100 : 90),
-      10,
-      '2026-08-18',
+      (g) => ({ current: g.account_id === 'a' ? 100 : 90, monthlyGrowth: 10, currency: 'JPY' }),
+      AUG,
+      1,
     )
     expect(rows.map((r) => r.name)).toEqual(['Nhiều', 'Ít'])
+  })
+})
+
+// ---------------------------------------------------------------------------------
+// Khối 01 khi tiền mặt dày thêm NHIỀU HƠN phần giữ lại
+// ---------------------------------------------------------------------------------
+
+describe('keptFlow — tiền vào từ ngoài, không kết luận bừa', () => {
+  // Số thật: giữ lại ¥241.891, tiền mặt dày thêm ¥5.894.972, "chỗ khác" −¥5.653.081 — mà
+  // trang vẫn kết luận "phần giữ lại nằm hết ở tiền mặt" (tỷ lệ kẹp về 0%).
+  const REAL = { kept: 241_891, cashGrowth: 5_894_972, investGrowth: 0, remitTotal: 0, months: 12 }
+
+  it('chưa tách được nguồn → KHÔNG kết luận, và "chỗ khác" nói đúng chiều (tiền VÀO)', () => {
+    const f = keptFlow(REAL)
+    expect(f.verdict).toBe('unclear')
+    expect(f.illiquidPct).toBeNull()
+    const other = f.tiers.find((t) => t.key === 'other')!
+    expect(other.amount).toBe(-5_653_081)
+    expect(other.note).not.toContain('trả nợ')
+    expect(other.pct).toBeNull()
+  })
+
+  it('tách tầng "Chuyển vào từ tài khoản ngoài tổng" — tầng cộng đúng bằng phần giữ lại', () => {
+    const f = keptFlow({ ...REAL, outsideIn: 5_653_081 })
+    const outside = f.tiers.find((t) => t.key === 'outside')!
+    expect(outside.label).toBe('Chuyển vào từ tài khoản ngoài tổng')
+    expect(outside.amount).toBe(-5_653_081)
+    expect(f.tiers.some((t) => t.key === 'other')).toBe(false)
+    expect(f.tiers.reduce((s, t) => s + t.amount, 0)).toBe(241_891)
+    // Tiền mặt vẫn dày hơn phần giữ lại nhiều lần → vẫn không nói phần giữ lại nằm ở đâu.
+    expect(f.verdict).toBe('unclear')
+  })
+
+  it('chuyển RA tài khoản ngoài tổng → tầng mang dấu dương, nhãn đổi chiều', () => {
+    const f = keptFlow({ kept: 500_000, cashGrowth: 300_000, investGrowth: 0, remitTotal: 0, months: 12, outsideIn: -200_000 })
+    const outside = f.tiers.find((t) => t.key === 'outside')!
+    expect(outside.label).toBe('Chuyển ra tài khoản ngoài tổng')
+    expect(outside.amount).toBe(200_000)
+    expect(f.tiers.reduce((s, t) => s + t.amount, 0)).toBe(500_000)
+    expect(f.verdict).toBe('ok')
+  })
+
+  it('đầu tư GIẢM → tầng "Rút từ đầu tư" (số âm), không lặng lẽ rơi vào "chỗ khác"', () => {
+    const f = keptFlow({ kept: 200_000, cashGrowth: 500_000, investGrowth: -300_000, remitTotal: 0, months: 12 })
+    expect(f.tiers.some((t) => t.key === 'invest')).toBe(false)
+    const out = f.tiers.find((t) => t.key === 'investOut')!
+    expect(out.label).toBe('Rút từ đầu tư')
+    expect(out.amount).toBe(-300_000)
+    expect(out.pct).toBeNull()
+    expect(f.tiers.some((t) => t.key === 'other')).toBe(false)
+    expect(f.verdict).toBe('unclear')
+  })
+
+  it('"chỗ khác" dương vẫn là trả nợ / tài sản cố định', () => {
+    const f = keptFlow({ kept: 1_000_000, cashGrowth: 100_000, investGrowth: 200_000, remitTotal: 0, months: 12 })
+    expect(f.tiers.find((t) => t.key === 'other')!.note).toContain('trả nợ')
+    expect(f.verdict).toBe('ok')
+  })
+
+  it('"chỗ khác" lớn hơn cả phần giữ lại → không kết luận', () => {
+    const f = keptFlow({ kept: 100_000, cashGrowth: 0, investGrowth: 0, remitTotal: 0, months: 12, outsideIn: 0 })
+    expect(f.verdict).toBe('ok')
+    const g = keptFlow({ kept: 100_000, cashGrowth: 50_000, investGrowth: 300_000, remitTotal: 0, months: 12 })
+    expect(g.tiers.find((t) => t.key === 'other')!.amount).toBe(-250_000)
+    expect(g.verdict).toBe('unclear')
+  })
+
+  it('giữ lại ≤ 0 → verdict none', () => {
+    expect(keptFlow({ kept: 0, cashGrowth: 1, investGrowth: 0, remitTotal: 0, months: 1 }).verdict).toBe('none')
+  })
+})
+
+describe('outsideTransfersIn — chuyển khoản có một đầu là tài khoản không được đếm', () => {
+  const COUNTED = new Set(['bank', 'nisa'])
+  const cur = (id: string) => (id === 'vn' ? 'VND' : 'JPY') as 'JPY' | 'VND'
+  const t = (p: Partial<TransactionRow>): TransactionRow =>
+    ({
+      id: `x${seq++}`,
+      type: 'transfer',
+      amount: 0,
+      to_amount: null,
+      account_id: 'bank',
+      to_account_id: 'nisa',
+      occurred_on: '2026-05-10',
+      is_debt_flow: false,
+      exclude_from_stats: false,
+      ...p,
+    }) as TransactionRow
+
+  it('ngoài → trong là dương, trong → ngoài là âm, trong ↔ trong không tính', () => {
+    const r = outsideTransfersIn(
+      [
+        t({ account_id: 'hidden', to_account_id: 'bank', amount: 5_653_081 }),
+        t({ account_id: 'bank', to_account_id: 'hidden', amount: 1_000 }),
+        t({ account_id: 'bank', to_account_id: 'nisa', amount: 45_000 }),
+      ],
+      COUNTED,
+      '2026-01-01',
+      '2026-12-31',
+      cur,
+      'JPY',
+      RATES,
+    )
+    expect(r).toEqual({ net: 5_652_081, hasMissingRate: false })
+  })
+
+  it('đầu nhận dùng to_amount theo tiền của nó, rồi quy đổi base', () => {
+    const r = outsideTransfersIn(
+      [t({ account_id: 'vn', to_account_id: 'bank', amount: 1_650_000, to_amount: 10_000 })],
+      COUNTED,
+      '2026-01-01',
+      '2026-12-31',
+      cur,
+      'JPY',
+      RATES,
+    )
+    expect(r.net).toBe(10_000)
+  })
+
+  it('cùng rổ với keptDestinations: bỏ is_debt_flow, exclude_from_stats, ngoài cửa sổ', () => {
+    const r = outsideTransfersIn(
+      [
+        t({ account_id: 'hidden', to_account_id: 'bank', amount: 1, is_debt_flow: true }),
+        t({ account_id: 'hidden', to_account_id: 'bank', amount: 2, exclude_from_stats: true }),
+        t({ account_id: 'hidden', to_account_id: 'bank', amount: 4, occurred_on: '2027-01-01' }),
+        t({ type: 'income', account_id: 'bank', to_account_id: null, amount: 8 }),
+      ],
+      COUNTED,
+      '2026-01-01',
+      '2026-12-31',
+      cur,
+      'JPY',
+      RATES,
+    )
+    expect(r.net).toBe(0)
+  })
+
+  it('thiếu tỷ giá → loại ra và bật cờ, không coi 1:1', () => {
+    const r = outsideTransfersIn(
+      [t({ account_id: 'hidden', to_account_id: 'bank', amount: 100 })],
+      COUNTED,
+      '2026-01-01',
+      '2026-12-31',
+      () => 'USD',
+      'JPY',
+      RATES,
+    )
+    expect(r).toEqual({ net: 0, hasMissingRate: true })
   })
 })

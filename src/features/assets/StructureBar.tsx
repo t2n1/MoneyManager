@@ -51,6 +51,8 @@ interface Props {
   modeLabel: string
   view: MoneyView
   isLoading: boolean
+  /** Nguồn dữ liệu hỏng hẳn — nói thẳng, không nói "chưa có tài sản". */
+  loadFailed?: boolean
   /** Chỉ truyền ở lát "mục đích" — xem đầu file. */
   rebalance?: RebalanceUi | null
 }
@@ -69,6 +71,7 @@ export function StructureBar({
   modeLabel,
   view,
   isLoading,
+  loadFailed = false,
   rebalance = null,
 }: Props) {
   const plan = rebalance?.plan ?? null
@@ -113,7 +116,11 @@ export function StructureBar({
 
       {counted.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-fg-muted">
-          {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
+          {loadFailed
+            ? 'Chưa tải được dữ liệu tài sản'
+            : isLoading
+              ? 'Đang tải…'
+              : 'Chưa có tài sản để hiển thị'}
         </p>
       ) : (
         <>

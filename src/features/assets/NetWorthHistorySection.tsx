@@ -38,7 +38,7 @@ export function NetWorthHistorySection({
   series,
   rangeNoun,
 }: Props) {
-  const { data: snapshots = [], isLoading } = useNetWorthSnapshots()
+  const { data: snapshots = [], isLoading, isError } = useNetWorthSnapshots()
   const upsert = useUpsertNetWorthSnapshot()
   const recordedRef = useRef(false)
 
@@ -53,6 +53,19 @@ export function NetWorthHistorySection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, currentNetWorth, snapshots])
+
+  // Chưa đọc được lịch sử thì chưa nói gì về nó: "Mở app đều đặn để app ghi lại…" là lời
+  // khuyên cho người MỚI, in cho người đã có hai năm mốc chỉ vì query chưa về.
+  if (series.points.length < 2 && (isLoading || isError)) {
+    return (
+      <Card as="section" elevation="panel" padding="lg">
+        <SectionTitle>Tài sản ròng</SectionTitle>
+        <p className="mt-2 text-center text-sm text-fg-muted">
+          {isLoading ? 'Đang tải…' : 'Chưa tải được lịch sử tài sản ròng — thử tải lại trang.'}
+        </p>
+      </Card>
+    )
+  }
 
   if (series.points.length < 2) {
     return (

@@ -13,6 +13,7 @@ import {
   useRates,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { loadStatus, mergeLoad } from '../../lib/loadStatus'
 import { debtSummary } from '../debts/aggregate'
 import {
   assetBreakdown,
@@ -23,11 +24,32 @@ import {
 
 export function useAssetsData() {
   const todayISO = toISODate(new Date())
-  const { data: balances = [], isLoading } = useAccountBalances()
-  const { data: groupSettings = [] } = useAssetGroupSettings()
-  const { data: debts = [] } = useDebts()
-  const { data: debtPayments = [] } = useDebtPayments()
-  const { base, rates } = useRates()
+  const balancesQ = useAccountBalances()
+  const groupSettingsQ = useAssetGroupSettings()
+  const debtsQ = useDebts()
+  const debtPaymentsQ = useDebtPayments()
+  const { base, rates, isLoading: ratesLoading } = useRates()
+  const balances = useMemo(() => balancesQ.data ?? [], [balancesQ.data])
+  const groupSettings = useMemo(() => groupSettingsQ.data ?? [], [groupSettingsQ.data])
+  const debts = useMemo(() => debtsQ.data ?? [], [debtsQ.data])
+  const debtPayments = useMemo(() => debtPaymentsQ.data ?? [], [debtPaymentsQ.data])
+
+  // Tài sản ròng cần ĐỦ năm nguồn. Bản trước chỉ chờ số dư: nợ/cho vay về sau thì vài giây
+  // đầu ô Ròng in tổng tài sản CHƯA trừ nợ, nhóm chưa về thì mọi tài khoản dồn vào "chưa
+  // phân nhóm" — và tệ nhất, `netWorthReliable` bật lên nên ảnh chụp lịch sử GHI con số
+  // tạm đó vào DB. Tỷ giá chỉ chờ lúc đang tải: lỗi tỷ giá là thiếu thật, cờ
+  // `hasMissingRate` lo phần đó.
+  const load = mergeLoad(
+    loadStatus(balancesQ),
+    loadStatus(groupSettingsQ),
+    loadStatus(debtsQ),
+    loadStatus(debtPaymentsQ),
+    ratesLoading ? 'pending' : 'ready',
+  )
+  /** Còn nguồn đang tải — nơi hiển thị in "Đang tính…", không in số. */
+  const isLoading = load === 'pending'
+  /** Có nguồn đã hỏng hẳn — nơi hiển thị nói không tải được, cũng không in số. */
+  const loadFailed = load === 'failed'
 
   // Tài sản ròng = tổng tài sản gộp + (cho vay còn lại − mình nợ còn lại), quy đổi base
   const debtsSummary = useMemo(
@@ -79,7 +101,7 @@ export function useAssetsData() {
   // Tài sản ròng để ghi lịch sử (mục AF): chỉ ghi khi số liệu tin cậy (không thiếu tỷ giá)
   const netWorth = breakdown.total + debtsSummary.net + breakdown.cardDebt
   const netWorthReliable =
-    !isLoading &&
+    load === 'ready' &&
     !breakdown.hasMissingRate &&
     !debtsSummary.hasMissingRate &&
     !breakdown.cardHasMissingRate
@@ -87,6 +109,7 @@ export function useAssetsData() {
   return {
     todayISO,
     isLoading,
+    loadFailed,
     base,
     rates,
     balances,

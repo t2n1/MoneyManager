@@ -10,7 +10,7 @@
 // KHÔNG tự tính lại năm âm / năm FIRE ở đây — cả hai đọc từ `insights.ts`, nơi chúng
 // đã có test riêng. Lặp lại phép tính là hai chỗ cùng một khái niệm, và chúng sẽ trôi
 // lệch nhau.
-import { fireYear, firstNegativeYear } from './insights'
+import { DEFAULT_SWR_BPS, fireYear, firstNegativeYear } from './insights'
 import type { LifetimeInput, LifetimePhase, YearRow } from './project'
 
 /**
@@ -27,20 +27,54 @@ export interface LifetimeVerdict {
   /** Năm đạt tự do tài chính. null = không đạt trong bản chiếu. */
   fireYear: number | null
   fireAge: number | null
+  /**
+   * Tuổi bản chiếu dừng lại. "Không năm nào âm" CHỈ đúng tới tuổi này — mang nó theo
+   * verdict để mọi câu kết luận buộc phải nói phạm vi (mục 23, soát 2026-09-23: màn từng
+   * nói "đủ tới hết đời" cho một kịch bản chiếu tới 70).
+   */
+  endAge: number
   /** Xấu = có năm âm; ổn = không năm nào âm và có đạt FIRE; còn lại là cần chú ý. */
   tone: 'good' | 'warn' | 'bad'
+}
+
+/**
+ * Nghĩa ngắn của "tự do tài chính" (FIRE) cho người chưa biết từ này. Bội số suy từ
+ * `DEFAULT_SWR_BPS` (quy tắc 4% → 25 lần) chứ không gõ cứng, để câu chữ luôn khớp đúng
+ * ngưỡng mà `fireYear` dùng.
+ */
+export const FIRE_MEANING = `tài sản đủ ${10_000 / DEFAULT_SWR_BPS} lần chi một năm`
+
+/**
+ * Câu kết luận TRƠN (không JSX) — dùng cho tiêu đề dải thống kê của console và bản đọc
+ * trên điện thoại. Một chỗ ghép câu để hai bề rộng màn không nói hai câu khác nhau.
+ *
+ * Luôn có phạm vi ("tới tuổi X"): bản chiếu dừng ở `endAge`, nên "không âm" chỉ có
+ * nghĩa tới đó. Không bao giờ nói "hết đời".
+ */
+export function verdictHeadline(v: LifetimeVerdict | null): string {
+  if (v === null) return 'Chưa chiếu được năm nào'
+  if (v.negativeYear !== null) {
+    return `Nhánh bi quan cạn tiền từ năm ${v.negativeYear} (tuổi ${v.negativeAge})`
+  }
+  const fire = v.fireYear !== null ? 'và có đạt tự do tài chính' : 'nhưng chưa đạt tự do tài chính'
+  return `Theo kịch bản hiện tại, tài sản chưa cạn tới tuổi ${v.endAge} kể cả khi bi quan, ${fire}`
 }
 
 /**
  * Đọc nhánh BI QUAN ('low'), không đọc nhánh trung tâm — cùng lựa chọn với `InsightCards`
  * và với vùng đỏ trên đồ thị. Lý do đầy đủ nằm ở JSDoc `firstNegativeYear`: một bản
  * chiếu "trung tâm không bao giờ âm" mà mép dưới cạn tiền năm 2060 thì câu kết luận
- * nói "đủ tới hết đời" là nói quá tay đúng ở chỗ nguy hiểm nhất.
+ * nói "chưa cạn" là nói quá tay đúng ở chỗ nguy hiểm nhất.
  *
  * `birthYear` truyền vào chứ không suy từ `rows[0]`: rows có thể rỗng, và lúc đó vẫn
- * phải trả về một verdict đọc được thay vì ném.
+ * phải trả về một verdict đọc được thay vì ném. `endAge` cũng vậy — là `input.endAge`,
+ * phạm vi mà mọi câu kết luận phải nói ra.
  */
-export function lifetimeVerdict(rows: YearRow[], birthYear: number): LifetimeVerdict {
+export function lifetimeVerdict(
+  rows: YearRow[],
+  birthYear: number,
+  endAge: number,
+): LifetimeVerdict {
   const negativeYear = firstNegativeYear(rows, 'low')
   const fire = fireYear(rows)
   return {
@@ -48,10 +82,24 @@ export function lifetimeVerdict(rows: YearRow[], birthYear: number): LifetimeVer
     negativeAge: negativeYear === null ? null : negativeYear - birthYear,
     fireYear: fire,
     fireAge: fire === null ? null : fire - birthYear,
+    endAge,
     // Có năm âm là tin xấu bất kể FIRE — cạn tiền ở nhánh bi quan không được "bù" bằng
     // việc đâu đó trên đường có một năm đủ 4%.
     tone: negativeYear !== null ? 'bad' : fire !== null ? 'good' : 'warn',
   }
+}
+
+/**
+ * Bản NGẮN của câu kết luận — cho chế độ Gọn (`ConclusionLine.short`). Giữ hai con số
+ * quyết định (năm cạn / tuổi chiếu tới, năm tự do tài chính) và giữ luôn phạm vi. Không
+ * dùng chữ "FIRE": người chưa biết từ này đọc bản ngắn là thấy nó trần trụi.
+ */
+export function verdictShort(v: LifetimeVerdict): string {
+  const fire =
+    v.fireYear !== null ? `tự do tài chính ${v.fireYear}` : 'chưa đạt tự do tài chính'
+  return v.negativeYear !== null
+    ? `Cạn tiền ${v.negativeYear} · ${fire}`
+    : `Chưa cạn tới tuổi ${v.endAge} · ${fire}`
 }
 
 /** Khoảng năm của một chặng: `[startYear, endYear]`. `end` null = chạy tới hết đời. */

@@ -1,4 +1,4 @@
-// HÀNG 9 của bản vẽ — "Vặn nhanh": ba thanh trượt, dòng chênh lệch so với bản đã lưu, và
+// HÀNG 9 của bản vẽ — "Chỉnh nhanh giả định" (tên cũ: "Vặn nhanh"): ba thanh trượt, dòng chênh lệch so với bản đã lưu, và
 // cặp nút Lưu / Bỏ.
 //
 // ĐÂY LÀ ĐƯỜNG LƯU CỦA CẢ MÀN. Mọi thứ người dùng làm trên console — kéo một mốc, dời một
@@ -75,9 +75,13 @@ export function QuickTuneRow({
   return (
     <Card as="section" padding="panel" elevation="panel">
       <div className="flex min-w-0 flex-wrap items-start gap-x-5 gap-y-3">
-        <SectionTitle role="micro" className="shrink-0">
-          Vặn nhanh
-        </SectionTitle>
+        {/* "Chỉnh nhanh giả định", không còn "Vặn nhanh" (mục 26, soát 2026-09-23): tên cũ
+            không nói vặn CÁI GÌ. Dòng phụ nói luôn luật lưu — kéo thanh là thử trong nháp,
+            chưa có gì được ghi. */}
+        <div className="shrink-0">
+          <SectionTitle role="micro">Chỉnh nhanh giả định</SectionTitle>
+          <p className="mt-0.5 text-2xs text-fg-muted">Kéo để thử — bấm Lưu mới ghi lại.</p>
+        </div>
 
         {/* --- Lợi suất thực -------------------------------------------------------- */}
         <div className={SLIDER_COL}>

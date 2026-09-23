@@ -176,3 +176,25 @@ export function convertMinorToday(
   if (fx === null) return null
   return convertLifetimeMinor(minor, from, to, fx)
 }
+
+/**
+ * Những đơn vị tiền trong bản chiếu CHƯA quy được về tiền hiển thị hôm nay — mỗi đơn vị
+ * một lần, theo thứ tự gặp (chặng trước, mốc sau). Rỗng = đủ tỷ giá.
+ *
+ * Tồn tại vì hai chỗ cần cùng câu trả lời: console Tương lai (≈ trên dải thống kê + câu
+ * dưới chú giải) và bản đọc trên điện thoại. `useLifetime` chuẩn hoá tiền rồi bỏ cờ
+ * `hasMissingRate`, nên chỗ hiện số phải tự tra lại — tra bằng MỘT luật.
+ */
+export function missingRateCurrencies(
+  input: {
+    phases: readonly Pick<LifetimePhase, 'currency'>[]
+    events: readonly Pick<LifetimeEvent, 'currency'>[]
+    displayCurrency: CurrencyCode
+  },
+  fxOf: FxOf,
+): CurrencyCode[] {
+  const coTien = new Set<CurrencyCode>()
+  for (const p of input.phases) coTien.add(p.currency)
+  for (const e of input.events) coTien.add(e.currency)
+  return [...coTien].filter((c) => fxOf(c, input.displayCurrency) === null)
+}

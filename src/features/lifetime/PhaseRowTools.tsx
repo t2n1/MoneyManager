@@ -28,12 +28,26 @@ import { EVENT_WORDS, PHASE_WORDS } from './planWords'
 export function PhaseRowTools({
   onAddPhase,
   onOpenPresetBoard,
+  eventCount,
 }: {
   onAddPhase: () => void
   onOpenPresetBoard: () => void
+  /** Số mốc của bản đang xem (nháp nếu có). 0 → hiện trạng thái trống ngay ở hàng này. */
+  eventCount: number
 }) {
   return (
     <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {/* TRẠNG THÁI TRỐNG "chưa có mốc nào" — dời về đây từ giữa vùng vẽ (mục 24, soát
+          2026-09-23). Ở đó nó là hộp nền đục che chính đường đồ thị; ở đây nó là một dòng
+          thường nằm cạnh đúng nút thêm mốc. Câu CHỈ ĐƯỜNG luôn hiện (không bọc <Guide>):
+          mặc định của app là chế độ Gọn, và câu "bấm gì để bắt đầu" không được biến mất. */}
+      {eventCount === 0 && (
+        <p className="basis-full rounded-md border border-dashed border-border-strong px-3 py-2 text-sm text-fg-secondary">
+          <span className="font-medium text-fg-primary">Kế hoạch chưa có mốc nào.</span>{' '}
+          Bấm một năm trên đồ thị, hoặc bấm “+ Thêm từ mẫu” bên dưới để thêm cưới, sinh
+          con, mua nhà, nghỉ hưu…
+        </p>
+      )}
       <span className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
         {PHASE_WORDS.name}
       </span>

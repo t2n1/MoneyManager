@@ -24,7 +24,7 @@ import {
   firstNegativeYear,
   minimumReturnBps,
 } from './insights'
-import { lifetimeVerdict } from './summary'
+import { FIRE_MEANING, lifetimeVerdict, verdictShort } from './summary'
 import type { LifetimeInput, YearRow } from './project'
 import type { RealityCheck } from './realityCheck'
 import { canOfferRetireTrial } from './tryRetire'
@@ -352,7 +352,7 @@ export function InsightCards({
   const negativeYear = firstNegativeYear(rows, 'low')
   const minReturn = minimumReturnBps(input)
   const atEndAge = assetsAtAge(rows, input.endAge)
-  const verdict = lifetimeVerdict(rows, birthYear)
+  const verdict = lifetimeVerdict(rows, birthYear, input.endAge)
   // Mốc Coast (insights.coastAssetsMinor): chỉ đáng nói khi CHƯA đạt — đạt rồi thì phần
   // trăm ≥100% không thêm tin gì mà chiếm một dòng.
   const coast = coastAssetsMinor(input)
@@ -364,17 +364,19 @@ export function InsightCards({
 
   // Vế thứ hai của câu kết luận, dùng chung cho cả ba nhánh tone: dù tiền có đủ hay
   // không thì "bao giờ không cần đi làm nữa" vẫn là câu hỏi người dùng mang tới màn này.
+  //
+  // Nghĩa của "tự do tài chính" viết RA CHỮ ngay trong câu (mục 26, soát 2026-09-23): đây là
+  // lần đầu từ này xuất hiện trên màn, và `title` chỉ hiện khi rê chuột — trên điện thoại
+  // không ai thấy. Không dùng chữ "FIRE" trong câu kết luận.
   const fireClause =
     verdict.fireYear !== null ? (
       <>
         {' '}
-        Tự do tài chính năm {verdict.fireYear}, tuổi {verdict.fireAge}.
+        Tự do tài chính ({FIRE_MEANING}) từ năm {verdict.fireYear}, tuổi {verdict.fireAge}.
       </>
     ) : (
-      <> Không năm nào đủ để tự do tài chính.</>
+      <> Chưa năm nào đạt tự do tài chính ({FIRE_MEANING}).</>
     )
-  const fireShort =
-    verdict.fireYear !== null ? `FIRE ${verdict.fireYear}` : 'chưa đạt tự do tài chính'
 
   const showReality = reality !== null && reality.meaningful
   // Luật mời nằm ở tryRetire.ts (FIRE còn ở tương lai, chưa có chặng năm đó) — không
@@ -385,11 +387,8 @@ export function InsightCards({
     <Card as="section">
       <ConclusionLine
         tone={verdict.tone}
-        short={
-          verdict.negativeYear !== null
-            ? `Cạn tiền ${verdict.negativeYear} · ${fireShort}`
-            : `Đủ tới hết đời · ${fireShort}`
-        }
+        // Bản ngắn ghép ở summary.ts — cùng chỗ với câu của bản điện thoại.
+        short={verdictShort(verdict)}
       >
         Với kịch bản {scenarioName},{' '}
         {verdict.negativeYear !== null ? (
@@ -398,8 +397,12 @@ export function InsightCards({
             , tuổi {verdict.negativeAge}.
           </>
         ) : (
+          // Có PHẠM VI (mục 23): bản chiếu dừng ở `endAge`, nên "không âm" chỉ đúng tới
+          // đó. Câu cũ "đủ tới hết đời" nói quá cho mọi kịch bản chiếu dưới 90–100 tuổi.
           <>
-            tiền <span className="text-money-in">đủ tới hết đời</span> — kể cả nhánh bi quan.
+            tài sản{' '}
+            <span className="text-money-in">chưa cạn tới tuổi {verdict.endAge}</span> — kể cả
+            nhánh bi quan.
           </>
         )}
         {fireClause}
@@ -444,8 +447,9 @@ export function InsightCards({
           // bằng `alert`/`good`, xem JSDoc InsightTile.
           alert={negativeYear !== null}
           good={negativeYear === null}
-          value={negativeYear !== null ? `Năm ${negativeYear}` : 'Không bao giờ âm'}
-          sub={negativeYear !== null ? `tuổi ${negativeYear - birthYear}` : undefined}
+          // "Không âm" kèm phạm vi — bản chiếu chỉ tới `endAge` (mục 23).
+          value={negativeYear !== null ? `Năm ${negativeYear}` : 'Không âm'}
+          sub={negativeYear !== null ? `tuổi ${negativeYear - birthYear}` : `tới tuổi ${input.endAge}`}
           // Chỉ bấm được khi CÓ năm để nhảy tới. "Không bao giờ âm" là tin tốt, không
           // phải một mốc trên bảng — bấm vào thì không có dòng nào để mở.
           onClick={
@@ -555,8 +559,8 @@ export function InsightCards({
       <ExplainBox label="Cách đọc 4 ô này">
         <p>
           <b>Nếu bi quan, âm từ</b> — năm đầu tiên tài sản xuống dưới 0 nếu mọi thứ diễn ra
-          theo mép dưới của dải dao động trên đồ thị (hướng xấu). "Không bao giờ âm" là tin
-          tốt.
+          theo mép dưới của dải dao động trên đồ thị (hướng xấu). "Không âm" là tin tốt —
+          nhưng chỉ tới tuổi {input.endAge}, chỗ bản chiếu dừng lại.
         </p>
         <p>
           <b>Lợi suất tối thiểu</b> — tiền đầu tư cần sinh lời ít nhất bao nhiêu mỗi năm để

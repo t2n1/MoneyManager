@@ -62,10 +62,12 @@ describe('Trang import ghi lan tra no dung duong', () => {
     expect(src).toContain('note: k.traNo.dong.note')
   })
 
-  // Khop dung tung ky tu: so that co `Minh KOME` (mot NGUOI), khop kieu "chua" la tru tien
-  // cong ty vao khoan Minh no.
-  it('khop ten doi tac dung tung ky tu, khong dung includes de CHON', () => {
-    expect(src).toContain('d.counterparty === TEN_NO_CONG_TY')
+  // Nguoi dung CHON khoan no (chonNo.ts); ten dung tung ky tu chi la goi y chon san. So that
+  // co `Minh KOME` (mot NGUOI) — goi y kieu "chua" la tru tien cong ty vao khoan Minh no.
+  it('chon san theo ten dung tung ky tu, khong dung includes de CHON', () => {
+    expect(src).toContain('chonNoMacDinh(')
+    const chon = doc('../src/features/phieu-luong/chonNo.ts')
+    expect(chon).toContain('d.counterparty === TEN_NO_CONG_TY')
   })
 
   it('noi ra ten gan giong de cach roi-lai khong lang le', () => {

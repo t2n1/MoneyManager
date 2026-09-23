@@ -22,7 +22,9 @@ import { repo } from '../../data'
 import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
-import { PageHeader, actionButtonClass } from '../../components/ui'
+import { Money, PageHeader, Select, actionButtonClass } from '../../components/ui'
+import { KHONG_TRU_NO, chonNoMacDinh, khoanNoCoTheChon, noDaChon, tenGanGiong as timTenGanGiong } from './chonNo'
+import { remainingOf } from '../debts/aggregate'
 import {
   DANH_MUC_THUE_CHA,
   DANH_MUC_THUE_CON,
@@ -37,9 +39,32 @@ import {
   gomTrung,
   phieuLoi,
   type DongKeHoach,
+  type KhoanNeo,
 } from './nhap'
 
 const TEN_YUCHO = /yucho/i
+
+/**
+ * Khoản nợ người dùng đã chọn cho 立替経費精算 — lưu theo ID ở localStorage của máy này.
+ * Không lưu vào profile: bảng đó không có cột cài đặt JSON chung, và thêm cột là đổi schema.
+ * Mất (trình duyệt riêng tư / xoá dữ liệu) thì chỉ quay về mặc định: chọn sẵn khoản tên
+ * đúng "KOME", không có thì "Không trừ vào nợ".
+ */
+const LUU_NO_KEY = 'phieu-luong:no-lap-theo'
+function docNoDaLuu(): string | null {
+  try {
+    return localStorage.getItem(LUU_NO_KEY)
+  } catch {
+    return null
+  }
+}
+function ghiNoDaLuu(v: string) {
+  try {
+    localStorage.setItem(LUU_NO_KEY, v)
+  } catch {
+    // không lưu được thì lựa chọn chỉ sống tới khi rời trang — vẫn dùng được
+  }
+}
 
 /**
  * `input.files` la MOT BO SUU TAP SONG (FileList), khong phai mot ban chup — do
@@ -63,6 +88,9 @@ export function ImportPhieuLuongPage() {
   const { data: debts = [] } = useDebts()
   const { data: debtPayments = [] } = useDebtPayments()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
+  /** Đầu vào của kế hoạch đang hiện — giữ lại để dựng lại khi đổi khoản nợ, khỏi chọn file lại. */
+  const [nguon, setNguon] = useState<{ phieuList: Phieu[]; thu: KhoanNeo[]; dauDaCo: Set<string> } | null>(null)
+  const [noDaLuu, setNoDaLuu] = useState<string | null>(() => docNoDaLuu())
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
   const [dangGhi, setDangGhi] = useState(false)
@@ -92,27 +120,29 @@ export function ImportPhieuLuongPage() {
   )
 
   /**
-   * Khoản `KOME` công ty nợ, khớp ĐÚNG TỪNG KÝ TỰ — sổ đã có `Minh KOME` (một NGƯỜI),
-   * và khớp kiểu "chứa" là trừ tiền công ty vào khoản Minh nợ.
+   * Khoản nợ nhận 立替経費精算 — người dùng CHỌN (xem chonNo.ts). Mặc định chọn sẵn khoản
+   * tên đúng `KOME`; không bao giờ tự chọn tên gần giống (`Minh KOME` là một NGƯỜI khác).
    */
-  const noKome = debts.find(
-    (d) => d.counterparty === TEN_NO_CONG_TY && d.direction === 'owed_to_me' && d.status === 'open',
-  )
-  const conLaiKome = noKome
-    ? noKome.principal -
-      debtPayments.filter((t) => t.debt_id === noKome.id).reduce((s2, t) => s2 + t.amount, 0)
-    : 0
-  const no = noKome ? { id: noKome.id, conLai: conLaiKome } : null
-  /**
-   * Tên GẦN GIỐNG. Không có khoản `KOME` thì phiếu rơi về cách cũ (chỉ rút khỏi Thu) —
-   * đúng cho phiếu cũ, nhưng nếu người dùng TƯỞNG mình đã tạo khoản nợ đó rồi mà chỉ đặt
-   * tên lệch, thì cách rơi lại kia lặng lẽ. Nói ra chỗ lệch, đừng để họ tự đoán.
-   */
-  const tenGanGiong = !noKome
-    ? debts
-        .filter((d) => d.counterparty !== TEN_NO_CONG_TY && d.counterparty.includes(TEN_NO_CONG_TY))
-        .map((d) => d.counterparty)
-    : []
+  const dsNo = khoanNoCoTheChon(debts)
+  const noChonId = chonNoMacDinh(debts, noDaLuu)
+  const no = noDaChon(debts, debtPayments, noChonId)
+  /** Tên gần giống — chỉ nhắc khi đang "không trừ", để người dùng tự xem có phải khoản đó không. */
+  const tenGanGiong = noChonId === null ? timTenGanGiong(debts) : []
+
+  function doiNo(v: string) {
+    setNoDaLuu(v)
+    ghiNoDaLuu(v)
+    // Kế hoạch đang hiện dựng với khoản cũ → dựng lại ngay với khoản mới.
+    if (keHoach && nguon && yucho) {
+      const moi = noDaChon(debts, debtPayments, chonNoMacDinh(debts, v))
+      setKeHoach(
+        dungKeHoach(
+          nguon.phieuList, nguon.thu, yucho.id, new Map(chiPhi.map((c) => [c.name, c.id])),
+          nguon.dauDaCo, tkHuu?.id ?? null, moi, dmPhuCap?.id ?? null,
+        ),
+      )
+    }
+  }
 
   // Nhan File[] (da chup san bang layDanhSachFile), KHONG nhan FileList: FileList
   // song se rong truoc khi ham nay kip doc, vi onChange da dat input.value = ''
@@ -145,6 +175,7 @@ export function ImportPhieuLuongPage() {
        */
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
+      setNguon({ phieuList, thu, dauDaCo })
       setKeHoach(
         dungKeHoach(
           phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null, no,
@@ -364,7 +395,7 @@ export function ImportPhieuLuongPage() {
           [
             `Đã xoá ${r.dong} dòng`,
             r.neo > 0 && `trả ${r.neo} dòng neo về thống kê`,
-            r.traNo > 0 && `hoàn ${r.traNo} lần trả nợ ${TEN_NO_CONG_TY}`,
+            r.traNo > 0 && `hoàn ${r.traNo} lần trả nợ`,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -389,7 +420,7 @@ export function ImportPhieuLuongPage() {
         hoac DB掛金 — 10/12 thang phieu khong co nhan nao trong hai nhan do, va chan het
         thi thanh chan oan. Phieu thuc su can se bi dungKeHoach() TU CHOI kem ly do.
       */}
-      {(!dmPhuCap || !tkHuu || tenGanGiong.length > 0) && (
+      {(!dmPhuCap || !tkHuu) && (
         <Card>
           <p className="text-sm text-fg-secondary">
             Phiếu có <span className="text-fg-primary">通勤手当</span> (phụ cấp đi lại) hoặc{' '}
@@ -402,14 +433,6 @@ export function ImportPhieuLuongPage() {
             )}
             {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
           </ul>
-          {tenGanGiong.length > 0 && (
-            <p className="mt-2 text-sm text-money-out">
-              Không có khoản nợ nào tên đúng “{TEN_NO_CONG_TY}” — {NHAN_LA_THEO} sẽ chỉ bị rút
-              khỏi Thu, KHÔNG trừ vào nợ. Sổ đang có tên gần giống:{' '}
-              {tenGanGiong.map((t) => `“${t}”`).join(', ')} — khớp theo tên đúng từng ký tự nên
-              chúng không được dùng.
-            </p>
-          )}
           {!dmPhuCap && (
             <ActionButton
               variant="primary"
@@ -429,6 +452,41 @@ export function ImportPhieuLuongPage() {
             >
               {createAccount.isPending ? 'Đang tạo…' : `Tạo tài khoản ${TEN_TK_HUU}`}
             </button>
+          )}
+        </Card>
+      )}
+
+      {dsNo.length > 0 && (
+        <Card>
+          <label htmlFor="phieu-luong-no" className="block text-sm text-fg-secondary">
+            Tiền ứng chi hộ (<span className="text-fg-primary">{NHAN_LA_THEO}</span>) trừ vào khoản nợ
+          </label>
+          <Select
+            id="phieu-luong-no"
+            value={noChonId ?? KHONG_TRU_NO}
+            onChange={(e) => doiNo(e.target.value)}
+            wrapClassName="mt-1 w-full"
+          >
+            <option value={KHONG_TRU_NO}>Không trừ vào nợ</option>
+            {dsNo.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.counterparty} · còn {formatMoney(remainingOf(d, debtPayments), d.currency)}
+              </option>
+            ))}
+          </Select>
+          {no ? (
+            <p className="mt-1 text-2xs text-fg-muted">
+              Mỗi phiếu có {NHAN_LA_THEO} sẽ ghi một lần trả vào khoản “{no.ten}” (đang còn{' '}
+              <Money amount={no.conLai} currency="JPY" tone="muted" />
+              ). Lựa chọn được nhớ trên máy này.
+            </p>
+          ) : (
+            <p className="mt-1 text-2xs text-fg-muted">
+              Không trừ: {NHAN_LA_THEO} chỉ bị rút khỏi Thu, không khoản nợ nào giảm.
+              {tenGanGiong.length > 0 && (
+                <> Sổ có khoản tên gần giống: {tenGanGiong.map((t) => `“${t}”`).join(', ')} — nếu đúng là khoản công ty nợ thì chọn ở trên.</>
+              )}
+            </p>
           )}
         </Card>
       )}
@@ -537,7 +595,7 @@ export function ImportPhieuLuongPage() {
                 {k.trangThai === 'dat' && k.traNo && (
                   <p className="mt-0.5 text-fg-secondary">
                     {NHAN_LA_THEO} {formatMoney(k.traNo.amount, 'JPY')} → trừ vào nợ{' '}
-                    {TEN_NO_CONG_TY}
+                    {debts.find((d) => d.id === k.traNo!.debtId)?.counterparty ?? TEN_NO_CONG_TY}
                   </p>
                 )}
                 {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (

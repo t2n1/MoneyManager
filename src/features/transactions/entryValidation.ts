@@ -56,6 +56,12 @@ export interface EntryState {
   remit: RemitValue
   /** Chỉ repay/collect dùng: đã chọn khoản nợ nào để trả/thu chưa. */
   payment: PaymentValue
+  /**
+   * Chỉ repay/collect: lần trả VƯỢT số còn lại mà người dùng chưa bấm "Đúng, ghi trả
+   * thừa" cho đúng số đang gõ. Form tính (debtPick.paymentOverpay + overpayConfirmed)
+   * vì cổng này không cầm danh sách nợ. Bỏ trống = không có gì chờ xác nhận.
+   */
+  paymentOverpayPending?: boolean
   /** id các ví hợp lệ ở ô "Nhận lại vào" của Trả hộ */
   splitBackAccountIds: string[]
 }
@@ -148,6 +154,10 @@ function kindMissing(s: EntryState): string | null {
         // triệu YEN vào một khoản nợ 100 nghìn yen, sổ nợ âm mà không có gì báo.
         if (s.payment.debtAmount !== null && s.payment.debtAmount <= 0)
           return 'Còn thiếu: lần trả này xoá bao nhiêu nợ.'
+        // Trả vượt số còn lại: không chặn hẳn (có thể trả thừa thật), chỉ đòi xác nhận —
+        // cùng luật với DebtPaymentSheet. Nút xác nhận nằm ngay trong khối chọn nợ.
+        if (s.paymentOverpayPending)
+          return 'Số trả nhiều hơn số còn lại — bấm "Đúng, ghi trả thừa" nếu đúng vậy.'
         break
     }
   }

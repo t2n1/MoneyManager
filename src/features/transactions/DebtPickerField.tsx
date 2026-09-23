@@ -4,7 +4,8 @@ import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertBetween, formatRateLine, type Rates } from '../../lib/rates'
 import { impliedRate } from '../debts/crossPayment'
 import type { DebtDirection, DebtPaymentRow, DebtRow } from '../../types/database.types'
-import { openDebtsFor, prefillFor } from './debtPick'
+import { OverpayConfirm } from '../debts/OverpayConfirm'
+import { debtsForPicker, paymentDebtSide, paymentOverpay, prefillFor } from './debtPick'
 import { blockCls, labelCls } from './roleFields'
 import type { PaymentValue } from './roleSave'
 import { Select } from '../../components/ui'
@@ -23,6 +24,12 @@ interface Props {
   amount: number
   base: CurrencyCode
   rates: Rates
+  /**
+   * Số xoá nợ (tệ khoản nợ) mà người dùng đã bấm "Đúng, ghi trả thừa" cho khoản đang
+   * chọn; null = chưa. State nằm ở TransactionForm vì cổng Lưu (entryGate) cần nó.
+   */
+  overConfirmedAt: number | null
+  onOverConfirm: (confirmedAt: number | null) => void
 }
 
 /**
@@ -44,12 +51,21 @@ export function DebtPickerField({
   amount,
   base,
   rates,
+  overConfirmedAt,
+  onOverConfirm,
 }: Props) {
   const uid = useId()
-  const open = openDebtsFor(debts, payments, direction)
+  // Khoản đã tất toán không vào danh sách mặc định; chỉ giữ khi nó ĐANG được chọn
+  // (xem debtsForPicker) để ô chọn không mất dòng dưới chân người dùng.
+  const open = debtsForPicker(debts, payments, direction, value.debtId)
   const picked = open.find((d) => d.id === value.debtId)
   /** Ví khác tệ với khoản nợ → lần trả mang HAI số, phải hỏi cả hai. */
   const cross = !!picked && picked.currency !== accountCurrency
+  // Trả vượt số còn lại — tính theo TỆ KHOẢN NỢ (khác tệ thì so ô "xoá bao nhiêu nợ",
+  // không so số tiền của ví). Cùng hàm với cổng Lưu ở TransactionForm.
+  const overpay = picked ? paymentOverpay(picked.remaining, value, amount, cross) : 0
+  const debtSide = paymentDebtSide(value, amount, cross)
+  const overConfirmed = overConfirmedAt === debtSide
 
   // Đổi VÍ sang tệ khác SAU khi đã chọn khoản nợ: gieo lại đúng như lúc chọn khoản nợ.
   //
@@ -121,16 +137,23 @@ export function DebtPickerField({
           <option value="">— chọn —</option>
           {open.map((d) => (
             <option key={d.id} value={d.id}>
-              {d.counterparty} · còn {formatMoney(d.remaining, d.currency)}
+              {d.paidOff
+                ? `${d.counterparty} · đã tất toán`
+                : `${d.counterparty} · còn ${formatMoney(d.remaining, d.currency)}`}
             </option>
           ))}
         </Select>
-        {picked && (
-          <p className="mt-1 text-sm text-fg-accent">
-            {direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · còn{' '}
-            {formatMoney(picked.remaining, picked.currency)}
-          </p>
-        )}
+        {picked &&
+          (picked.paidOff ? (
+            <p className="mt-1 text-sm text-state-warn-fg">
+              Khoản này đã tất toán — không còn gì để {direction === 'i_owe' ? 'trả' : 'thu'}.
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-fg-accent">
+              {direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · còn{' '}
+              {formatMoney(picked.remaining, picked.currency)}
+            </p>
+          ))}
       </div>
 
       {/* Trả xuyên tệ: nợ ghi bằng tệ này, tiền lại đi qua ví tệ khác (nợ ¥ mà trả
@@ -159,6 +182,17 @@ export function DebtPickerField({
             return line ? <p className="mt-1 text-sm text-fg-muted">Tỷ giá lần này: {line}</p> : null
           })()}
         </div>
+      )}
+
+      {/* Cùng khung và cùng nút với DebtPaymentSheet (đường vào thứ nhất). Đặt SAU ô
+          "xoá bao nhiêu nợ" vì ở ca khác tệ chính ô đó quyết định có thừa hay không. */}
+      {picked && (
+        <OverpayConfirm
+          overpay={overpay}
+          currency={picked.currency}
+          confirmed={overConfirmed}
+          onToggle={() => onOverConfirm(overConfirmed ? null : debtSide)}
+        />
       )}
 
       {/* Công tắc tạo giao dịch thật — cùng khuôn với DebtFields/DebtPaymentSheet. */}

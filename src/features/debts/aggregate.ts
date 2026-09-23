@@ -60,6 +60,16 @@ export function overpayOf(remaining: number, amount: number): number {
   return Math.max(amount - Math.max(remaining, 0), 0)
 }
 
+/**
+ * Lần trả đã được phép lưu chưa, xét riêng chuyện trả thừa: không thừa thì được; thừa
+ * thì chỉ được khi người dùng đã bấm xác nhận ĐÚNG số đang gõ (`confirmedAt`). Gõ số
+ * khác sau khi xác nhận → phải xác nhận lại. Cả hai đường trả nợ (DebtPaymentSheet và
+ * form Nhập) cùng đi qua đây.
+ */
+export function overpayConfirmed(overpay: number, confirmedAt: number | null, amount: number): boolean {
+  return overpay === 0 || confirmedAt === amount
+}
+
 export interface DebtSummary {
   /** tổng mình nợ còn lại, quy đổi base (minor units) */
   iOwe: number

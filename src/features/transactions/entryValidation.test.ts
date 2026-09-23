@@ -196,6 +196,16 @@ describe('entryGate — dạng đặc biệt', () => {
     ).toBe(true)
   })
 
+  it('tra no: tra vuot so con lai ma chua xac nhan thi khong luu duoc', () => {
+    const payment = { ...initialPayment(), debtId: 'd1' }
+    const g = entryGate(st({ kind: 'repay', payment, paymentOverpayPending: true }))
+    expect(g.canSave).toBe(false)
+    expect(g.missing).toMatch(/trả thừa/)
+    // Da xac nhan (co = false) → luu duoc; khong truyen co → nhu cu.
+    expect(entryGate(st({ kind: 'repay', payment, paymentOverpayPending: false })).canSave).toBe(true)
+    expect(entryGate(st({ kind: 'repay', payment })).canSave).toBe(true)
+  })
+
   it('gửi về VN: đòi tài khoản đích rồi số nhận', () => {
     // remit.kind ('expense'|'transfer') quyết định EntryState.kind là family hay ownvn —
     // xem bảng chuyển đổi task 4: role 'remit' + remit.kind 'transfer' → 'ownvn'.

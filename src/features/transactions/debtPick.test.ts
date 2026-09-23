@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountsForDebt, openDebtsFor, prefillFor } from './debtPick'
+import { accountsForDebt, debtsForPicker, openDebtsFor, paymentOverpay, prefillFor } from './debtPick'
 
 const DEBTS = [
   { id: 'd1', counterparty: 'Lan',  direction: 'i_owe',      currency: 'JPY', principal: 100_000, status: 'open' },
@@ -78,5 +78,53 @@ describe('prefillFor — dien san so con lai', () => {
 
   it('khong tim thay khoan no thi khong dien gi', () => {
     expect(prefillFor(DEBTS, [], 'mat-tieu')).toBeNull()
+  })
+})
+
+describe('debtsForPicker — danh sach chon, khoan da tat toan', () => {
+  const PAID = [{ debt_id: 'd1', amount: 100_000 }] as never[]
+
+  it('mac dinh: khoan da tra het KHONG hien ra', () => {
+    expect(debtsForPicker(DEBTS, PAID, 'i_owe', '').map((d) => d.id)).toEqual(['d4'])
+  })
+
+  it('khoan dang chon da tra het (du lieu vua cap nhat) → van giu, danh dau da tat toan', () => {
+    // Khong giu thi <Select> mat dong dang chon, o "Khoan no nao" trong tron ma debtId van con.
+    const out = debtsForPicker(DEBTS, PAID, 'i_owe', 'd1')
+    expect(out.map((d) => d.id)).toEqual(['d4', 'd1'])
+    expect(out.find((d) => d.id === 'd1')).toMatchObject({ paidOff: true, remaining: 0 })
+    expect(out.find((d) => d.id === 'd4')!.paidOff).toBe(false)
+  })
+
+  it('khoan status settled dang chon cung giu lai, danh dau da tat toan', () => {
+    expect(debtsForPicker(DEBTS, [], 'i_owe', 'd3').find((d) => d.id === 'd3')!.paidOff).toBe(true)
+  })
+
+  it('khong keo khoan SAI CHIEU vao, du dang chon', () => {
+    expect(debtsForPicker(DEBTS, [], 'i_owe', 'd2').map((d) => d.id)).toEqual(['d1', 'd4'])
+  })
+})
+
+describe('paymentOverpay — tra vuot so con lai, theo TE KHOAN NO', () => {
+  const same = { debtId: 'd1', withTransaction: true, debtAmount: null }
+
+  it('cung te: so so voi o tien lon', () => {
+    expect(paymentOverpay(20_000, same, 23_000, false)).toBe(3_000)
+    expect(paymentOverpay(20_000, same, 20_000, false)).toBe(0)
+  })
+
+  it('khac te: so so voi o "xoa bao nhieu no", KHONG voi so tien te vi', () => {
+    // No ¥20.000, tra 4.000.000 ₫ xoa ¥20.000: khong thua gi ca.
+    const cross = { ...same, debtAmount: 20_000 }
+    expect(paymentOverpay(20_000, cross, 4_000_000, true)).toBe(0)
+    expect(paymentOverpay(20_000, { ...same, debtAmount: 25_000 }, 4_000_000, true)).toBe(5_000)
+  })
+
+  it('khac te ma o xoa no chua gieo (null) → khong muon so te vi de bao thua', () => {
+    expect(paymentOverpay(20_000, same, 4_000_000, true)).toBe(0)
+  })
+
+  it('khoan da tra het → ca lan tra la thua', () => {
+    expect(paymentOverpay(0, same, 5_000, false)).toBe(5_000)
   })
 })

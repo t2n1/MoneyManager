@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { DebtDirection, DebtPaymentRow, DebtRow, DebtStatus } from '../../types/database.types'
-import { debtBalance, debtSummary, disbursedOf, overpayOf, paidOf, remainingOf, repaidOf } from './aggregate'
+import { debtBalance, debtSummary, disbursedOf, overpayConfirmed, overpayOf, paidOf, remainingOf, repaidOf } from './aggregate'
 
 let seq = 0
 function debt(
@@ -155,5 +155,20 @@ describe('overpayOf — số trả vượt số còn lại', () => {
   it('còn lại đã ≤ 0 → cả số trả là thừa', () => {
     expect(overpayOf(0, 5_000)).toBe(5_000)
     expect(overpayOf(-2_000, 5_000)).toBe(5_000)
+  })
+})
+
+describe('overpayConfirmed — xac nhan tra thua phai dung so', () => {
+  it('khong thua thi khong can xac nhan', () => {
+    expect(overpayConfirmed(0, null, 15_000)).toBe(true)
+  })
+  it('thua ma chua xac nhan → chua cho luu', () => {
+    expect(overpayConfirmed(3_000, null, 23_000)).toBe(false)
+  })
+  it('xac nhan dung so dang go → cho luu', () => {
+    expect(overpayConfirmed(3_000, 23_000, 23_000)).toBe(true)
+  })
+  it('go so khac sau khi xac nhan → phai xac nhan lai', () => {
+    expect(overpayConfirmed(30_000, 23_000, 50_000)).toBe(false)
   })
 })

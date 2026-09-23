@@ -52,8 +52,8 @@ import {
   pickableCategories,
   REMIT_CATEGORY_NAME,
 } from '../categories/flowCategories'
-import { remainingOf } from '../debts/aggregate'
-import { accountsForDebt } from './debtPick'
+import { overpayConfirmed, remainingOf } from '../debts/aggregate'
+import { accountsForDebt, paymentDebtSide, paymentOverpay } from './debtPick'
 import { DebtPickerField } from './DebtPickerField'
 import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from '../../components/NumPad'
@@ -364,6 +364,12 @@ export function TransactionForm({
   const [debtVal, setDebtVal] = useState<DebtValue>(initialDebt)
   const [remitVal, setRemitVal] = useState<RemitValue>(initialRemit)
   const [paymentVal, setPaymentVal] = useState<PaymentValue>(initialPayment)
+  /**
+   * Xác nhận trả thừa ở dạng Trả nợ/Thu lại: gắn với ĐÚNG khoản nợ và ĐÚNG số xoá nợ
+   * đã bấm — đổi khoản khác hoặc gõ số khác là phải xác nhận lại (cùng luật với
+   * DebtPaymentSheet, xem overpayConfirmed).
+   */
+  const [payOverConfirm, setPayOverConfirm] = useState<{ debtId: string; amount: number } | null>(null)
   /**
    * Chiều nợ và kiểu gửi tiền KHÔNG còn là state riêng — chúng là hạt giống của dạng
    * (bảng entryShape). Trước đây hai segmented con ("Mình nợ | Cho vay",
@@ -785,6 +791,16 @@ export function TransactionForm({
   // đi qua entryValidation.ts. `EntryState` không còn field `plannedMode`: nhánh đó đã
   // xóa khỏi entryGate/kindMissing (fix round 1) vì không còn đường nào gọi tới —
   // "Sẽ chi" luôn rẽ qua `plannedMissing` ở trên, không bao giờ chạm `entryGate`.
+  // Trả nợ vượt số còn lại (tệ khoản nợ) mà chưa xác nhận → cổng Lưu đóng.
+  const payCrossNow = !!payDebt && payDebt.currency !== srcCurrency
+  const payConfirmedAt = payOverConfirm?.debtId === paymentVal.debtId ? payOverConfirm.amount : null
+  const paymentOverpayPending =
+    !!payDebt &&
+    !overpayConfirmed(
+      paymentOverpay(remainingOf(payDebt, allDebtPayments), paymentVal, amount, payCrossNow),
+      payConfirmedAt,
+      paymentDebtSide(paymentVal, amount, payCrossNow),
+    )
   const gate = plannedMode
     ? { canSave: plannedError === null, missing: plannedError }
     : entryGate({
@@ -804,6 +820,7 @@ export function TransactionForm({
         debt: debtValue,
         remit: remitValue,
         payment: paymentVal,
+        paymentOverpayPending,
         splitBackAccountIds: splitBackAccounts.map((a) => a.id),
       })
   const canSave = gate.canSave && !saving
@@ -935,7 +952,10 @@ export function TransactionForm({
     // hai nhánh trên không chạm tới chúng — xử lý riêng ở đây. GIEO LẠI mỗi lần vào
     // hoặc đổi dạng trả nợ: đổi chiều (repay↔collect) thì khoản cũ sai chiều, chưa
     // từng ở dạng này thì chưa có khoản nào để giữ.
-    if (nextShape.writes === 'debtPayment') setPaymentVal(initialPayment())
+    if (nextShape.writes === 'debtPayment') {
+      setPaymentVal(initialPayment())
+      setPayOverConfirm(null)
+    }
     // Vào dạng debtOnly: khoá công tắc giải ngân NGAY, không chờ người dùng. `roleSave`
     // cũng tự chặn (`origin !== 'earned' && v.withTransaction`) — hai lớp, vì
     // `withTransaction` là state sống qua lần đổi dạng.
@@ -1077,6 +1097,7 @@ export function TransactionForm({
           // đúng khoản đó dù ô số tiền đã trắng — số điền sẵn của khoản cũ không còn
           // khớp một lần trả MỚI.
           setPaymentVal(initialPayment())
+          setPayOverConfirm(null)
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
@@ -1598,6 +1619,10 @@ export function TransactionForm({
           amount={amount}
           base={base}
           rates={rates ?? {}}
+          overConfirmedAt={payConfirmedAt}
+          onOverConfirm={(at) =>
+            setPayOverConfirm(at === null ? null : { debtId: paymentVal.debtId, amount: at })
+          }
         />
       )}
 

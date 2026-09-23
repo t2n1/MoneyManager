@@ -2,8 +2,9 @@
 // Chỗ dễ sai của dạng này KHÔNG phải JSX mà là hai phép lọc dưới đây; rút ra module
 // riêng để component chỉ còn việc bày ra (xem DebtPickerField.tsx).
 
-import { remainingOf } from '../debts/aggregate'
+import { overpayOf, remainingOf } from '../debts/aggregate'
 import type { AccountRow, DebtDirection, DebtPaymentRow, DebtRow } from '../../types/database.types'
+import type { PaymentValue } from './roleSave'
 
 /** Khoản nợ kèm số CÒN LẠI đã tính sẵn — bày ra picker không cần tính lại. */
 export type OpenDebt = DebtRow & { remaining: number }
@@ -22,6 +23,62 @@ export function openDebtsFor(
     .filter((d) => d.status === 'open' && d.direction === direction)
     .map((d) => ({ ...d, remaining: remainingOf(d, payments) }))
     .filter((d) => d.remaining > 0)
+}
+
+/** Một dòng của ô "Khoản nợ nào": `paidOff` = đã tất toán (còn ≤ 0 hoặc đã đóng). */
+export type PickerDebt = OpenDebt & { paidOff: boolean }
+
+/**
+ * Danh sách cho ô chọn khoản nợ. Mặc định CHỈ khoản đang mở còn > 0 (openDebtsFor) —
+ * khoản đã trả hết không còn gì để trả, bày ra chỉ mời ghi trả vượt.
+ *
+ * Ngoại lệ: khoản ĐANG ĐƯỢC CHỌN mà đã tất toán (dữ liệu vừa cập nhật dưới chân, ví dụ
+ * một lần trả ở tab khác) thì vẫn giữ, đánh dấu `paidOff`. Bỏ nó đi thì <Select> mất
+ * dòng đang chọn và hiện "— chọn —" trong khi `debtId` vẫn còn — người dùng tưởng
+ * chưa chọn gì mà nút Lưu vẫn sáng. Khoản sai chiều thì không kéo vào, dù đang chọn.
+ * Còn lại ≤ 0 thì `remaining` kẹp về 0 (số "còn" hiển thị không được âm).
+ */
+export function debtsForPicker(
+  debts: DebtRow[],
+  payments: DebtPaymentRow[],
+  direction: DebtDirection,
+  selectedId: string,
+): PickerDebt[] {
+  const list: PickerDebt[] = openDebtsFor(debts, payments, direction).map((d) => ({
+    ...d,
+    paidOff: false,
+  }))
+  if (selectedId && !list.some((d) => d.id === selectedId)) {
+    const d = debts.find((x) => x.id === selectedId && x.direction === direction)
+    if (d) list.push({ ...d, remaining: Math.max(remainingOf(d, payments), 0), paidOff: true })
+  }
+  return list
+}
+
+/**
+ * Lần trả này vượt số còn lại bao nhiêu, tính theo TỆ KHOẢN NỢ.
+ *
+ * Cùng tệ: số xoá nợ chính là ô tiền lớn (`amount`). Khác tệ (nợ ¥, ví ₫): số xoá nợ
+ * là ô "Xoá bao nhiêu nợ" (`payment.debtAmount`) — KHÔNG so ô tiền lớn, vì đó là tiền
+ * của ví (4.000.000 ₫ không "vượt" một khoản nợ ¥20.000). Ô đó chưa gieo (null) thì coi
+ * như 0: mượn số của tệ ví để báo thừa là báo sai.
+ */
+export function paymentOverpay(
+  remaining: number,
+  payment: Pick<PaymentValue, 'debtAmount'>,
+  amount: number,
+  cross: boolean,
+): number {
+  return overpayOf(remaining, paymentDebtSide(payment, amount, cross))
+}
+
+/** Số xoá nợ của lần trả (tệ khoản nợ) — xem paymentOverpay. */
+export function paymentDebtSide(
+  payment: Pick<PaymentValue, 'debtAmount'>,
+  amount: number,
+  cross: boolean,
+): number {
+  return cross ? (payment.debtAmount ?? 0) : amount
 }
 
 /**

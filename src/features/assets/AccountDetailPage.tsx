@@ -10,6 +10,7 @@ import {
   EmptyState,
   IconButton,
   Money,
+  Num,
   PageHeader,
   SectionTitle,
   actionButtonClass,
@@ -49,10 +50,11 @@ import {
   cardBillingRange,
   cardMonthCharge,
   cardMonthReconcileNet,
-  carriedDebt,
+  dueBreakdown,
   statementDueAmount,
 } from './cardMonthCharge'
 import { ACCOUNT_TYPE_LABELS, cardFunding, type CardLiability } from './aggregate'
+import { accountCurrentValue, valueBasisLabel } from './currentValue'
 import { depreciate } from './depreciation'
 import { ngay } from './investFormat'
 import { investmentStats } from './investment'
@@ -64,6 +66,9 @@ import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+
+/** Một dòng của phép cộng ra số bị rút: nhãn · dấu · số. Cột dấu riêng để các dấu thẳng hàng. */
+const DUE_ROW = 'grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-2'
 
 export function AccountDetailPage() {
   const { accountId = '' } = useParams()
@@ -108,6 +113,12 @@ export function AccountDetailPage() {
   // `null` = tài khoản không có sổ lệnh (hoặc đã lưu trữ) → rơi về đường định giá nhập tay.
   // `undefined` = CHƯA BIẾT, sổ lệnh còn đang bay — không được đoán về bên nào.
   const danhMuc = useAccountPortfolio(account)
+  // Giá trị hiện tại + cơ sở của nó — một hàm chung cho mọi màn in "giá trị tài khoản".
+  const currentValue = account
+    ? accountCurrentValue(account, balance, balanceRow?.market_value ?? null, danhMuc, toISODate(new Date()))
+    : null
+  const currentBasisLabel =
+    account && currentValue ? valueBasisLabel(account.type, currentValue.basis) : null
 
   const todayISO = toISODate(new Date())
   // Tài sản cố định: khấu hao tuyến tính (chỉ hiển thị, giá trị nhập tay vẫn thắng)
@@ -287,9 +298,9 @@ export function AccountDetailPage() {
   // Số THẬT SỰ bị rút vào ngày đến hạn của kỳ đang xem. null khi đang xem kỳ khác
   // với kỳ sắp bị rút — lúc đó app không có mốc để lùi số dư về.
   const dueAmount = statementDueAmount(billing, cardStatement)
-  // Nợ các kỳ trước còn dồn trong số bị rút. Có dòng này thì ba dòng tiền trên
-  // panel cộng đúng ra số bị rút, người đọc kiểm lại được bằng tay.
-  const carried = carriedDebt({ dueAmount, charged: monthCharged, reconcileNet: monthReconcileNet })
+  // Số bị rút viết thành phép cộng (quẹt − khoản bù + chuyển từ kỳ trước). null khi
+  // chưa biết số bị rút — panel chỉ in tiền quẹt.
+  const breakdown = dueBreakdown({ dueAmount, charged: monthCharged, reconcileNet: monthReconcileNet })
 
   // Hoá đơn NHÀ THẺ đòi cho kỳ đang xem. Khác `monthCharged` (app tự cộng từ sổ) vì
   // lý do cấu trúc, không phải vì ai ghi sai — xem spec 2026-09-10 §2.
@@ -350,8 +361,16 @@ export function AccountDetailPage() {
           {/* `ngay()` (26/08/12) chứ không `dayMonthLabel` (08/12): bảng nhãn của spec
               liệt "Ngày phiên" là một trong bốn thứ phải nói giống nhau ở hai màn, và
               hai tab của /invest — cách một cú bấm "Xem →" — dùng dạng CÓ NĂM. */}
-          {danhMuc?.session && danhMuc.marketValue != null && (
-            <span className="text-2xs text-fg-muted">giá phiên {ngay(danhMuc.session)}</span>
+          {/* Nhãn CƠ SỞ của số lớn (đầu tư): giá thị trường hay số dư sổ — cùng nhãn với
+              Cài đặt › Tài khoản và Mục tiêu tiết kiệm, để khi hai số lệch nhau người đọc
+              biết vì sao. */}
+          {currentBasisLabel && (
+            <span className="text-2xs text-fg-muted">
+              {currentBasisLabel}
+              {danhMuc?.session && danhMuc.marketValue != null && (
+                <> · phiên {ngay(danhMuc.session)}</>
+              )}
+            </span>
           )}
         </div>
         {/* Tô màu vẫn theo `balance` (số sổ) chứ không theo con số đang hiện: với tài
@@ -367,22 +386,11 @@ export function AccountDetailPage() {
             />
           ) : (
             <Money
-              amount={
-                isInvestment
-                  ? // CÓ sổ lệnh mà `marketValue` là null (tiền chưa mua âm, hoặc thiếu
-                    // giá mọi mã/quỹ) → SỐ DƯ SỔ, đúng chữ của spec. Không rơi về
-                    // `invStats.marketValue`: đó là một snapshot cũ, và khối bên dưới giờ
-                    // nói đúng LÝ DO nào trong hai lý do đó (mượn chữ của InvestStocksTab)
-                    // — số lớn phía trên mà là một ảnh chụp hôm nào đó thì hai dòng nói
-                    // ngược nhau, lại KHÔNG có EstimateMark nào báo là số ước tính.
-                    danhMuc
-                    ? (danhMuc.marketValue ?? balance)
-                    : (invStats.marketValue ?? balance)
-                  : isFixed
-                    ? // Định giá nhập tay thắng công thức khấu hao
-                      (balanceRow?.market_value ?? dep?.currentValue ?? balance)
-                    : balance
-              }
+              // Thứ tự nguồn nằm ở `accountCurrentValue` — CÙNG hàm mà Cài đặt › Tài khoản
+              // và Mục tiêu tiết kiệm gọi, nên ba màn không còn in ba số khác nhau. Có sổ
+              // lệnh mà `marketValue` null → SỐ DƯ SỔ, không rơi về ảnh chụp cũ (khối bên
+              // dưới nói đúng lý do); định giá tay thắng công thức khấu hao.
+              amount={currentValue?.value ?? balance}
               currency={currency}
               tone={balance < 0 ? 'out' : 'neutral'}
             />
@@ -777,115 +785,131 @@ export function AccountDetailPage() {
           là thấy cùng danh sách), kèm nút bù chênh lệch ghi vào chính kỳ đó. */}
       {isCard && account && (
         <Card as="section" padding="lg" className="mb-3">
-          {bill && (
-            <div className="mb-2 flex items-center justify-between gap-2 border-b border-border-subtle pb-2 text-sm">
-              <span className="text-fg-muted">Hoá đơn nhà thẻ</span>
-              <Money
-                amount={bill.total}
-                currency={currency}
-                tone={bill.total > 0 ? 'out' : 'neutral'}
-                className="text-base font-bold"
-              />
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-fg-muted">
-              {billing
-                ? `Quẹt ${dayMonthLabel(billing.start)} – ${dayMonthLabel(billing.closeISO)}`
-                : `Quẹt trong ${formatMonthLabel(activeMonthKey).toLowerCase()}`}
-            </span>
-            {isLoading ? (
-              <span className="text-fg-muted">—</span>
-            ) : (
-              <Money
-                amount={monthCharged}
-                currency={currency}
-                tone={monthCharged > 0 ? 'out' : 'neutral'}
-                className="text-base font-bold"
-              />
-            )}
-          </div>
-          {!isLoading && billGap != null && billGap !== 0 && (
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
-              {/* HAI NHÃN thay vì một nhãn + dấu: `<Money showSign>` lấy dấu từ `tone`, không
-                  từ con số, nên một nhãn duy nhất không thể nói đúng chiều. Tiền lệ ngay trên
-                  panel này: `carried` cũng dùng hai nhãn vì đúng lý do đó.
-                  `tone="warn"` chứ không `in`/`out`: đây là TÌNH TRẠNG đối chiếu, không phải
-                  một lần tiền vào hay ra — xem ghi chú ở `TONE_CLASS` của Money.tsx.
-                  `bill.reviewed` = người dùng đã xem hết dòng lệch trên trang Đối chiếu —
-                  số vẫn hiện (không giấu), nhưng không còn là cảnh báo, nên đổi sang tone
-                  trung tính. */}
-              <span className="text-fg-muted">
-                {bill?.reviewed ? 'Lệch — đã xem hết' : billGap > 0 ? 'Lệch — sổ ghi thừa' : 'Lệch — sổ ghi thiếu'}
-              </span>
-              <Money
-                amount={Math.abs(billGap)}
-                currency={currency}
-                tone={bill?.reviewed ? 'neutral' : 'warn'}
-                className="font-medium"
-              />
-            </div>
-          )}
-          {monthReconcileNet !== 0 && (
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm text-fg-muted">
-              {/* Khoản bù không phải tiền quẹt nên không nằm trong tổng trên —
-                  nhưng nó có trong danh sách bên dưới, phải nói rõ kẻo tưởng cộng sót */}
-              <span>Khoản bù nợ (không tính vào quẹt)</span>
-              <Money
-                amount={Math.abs(monthReconcileNet)}
-                currency={currency}
-                tone={monthReconcileNet > 0 ? 'in' : 'out'}
-                showSign
-                className="font-medium"
-              />
-            </div>
-          )}
-          {/* Nợ kỳ trước dồn sang — mảnh còn thiếu để `quẹt − khoản bù + nợ cũ`
-              cộng đúng ra số bị rút. Thẻ trả sạch mỗi kỳ thì bằng 0 và tự ẩn. */}
-          {carried != null && carried !== 0 && (
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm text-fg-muted">
-              <span>{carried > 0 ? 'Nợ cũ chưa trả hết' : 'Dư từ kỳ trước'}</span>
-              {/* KHÔNG showSign: với tone 'out' nó in dấu '-', đọc thành "bớt đi"
-                  trong khi nợ cũ CỘNG vào hoá đơn. Nhãn và màu đủ nói chiều. */}
-              <Money
-                amount={Math.abs(carried)}
-                currency={currency}
-                tone={carried > 0 ? 'out' : 'in'}
-                className="font-medium"
-              />
-            </div>
-          )}
-          {billing ? (
-            <>
-              {/* Số bị rút đứng cùng cột với tổng quẹt phía trên: đó là cách duy
-                  nhất để thấy ngay hai con số này không bằng nhau. */}
-              <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
-                {dueAmount != null ? (
-                  <>
-                    <span className="text-fg-muted">Bị rút {dueDateLabel(billing.dueISO)}</span>
-                    <Money
-                      amount={dueAmount}
-                      currency={currency}
-                      tone={dueAmount > 0 ? 'out' : 'neutral'}
-                      className="text-base font-bold"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <span className="text-fg-muted">Bị rút ngày</span>
-                    <span className="text-fg-muted">{dueDateLabel(billing.dueISO)}</span>
-                  </>
-                )}
+          {/* PHÉP CỘNG ra số bị rút, đọc từ trên xuống: mỗi dòng mang dấu đúng với vai trò
+              của nó (`dueBreakdown`), dòng cuối "= Bị rút". Bản trước in khoản bù bớt-nợ
+              thành "+¥" xanh trong khi công thức TRỪ nó, in nợ cũ không dấu, và để công
+              thức nằm trong chú thích mã — người đọc không cộng tay lại được.
+              Dấu ở một cột riêng, số thì tone trung tính: dấu ở đây là PHÉP TÍNH, không
+              phải chiều thu/chi, nên không mượn `showSign` (nó lấy dấu từ màu). */}
+          {(() => {
+            const chargedLabel = billing
+              ? `Quẹt ${dayMonthLabel(billing.start)} – ${dayMonthLabel(billing.closeISO)}`
+              : `Quẹt trong ${formatMonthLabel(activeMonthKey).toLowerCase()}`
+            const signOf = (sign: 1 | -1) => <Num tone="muted">{sign < 0 ? '−' : '+'}</Num>
+            // Khoản bù: dấu theo tác động lên số phải trả — bớt nợ là TRỪ. Cùng một dấu
+            // dù đang dựng phép cộng hay không, để hai kỳ đứng cạnh nhau đọc cùng nghĩa.
+            const reconcileRow = (sign: 1 | -1, amount: number) => (
+              <div className={`${DUE_ROW} mt-1.5 text-sm`}>
+                <span className="min-w-0 text-fg-muted">
+                  Khoản bù “Điều chỉnh số nợ”
+                  <span className="block text-2xs">
+                    {sign < 0 ? 'bớt nợ' : 'thêm nợ'} — không tính vào tiền quẹt
+                  </span>
+                </span>
+                {signOf(sign)}
+                <Money amount={amount} currency={currency} className="justify-self-end font-medium" />
               </div>
-              {/* KHÔNG bọc Guide: đây là cảnh báo số không khớp, mất nó ở chế độ
-                  Gọn là người dùng lại đọc nhầm tổng quẹt thành số bị trừ. */}
-              {dueAmount != null && dueAmount !== monthCharged && (
-                <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-                  Số bị rút không bằng tiền quẹt kỳ này — các dòng trên nói vì sao. Đối chiếu với
-                  sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
-                </p>
-              )}
-            </>
+            )
+            if (isLoading) {
+              return (
+                <div className={`${DUE_ROW} text-sm`}>
+                  <span className="text-fg-muted">{chargedLabel}</span>
+                  <span />
+                  <span className="justify-self-end text-fg-muted">—</span>
+                </div>
+              )
+            }
+            if (breakdown && billing) {
+              const owedNow = balance < 0 ? -balance : 0
+              return (
+                <>
+                  {breakdown.lines.map((l) =>
+                    l.key === 'charged' ? (
+                      <div key={l.key} className={`${DUE_ROW} text-sm`}>
+                        <span className="min-w-0 text-fg-muted">{chargedLabel}</span>
+                        {signOf(l.sign)}
+                        <Money amount={l.amount} currency={currency} className="justify-self-end font-medium" />
+                      </div>
+                    ) : l.key === 'reconcile' ? (
+                      <div key={l.key}>{reconcileRow(l.sign, l.amount)}</div>
+                    ) : (
+                      <div key={l.key} className={`${DUE_ROW} mt-1.5 text-sm`}>
+                        {/* KHÔNG gọi là "nợ cũ chưa trả hết": số này là dư nợ ĐẦU KỲ trừ các
+                            lần trả TRONG kỳ, trước khi trừ khoản bù — nên nó có thể lớn hơn cả
+                            số đang nợ, và cái tên cũ làm con số đó đọc như một khoản nợ thật. */}
+                        <span className="min-w-0 text-fg-muted">
+                          Chuyển từ kỳ trước
+                          <span className="block text-2xs">
+                            {l.sign < 0
+                              ? 'đã trả dư ở kỳ trước'
+                              : 'dư nợ đầu kỳ − đã trả trong kỳ'}
+                          </span>
+                          {l.sign > 0 && l.amount > owedNow && (
+                            <span className="block text-2xs">
+                              Lớn hơn số đang nợ ({formatMoney(owedNow, currency)}) vì là số trước
+                              khi trừ khoản bù và các lần trả sau ngày chốt.
+                            </span>
+                          )}
+                        </span>
+                        {signOf(l.sign)}
+                        <Money amount={l.amount} currency={currency} className="justify-self-end font-medium" />
+                      </div>
+                    ),
+                  )}
+                  {/* Vạch kẻ + "=": dòng tổng của phép cộng, đứng cùng cột số với các dòng
+                      trên — cách duy nhất để thấy ngay nó KHÁC tổng quẹt. */}
+                  <div className={`${DUE_ROW} mt-1.5 border-t border-border-subtle pt-1.5 text-sm`}>
+                    <span className="text-fg-primary">Bị rút {dueDateLabel(billing.dueISO)}</span>
+                    <Num tone="muted">=</Num>
+                    <Money
+                      amount={breakdown.total}
+                      currency={currency}
+                      tone={breakdown.total > 0 ? 'out' : 'neutral'}
+                      className="justify-self-end text-base font-bold"
+                    />
+                  </div>
+                </>
+              )
+            }
+            // Không dựng được phép cộng (đang xem kỳ khác kỳ sắp bị rút, hoặc thẻ thiếu
+            // ngày chốt): chỉ in tiền quẹt, khoản bù (nếu có) và ngày rút.
+            return (
+              <>
+                <div className={`${DUE_ROW} text-sm`}>
+                  <span className="min-w-0 text-fg-muted">{chargedLabel}</span>
+                  <span />
+                  <Money
+                    amount={monthCharged}
+                    currency={currency}
+                    tone={monthCharged > 0 ? 'out' : 'neutral'}
+                    className="justify-self-end text-base font-bold"
+                  />
+                </div>
+                {monthReconcileNet !== 0 &&
+                  reconcileRow(monthReconcileNet > 0 ? -1 : 1, Math.abs(monthReconcileNet))}
+                {billing && (
+                  <div className={`${DUE_ROW} mt-1.5 text-sm`}>
+                    <span className="text-fg-muted">Bị rút ngày</span>
+                    <span />
+                    <span className="justify-self-end text-fg-muted">
+                      {dueDateLabel(billing.dueISO)}
+                    </span>
+                  </div>
+                )}
+              </>
+            )
+          })()}
+          {billing ? (
+            /* KHÔNG bọc Guide: đây là cảnh báo số không khớp, mất nó ở chế độ Gọn là người
+               dùng lại đọc nhầm tổng quẹt thành số bị trừ. */
+            !isLoading &&
+            dueAmount != null &&
+            dueAmount !== monthCharged && (
+              <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
+                Số bị rút không bằng tiền quẹt kỳ này — phép cộng trên nói vì sao. Đối chiếu với
+                sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
+              </p>
+            )
           ) : (
             // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
             // thay vì suy ra một ngày rút sai.
@@ -893,6 +917,48 @@ export function AccountDetailPage() {
               Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch. Sửa
               tài khoản để xem đúng kỳ như app thẻ.
             </p>
+          )}
+
+          {/* ĐỐI CHIẾU với hoá đơn nhà thẻ — khối RIÊNG, không thuộc phép cộng trên. Hoá đơn
+              nhà thẻ so với tiền QUẸT (app tự cộng từ sổ), không so với số bị rút; để nó
+              chung một cột với các dòng của phép cộng là mời người đọc cộng cả nó vào. */}
+          {bill && (
+            <div className="mt-3 border-t border-border-subtle pt-2">
+              <SectionTitle role="micro">So với hoá đơn nhà thẻ · không thuộc phép cộng trên</SectionTitle>
+              <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
+                <span className="text-fg-muted">Hoá đơn nhà thẻ</span>
+                <Money
+                  amount={bill.total}
+                  currency={currency}
+                  tone={bill.total > 0 ? 'out' : 'neutral'}
+                  className="font-medium"
+                />
+              </div>
+              {!isLoading && billGap != null && billGap !== 0 && (
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
+                  {/* HAI NHÃN thay vì một nhãn + dấu: `<Money showSign>` lấy dấu từ `tone`,
+                      không từ con số, nên một nhãn duy nhất không thể nói đúng chiều.
+                      `tone="warn"` chứ không `in`/`out`: đây là TÌNH TRẠNG đối chiếu, không
+                      phải một lần tiền vào hay ra — xem ghi chú ở `TONE_CLASS` của Money.tsx.
+                      `bill.reviewed` = người dùng đã xem hết dòng lệch trên trang Đối chiếu —
+                      số vẫn hiện (không giấu), nhưng không còn là cảnh báo, nên đổi sang tone
+                      trung tính. */}
+                  <span className="text-fg-muted">
+                    {bill.reviewed
+                      ? 'Lệch với tiền quẹt — đã xem hết'
+                      : billGap > 0
+                        ? 'Lệch với tiền quẹt — sổ ghi thừa'
+                        : 'Lệch với tiền quẹt — sổ ghi thiếu'}
+                  </span>
+                  <Money
+                    amount={Math.abs(billGap)}
+                    currency={currency}
+                    tone={bill.reviewed ? 'neutral' : 'warn'}
+                    className="font-medium"
+                  />
+                </div>
+              )}
+            </div>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             {/* Hai nút CỐ Ý đứng cạnh nhau và làm hai việc trái nhau: "Nạp sao kê" dẫn

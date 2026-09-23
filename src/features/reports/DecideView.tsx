@@ -33,6 +33,7 @@ import {
   useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
+  addDaysISO,
   addMonths,
   dayMonthLabel,
   getMonthRange,
@@ -41,7 +42,9 @@ import {
 } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
+import { accountMonthlyGrowth, GOAL_SPEED_MONTHS, goalSpeedMonths } from '../assets/goals'
 import { inferredCount, isLiquidAccount } from '../assets/liquidity'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { monthlySeries } from './aggregate'
 import { keptDestinations } from './monthReport'
 import {
@@ -50,6 +53,8 @@ import {
   keptFlow,
   monthsToClose,
   monthYearLabel,
+  outsideTransfersIn,
+  shortMonth,
   sortLevers,
   type LeverRow,
 } from './decide'
@@ -62,11 +67,14 @@ const TIER_DOT: Record<string, string> = {
   now: 'bg-money-in',
   sell: 'bg-fg-warn',
   gone: 'bg-money-out',
+  in: 'bg-fg-muted',
 }
 const TIER_WORD: Record<string, string> = {
   now: 'rút ngay được',
   sell: 'bán mới rút được',
   gone: 'không quay lại',
+  // Tầng ÂM: tiền đổ VÀO các tài khoản được đếm, không phải chỗ phần giữ lại đi.
+  in: 'tiền chuyển vào, không phải để dành',
 }
 
 export function DecideView() {
@@ -125,10 +133,12 @@ export function DecideView() {
 
   // Tiền mặt dày thêm / đầu tư dày thêm: đọc từ BIẾN ĐỘNG SỐ DƯ, không từ thu − chi. Đây
   // chính là chỗ hai tab lệch nhau, nên phải đo bằng nguồn khác.
+  // Ngày CUỐI của cửa sổ (tính cả ngày đó): `range.end` là mốc loại trừ — đầu tháng sau.
+  const lastISO = addDaysISO(range.end, -1)
   const dest = useMemo(
-    () => keptDestinations(txs, accounts, range.start, range.end, base, r),
+    () => keptDestinations(txs, accounts, range.start, lastISO, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [txs, accounts, range.start, range.end, base, rates],
+    [txs, accounts, range.start, lastISO, base, rates],
   )
   const typeOf = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts])
   // Tài khoản được ĐẾM vào các nhịp của tab này: còn dùng, không ẩn, và TÍNH-VÀO-TỔNG.
@@ -171,10 +181,26 @@ export function DecideView() {
     .filter((row) => countedIds.has(row.accountId) && liquidIds.has(row.accountId))
     .reduce((s, row) => s + (row.deltaBase ?? 0), 0)
   const investGrowth = growthBy((t) => t === 'investment')
+  // Tiền chuyển VÀO các tài khoản được đếm từ tài khoản không được đếm (ẩn / lưu trữ /
+  // ngoài tổng). Nó làm "tiền mặt dày thêm" phồng lên mà không phải phần giữ lại — không
+  // tách ra thì "chỗ khác" thành một số âm khổng lồ mang ghi chú "trả nợ gốc".
+  const outside = useMemo(
+    () => outsideTransfersIn(txs, countedIds, range.start, lastISO, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [txs, countedIds, range.start, lastISO, accounts, base, rates],
+  )
 
   const flow = useMemo(
-    () => keptFlow({ kept, cashGrowth, investGrowth, remitTotal, months: monthsCounted }),
-    [kept, cashGrowth, investGrowth, remitTotal, monthsCounted],
+    () =>
+      keptFlow({
+        kept,
+        cashGrowth,
+        investGrowth,
+        remitTotal,
+        months: monthsCounted,
+        outsideIn: outside.net,
+      }),
+    [kept, cashGrowth, investGrowth, remitTotal, monthsCounted, outside.net],
   )
 
   // ---------------------------------------------------------------- thước duy nhất
@@ -280,15 +306,29 @@ export function DecideView() {
   const leverRows = useMemo(() => sortLevers(levers, deprioritise), [levers, deprioritise])
 
   // ---------------------------------------------------------------- mục tiêu
-  const balanceOf = (accountId: string) => {
-    const b = balances.find((x) => x.id === accountId)
-    return b ? b.balance : null
-  }
-  const goalLines = useMemo(
-    () => goalProgress(goals, balanceOf, cashPace, todayISO),
+  // CÙNG phép tính với khu Mục tiêu ở trang Tài sản: giá trị hiện tại của tài khoản gắn mục
+  // tiêu (giá thị trường với tài khoản đầu tư) và nhịp vào/ra của CHÍNH tài khoản đó trong
+  // `goalSpeedMonths` — không phải nhịp tiền mặt chung. Cửa sổ 6 tháng nằm gọn trong 12
+  // tháng giao dịch tab này đã tải, nên không tốn thêm truy vấn nào.
+  const currentValues = useAccountCurrentValues()
+  const currentMonth = monthKeyForDate(todayISO, monthStartDay)
+  const goalLines = useMemo(() => {
+    const speedMonths = goalSpeedMonths(currentMonth)
+    return goalProgress(
+      goals,
+      (g) => ({
+        current:
+          currentValues.get(g.account_id)?.value ??
+          balances.find((b) => b.id === g.account_id)?.balance ??
+          null,
+        currency: currencyOf(g.account_id),
+        monthlyGrowth: accountMonthlyGrowth(g.account_id, txs, speedMonths, monthStartDay),
+      }),
+      currentMonth,
+      monthStartDay,
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [goals, balances, cashPace, todayISO],
-  )
+  }, [goals, currentValues, balances, accounts, txs, currentMonth.year, currentMonth.month, monthStartDay])
 
   if (!isFetched) {
     return <EmptyState>Đang tính…</EmptyState>
@@ -314,19 +354,66 @@ export function DecideView() {
         // Bản NGẮN là bản phần lớn người dùng thấy (chế độ Gọn là mặc định), nên nó phải
         // đúng ở cả ba nhánh — kể cả nhánh 0%, chỗ mà "0% không rút ngay được" đọc như một
         // lời cảnh báo trong khi nó là tin tốt.
+        //
+        // Nhánh 'unclear': các tầng lệch nhau quá xa (tiền mặt dày hơn hẳn phần giữ lại, hoặc
+        // phần chưa tách được lớn hơn cả phần giữ lại) — KHÔNG kết luận phần giữ lại nằm ở
+        // đâu. Bản trước kẹp tỷ lệ về 0% rồi nói "nằm hết ở tiền mặt" từ giữ lại ¥241.891 và
+        // tiền mặt dày ¥5.894.972.
         short={
-          flow.illiquidPct === null
+          flow.verdict === 'none'
             ? `${monthsCounted} tháng chưa giữ lại được`
-            : flow.illiquidPct === 0
-              ? 'Phần giữ lại nằm hết ở tiền mặt'
-              : `${flow.illiquidPct}% phần giữ lại không rút ngay được`
+            : flow.verdict === 'unclear'
+              ? flow.cashGrowth > flow.kept
+                ? 'Tiền mặt tăng hơn phần giữ lại — chưa kết luận được'
+                : 'Phần giữ lại chưa tách rõ — chưa kết luận được'
+              : flow.illiquidPct === 0
+                ? 'Phần giữ lại nằm hết ở tiền mặt'
+                : `${flow.illiquidPct}% phần giữ lại không rút ngay được`
         }
       >
-        {flow.illiquidPct === null ? (
+        {flow.verdict === 'none' ? (
           <>
             {monthsCounted} tháng qua chi bằng hoặc hơn thu, nên chưa có phần giữ lại nào để nói
             nó đã đi đâu.
           </>
+        ) : flow.verdict === 'unclear' ? (
+          (() => {
+            const inflows = flow.tiers.filter((t) => t.amount < 0 && t.key !== 'cash')
+            const inflowWord: Record<string, string> = {
+              investOut: 'rút từ đầu tư',
+              outside: 'từ tài khoản ngoài tổng',
+              other: 'từ chỗ app chưa tách được',
+            }
+            return (
+              <>
+                {flow.cashGrowth > flow.kept ? (
+                  <>
+                    Tiền mặt tăng <b>{money(flow.cashGrowth)}</b>, nhiều hơn phần giữ lại (
+                    <b>{money(flow.kept)}</b>)
+                  </>
+                ) : (
+                  <>
+                    Phần giữ lại <b>{money(flow.kept)}</b> không khớp với biến động số dư
+                  </>
+                )}
+                {inflows.length > 0 ? (
+                  <>
+                    {' '}vì có tiền chuyển vào từ ngoài:{' '}
+                    {inflows.map((t, i) => (
+                      <span key={t.key}>
+                        {i > 0 && ', '}
+                        {inflowWord[t.key]} <b>{money(-t.amount)}</b>
+                      </span>
+                    ))}
+                    .
+                  </>
+                ) : (
+                  '.'
+                )}{' '}
+                Nên chưa nói được phần giữ lại đang nằm ở đâu — xem từng tầng bên dưới.
+              </>
+            )
+          })()
         ) : flow.illiquidPct === 0 ? (
           <>
             Giữ lại <b>{money(kept / monthsCounted)}</b>/tháng, và <b>toàn bộ</b> phần đó nằm ở
@@ -621,14 +708,24 @@ export function DecideView() {
                     />
                   </span>
                   <span className="text-2xs text-fg-muted">
-                    <Money amount={g.current} currency={base} className="text-2xs" /> /{' '}
-                    <Money amount={g.target} currency={base} className="text-2xs" />
+                    {/* Tiền CỦA TÀI KHOẢN gắn mục tiêu — số đích nhập theo tiền đó. Bản trước
+                        in số tài khoản ₫ với ký hiệu ¥ của base. */}
+                    <Money amount={g.current} currency={g.currency} className="text-2xs" /> /{' '}
+                    <Money amount={g.target} currency={g.currency} className="text-2xs" />
                     {g.done ? (
                       ' · đã đạt'
-                    ) : g.etaISO !== null ? (
-                      <> · theo nhịp tới {monthYearLabel(g.etaISO)}</>
+                    ) : g.etaMonth !== null ? (
+                      <>
+                        {' '}
+                        · theo nhịp tới {shortMonth(g.etaMonth)}
+                        {g.vsDeadline === 'behind' && ' — trễ hơn hạn bạn đặt'}
+                      </>
+                    ) : g.monthlyGrowth < 0 ? (
+                      ' · số dư đang giảm, chưa tiến về đích'
                     ) : (
-                      ' · chưa đo được nhịp'
+                      // Cùng câu với khu Mục tiêu ở trang Tài sản — hai màn cùng nói "chưa đo
+                      // được" thay vì một bên hứa một tháng cụ thể.
+                      ' · chưa đo được tốc độ tích lũy'
                     )}
                     {g.targetDate !== null && <> · bạn đặt hạn {monthYearLabel(g.targetDate)}</>}
                   </span>
@@ -636,8 +733,9 @@ export function DecideView() {
               ))}
             </ul>
             <Guide className="mt-2 text-2xs text-fg-muted">
-              Mốc “theo nhịp” dùng nhịp tiền mặt dày thêm của {monthsCounted} tháng qua (
-              {money(cashPace)}/tháng), nên nó đổi khi nhịp đổi — không phải một lời hứa.
+              Mốc “theo nhịp” dùng nhịp tiền vào/ra của CHÍNH tài khoản gắn mục tiêu trong{' '}
+              {GOAL_SPEED_MONTHS} tháng qua — cùng cách tính với trang Tài sản — nên nó đổi khi nhịp đổi, không phải
+              một lời hứa.
             </Guide>
           </Card>
         )}

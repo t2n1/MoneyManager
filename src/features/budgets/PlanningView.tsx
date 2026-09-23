@@ -38,9 +38,9 @@ import {
 } from '../../hooks/queries'
 import { formatMonthLabel, monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import { monthlyNeeded } from '../assets/goals'
+import { goalsMonthlyNeed } from '../assets/goals'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { TagPlanBlock } from '../tags/TagPlanBlock'
 import { BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
 import { axisSuggestions, sliderScale } from './axisSuggest'
@@ -285,22 +285,24 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
 
   // Mục tiêu tiết kiệm gửi sang đúng MỘT con số: cần để riêng bao nhiêu mỗi tháng.
   // Trang này không cần biết mục tiêu tên gì hay tới bao giờ — chuyện đó ở tab Tài sản.
-  const goalNeed = useMemo(() => {
-    let sum = 0
-    for (const g of goals) {
-      const bal = balances.find((b) => b.id === g.account_id)
-      const need = monthlyNeeded(
-        Math.max(0, g.target_amount - Math.max(0, bal?.balance ?? 0)),
-        g.target_date,
+  // Trừ GIÁ TRỊ HIỆN TẠI (giá thị trường với tài khoản đầu tư), không trừ số dư sổ — cùng số
+  // khối Mục tiêu ở tab Tài sản và tab Quyết định dùng để in tiến độ.
+  const currentValues = useAccountCurrentValues()
+  const goalNeed = useMemo(
+    () =>
+      goalsMonthlyNeed(
+        goals,
+        (id) => {
+          const bal = balances.find((b) => b.id === id)
+          if (!bal) return undefined
+          return { value: currentValues.get(id)?.value ?? bal.balance, currency: bal.currency }
+        },
         monthKey,
-        1,
-      )
-      if (need === null) continue
-      const v = convertToBase(need, bal?.currency ?? base, base, rates ?? {})
-      if (v !== null) sum += v
-    }
-    return sum
-  }, [goals, balances, monthKey, base, rates])
+        base,
+        rates ?? {},
+      ),
+    [goals, balances, currentValues, monthKey, base, rates],
+  )
 
   const over = summary.unallocated < 0
   // Câu phán: ngưỡng, cách nối mệnh đề và ca "chưa biết thu nhập" nằm ở planVerdict.ts

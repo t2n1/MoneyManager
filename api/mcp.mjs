@@ -51783,6 +51783,9 @@ function statusOf(ratio) {
   if (ratio >= 0.8) return "warn";
   return "ok";
 }
+function budgetRatio(spent, budgeted) {
+  return budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0;
+}
 function isTrackingMarker(categoryId, parentOf, budgetedIds) {
   const parent = parentOf(categoryId);
   return parent != null && budgetedIds.has(parent);
@@ -51817,7 +51820,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0;
     const budgeted = b.amount + carried;
     const spent = isMarker ? spentByCat.get(b.category_id) ?? 0 : groupSpent(b.category_id);
-    const ratio = budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0;
+    const ratio = budgetRatio(spent, budgeted);
     const status = statusOf(ratio);
     if (!isMarker) {
       if (status === "over") overCount++;
@@ -51828,7 +51831,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
     lines.push({ categoryId: b.category_id, budgeted, carried, spent, ratio, status, isMarker });
   }
   lines.sort((a, b) => b.ratio - a.ratio);
-  const totalRatio = totalBudgeted > 0 ? totalSpent / totalBudgeted : 0;
+  const totalRatio = budgetRatio(totalSpent, totalBudgeted);
   const totalStatus = statusOf(totalRatio);
   return {
     lines,

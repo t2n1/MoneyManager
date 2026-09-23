@@ -52,11 +52,27 @@ describe('tinhFurusato', () => {
     expect(tinhFurusato({ ...base, txs: [], suatBien: 0.05 }).ketLuan.trang_thai).toBe('thieu-du-lieu')
     expect(tinhFurusato({ ...base, txs: phieu12(), suatBien: null }).tran).toBeNull()
   })
-  it('chưa có danh mục furusato → co_danh_muc false, vẫn tính trần', () => {
+  it('chưa có danh mục furusato → co_danh_muc false, vẫn tính trần, nhưng KHÔNG "Xong" — chưa đủ dữ liệu', () => {
     const r = tinhFurusato({ ...base, categories: categories.slice(0, 2), txs: phieu12(), suatBien: 0.05 })
     expect(r.co_danh_muc).toBe(false)
     expect(r.tran).toBe(34_746)
     expect(r.ketLuan.ly_do.join(' ')).toMatch(/danh mục/)
+    expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
+    expect(r.ketLuan.viec).toMatch(/danh mục/)
+  })
+  it('chưa có danh mục, kể cả từ 1/10 → vẫn thieu-du-lieu (chưa biết ≠ 0), không nhắc "còn trần"', () => {
+    const r = tinhFurusato({ ...base, todayISO: '2026-10-02', categories: categories.slice(0, 2), txs: phieu12(), suatBien: 0.05 })
+    expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
+  })
+  it('có danh mục, đã gửi ¥0, trước 1/10 → chua-dung, không phải du', () => {
+    const r = tinhFurusato({ ...base, txs: phieu12(), suatBien: 0.05 })
+    expect(r.da_gui).toBe(0)
+    expect(r.ketLuan.trang_thai).toBe('chua-dung')
+    expect(r.ketLuan.viec).toMatch(/Chưa gửi/)
+  })
+  it('năm cũ, có danh mục, đã gửi ¥0 → chua-dung', () => {
+    const r = tinhFurusato({ ...base, year: 2025, txs: phieu12(), suatBien: 0.05 })
+    expect(r.ketLuan.trang_thai).toBe('chua-dung')
   })
   it('hoàn 住民税 (is_refund) trừ khỏi tổng', () => {
     const r = tinhFurusato({ ...base, txs: [...phieu12(), tx({ category_id: 'ju', amount: 24_000, is_refund: true, occurred_on: '2026-06-25' })], suatBien: 0.05 })

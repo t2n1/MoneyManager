@@ -38,9 +38,9 @@ export interface LuatNam {
   furusato: { tuChiu: number; tyLeShotokuWari: number }
   nisa: { tsumitate: number; growth: number; tongDoi: number }
   iryohi: {
-    /** Ngưỡng trừ nhánh chính (yên). Vế min-5%-tổng-thu-nhập cố ý bỏ — mọi số của
-     *  khoản ⑤ là CẬN DƯỚI (spec iryohi §4): thu nhập thấp thì ngưỡng thật thấp hơn,
-     *  khấu trừ thật chỉ lớn hơn. */
+    /** Ngưỡng trừ nhánh chính (yên). Vế min-5%-tổng-thu-nhập cố ý bỏ (app không ước nổi
+     *  総所得金額等): thu nhập thấp thì ngưỡng thật thấp hơn. KHÔNG làm số khoản ⑤ thành cận
+     *  dưới — app còn đếm dư ở chỗ khác, xem đầu iryohi.ts. */
     nguong: number
     tranKhauTru: number
     selfMed: {

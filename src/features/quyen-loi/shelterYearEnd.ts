@@ -34,6 +34,8 @@ export interface ShelterKetQua {
   tai_khoan: ShelterTaiKhoan[]
   /** Σ remaining của tài khoản CÓ hạn mức. */
   con_lai: number
+  /** Σ đã nạp năm `year` qua mọi tài khoản NISA/iDeCo. */
+  da_nap: number
 }
 
 export function tinhShelterYearEnd(input: ShelterInput): ShelterKetQua {
@@ -49,18 +51,25 @@ export function tinhShelterYearEnd(input: ShelterInput): ShelterKetQua {
   const ly_do = ['Hạn mức NISA không dùng là mất, không dồn sang năm sau (金融庁).']
   if (tai_khoan.some((t) => t.limit === null)) ly_do.push('Có tài khoản chưa đặt hạn mức năm — sửa ở Cài đặt › Tài khoản.')
 
+  const da_nap = tai_khoan.reduce((s, t) => s + t.used, 0)
+  const nam = input.year === namNay ? 'năm nay' : `năm ${input.year}`
+  // Câu nói SỐ TIỀN đã nạp — "đã nạp 1 tài khoản" nghe như xong dù nạp ¥0.
   let trang_thai: KetLuan['trang_thai'] = 'du'
-  let viec = `Đã nạp ${tai_khoan.length} tài khoản ưu đãi thuế năm nay`
+  let viec = `Đã nạp ${input.fmt(da_nap)} vào NISA/iDeCo ${nam}`
   if (tai_khoan.length === 0) {
     trang_thai = 'thieu-du-lieu'
     viec = 'Chưa tài khoản nào được đánh dấu NISA/iDeCo'
   } else if (muaNhac && con_lai > 0) {
     trang_thai = 'thieu'
     viec = `Còn ${input.fmt(con_lai)} hạn mức NISA/iDeCo chưa dùng · hết 31/12`
+  } else if (da_nap <= 0) {
+    trang_thai = 'chua-dung'
+    viec = `Chưa nạp đồng nào vào NISA/iDeCo ${nam}`
   }
   return {
     ketLuan: { id: 'shelter', year: input.year, trang_thai, muc: 'low', tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },
     tai_khoan,
     con_lai,
+    da_nap,
   }
 }

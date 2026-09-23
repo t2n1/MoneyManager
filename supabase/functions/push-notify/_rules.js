@@ -2662,9 +2662,15 @@ function tinhFurusato(input) {
   } else if (tran === null) {
     trang_thai = "thieu-du-lieu";
     viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u6240\u5F97\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
+  } else if (!co_danh_muc) {
+    trang_thai = "thieu-du-lieu";
+    viec = `Tr\u1EA7n \u2248 ${input.fmt(tran)} \xB7 t\u1EA1o danh m\u1EE5c "${FURUSATO_CATEGORY_NAME}" \u0111\u1EC3 app \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu`;
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = "thieu";
     viec = `C\xF2n \u2248 ${input.fmt(con_lai)} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+  } else if (da_gui <= 0) {
+    trang_thai = "chua-dung";
+    viec = input.year < namNay ? `N\u0103m ${input.year} ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o \xB7 tr\u1EA7n khi \u0111\xF3 \u2248 ${input.fmt(tran)}` : `Ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o n\u0103m nay \xB7 tr\u1EA7n \u2248 ${input.fmt(tran)}, h\u1EBFt 31/12`;
   } else if (input.year < namNay) {
     trang_thai = "het-han";
     viec = `N\u0103m ${input.year} \u0111\xE3 g\u1EEDi ${input.fmt(da_gui)} tr\xEAn tr\u1EA7n \u2248 ${input.fmt(tran)}`;
@@ -2782,19 +2788,25 @@ function tinhShelterYearEnd(input) {
   const muaNhac = input.year === namNay && Number(input.todayISO.slice(5, 7)) >= THANG_NHAC_CUOI_NAM;
   const ly_do = ["H\u1EA1n m\u1EE9c NISA kh\xF4ng d\xF9ng l\xE0 m\u1EA5t, kh\xF4ng d\u1ED3n sang n\u0103m sau (\u91D1\u878D\u5E81)."];
   if (tai_khoan.some((t) => t.limit === null)) ly_do.push("C\xF3 t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1EB7t h\u1EA1n m\u1EE9c n\u0103m \u2014 s\u1EEDa \u1EDF C\xE0i \u0111\u1EB7t \u203A T\xE0i kho\u1EA3n.");
+  const da_nap = tai_khoan.reduce((s, t) => s + t.used, 0);
+  const nam = input.year === namNay ? "n\u0103m nay" : `n\u0103m ${input.year}`;
   let trang_thai = "du";
-  let viec = `\u0110\xE3 n\u1EA1p ${tai_khoan.length} t\xE0i kho\u1EA3n \u01B0u \u0111\xE3i thu\u1EBF n\u0103m nay`;
+  let viec = `\u0110\xE3 n\u1EA1p ${input.fmt(da_nap)} v\xE0o NISA/iDeCo ${nam}`;
   if (tai_khoan.length === 0) {
     trang_thai = "thieu-du-lieu";
     viec = "Ch\u01B0a t\xE0i kho\u1EA3n n\xE0o \u0111\u01B0\u1EE3c \u0111\xE1nh d\u1EA5u NISA/iDeCo";
   } else if (muaNhac && con_lai > 0) {
     trang_thai = "thieu";
     viec = `C\xF2n ${input.fmt(con_lai)} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+  } else if (da_nap <= 0) {
+    trang_thai = "chua-dung";
+    viec = `Ch\u01B0a n\u1EA1p \u0111\u1ED3ng n\xE0o v\xE0o NISA/iDeCo ${nam}`;
   }
   return {
     ketLuan: { id: "shelter", year: input.year, trang_thai, muc: "low", tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },
     tai_khoan,
-    con_lai
+    con_lai,
+    da_nap
   };
 }
 
@@ -2831,7 +2843,8 @@ function tinhIryohi(input) {
   const nhanh = khau_tru === 0 ? null : khau_tru_chinh >= khau_tru_self ? "chinh" : "self";
   const tiet_kiem_uoc = khau_tru > 0 && input.suatBien !== null ? tienTietKiem(khau_tru, khau_tru, input.suatBien, luat) : null;
   const ly_do = [
-    "S\u1ED1 \u01B0\u1EDBc l\xE0 C\u1EACN D\u01AF\u1EDAI: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026), b\u1ECF s\xF3t ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (n\u1EB1m \u1EDF T\xE0u \u0111i\u1EC7n), v\xE0 kh\xF4ng tr\u1EEB \u0111\u01B0\u1EE3c ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9 \u2014 ng\u01B0\u1EE1ng th\u1EADt c\xF2n c\xF3 th\u1EC3 th\u1EA5p h\u01A1n 10\u4E07 n\u1EBFu thu nh\u1EADp th\u1EA5p."
+    "S\u1ED1 c\xF3 th\u1EC3 cao h\u01A1n th\u1EF1c t\u1EBF: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026) v\xE0 ch\u01B0a tr\u1EEB ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9.",
+    "Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF T\xE0u \u0111i\u1EC7n) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100.000."
   ];
   if (!co_danh_muc)
     ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${IRYOHI_CATEGORY_NAMES.join('" / "')}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.`);
@@ -2846,13 +2859,18 @@ function tinhIryohi(input) {
   let trang_thai;
   let viec;
   let han = null;
-  if (khau_tru > 0 && input.year === namNay) {
+  const toKhai = input.deXuatKhaiThue ? "c\xF9ng t\u1EDD \u78BA\u5B9A\u7533\u544A c\u1EE7a kho\u1EA3n ph\u1EE5 thu\u1ED9c" : "trong \u78BA\u5B9A\u7533\u544A";
+  if (nhanh === "chinh" && input.year === namNay) {
     trang_thai = "thieu";
     han = `${input.year + 1}-03-15`;
-    viec = `Chi y t\u1EBF \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n, khai \u533B\u7642\u8CBB\u63A7\u9664 ${input.deXuatKhaiThue ? "c\xF9ng t\u1EDD \u78BA\u5B9A\u7533\u544A c\u1EE7a kho\u1EA3n ph\u1EE5 thu\u1ED9c" : "trong \u78BA\u5B9A\u7533\u544A"} tr\u01B0\u1EDBc 15/3`;
-  } else if (khau_tru > 0) {
+    viec = `Chi y t\u1EBF ${input.fmt(chi_y)} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.nguong)} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n, khai \u533B\u7642\u8CBB\u63A7\u9664 ${toKhai} tr\u01B0\u1EDBc 15/3`;
+  } else if (nhanh === "self" && input.year === namNay) {
+    trang_thai = "thieu";
+    han = `${input.year + 1}-03-15`;
+    viec = `Chi thu\u1ED1c ${input.fmt(chi_thuoc)} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.selfMed.nguong)} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n thu\u1ED1c \u2605, khai \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ${toKhai} tr\u01B0\u1EDBc 15/3`;
+  } else if (nhanh !== null) {
     trang_thai = "het-han";
-    viec = `N\u0103m ${input.year} chi y t\u1EBF ${input.fmt(chi_y)}, kh\u1EA5u tr\u1EEB \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}`;
+    viec = nhanh === "chinh" ? `N\u0103m ${input.year} chi y t\u1EBF ${input.fmt(chi_y)}, \u533B\u7642\u8CBB\u63A7\u9664 \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}` : `N\u0103m ${input.year} chi thu\u1ED1c ${input.fmt(chi_thuoc)}, \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}`;
   } else {
     trang_thai = "du";
     viec = `Chi y t\u1EBF ${input.fmt(chi_y)} / ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.nguong)} \u2014 ch\u01B0a t\u1EDBi m\u1EE9c kh\u1EA5u tr\u1EEB`;
@@ -2875,6 +2893,9 @@ function tinhIryohi(input) {
     khau_tru_self,
     khau_tru,
     nhanh,
+    nguong_self: luat.iryohi.selfMed.nguong,
+    tran_self: luat.iryohi.selfMed.tran,
+    self_ap_dung: selfConHieuLuc,
     co_danh_muc
   };
 }

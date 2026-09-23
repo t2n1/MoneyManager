@@ -2,10 +2,10 @@
 // Bốn khối theo THỨ TỰ TIỀN: ① phụ thuộc nước ngoài, ② đòi lại năm cũ, ③ furusato, ④ NISA.
 // Mỗi khối: một câu kết luận → một con số (≈) → bảng chi tiết → nguồn luật → nút.
 // Trang KHÔNG tính một con số nào: mọi số đến từ useQuyenLoi → tinhQuyenLoi.
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { ActionButton, Card, EmptyState, Money, Num, PageHeader, SectionTitle, Select } from '../../components/ui'
+import { ActionButton, Card, EmptyState, Money, Num, PageHeader, SectionTitle, Select, StatusChip, type StatusTone } from '../../components/ui'
 import { EstimateMark } from '../../components/EstimateMark'
 import { useCreateCategory, useProfile, useRelatives, useUpdateProfile } from '../../hooks/queries'
 import { calendarYearOf, toISODate } from '../../lib/dates'
@@ -21,11 +21,57 @@ import type { RelativeRow } from '../../types/database.types'
 
 const NHOM_NHAN: Record<string, string> = { '<16': 'dưới 16', '16-29': '16–29', '30-69': '30–69', '70+': 'từ 70' }
 
+// "Xong" chỉ khi đã thật sự dùng; đếm được mà bằng 0 là "Chưa dùng", không đếm được là
+// "Chưa đủ dữ liệu" (ketLuan.ts: chưa biết ≠ 0). Chữ luôn đi kèm — màu không phải kênh duy nhất.
+const TRANG_THAI: Record<KetLuan['trang_thai'], { nhan: string; tone: StatusTone }> = {
+  du: { nhan: 'Xong', tone: 'good' },
+  thieu: { nhan: 'Cần làm', tone: 'warn' },
+  'chua-dung': { nhan: 'Chưa dùng', tone: 'warn' },
+  'het-han': { nhan: 'Đã qua', tone: 'info' },
+  'thieu-du-lieu': { nhan: 'Chưa đủ dữ liệu', tone: 'info' },
+}
+
 function TrangThaiChu({ k }: { k: KetLuan }) {
-  const map: Record<KetLuan['trang_thai'], string> = {
-    du: 'Xong', thieu: 'Cần làm', 'het-han': 'Đã qua', 'thieu-du-lieu': 'Thiếu dữ liệu',
-  }
-  return <SectionTitle role="micro" as="h3">{map[k.trang_thai]}</SectionTitle>
+  const t = TRANG_THAI[k.trang_thai]
+  return <StatusChip tone={t.tone} className="shrink-0">{t.nhan}</StatusChip>
+}
+
+function CheDoIryohi({ ten, dieuKien, nhanChi, chi, nguong, khauTru, thang, lyDo }: {
+  ten: string
+  dieuKien: ReactNode
+  nhanChi: string
+  chi: number
+  nguong: number
+  khauTru: number
+  thang: boolean
+  lyDo: string
+}) {
+  return (
+    <div className={`rounded-lg border p-3 ${thang ? 'border-accent' : 'border-border-panel'}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <SectionTitle as="h3">{ten}</SectionTitle>
+        {thang && <StatusChip tone="good" className="shrink-0">Lợi hơn</StatusChip>}
+      </div>
+      <p className="mt-1 text-2xs text-fg-muted">{dieuKien}</p>
+      <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <dt className="text-2xs text-fg-muted">{nhanChi}</dt>
+          <dd><Money amount={chi} currency="JPY" /></dd>
+        </div>
+        <div>
+          <dt className="text-2xs text-fg-muted">Ngưỡng</dt>
+          <dd><Money amount={nguong} currency="JPY" /></dd>
+        </div>
+        <div>
+          <dt className="text-2xs text-fg-muted">Khấu trừ</dt>
+          <dd>
+            <Money amount={khauTru} currency="JPY" tone={khauTru > 0 ? 'in' : 'neutral'} />
+            {khauTru > 0 && <EstimateMark reason={lyDo} />}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  )
 }
 
 function NguonLuat({ year }: { year: number }) {
@@ -207,8 +253,9 @@ export function QuyenLoiPage() {
             {ketQua.furusato.tran !== null && (
               <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
                 <div><dt className="text-2xs text-fg-muted">Trần</dt><dd><Money amount={ketQua.furusato.tran} currency="JPY" /><EstimateMark reason={ketQua.furusato.ketLuan.ly_do[0]} /></dd></div>
-                <div><dt className="text-2xs text-fg-muted">Đã gửi</dt><dd><Money amount={ketQua.furusato.da_gui} currency="JPY" /></dd></div>
-                <div><dt className="text-2xs text-fg-muted">Còn lại</dt><dd><Money amount={ketQua.furusato.con_lai ?? 0} currency="JPY" tone="in" /></dd></div>
+                {/* Không có danh mục thì KHÔNG đếm được: đừng in ¥0 và "còn nguyên trần" (chưa biết ≠ 0). */}
+                <div><dt className="text-2xs text-fg-muted">Đã gửi</dt><dd>{ketQua.furusato.co_danh_muc ? <Money amount={ketQua.furusato.da_gui} currency="JPY" /> : <span className="text-fg-muted">Chưa đếm được</span>}</dd></div>
+                <div><dt className="text-2xs text-fg-muted">Còn lại</dt><dd>{ketQua.furusato.co_danh_muc ? <Money amount={ketQua.furusato.con_lai ?? 0} currency="JPY" tone="in" /> : <span className="text-fg-muted">Chưa đếm được</span>}</dd></div>
               </dl>
             )}
             <ul className="mt-2 list-disc pl-5 text-2xs text-fg-muted">
@@ -247,36 +294,56 @@ export function QuyenLoiPage() {
             </ul>
           </Card>
 
-          {/* ⑤ 医療費控除 — chi y tế so với ngưỡng, hai nhánh chọn một (spec iryohi-kojo) */}
+          {/* ⑤ 医療費控除 / セルフメディケーション — hai chế độ, chọn một (spec iryohi-kojo) */}
           <Card as="section" padding="lg">
             <div className="flex items-baseline justify-between gap-2">
-              <SectionTitle>Khấu trừ chi phí y tế (医療費控除)</SectionTitle>
+              <SectionTitle>Khấu trừ chi phí y tế</SectionTitle>
               <TrangThaiChu k={ketQua.iryohi.ketLuan} />
             </div>
             <p className="mt-2 text-base font-medium text-fg-primary">{ketQua.iryohi.ketLuan.viec}</p>
-            <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <dt className="text-2xs text-fg-muted">Chi y tế</dt>
-                <dd><Money amount={ketQua.iryohi.chi_y} currency="JPY" /></dd>
-              </div>
-              <div>
-                <dt className="text-2xs text-fg-muted">Ngưỡng</dt>
-                <dd><Money amount={ketQua.iryohi.nguong} currency="JPY" /></dd>
-              </div>
-              <div>
-                <dt className="text-2xs text-fg-muted">Khấu trừ</dt>
-                <dd>
-                  <Money amount={ketQua.iryohi.khau_tru} currency="JPY" tone={ketQua.iryohi.khau_tru > 0 ? 'in' : 'neutral'} />
-                  <EstimateMark reason={ketQua.iryohi.ketLuan.ly_do[0]} />
-                </dd>
-              </div>
-            </dl>
-            {ketQua.iryohi.ketLuan.tiet_kiem_uoc !== null && (
-              <p className="mt-2 text-sm text-fg-secondary">
-                Thuế bớt được ≈ <Money amount={ketQua.iryohi.ketLuan.tiet_kiem_uoc} currency="JPY" tone="in" />
-                {ketQua.iryohi.nhanh === 'self' && <> · theo nhánh セルフメディケーション</>}
-              </p>
-            )}
+            {/* Hai chế độ, mỗi cái điều kiện + số riêng. Luật cấm cộng dồn: chỉ được chọn MỘT. */}
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <CheDoIryohi
+                ten="医療費控除"
+                dieuKien="Chi khám, chữa bệnh, thuốc trong năm — phần vượt ngưỡng được trừ (tối đa ¥2.000.000)."
+                nhanChi="Chi y tế"
+                chi={ketQua.iryohi.chi_y}
+                nguong={ketQua.iryohi.nguong}
+                khauTru={ketQua.iryohi.khau_tru_chinh}
+                thang={ketQua.iryohi.nhanh === 'chinh'}
+                lyDo={ketQua.iryohi.ketLuan.ly_do[0]}
+              />
+              {ketQua.iryohi.self_ap_dung ? (
+                <CheDoIryohi
+                  ten="セルフメディケーション"
+                  dieuKien={<>Chỉ thuốc mua ngoài có dấu ★, cần khám sức khỏe trong năm. Trần <Money amount={ketQua.iryohi.tran_self} currency="JPY" />.</>}
+                  nhanChi="Chi thuốc"
+                  chi={ketQua.iryohi.chi_thuoc}
+                  nguong={ketQua.iryohi.nguong_self}
+                  khauTru={ketQua.iryohi.khau_tru_self}
+                  thang={ketQua.iryohi.nhanh === 'self'}
+                  lyDo={ketQua.iryohi.ketLuan.ly_do[0]}
+                />
+              ) : (
+                <div className="rounded-lg border border-border-panel p-3 text-sm text-fg-muted">
+                  セルフメディケーション không còn áp dụng cho năm {year}.
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-fg-secondary">
+              Chỉ được chọn một trong hai.{' '}
+              {ketQua.iryohi.nhanh === null ? (
+                <>Chưa cái nào tới ngưỡng.</>
+              ) : (
+                <>
+                  Lợi hơn: {ketQua.iryohi.nhanh === 'chinh' ? '医療費控除' : 'セルフメディケーション'} (khấu trừ ≈{' '}
+                  <Money amount={ketQua.iryohi.khau_tru} currency="JPY" tone="in" />)
+                  {ketQua.iryohi.ketLuan.tiet_kiem_uoc !== null && (
+                    <> · thuế bớt được ≈ <Money amount={ketQua.iryohi.ketLuan.tiet_kiem_uoc} currency="JPY" tone="in" /></>
+                  )}
+                </>
+              )}
+            </p>
             <ul className="mt-2 list-disc pl-5 text-2xs text-fg-muted">
               {ketQua.iryohi.ketLuan.ly_do.map((l) => <li key={l}>{l}</li>)}
             </ul>

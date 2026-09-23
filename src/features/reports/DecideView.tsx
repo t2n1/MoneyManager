@@ -209,6 +209,10 @@ export function DecideView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [debts, debtPayments, base, rates, todayISO],
   )
+  // Giá trị hiện tại (giá thị trường với tài khoản đầu tư) — cùng thước với trang Sức khỏe,
+  // Tài sản và khu mục tiêu bên dưới. Tài khoản vắng trong map thì rơi về số dư sổ.
+  const currentValues = useAccountCurrentValues()
+  const valueOf = (b: { id: string; balance: number }) => currentValues.get(b.id)?.value ?? b.balance
   const liquidNow = useMemo(
     () =>
       balances
@@ -216,9 +220,9 @@ export function DecideView() {
           (b) =>
             !b.is_archived && !b.is_hidden && b.include_in_totals && isLiquidAccount(b),
         )
-        .reduce((s, b) => s + (convertToBase(b.balance, b.currency, base, r) ?? 0), 0),
+        .reduce((s, b) => s + (convertToBase(valueOf(b), b.currency, base, r) ?? 0), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [balances, base, rates],
+    [balances, base, rates, currentValues],
   )
   const gap = Math.max(0, debtInfo.totalRemaining - liquidNow)
   const cashPace = monthsCounted > 0 ? Math.round(cashGrowth / monthsCounted) : 0
@@ -229,9 +233,9 @@ export function DecideView() {
     () =>
       balances
         .filter((b) => !b.is_archived && !b.is_hidden && b.type === 'investment')
-        .reduce((s, b) => s + (convertToBase(b.balance, b.currency, base, r) ?? 0), 0),
+        .reduce((s, b) => s + (convertToBase(valueOf(b), b.currency, base, r) ?? 0), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [balances, base, rates],
+    [balances, base, rates, currentValues],
   )
   const investPace = monthsCounted > 0 ? Math.round(investGrowth / monthsCounted) : 0
   const remitPace = monthsCounted > 0 ? Math.round(remitTotal / monthsCounted) : 0
@@ -310,7 +314,6 @@ export function DecideView() {
   // tiêu (giá thị trường với tài khoản đầu tư) và nhịp vào/ra của CHÍNH tài khoản đó trong
   // `goalSpeedMonths` — không phải nhịp tiền mặt chung. Cửa sổ 6 tháng nằm gọn trong 12
   // tháng giao dịch tab này đã tải, nên không tốn thêm truy vấn nào.
-  const currentValues = useAccountCurrentValues()
   const currentMonth = monthKeyForDate(todayISO, monthStartDay)
   const goalLines = useMemo(() => {
     const speedMonths = goalSpeedMonths(currentMonth)

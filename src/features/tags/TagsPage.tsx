@@ -81,12 +81,27 @@ const GRID =
   'grid-cols-[minmax(0,1fr)_minmax(5rem,auto)_1rem] items-center gap-x-2 ' +
   'lg:grid-cols-[minmax(0,1fr)_3.5rem_minmax(6rem,auto)_11rem_1rem]'
 
+/**
+ * Chỗ của một con số chưa về. Không phải "0": "0 giao dịch" là một KẾT LUẬN (nhãn này
+ * trống), còn lúc đang tải thì app chưa biết gì cả.
+ */
+function DangTinh() {
+  return (
+    <span className="text-fg-muted" aria-label="Đang tính">
+      …
+    </span>
+  )
+}
+
 export function TagsPage() {
-  const { data: tags = [] } = useTags()
-  const { data: groups = [] } = useTagGroups()
-  const { data: links = [] } = useTransactionTags()
-  const { data: accounts = [] } = useAccounts()
-  const { base, rates } = useRates()
+  const { data: tags = [], isLoading: dangTaiNhan } = useTags()
+  const { data: groups = [], isLoading: dangTaiNhom } = useTagGroups()
+  // KHÔNG mặc định `[]`: mảng rỗng lúc đang tải đọc ra "0 giao dịch" ở mọi dòng, và tệ
+  // hơn, hộp xác nhận xoá nói "nhãn này chưa gắn với giao dịch nào" với một nhãn đang
+  // gắn hàng trăm giao dịch. `undefined` = chưa đếm được, và mọi chỗ đọc phải nói thế.
+  const { data: links, isError: demLoi } = useTransactionTags()
+  const { data: accounts = [], isLoading: dangTaiTk } = useAccounts()
+  const { base, rates, isLoading: dangTaiTyGia } = useRates()
   const createTag = useCreateTag()
   const deleteTag = useDeleteTag()
   const updateTag = useUpdateTag()
@@ -106,11 +121,15 @@ export function TagsPage() {
 
   // Chi CẢ ĐỜI từng nhãn. Cùng truy vấn `['tagSpend']` mà useTagBudgets dùng, nên hai
   // hook không tải hai lần — react-query gộp theo khóa.
-  const { data: spendRows = [] } = useTagSpend()
+  const { data: spendRows } = useTagSpend()
+  // Tiền chỉ tính xong khi có đủ BA thứ: dòng chi, tài khoản (để biết đồng tiền của từng
+  // dòng — thiếu thì mọi dòng bị coi là tiền gốc) và tỷ giá (thiếu thì mọi khoản ngoại tệ
+  // bị loại khỏi tổng). Tỷ giá lỗi thì vẫn tính — đó là thiếu thật, `hasMissingRate` lo.
+  const tienXong = spendRows !== undefined && !dangTaiTk && !dangTaiTyGia
   const totals = useMemo(() => {
     const currencyOf = (id: string): CurrencyCode =>
       accounts.find((a) => a.id === id)?.currency ?? base
-    return tagSpendTotals(spendRows, currencyOf, base, rates ?? {})
+    return tagSpendTotals(spendRows ?? [], currencyOf, base, rates ?? {})
   }, [spendRows, accounts, base, rates])
 
   // Tiến độ trần đi qua useTagBudgets chứ không tự tính: nó là chỗ DUY NHẤT biết kỳ
@@ -123,8 +142,12 @@ export function TagsPage() {
     return m
   }, [budgets.lines])
 
-  const usageOf = (tagId: string) => links.filter((l) => l.tag_id === tagId).length
-  const spentOf = (tagId: string) => Math.round(totals.byTag.get(tagId) ?? 0)
+  /** null = chưa đếm được (đang tải, hoặc tải lỗi). */
+  const usageOf = (tagId: string): number | null =>
+    links === undefined ? null : links.filter((l) => l.tag_id === tagId).length
+  /** null = chưa tính xong — xem `tienXong`. */
+  const spentOf = (tagId: string): number | null =>
+    tienXong ? Math.round(totals.byTag.get(tagId) ?? 0) : null
 
   const active = tags.filter((t) => !t.is_archived)
   const archived = tags.filter((t) => t.is_archived)
@@ -195,14 +218,20 @@ export function TagsPage() {
 
   async function remove(t: TagRow) {
     const used = usageOf(t.id)
+    // Chưa đếm xong thì KHÔNG mở hộp hỏi: câu trong hộp dựa trên số đếm, và hỏi bằng
+    // một số chưa có là hỏi sai. Nút Xóa đã tắt trong lúc này; dòng này chặn nốt.
+    if (used === null && !demLoi) return
     const ok = await confirmDialog({
       title: `Xóa nhãn "${t.name}"?`,
       message:
-        used > 0
-          ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — ` +
-            'tổng chi theo nhãn này sẽ không còn cộng được. Chỉ muốn dẹp nó khỏi form nhập thì ' +
-            'bấm Lưu trữ thay vì Xóa.'
-          : 'Nhãn này chưa gắn với giao dịch nào.',
+        used === null
+          ? 'Không đếm được số giao dịch đang mang nhãn này. Mọi giao dịch mang nó vẫn giữ ' +
+            'nguyên, nhưng sẽ MẤT nhãn. Chỉ muốn dẹp nó khỏi form nhập thì bấm Lưu trữ thay vì Xóa.'
+          : used > 0
+            ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — ` +
+              'tổng chi theo nhãn này sẽ không còn cộng được. Chỉ muốn dẹp nó khỏi form nhập thì ' +
+              'bấm Lưu trữ thay vì Xóa.'
+            : 'Nhãn này chưa gắn với giao dịch nào.',
       confirmLabel: 'Xóa',
       danger: true,
     })
@@ -221,6 +250,13 @@ export function TagsPage() {
   /** Ô cột "Trần" — thanh tiến độ + một dòng chữ, hoặc gạch ngang khi chưa đặt. */
   function budgetCell(t: TagRow) {
     const line = budgetByTag.get(t.id)
+    // Tiến độ trần đọc cùng dòng chi với cột "Đã chi" — chưa về thì thanh 0% là nói dối.
+    if (line && !tienXong)
+      return (
+        <span className="text-2xs">
+          <DangTinh />
+        </span>
+      )
     if (!line) return <span className="text-2xs text-fg-muted">—</span>
     return (
       <span className="block">
@@ -247,6 +283,8 @@ export function TagsPage() {
    *  khác, nên không có chuyện nút lồng nút. */
   function tagRow(t: TagRow) {
     const line = budgetByTag.get(t.id)
+    const used = usageOf(t.id)
+    const spent = spentOf(t.id)
     return (
       <button
         key={t.id}
@@ -264,8 +302,8 @@ export function TagsPage() {
           </span>
           {/* Dòng phụ chỉ ở điện thoại — từ `lg` hai con số này đã là hai cột. */}
           <span className="text-2xs text-fg-muted lg:hidden">
-            <Num tone="muted">{usageOf(t.id)}</Num> gd
-            {line && (
+            {used === null ? <DangTinh /> : <Num tone="muted">{used}</Num>} gd
+            {line && tienXong && (
               <>
                 {' · '}
                 <Num tone={line.status === 'over' ? 'out' : 'muted'}>
@@ -278,11 +316,11 @@ export function TagsPage() {
         </span>
 
         <span className="hidden justify-self-end text-sm lg:block">
-          <Num tone="muted">{usageOf(t.id)}</Num>
+          {used === null ? <DangTinh /> : <Num tone="muted">{used}</Num>}
         </span>
 
         <span className="justify-self-end text-sm">
-          <Money amount={spentOf(t.id)} currency={base} />
+          {spent === null ? <DangTinh /> : <Money amount={spent} currency={base} />}
         </span>
 
         <span className="hidden min-w-0 lg:block">{budgetCell(t)}</span>
@@ -452,7 +490,11 @@ export function TagsPage() {
           liệu thử: tạo nhóm rồi xóa hết nhãn thì bảng biến mất, mà nút xóa nhóm nằm TRONG
           bảng — nhóm thành thứ không nhìn thấy và không xóa được, chỉ còn cách tạo tạm một
           nhãn để bảng hiện lại. Nhóm rỗng vẫn phải có mặt. */}
-      {tags.length === 0 && groups.length === 0 ? (
+      {/* Đang tải thì nói đang tải: bảng rỗng lúc này sẽ hiện câu "Chưa có nhãn nào" —
+          một kết luận về sổ, trong khi app chưa đọc được gì. */}
+      {dangTaiNhan || dangTaiNhom ? (
+        <EmptyState>Đang tải…</EmptyState>
+      ) : tags.length === 0 && groups.length === 0 ? (
         // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
         // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
         // trống trơn, chỉ còn đúng một câu này.
@@ -528,7 +570,9 @@ export function TagsPage() {
           {tags.length > 0 && (
           <p className="text-2xs text-fg-muted">
             “Đã chi” là tổng cả đời nhãn, quy về {base}.
-            {totals.hasMissingRate && ' Có khoản ngoại tệ thiếu tỷ giá nên tổng chưa đủ.'}{' '}
+            {tienXong &&
+              totals.hasMissingRate &&
+              ' Có khoản ngoại tệ thiếu tỷ giá nên tổng chưa đủ.'}{' '}
             Một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn
             tổng chi thật.
           </p>
@@ -556,6 +600,7 @@ export function TagsPage() {
           base={base}
           spent={spentOf(editing.id)}
           usage={usageOf(editing.id)}
+          countFailed={demLoi}
           onArchive={(v) => setArchived(editing, v)}
           onDelete={() => remove(editing)}
           onClose={() => setEditing(null)}
@@ -577,6 +622,7 @@ function TagEditSheet({
   base,
   spent,
   usage,
+  countFailed,
   onArchive,
   onDelete,
   onClose,
@@ -584,8 +630,12 @@ function TagEditSheet({
   tag: TagRow
   groups: { id: string; name: string }[]
   base: CurrencyCode
-  spent: number
-  usage: number
+  /** null = chưa tính xong. */
+  spent: number | null
+  /** null = chưa đếm được. */
+  usage: number | null
+  /** true = tải số đếm bị lỗi — vẫn cho xoá, hộp hỏi sẽ nói thẳng là không đếm được. */
+  countFailed: boolean
   onArchive: (v: boolean) => void
   onDelete: () => void
   onClose: () => void
@@ -641,7 +691,15 @@ function TagEditSheet({
         <div className="mb-3 flex items-center justify-between gap-2">
           <SectionTitle role="block">Sửa nhãn</SectionTitle>
           <span className="text-2xs text-fg-muted">
-            <Num tone="muted">{usage}</Num> giao dịch · <Money amount={spent} currency={base} tone="muted" />
+            {usage === null ? (
+              countFailed ? 'Không đếm được giao dịch' : 'Đang đếm giao dịch…'
+            ) : (
+              <>
+                <Num tone="muted">{usage}</Num> giao dịch
+              </>
+            )}
+            {' · '}
+            {spent === null ? <DangTinh /> : <Money amount={spent} currency={base} tone="muted" />}
           </span>
         </div>
 
@@ -745,8 +803,14 @@ function TagEditSheet({
           <ActionButton onClick={() => onArchive(!tag.is_archived)}>
             {tag.is_archived ? 'Dùng lại' : 'Lưu trữ'}
           </ActionButton>
-          <ActionButton variant="danger" onClick={onDelete}>
-            Xóa nhãn
+          {/* Tắt cho tới khi đếm xong: hộp hỏi xoá nói "N giao dịch đang mang nhãn này",
+              và hỏi trước khi có N là hỏi bằng một con số bịa. */}
+          <ActionButton
+            variant="danger"
+            onClick={onDelete}
+            disabled={usage === null && !countFailed}
+          >
+            {usage === null && !countFailed ? 'Đang đếm…' : 'Xóa nhãn'}
           </ActionButton>
           <span className="ml-auto flex gap-1.5">
             <ActionButton onClick={onClose}>Đóng</ActionButton>

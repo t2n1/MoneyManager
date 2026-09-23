@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartColumn, LineChart, Milestone, Settings } from 'lucide-react'
-import { Card, PageHeader, SectionTitle, iconButtonClass } from '../../components/ui'
+import { ActionButton, Card, PageHeader, SectionTitle, iconButtonClass } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import {
@@ -41,6 +41,7 @@ import {
   toISODate,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
+import { loadStatus, mergeLoad } from '../../lib/loadStatus'
 import { convertToBase } from '../../lib/rates'
 import { collectCommitments } from '../budgets/commitments'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
@@ -127,15 +128,21 @@ export function BulletinPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months, monthStartDay, currentMonthKey.year, currentMonthKey.month])
-  const { data: rangeData } = useRangeTransactions(range)
+  const rangeQ = useRangeTransactions(range)
+  const rangeData = rangeQ.data
   const rangeTxs = useMemo(() => rangeData ?? [], [rangeData])
   // MỤC 1a (2026-09-23): dải nhiều tháng là truy vấn NẶNG NHẤT trang (hàng chục request
   // phân trang), về SAU giao dịch của tháng đang xem. Trước đây nó được đọc bằng mặc định
   // `[]` mà không ai chờ, nên vài giây đầu ô Thu/Chi in ¥0, câu kết luận nói "chưa có
   // thu", Độ tin cậy khoe điểm cao — trong khi biểu đồ chi từng ngày ngay dưới (nguồn
   // nhanh hơn) đã hiện số thật. Mọi thứ tính từ `rangeTxs` phải chờ cờ này.
-  // Lỗi tải thì vẫn là "chưa có" — không có số nào để in, và thà nói đang tính còn hơn ¥0.
+  // Lỗi tải thì vẫn là "chưa có" — không có số nào để in, và thà không in còn hơn ¥0. Nhưng
+  // lỗi HẲN (hết lượt thử lại) thì `seriesFailed` bật: các ô đổi chữ "Đang tính…" thành
+  // "Chưa tải được", và đầu trang có một dòng cho thử lại — không thì trang kẹt ở "đang
+  // tính" mãi mãi mà người dùng không biết phải làm gì.
   const seriesReady = rangeData !== undefined
+  const seriesLoad = loadStatus(rangeQ)
+  const seriesFailed = seriesLoad === 'failed'
 
   // Các khối CŨ của trang chỉ được nhìn đúng cửa sổ 8 tháng như trước, không phải cả
   // dải hợp: `reliability` đo "% đã phân loại" trên cửa sổ GẦN ĐÂY (giao dịch chưa gắn
@@ -257,11 +264,14 @@ export function BulletinPage() {
   // "Giao dịch gần đây" và đường "Chi từng ngày". Gọi hai lần thì react-query vẫn trả
   // cùng một cache, nhưng hai biến cùng tên trong một component là chỗ để lệch nhau.
   // Đứng TRƯỚC câu kết luận vì câu đó phải chờ nó (`monthReady`).
-  const { data: monthData, range: activeRange } = useMonthTransactions(activeMonthKey)
+  const monthQ = useMonthTransactions(activeMonthKey)
+  const { data: monthData, range: activeRange } = monthQ
   const monthTxs = useMemo(() => monthData ?? [], [monthData])
   // Giao dịch tháng đang xem đã về chưa — "Chưa ghi giao dịch nào" và "Chưa ghi khoản chi
   // nào" chỉ được nói khi đã biết chắc, không phải khi query còn đang chạy.
   const monthReady = monthData !== undefined
+  const monthLoad = loadStatus(monthQ)
+  const monthFailed = monthLoad === 'failed'
 
   // Câu kết luận đứng đầu màn. Dùng chung `headlineOf` với Báo cáo: hai màn nói cùng một
   // kết luận thì phải nói bằng đúng một câu, không phải hai bản chép tay.
@@ -274,6 +284,9 @@ export function BulletinPage() {
   // Chờ CẢ dải nhiều tháng lẫn giao dịch tháng đang xem (nguồn của dự báo): dựng câu từ
   // mảng rỗng là "Chưa ghi khoản thu nào tháng này" cho người vừa nhận lương.
   const headlinePending = !(seriesReady && monthReady)
+  // Một trong hai nguồn đã hỏng hẳn → câu kết luận không bao giờ dựng được nữa (cho tới khi
+  // thử lại). Nói ra thay vì "Đang tính kết luận tháng…" mãi.
+  const headlineFailed = mergeLoad(seriesLoad, monthLoad) === 'failed'
   const headline = headlinePending ? null : headlineOf({
     income: incomeKpi.value,
     expense: expenseKpi.value,
@@ -404,7 +417,13 @@ export function BulletinPage() {
 
   const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
 
-  const { netWorth, netWorthReliable, purposeGroups, isLoading: assetsLoading } = useAssetsData()
+  const {
+    netWorth,
+    netWorthReliable,
+    purposeGroups,
+    isLoading: assetsLoading,
+    loadFailed: assetsFailed,
+  } = useAssetsData()
   const { data: snapshots = [] } = useNetWorthSnapshots()
   const netWorthSpark = useMemo(
     () =>
@@ -557,6 +576,31 @@ export function BulletinPage() {
           được). Dưới xl cả hai cột xếp dọc theo đúng THỨ TỰ DOM — không order-*: thứ tự
           đọc và thứ tự tiêu điểm phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở
           BudgetView. */}
+      {/* Nguồn tải HỎNG hẳn: một dòng cho cả trang, có nút thử lại. Các ô bên dưới đã đổi
+          "Đang tính…" thành "Chưa tải được", nên đây là chỗ DUY NHẤT nói lý do và lối ra. */}
+      {(seriesFailed || monthFailed) && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg"
+        >
+          <span className="min-w-0 flex-1">
+            {seriesFailed && monthFailed
+              ? 'Không tải được giao dịch tháng này và các tháng trước — thử tải lại.'
+              : seriesFailed
+                ? 'Không tải được dữ liệu các tháng trước — thử tải lại.'
+                : 'Không tải được giao dịch tháng này — thử tải lại.'}
+          </span>
+          <ActionButton
+            onClick={() => {
+              if (seriesFailed) void rangeQ.refetch()
+              if (monthFailed) void monthQ.refetch()
+            }}
+          >
+            Thử lại
+          </ActionButton>
+        </div>
+      )}
+
       <div className="grid items-start gap-2.5 xl:grid-cols-[minmax(0,1fr)_23.75rem]">
         {/* ===== CỘT CHÍNH ===== */}
         <div className="flex min-w-0 flex-col gap-2.5">
@@ -577,9 +621,12 @@ export function BulletinPage() {
               hanMuc={report?.totalBudgeted ?? 0}
               headline={headline}
               headlinePending={headlinePending}
+              headlineFailed={headlineFailed}
             />
           ) : headlinePending ? (
-            <p className="text-sm text-fg-muted">Đang tính kết luận tháng…</p>
+            <p className="text-sm text-fg-muted">
+              {headlineFailed ? 'Chưa tính được kết luận tháng.' : 'Đang tính kết luận tháng…'}
+            </p>
           ) : (
             headline && (
               <ConclusionLine tone={headline.tone} short={headline.short}>
@@ -599,6 +646,7 @@ export function BulletinPage() {
             netWorthSpark={netWorthSpark}
             approx={series.hasMissingRate}
             pending={!seriesReady}
+            failed={seriesFailed}
             netWorthPending={assetsLoading}
             keptScope={rateScope}
           />
@@ -634,6 +682,8 @@ export function BulletinPage() {
             monthPending={!monthReady}
             seriesPending={!seriesReady}
             tagsPending={tagsPending}
+            monthFailed={monthFailed}
+            seriesFailed={seriesFailed}
           />
 
           <Card elevation="panel" padding="panel" as="section" className="min-w-0">
@@ -644,7 +694,9 @@ export function BulletinPage() {
               </Link>
             </div>
             {!monthReady ? (
-              <p className="mt-3 text-sm text-fg-muted">Đang tải…</p>
+              <p className="mt-3 text-sm text-fg-muted">
+                {monthFailed ? 'Chưa tải được giao dịch tháng này.' : 'Đang tải…'}
+              </p>
             ) : recent.length === 0 ? (
               <p className="mt-3 text-sm text-fg-muted">
                 Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
@@ -703,6 +755,7 @@ export function BulletinPage() {
             base={base}
             staleIds={staleIds}
             pending={assetsLoading}
+            failed={assetsFailed}
           />
 
           {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay — TÌNH TRẠNG,
@@ -714,7 +767,7 @@ export function BulletinPage() {
 
           {/* Độ tin cậy dữ liệu (§4.9). Đứng CUỐI vì nó nói về cái thước, không phải về
               tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa. */}
-          <ReliabilityPanel data={doTinCay} />
+          <ReliabilityPanel data={doTinCay} failed={seriesFailed} />
         </div>
       </div>
 

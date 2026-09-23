@@ -43,6 +43,7 @@ import {
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { collectCommitments } from '../budgets/commitments'
+import { totalCapOf } from '../budgets/progress'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { historyCoverage, reliability } from '../notifications/reliability'
@@ -250,6 +251,8 @@ export function BulletinPage() {
           hanMuc: report.totalBudgeted,
           daTieu: report.totalSpent,
           camKet,
+          // "Chưa đặt" = không có dòng ngân sách, không phải tổng trần = 0 (trần ¥0 là thật).
+          coDongHanMuc: totalCapOf(report) !== 'unset',
         })
       : null
 

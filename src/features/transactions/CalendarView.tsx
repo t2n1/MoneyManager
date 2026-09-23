@@ -35,6 +35,7 @@ import type {
 import { useBudgetReport } from '../../hooks/queries'
 import { spendableRemaining } from '../budgets/commitments'
 import { dailyAllowance, spendableSegments } from '../budgets/dailyAllowance'
+import { totalCapOf } from '../budgets/progress'
 import { tagBreakdown } from '../tags/aggregate'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { TAG_HEX, tagColor, type TagColorKey } from '../tags/colors'
@@ -189,6 +190,7 @@ export function CalendarView({
     const free = spendableRemaining(totalRemaining, committed)
     return {
       budgeted,
+      cap: totalCapOf(report),
       spent,
       committed,
       segments: spendableSegments(budgeted, spent, committed),

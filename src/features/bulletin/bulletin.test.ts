@@ -201,6 +201,22 @@ describe('toiNgayLuong', () => {
     expect(co({ hanMuc: 0 })!.moiNgay).toBeNull()
   })
 
+  // "Chưa đặt" = không có dòng ngân sách nào, KHÔNG phải tổng trần = 0. Trần ¥0 là trần
+  // thật: chi một đồng là vượt, chưa chi thì cũng không có gì để chia mỗi ngày.
+  it('có dòng ngân sách mà tổng trần ¥0 → không phải "chưa đặt"', () => {
+    const chuaChi = co({ hanMuc: 0, daTieu: 0, coDongHanMuc: true })!
+    expect(chuaChi.chuaDatHanMuc).toBe(false)
+    expect(chuaChi.conLai).toBe(0)
+    expect(chuaChi.moiNgay).toBeNull()
+    expect(chuaChi.hutTruocLuong).toBe(false)
+    const daChi = co({ hanMuc: 0, daTieu: 1_200, coDongHanMuc: true })!
+    expect(daChi.chuaDatHanMuc).toBe(false)
+    expect(daChi.conLai).toBe(-1_200) // đã vượt
+    expect(daChi.moiNgay).toBeNull()
+    // Không có dòng nào thì vẫn là chưa đặt, dù truyền cờ tường minh.
+    expect(co({ hanMuc: 0, coDongHanMuc: false })!.chuaDatHanMuc).toBe(true)
+  })
+
   // §14 "chưa biết ≠ 0": ngoài kỳ thì im, không in số 0.
   it('null khi hôm nay nằm ngoài kỳ', () => {
     expect(co({ todayISO: '2026-08-14' })).toBeNull() // trước đầu kỳ

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { BudgetRow, TransactionRow } from '../../types/database.types'
-import { buildBudgetReport, carryFromPreviousMonth } from './progress'
+import { buildBudgetReport, carryFromPreviousMonth, totalCapOf } from './progress'
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
@@ -305,5 +305,34 @@ describe('hạn mức ¥0 — người dùng CHỦ Ý không tiêu ở danh mụ
     expect(r.lines.find((l) => l.categoryId === 'comngoai')!.isMarker).toBe(true)
     expect(r.totalBudgeted).toBe(0)
     expect(r.totalSpent).toBe(1_000)
+  })
+})
+
+// "Chưa đặt trần" = KHÔNG CÓ dòng ngân sách; tổng trần ¥0 là trần thật. Mọi thẻ tổng
+// (Ngân sách, Còn được tiêu, Bản tin) đọc cùng một hàm này thay vì so `totalBudgeted` với 0.
+describe('totalCapOf', () => {
+  it('không có dòng ngân sách nào → chưa đặt', () => {
+    expect(totalCapOf(buildBudgetReport([], [], currencyOf, 'JPY', RATES))).toBe('unset')
+    expect(totalCapOf(undefined)).toBe('unset')
+  })
+
+  it('có dòng mà tổng trần ¥0 → trần ¥0, không phải chưa đặt', () => {
+    const r = buildBudgetReport([budget('food', 0)], [], currencyOf, 'JPY', RATES)
+    expect(totalCapOf(r)).toBe('zero')
+    // Đã chi vào mục trần ¥0 → tổng vượt, cùng luật với từng dòng.
+    const r2 = buildBudgetReport(
+      [budget('food', 0)],
+      [tx({ type: 'expense', amount: 500, category_id: 'food' })],
+      currencyOf,
+      'JPY',
+      RATES,
+    )
+    expect(totalCapOf(r2)).toBe('zero')
+    expect(r2.totalStatus).toBe('over')
+  })
+
+  it('tổng trần > 0 → đã đặt', () => {
+    const r = buildBudgetReport([budget('food', 1_000)], [], currencyOf, 'JPY', RATES)
+    expect(totalCapOf(r)).toBe('set')
   })
 })

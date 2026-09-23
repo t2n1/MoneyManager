@@ -49,8 +49,26 @@ describe('pickBudgetVerdict', () => {
     expect(v).toEqual({ kind: 'under', totalBudgeted: 100_000, budgetedCount: 4 })
   })
 
-  it('chưa đặt trần nào thì mời đặt, không phán quyết', () => {
-    expect(pickBudgetVerdict(pace({ totalBudgeted: 0 }))).toEqual({ kind: 'unset' })
+  it('chưa đặt trần nào (không có dòng ngân sách) thì mời đặt, không phán quyết', () => {
+    expect(pickBudgetVerdict(pace({ totalBudgeted: 0, budgetedCount: 0 }))).toEqual({
+      kind: 'unset',
+    })
+  })
+
+  // Trần ¥0 là trần THẬT (`budgetRatio`): có dòng ngân sách mà tổng = ¥0 KHÔNG phải "chưa
+  // đặt". Bản trước so `totalBudgeted === 0` nên mời "đặt ngân sách" cho người đã đặt.
+  it('tổng trần ¥0 mà đã chi trong phạm vi → vượt, không mời đặt', () => {
+    const v = pickBudgetVerdict(
+      pace({ totalBudgeted: 0, budgetedCount: 2, budgetForecast: forecast(3_000, 5_000, 6_000, 7_000) }),
+    )
+    expect(v).toEqual({ kind: 'over', totalBudgeted: 0, overBy: 6_000, budgetedCount: 2 })
+  })
+
+  it('tổng trần ¥0 mà chưa chi đồng nào trong phạm vi → vẫn trong trần, không NaN', () => {
+    const v = pickBudgetVerdict(
+      pace({ totalBudgeted: 0, budgetedCount: 2, budgetForecast: forecast(0, 0, 0, 0) }),
+    )
+    expect(v).toEqual({ kind: 'under', totalBudgeted: 0, budgetedCount: 2 })
   })
 
   it('tháng chưa phát sinh chi thì im — không có gì để nói về đà', () => {

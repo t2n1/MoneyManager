@@ -40,6 +40,7 @@ import {
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { taxCategoryIds } from '../tax/categories'
 import { earmarkedForGoals } from './earmarked'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { Section, SectionIndex, type IndexItem } from '../reports/SectionIndex'
 import { dailyExpenseTotals, monthlySeries } from '../reports/aggregate'
 import { detectPaydays, noSpendPattern, paydayEffect, weekdayProfile } from '../reports/behavior'
@@ -186,11 +187,20 @@ export function HealthView() {
   // --- Tính từng chỉ số ---
   const fund = emergencyFundMonths(snap.liquidAssets, snap.monthlyFixedExpense)
   const fundVerdict = verdictFor(fund, 3, 6)
-  // Tiền đang gom cho mục tiêu thì không thực sự sẵn sàng cho lúc mất thu nhập
+  // Tiền đang gom cho mục tiêu thì không thực sự sẵn sàng cho lúc mất thu nhập.
+  //
+  // Phần "có chủ" đo bằng GIÁ TRỊ HIỆN TẠI (`useAccountCurrentValues`) — cùng số với khối
+  // Mục tiêu tiết kiệm ở trang Tài sản, nên hai trang nói một con số. Riêng `liquidAssets`
+  // (mẫu số của quỹ dự phòng và khả năng trả nợ ngắn hạn) CỐ Ý vẫn cộng số dư sổ:
+  // `buildHealthSnapshot` nằm trong đồ thị bộ luật thông báo, mà bản gói cho edge function
+  // không có giá thị trường (giá tính tại máy từ sổ lệnh) — đổi ở đây là chuông trong app và
+  // chuông gửi từ máy chủ nói hai con số. Hai cách đo chỉ khác nhau ở tài khoản đầu tư/tài
+  // sản cố định được đánh dấu "rút ngay được"; phép trừ dưới đây kẹp ≥ 0 cho ca đó.
+  const currentValues = useAccountCurrentValues()
   const earmarked = useMemo(
-    () => earmarkedForGoals(goals, balances, base, r),
+    () => earmarkedForGoals(goals, balances, base, r, currentValues),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [goals, balances, base, rates],
+    [goals, balances, base, rates, currentValues],
   )
   const freeFund = emergencyFundMonths(
     Math.max(snap.liquidAssets - earmarked.total, 0),

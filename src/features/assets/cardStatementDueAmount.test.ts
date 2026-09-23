@@ -20,6 +20,7 @@ import {
   cardMonthCharge,
   cardMonthReconcileNet,
   carriedDebt,
+  dueBreakdown,
   statementDueAmount,
 } from './cardMonthCharge'
 import { CARD_RECONCILE_NOTE } from './reconcile'
@@ -186,5 +187,66 @@ describe('carriedDebt — nợ cũ chưa trả hết', () => {
 
   it('đang xem kỳ khác (chưa biết số bị rút) → null', () => {
     expect(carriedDebt({ dueAmount: null, charged, reconcileNet })).toBeNull()
+  })
+})
+
+// Panel in thành một PHÉP CỘNG đọc từ trên xuống: mỗi dòng mang dấu đúng với vai trò
+// của nó, dòng cuối "= Bị rút". Bản trước in khoản bù nợ thành "+¥" màu xanh trong khi
+// công thức TRỪ nó, và in nợ cũ không dấu — cộng tay theo đúng dấu trên màn không ra số
+// bị rút.
+describe('dueBreakdown — các dòng panel cộng đúng ra số bị rút', () => {
+  const sum = (b: NonNullable<ReturnType<typeof dueBreakdown>>) =>
+    b.lines.reduce((s, l) => s + l.sign * l.amount, 0)
+
+  it('ví dụ thật: quẹt +, khoản bù bớt nợ −, chuyển từ kỳ trước +', () => {
+    const b = dueBreakdown({ dueAmount: 170_465, charged: 16_810, reconcileNet: 1_082_891 })!
+    expect(b.lines).toEqual([
+      { key: 'charged', sign: 1, amount: 16_810 },
+      { key: 'reconcile', sign: -1, amount: 1_082_891 },
+      { key: 'carried', sign: 1, amount: 1_236_546 },
+    ])
+    expect(b.total).toBe(170_465)
+    expect(sum(b)).toBe(b.total)
+  })
+
+  it('khoản bù THÊM nợ thì mang dấu +', () => {
+    const b = dueBreakdown({ dueAmount: 20_000, charged: 10_000, reconcileNet: -4_000 })!
+    expect(b.lines.find((l) => l.key === 'reconcile')).toEqual({
+      key: 'reconcile',
+      sign: 1,
+      amount: 4_000,
+    })
+    expect(sum(b)).toBe(20_000)
+  })
+
+  it('trả dư kỳ trước → dòng chuyển sang mang dấu −', () => {
+    const b = dueBreakdown({ dueAmount: 5_000, charged: 10_000, reconcileNet: 0 })!
+    expect(b.lines).toEqual([
+      { key: 'charged', sign: 1, amount: 10_000 },
+      { key: 'carried', sign: -1, amount: 5_000 },
+    ])
+    expect(sum(b)).toBe(5_000)
+  })
+
+  it('thẻ trả sạch, không khoản bù → chỉ còn dòng quẹt', () => {
+    const b = dueBreakdown({ dueAmount: 45_000, charged: 45_000, reconcileNet: 0 })!
+    expect(b.lines).toEqual([{ key: 'charged', sign: 1, amount: 45_000 }])
+  })
+
+  it('bất biến giữ với mọi bộ số', () => {
+    for (const [dueAmount, charged, reconcileNet] of [
+      [112_760, 50_000, 1_250_110],
+      [0, 0, 0],
+      [0, 3_000, -7_000],
+      [99, -500, 12],
+    ]) {
+      const b = dueBreakdown({ dueAmount, charged, reconcileNet })!
+      expect(sum(b)).toBe(dueAmount)
+      for (const l of b.lines) expect(l.amount).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('chưa biết số bị rút → null, panel không dựng phép cộng', () => {
+    expect(dueBreakdown({ dueAmount: null, charged: 1, reconcileNet: 0 })).toBeNull()
   })
 })

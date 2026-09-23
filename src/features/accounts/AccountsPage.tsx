@@ -13,6 +13,8 @@ import { useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import { needsLiquidityAnswer } from '../assets/liquidity'
+import { valueBasisLabel } from '../assets/currentValue'
+import { useAccountCurrentValues } from '../assets/useAccountCurrentValues'
 import { AccountTypeIcon } from '../../components/icons'
 import { DragList } from '../../components/DragList'
 import {
@@ -59,7 +61,17 @@ export function AccountsPage() {
   const sorted = [...accounts].sort((a, b) => a.sort_order - b.sort_order)
   const active = sorted.filter((a) => !a.is_archived)
   const archived = sorted.filter((a) => a.is_archived)
-  const balanceOf = (id: string) => balances.find((b) => b.id === id)?.balance ?? 0
+  // GIÁ TRỊ HIỆN TẠI, không phải số dư sổ: tài khoản đầu tư in giá thị trường như trang chi
+  // tiết của nó (`accountCurrentValue`). Trước đây NISA ở đây là ¥80.809 (tiền đã nạp) còn
+  // trang chi tiết ¥78.913 (giá thị trường) mà không màn nào nói mình in số nào. Tổng của
+  // từng nhóm cũng cộng từ đúng số này, nên dòng và tổng không lệch nhau.
+  const currentValues = useAccountCurrentValues()
+  const balanceOf = (id: string) =>
+    currentValues.get(id)?.value ?? balances.find((b) => b.id === id)?.balance ?? 0
+  const basisOf = (a: AccountRow) => {
+    const v = currentValues.get(a.id)
+    return v ? valueBasisLabel(a.type, v.basis) : null
+  }
   const groups = groupAccountsByType(active, balanceOf)
   const accountById = new Map(active.map((a) => [a.id, a]))
 
@@ -157,10 +169,11 @@ export function AccountsPage() {
                       {/* Dòng phụ chỉ ở điện thoại — từ `lg` số dư và loại tiền đã là hai cột. */}
                       <span className="text-2xs text-fg-muted lg:hidden">
                         {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
+                        {basisOf(a) && ` · ${basisOf(a)}`}
                       </span>
                     </button>
 
-                    <span className="hidden justify-self-end text-sm lg:block">
+                    <span className="hidden justify-self-end text-right text-sm lg:block">
                       {/* Âm thì đỏ, dương thì TRUNG TÍNH — không phải `bySign` (nó tô xanh cả số
                           dương). Số dư là một lượng đang có, không phải một chiều tiền chảy; tô
                           xanh nó là mượn nghĩa "khoản thu". Cùng quy ước với dòng tài khoản ở
@@ -170,6 +183,9 @@ export function AccountsPage() {
                         currency={a.currency}
                         tone={balanceOf(a.id) < 0 ? 'out' : 'neutral'}
                       />
+                      {basisOf(a) && (
+                        <span className="block text-2xs text-fg-muted">{basisOf(a)}</span>
+                      )}
                     </span>
                     <span className="hidden justify-self-end text-2xs text-fg-muted lg:block">
                       {a.currency}

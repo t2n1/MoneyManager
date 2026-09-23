@@ -35,6 +35,21 @@ export function accountMonthlyGrowth(
   return delta / months.length
 }
 
+/**
+ * Số tháng lịch sử dùng để đo tốc độ tích lũy của MỘT mục tiêu. Chung cho khu Mục tiêu ở
+ * trang Tài sản và khối Tiến độ mục tiêu ở tab Quyết định — hai màn đo hai cửa sổ khác nhau
+ * là hai màn nói hai ngày đạt khác nhau cho cùng một mục tiêu.
+ */
+export const GOAL_SPEED_MONTHS = 6
+
+/**
+ * `count` tháng ĐÃ HOÀN TẤT ngay trước `currentMonth` (không gồm tháng đang chạy — tháng dở
+ * dang luôn thiếu tiền nên kéo tốc độ xuống và đẩy ngày dự kiến xa hơn thực tế).
+ */
+export function goalSpeedMonths(currentMonth: MonthKey, count = GOAL_SPEED_MONTHS): MonthKey[] {
+  return Array.from({ length: count }, (_, i) => addMonths(currentMonth, i - count))
+}
+
 export interface GoalForecast {
   /** đã có bao nhiêu (số dư hiện tại, kẹp ≥ 0) */
   current: number

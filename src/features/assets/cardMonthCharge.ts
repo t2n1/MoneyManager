@@ -158,6 +158,50 @@ export function carriedDebt({ dueAmount, charged, reconcileNet }: CarriedDebtInp
   return dueAmount - charged + reconcileNet
 }
 
+export interface DueLine {
+  /** 'charged' = quẹt trong kỳ · 'reconcile' = khoản "Điều chỉnh số nợ" · 'carried' = chuyển từ kỳ trước. */
+  key: 'charged' | 'reconcile' | 'carried'
+  /** +1 = cộng vào số bị rút, −1 = trừ đi. ĐÚNG vai trò trong phép cộng, không theo màu thu/chi. */
+  sign: 1 | -1
+  /** Luôn ≥ 0 — chiều nằm ở `sign`. */
+  amount: number
+}
+
+export interface DueBreakdown {
+  lines: DueLine[]
+  /** = số bị rút. Luôn bằng Σ sign × amount. */
+  total: number
+}
+
+/**
+ * Số bị rút viết thành PHÉP CỘNG đọc được từ trên xuống: `quẹt − khoản bù + chuyển từ kỳ
+ * trước = bị rút`. Mỗi dòng mang dấu đúng vai trò của nó trong phép tính.
+ *
+ * Vì sao cần hàm riêng thay vì để JSX tự đặt dấu: bản trước in khoản bù bớt-nợ thành
+ * "+¥…" màu xanh (dấu lấy từ tone thu/chi của `<Money>`), trong khi công thức TRỪ nó; còn
+ * nợ cũ thì in không dấu. Người đọc cộng tay theo đúng dấu trên màn không ra số bị rút.
+ *
+ * `carried` (chuyển từ kỳ trước) = dư nợ đầu kỳ − các lần trả trong kỳ. Nó KHÔNG bị kẹp
+ * theo tổng nợ hiện tại: nó là số trước khi trừ khoản bù và các lần trả sau ngày chốt, nên
+ * lớn hơn số đang nợ là chuyện bình thường khi kỳ có khoản bù bớt nợ lớn.
+ *
+ * Dòng bằng 0 (trừ dòng quẹt) bị bỏ — thẻ trả sạch mỗi kỳ chỉ còn một dòng.
+ */
+export function dueBreakdown(input: CarriedDebtInput): DueBreakdown | null {
+  const carried = carriedDebt(input)
+  if (carried == null || input.dueAmount == null) return null
+  const term = (key: DueLine['key'], v: number): DueLine => ({
+    key,
+    sign: v < 0 ? -1 : 1,
+    amount: Math.abs(v),
+  })
+  const lines = [term('charged', input.charged)]
+  // reconcileNet dương = BỚT nợ → trừ khỏi số bị rút.
+  if (input.reconcileNet !== 0) lines.push(term('reconcile', -input.reconcileNet))
+  if (carried !== 0) lines.push(term('carried', carried))
+  return { lines, total: input.dueAmount }
+}
+
 export interface MonthAdjustDateInput {
   /** Ngày đầu khoảng đang xem (`getMonthRange().start`). */
   rangeStartISO: string

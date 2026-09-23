@@ -14,19 +14,17 @@ import {
 } from '../../hooks/queries'
 import { earmarkedForGoals } from '../health/earmarked'
 import {
-  addMonths,
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
   toISODate,
 } from '../../lib/dates'
 import type { SavingsGoalRow } from '../../types/database.types'
-import { accountMonthlyGrowth, goalForecast } from './goals'
+import { valueBasisLabel } from './currentValue'
+import { accountMonthlyGrowth, goalForecast, goalSpeedMonths } from './goals'
+import { useAccountCurrentValues } from './useAccountCurrentValues'
 import type { MoneyView } from './moneyView'
 import { SavingsGoalFormSheet } from './SavingsGoalFormSheet'
-
-/** Số tháng lịch sử dùng để đo tốc độ tích lũy. */
-const SPEED_MONTHS = 6
 
 /** Số ngày còn lại tới hạn (âm = quá hạn); null nếu không đặt hạn. */
 function daysLeft(targetDate: string | null, todayISO: string): number | null {
@@ -53,11 +51,8 @@ export function SavingsGoalsSection({ view }: Props) {
 
   // Tốc độ tích lũy đo trên các tháng ĐÃ HOÀN TẤT — tháng đang chạy dở luôn thiếu
   // tiền nên sẽ kéo tốc độ xuống và làm ngày dự kiến xa hơn thực tế.
-  const speedMonths = useMemo(
-    () =>
-      Array.from({ length: SPEED_MONTHS }, (_, i) => addMonths(currentMonth, i - SPEED_MONTHS)),
-    [currentMonth],
-  )
+  // Cùng cửa sổ với khối Tiến độ mục tiêu của tab Quyết định (`goalSpeedMonths`).
+  const speedMonths = useMemo(() => goalSpeedMonths(currentMonth), [currentMonth])
   const speedRange = useMemo(
     () => ({
       start: getMonthRange(speedMonths[0], monthStartDay).start,
@@ -75,6 +70,10 @@ export function SavingsGoalsSection({ view }: Props) {
     () => earmarkedForGoals(goals, balances, base, rates ?? {}),
     [goals, balances, base, rates],
   )
+
+  // Đã có bao nhiêu = GIÁ TRỊ HIỆN TẠI của tài khoản gắn mục tiêu (giá thị trường với tài
+  // khoản đầu tư), cùng hàm với trang chi tiết tài khoản và tab Quyết định.
+  const currentValues = useAccountCurrentValues()
 
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
@@ -106,8 +105,11 @@ export function SavingsGoalsSection({ view }: Props) {
             const bal = balances.find((b) => b.id === g.account_id)
             const currency = bal?.currency ?? 'JPY'
             const growth = accountMonthlyGrowth(g.account_id, txs, speedMonths, monthStartDay)
+            const cv = currentValues.get(g.account_id)
+            const acc = accounts.find((a) => a.id === g.account_id)
+            const basis = acc && cv ? valueBasisLabel(acc.type, cv.basis) : null
             const f = goalForecast(
-              bal?.balance ?? 0,
+              cv?.value ?? bal?.balance ?? 0,
               g.target_amount,
               growth,
               currentMonth,
@@ -141,6 +143,7 @@ export function SavingsGoalsSection({ view }: Props) {
                 <div className="mt-1 flex items-center justify-between text-sm text-fg-muted">
                   <span className="tabular-nums">
                     {view.fmt(f.current, currency)} / {view.fmt(g.target_amount, currency)}
+                    {basis && <span className="text-2xs"> · {basis}</span>}
                   </span>
                   {dl != null && (
                     <span className={dl < 0 ? 'text-money-out' : ''}>

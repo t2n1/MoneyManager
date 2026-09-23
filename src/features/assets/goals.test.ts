@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionRow } from '../../types/database.types'
-import { accountMonthlyGrowth, goalForecast, monthlyNeeded } from './goals'
+import {
+  accountMonthlyGrowth,
+  GOAL_SPEED_MONTHS,
+  goalForecast,
+  goalSpeedMonths,
+  monthlyNeeded,
+} from './goals'
 
 let seq = 0
 function tx(
@@ -178,5 +184,21 @@ describe('monthlyNeeded', () => {
 
   it('hạn đã trôi qua → null, vì "mỗi tháng bao nhiêu" hết nghĩa', () => {
     expect(monthlyNeeded(1_000_000, '2026-08-01', thang9, 1)).toBeNull()
+  })
+})
+
+// Trang Tài sản và tab Quyết định phải đo nhịp của mục tiêu trên CÙNG một cửa sổ — bản
+// trước Tài sản đo 6 tháng của chính tài khoản, còn Quyết định dùng nhịp tiền mặt chung
+// 12 tháng, nên một bên nói "chưa đo được" còn bên kia hứa "đạt 11/2026".
+describe('goalSpeedMonths', () => {
+  it('6 tháng ĐÃ HOÀN TẤT gần nhất, không gồm tháng đang chạy', () => {
+    const months = goalSpeedMonths({ year: 2026, month: 9 })
+    expect(months).toHaveLength(GOAL_SPEED_MONTHS)
+    expect(months[0]).toEqual({ year: 2026, month: 3 })
+    expect(months[months.length - 1]).toEqual({ year: 2026, month: 8 })
+  })
+
+  it('vắt qua năm', () => {
+    expect(goalSpeedMonths({ year: 2026, month: 2 })[0]).toEqual({ year: 2025, month: 8 })
   })
 })

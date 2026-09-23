@@ -151,7 +151,9 @@ function dungServer(du: DuLieu): McpServer {
       description:
         'MỐC ĐỐI CHIẾU: hạn mức, đã tiêu, còn lại của từng ngân sách trong một tháng — đúng bằng ' +
         'số tab Ngân sách hiện. Dòng có chi_la_moc_theo_doi = true là mốc theo dõi của một danh ' +
-        'mục con, KHÔNG phải một trần thật; đừng cộng nó vào tổng.',
+        'mục con, KHÔNG phải một trần thật; đừng cộng nó vào tổng. han_muc = ¥0 là trần THẬT ' +
+        '(người dùng chọn không chi khoản đó tháng này), không phải "chưa đặt": chi bất kỳ số ' +
+        'nào lớn hơn 0 là vượt.',
       inputSchema: z.object({ thang: z.string().describe("'YYYY-MM'") }),
     },
     async (input) => ra(nganSach(input, du)),

@@ -55,6 +55,7 @@ import {
 import { overpayConfirmed, remainingOf } from '../debts/aggregate'
 import { accountsForDebt, paymentDebtSide, paymentOverpay } from './debtPick'
 import { DebtPickerField } from './DebtPickerField'
+import { loadStatus, mergeLoad } from '../../lib/loadStatus'
 import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from '../../components/NumPad'
 import {
@@ -282,7 +283,11 @@ export function TransactionForm({
   onSubmitPlanned,
   initialTagIds: initialTagIdsProp,
 }: TransactionFormProps) {
-  const { data: accounts = [] } = useAccounts()
+  const accountsQ = useAccounts()
+  const { data: accounts = [] } = accountsQ
+  // Danh sách ví còn chưa về thì "chưa có tài khoản JPY / VND / để ghi thật" là câu SAI,
+  // không phải câu cảnh báo — các khối bên dưới chỉ cảnh báo khi đã tải xong.
+  const accountsLoad = loadStatus(accountsQ)
   const { data: categories = [] } = useCategories()
   const templates = useQuickTemplates()
 
@@ -392,8 +397,12 @@ export function TransactionForm({
   const withTransaction = shape.writes === 'debtPayment' ? paymentVal.withTransaction : debtVal.withTransaction
 
   // Người đã cho vay/nợ (khoản đang mở) — nguồn để gợi ý cộng dồn.
-  const { data: allDebts = [] } = useDebts()
-  const { data: allDebtPayments = [] } = useDebtPayments()
+  const debtsQ = useDebts()
+  const debtPaymentsQ = useDebtPayments()
+  const { data: allDebts = [] } = debtsQ
+  const { data: allDebtPayments = [] } = debtPaymentsQ
+  // Ô chọn khoản nợ cần cả hai: thiếu các lần trả thì "còn lại" bằng nguyên gốc.
+  const debtsLoad = mergeLoad(loadStatus(debtsQ), loadStatus(debtPaymentsQ))
 
   // Điền sẵn danh mục lần trước khi categories tải xong (form mới, chưa chọn gì)
   useEffect(() => {
@@ -1533,7 +1542,7 @@ export function TransactionForm({
           Ba cổng dưới đây quyết định FIELD NÀO HIỆN Ở DẠNG NÀO, và bản đồ này phải khớp
           `roleSeed` trong entryShape: split→SplitFields · lend|borrow→DebtFields ·
           family|ownvn→RemitFields. Map sai là bug im lặng (form hiện đúng nhưng ghi sai). */}
-      {remitLike && pickerAccounts.length === 0 && (
+      {remitLike && accountsLoad === 'ready' && pickerAccounts.length === 0 && (
         <p className="rounded-lg border border-state-bad-border bg-state-bad-bg px-3 py-2 text-sm text-state-bad-fg">
           Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
         </p>
@@ -1566,6 +1575,7 @@ export function TransactionForm({
           // người dùng đi tạo ví để bật một việc mà dạng này không bao giờ có, và ô
           // "+ Phí" (phí GIẢI NGÂN) cũng vẫn còn đó.
           neverDisburses={debtOnly}
+          accountsLoad={accountsLoad}
           people={debtPeople}
           currency={debtCurrency}
           counterpartyLabel={counterpartyLabelOf(kind)}
@@ -1580,6 +1590,7 @@ export function TransactionForm({
           onChange={setRemitVal}
           sent={amount}
           vndAccounts={vndAccounts}
+          accountsLoad={accountsLoad}
           services={SERVICES}
           feeActive={activeField === 'remit.fee'}
           receivedActive={activeField === 'remit.received'}
@@ -1609,6 +1620,7 @@ export function TransactionForm({
           }}
           debts={allDebts}
           payments={allDebtPayments}
+          load={debtsLoad}
           // out (tiền ra) = mình trả nợ đang MANG (i_owe); in (tiền vào) = người ta trả
           // lại khoản họ ĐANG NỢ MÌNH (owed_to_me). Đọc từ `shape.direction` (bảng
           // entryShape) thay vì so `kind` viết tay — cùng lý do gộp cổng ở trên.

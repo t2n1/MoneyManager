@@ -4,6 +4,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { ActionButton, SegmentedControl, Select } from '../../components/ui'
 import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { pendingText, type LoadStatus } from '../../lib/loadStatus'
 import type { DebtOrigin, RelativeRow } from '../../types/database.types'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { deriveReceived, nextReceived } from './remitDerive'
@@ -470,6 +471,7 @@ export function DebtFields({
   onChange,
   canRecordReal,
   neverDisburses = false,
+  accountsLoad = 'ready',
   people,
   currency,
   counterpartyLabel,
@@ -491,6 +493,11 @@ export function DebtFields({
    * không có. Phí ở đây cũng là phí GIẢI NGÂN, nên không giải ngân thì không có phí.
    */
   neverDisburses?: boolean
+  /**
+   * Danh sách ví đã về chưa. Chưa về thì `canRecordReal` false vì RỖNG, không phải vì
+   * không có ví — câu "Chưa có tài khoản…" chỉ in khi đã tải xong.
+   */
+  accountsLoad?: LoadStatus
   /** Người đã cho vay/nợ (khoản đang mở, cùng chiều) — chọn để cộng dồn. */
   people: DebtPerson[]
   /** Loại tiền tài khoản nguồn — phí trừ vào chính tài khoản đó. */
@@ -597,7 +604,7 @@ export function DebtFields({
             </span>
           </button>
         </label>
-        {!canRecordReal && (
+        {!canRecordReal && accountsLoad === 'ready' && (
           <p className="mt-2 text-sm text-state-warn-fg">
             Chưa có tài khoản để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).
           </p>
@@ -651,6 +658,7 @@ export function RemitFields({
   onChange,
   sent,
   vndAccounts,
+  accountsLoad = 'ready',
   services,
   feeActive,
   receivedActive,
@@ -667,6 +675,8 @@ export function RemitFields({
   /** số gửi JPY (từ ô số tiền gốc) — để tính tỷ giá. */
   sent: number
   vndAccounts: { id: string; name: string }[]
+  /** Danh sách ví đã về chưa — chưa về thì không nói "Chưa có tài khoản VND". */
+  accountsLoad?: LoadStatus
   services: readonly string[]
   /** Ô Phí / Số nhận đang được NumPad nhắm tới (mobile). */
   feeActive: boolean
@@ -764,9 +774,13 @@ export function RemitFields({
           {vndAccounts.length === 0 ? (
             <>
               <span className={labelCls}>Đến tài khoản VND</span>
-              <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-sm">
-                Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
-              </p>
+              {accountsLoad === 'ready' ? (
+                <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-sm">
+                  Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
+                </p>
+              ) : (
+                <p className="px-1 py-2 text-sm text-fg-muted">{pendingText(accountsLoad)}</p>
+              )}
             </>
           ) : (
             <>

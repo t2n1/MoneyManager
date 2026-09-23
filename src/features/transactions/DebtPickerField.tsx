@@ -9,6 +9,7 @@ import { debtsForPicker, paymentDebtSide, paymentOverpay, prefillFor } from './d
 import { blockCls, labelCls } from './roleFields'
 import type { PaymentValue } from './roleSave'
 import { Select } from '../../components/ui'
+import { pendingText, type LoadStatus } from '../../lib/loadStatus'
 
 interface Props {
   value: PaymentValue
@@ -16,6 +17,11 @@ interface Props {
   onChange: (next: PaymentValue, prefillAmount?: number) => void
   debts: DebtRow[]
   payments: DebtPaymentRow[]
+  /**
+   * Khoản nợ + các lần trả đã về chưa. Chưa về thì danh sách rỗng vì CHƯA TẢI, không phải
+   * vì không có khoản nào — không được nói "Chưa có khoản nợ nào đang mở".
+   */
+  load: LoadStatus
   /** Chiều khoản nợ mà dạng này trả: repay → i_owe, collect → owed_to_me. */
   direction: DebtDirection
   /** Tệ của VÍ đang chọn — ô số tiền lớn của form đọc theo tệ này, không theo tệ nợ. */
@@ -46,6 +52,7 @@ export function DebtPickerField({
   onChange,
   debts,
   payments,
+  load,
   direction,
   accountCurrency,
   amount,
@@ -92,6 +99,13 @@ export function DebtPickerField({
   // Không có khoản nợ nào đang mở → nói ra, đừng để ô chọn rỗng (cùng nếp với
   // nhánh "Chưa có tài khoản JPY" khi remitLike hết ví — một câu cảnh báo còn hơn
   // một <Select> trống không bấm được gì).
+  if (load !== 'ready') {
+    return (
+      <div className={blockCls('debt')}>
+        <p className="px-1 py-2 text-sm text-fg-muted">{pendingText(load)}</p>
+      </div>
+    )
+  }
   if (open.length === 0) {
     return (
       <div className={blockCls('debt')}>

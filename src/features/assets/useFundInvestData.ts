@@ -28,6 +28,7 @@ import {
   type BalanceProjection,
   type MonthlyContribution,
 } from './balanceAccrual'
+import { accountCurrentValue } from './currentValue'
 import { asFundTrade, fundHoldingsFromTrades, sessionNavs } from './fundHoldings'
 import {
   buildFundPortfolio,
@@ -145,7 +146,10 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
         // market_value trước, số dư sau — đúng thứ tự `investmentStats()` dùng ở trang
         // chi tiết tài khoản, để hai màn không nói hai số. 退職金 không có ảnh chụp giá
         // nào nên nó rơi về số dư sổ.
-        const value = b?.market_value ?? b?.balance ?? 0
+        // Qua `accountCurrentValue` với `portfolio` = null: nhóm này theo định nghĩa không có
+        // sổ lệnh quỹ, nên kết quả y như trước — chỉ là cùng MỘT hàm với mọi chỗ khác.
+        const value = accountCurrentValue(a, b?.balance ?? 0, b?.market_value ?? null, null, todayISO)
+          .value
         // Chỉ khoản THU vào chính tài khoản này: đó là hình dạng của một lần đóng —
         // `nhap.ts` ghi DB掛金 thành một dòng thu thẳng vào 退職金, Yucho không đổi.
         const contribution = measureMonthlyContribution(
@@ -170,7 +174,7 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
               : null,
         }
       }),
-    [soDuAccounts, balanceRows, namQua, monthStartDay, changCuoi, thangNay],
+    [soDuAccounts, balanceRows, namQua, monthStartDay, changCuoi, thangNay, todayISO],
   )
 
   // Lọc/tính CHỈ trên `fundAccounts`: chip tài khoản và mọi con số 基準価額 bên dưới đều

@@ -202,10 +202,17 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         />
 
         <label htmlFor={`${uid}-units`} className="mb-1 block text-sm font-medium text-fg-muted">
-          口数 {isAdjust && <span className="text-fg-muted">(âm = giảm 口 do gộp/điều chỉnh)</span>}
+          口数 (số đơn vị quỹ){' '}
+          {isAdjust && <span className="text-fg-muted">(âm = giảm 口 do gộp/điều chỉnh)</span>}
         </label>
+        {/* 口 là chữ Nhật trên sao kê, người dùng Việt không đọc được — giải thích ngay ở ô
+            nhập đầu tiên gặp nó, không giấu trong Guide (Guide tắt được). */}
+        <p id={`${uid}-units-hint`} className="mb-1 text-2xs text-fg-muted">
+          口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Chép đúng cột 口数 trên sao kê.
+        </p>
         <input
           id={`${uid}-units`}
+          aria-describedby={`${uid}-units-hint`}
           type="text"
           inputMode="numeric"
           value={unitsText}

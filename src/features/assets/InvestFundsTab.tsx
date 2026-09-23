@@ -207,6 +207,13 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             <Guide as="span"> Ghi lệnh mua để app tự lấy 基準価額 và tính lời/lỗ.</Guide>
           </p>
         ) : (
+          <>
+          {/* 口 là chữ Nhật, người dùng Việt không đọc được — giải thích một lần, ngay
+              trên danh sách đầu tiên dùng nó (cả "/1万口" ở mỗi dòng). */}
+          <p className="mt-1 text-2xs text-fg-muted">
+            口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Giá quỹ tính trên 1万口
+            (10.000 đơn vị).
+          </p>
           <ul className="mt-1 divide-y divide-border-subtle">
             {p.positions.map((pos) => (
               <li key={pos.assocFundCd}>
@@ -271,6 +278,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
               </li>
             ))}
           </ul>
+          </>
         )}
       </Card>
 

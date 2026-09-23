@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf, chipAriaLabel,
-  counterpartyLabelOf, PHASE_LABEL,
+  counterpartyLabelOf, PHASE_LABEL, DIRECTION_HINT,
   type EntryKind,
 } from './entryShape'
 
@@ -197,5 +197,16 @@ describe('dang "Khach no cong" khong dung toi vi nao', () => {
     // counterpartyLabelOf co `default: undefined`, va undefined nghia la "dang nay khong
     // co o do". Quen case nay thi o "ai no ban" khong hien, ma tsc khong bao gi.
     expect(counterpartyLabelOf('owed')).toBe('Ai nợ bạn')
+  })
+})
+
+describe('huong "Doi cho" phai tu giai thich', () => {
+  it('chi huong move co dong mo ta, va no noi ro khong phai thu hay chi', () => {
+    // "Doi cho" la chu app tu dat, nguoi dung khong doan duoc nghia. Hai huong kia
+    // ("Tien ra"/"Tien vao") tu noi duoc, nen khong can them chu.
+    expect(DIRECTION_HINT.out).toBeUndefined()
+    expect(DIRECTION_HINT.in).toBeUndefined()
+    expect(DIRECTION_HINT.move).toContain('tài khoản của bạn')
+    expect(DIRECTION_HINT.move).toContain('không tính là thu hay chi')
   })
 })

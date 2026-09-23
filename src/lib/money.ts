@@ -2,6 +2,7 @@
 // JPY = yên, VND = đồng, USD = cent. Không bao giờ dùng float.
 // Nhập liệu kiểu ATM: chuỗi chữ số chính là minor units ("1050" USD → $10,50).
 import { isPrivacyEnabled } from './privacy'
+import { getCompactStyle } from './compactStyle'
 import { CURRENCIES, groupThousands, type CurrencyCode } from './currencies'
 
 // Bảng loại tiền sống ở module lá ./currencies (không import gì) để những nơi chỉ
@@ -86,7 +87,9 @@ export function formatCompact(minor: number, currency: CurrencyCode): string {
 function formatCompactReal(minor: number, currency: CurrencyCode): string {
   const major = minor / 10 ** CURRENCIES[currency].decimals
   const abs = Math.abs(major)
-  if (currency === 'JPY') return formatCompactJa(major, abs)
+  if (currency === 'JPY') {
+    return getCompactStyle() === 'vi' ? formatCompactVi(major, abs) : formatCompactJa(major, abs)
+  }
   // Bỏ đuôi ".0" khi số chẵn: trục tung ghi "300M" chứ không "300.0M" — phần lẻ
   // bằng 0 là nhiễu, nhất là khi 5-6 nhãn trục xếp dọc cùng lúc.
   //
@@ -154,4 +157,45 @@ function formatCompactJa(major: number, abs: number): string {
 function trimJa(scaled: number): string {
   if (Math.abs(scaled) >= 100) return String(Math.round(scaled))
   return scaled.toFixed(1).replace(/\.0$/, '')
+}
+
+/**
+ * Nhãn rút gọn cho YÊN theo cách đọc số tiếng Việt — lựa chọn "nghìn / triệu" ở Cài đặt
+ * (lib/compactStyle.ts). Mặc định vẫn là 万/億, xem formatCompactJa.
+ *
+ * Bảng mẫu user đã duyệt: 460 · 20k · 91,8k · 242k · 1,3tr · 5,9tr · 123tr. Tức:
+ *   - dưới 1.000 in nguyên;
+ *   - mỗi bậc: dưới 100 giữ MỘT chữ số lẻ (bỏ ",0"), từ 100 làm tròn nguyên — cùng lý
+ *     do với trimJa, ba chữ số rồi thì chữ số lẻ chỉ còn nói 0,1%;
+ *   - dấu thập phân là DẤU PHẨY, theo tiếng Việt. Không lẫn với dấu nhóm nghìn của yên
+ *     (","): nhánh này không bao giờ in số ≥ 1.000 chưa rút gọn.
+ *
+ * Bậc tỷ viết liền "1,2tỷ", không "1,2 tỷ": cùng dáng "1,3tr" ngay dưới nó trên trục, và
+ * dấu cách tốn thêm một ô trong `width={44}`. Chuỗi dài nhất có thể là "-99,5tỷ" / "-999tr"
+ * — bảy ký tự Latin, mảnh hơn "1234.6万" (47px, tràn) vì không có glyph CJK rộng gấp đôi.
+ * CHƯA đo trên trình duyệt; ước theo tỉ lệ đo được ở trimJa thì khoảng 35–38px.
+ *
+ * Làm tròn chạm 1000 thì lên bậc: 999.600 → "1tr", không phải "1000k".
+ */
+function formatCompactVi(major: number, abs: number): string {
+  if (Math.round(abs) < 1_000) return groupInt(Math.round(major), 'JPY')
+  const BAC: [number, string][] = [
+    [1_000, 'k'],
+    [1_000_000, 'tr'],
+    [1_000_000_000, 'tỷ'],
+  ]
+  for (let i = 0; i < BAC.length; i++) {
+    const [don, ten] = BAC[i]
+    const scaled = abs / don
+    const laBacCuoi = i === BAC.length - 1
+    if (!laBacCuoi && Math.round(scaled) >= 1_000) continue
+    const sign = major < 0 ? '-' : ''
+    return `${sign}${trimVi(scaled)}${ten}`
+  }
+  return groupInt(Math.round(major), 'JPY')
+}
+
+function trimVi(scaled: number): string {
+  if (scaled >= 100) return String(Math.round(scaled))
+  return scaled.toFixed(1).replace(/.0$/, '').replace('.', ',')
 }

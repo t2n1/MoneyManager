@@ -83,6 +83,7 @@ import {
 import {
   categoryPickerOf,
   counterpartyLabelOf,
+  DIRECTION_HINT,
   DIRECTION_LABEL,
   directionOf,
   PHASE_LABEL,
@@ -1341,6 +1342,10 @@ export function TransactionForm({
           label="Hướng tiền"
         />
       )}
+      {/* Form SỬA không có DirectionTabs nên dòng mô tả hướng phải in ở đây. */}
+      {!enableRoles && DIRECTION_HINT[directionOf(kind)] && (
+        <p className="px-1 text-xs text-fg-muted">{DIRECTION_HINT[directionOf(kind)]}</p>
+      )}
 
       {/* Một dòng RIÊNG, ô 44px+ (size="lg") — không nhét vào hàng tài khoản/ngày như
           nút chuông cũ (đã xóa). "Đã chi" là TRẠNG THÁI CỦA KHOẢN TIỀN, khác hẳn một
@@ -1717,8 +1722,9 @@ export function TransactionForm({
           của chính mình thì "ai chi" không có nghĩa gì. */}
       {coupleMode && type !== 'transfer' && (
         <div className="mt-1.5 px-1">
+          {/* Nhãn theo loại: khoản THU mà hỏi "ai chi" là hỏi sai câu. */}
           <span className="mb-1 block text-2xs uppercase tracking-label text-fg-muted">
-            Ai chi khoản này
+            {type === 'income' ? 'Ai nhận khoản này' : 'Ai chi khoản này'}
           </span>
           <div className="flex gap-1">
             {OWNER_OPTIONS.map((o) => (

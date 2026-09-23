@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { CURRENCIES, formatCompact, formatMoney, parseMoney } from './money'
 import { setPrivacyEnabled } from './privacy'
+import { getCompactStyle, setCompactStyle } from './compactStyle'
 
 // Tiền lưu ở ĐƠN VỊ NHỎ NHẤT (minor units): JPY = yên, VND = đồng, USD = cent.
 
@@ -207,6 +208,79 @@ describe('che số: ô che rộng đúng bằng số thật', () => {
       setPrivacyEnabled(false)
       expect(che.length, `"${che}" vs "${that}"`).toBe(that.length)
       expect(che).not.toMatch(/[\dkMB万億]/)
+    }
+  })
+})
+
+// ---------------------------------------------------------------- "Số rút gọn" (Cài đặt)
+//
+// Người dùng chọn giữa 万/億 (mặc định) và nghìn/triệu cho nhãn rút gọn của YÊN. Bảng mẫu
+// dưới đây là bảng user ĐÃ DUYỆT — sửa một ô là đổi thứ user đã chọn, phải hỏi lại.
+describe('formatCompact — JPY kiểu nghìn/triệu', () => {
+  afterEach(() => {
+    setCompactStyle('ja')
+    setPrivacyEnabled(false)
+  })
+
+  it('mặc định vẫn là 万/億 — hành vi cũ không đổi', () => {
+    expect(getCompactStyle()).toBe('ja')
+    expect(formatCompact(241_891, 'JPY')).toBe('24.2万')
+  })
+
+  it('khớp đúng bảng mẫu user đã duyệt', () => {
+    setCompactStyle('vi')
+    const BANG: [number, string][] = [
+      [460, '460'],
+      [20_000, '20k'],
+      [91_811, '91,8k'],
+      [241_891, '242k'],
+      [1_312_870, '1,3tr'],
+      [5_894_972, '5,9tr'],
+      [123_456_789, '123tr'],
+    ]
+    for (const [minor, nhan] of BANG) expect(formatCompact(minor, 'JPY'), String(minor)).toBe(nhan)
+  })
+
+  it('bậc tỷ theo cùng luật, không có dấu cách (trục tung chỉ rộng 44px)', () => {
+    setCompactStyle('vi')
+    expect(formatCompact(1_200_000_000, 'JPY')).toBe('1,2tỷ')
+    expect(formatCompact(5_000_000_000, 'JPY')).toBe('5tỷ')
+    expect(formatCompact(123_400_000_000, 'JPY')).toBe('123tỷ')
+  })
+
+  it('làm tròn chạm mốc thì lên bậc, không ra "1000k" hay "1000tr"', () => {
+    setCompactStyle('vi')
+    expect(formatCompact(999_600, 'JPY')).toBe('1tr')
+    expect(formatCompact(999_600_000, 'JPY')).toBe('1tỷ')
+    expect(formatCompact(99_960, 'JPY')).toBe('100k')
+    expect(formatCompact(999, 'JPY')).toBe('999')
+    expect(formatCompact(1_000, 'JPY')).toBe('1k')
+  })
+
+  it('giữ dấu âm ở mọi bậc', () => {
+    setCompactStyle('vi')
+    expect(formatCompact(-460, 'JPY')).toBe('-460')
+    expect(formatCompact(-91_811, 'JPY')).toBe('-91,8k')
+    expect(formatCompact(-1_312_870, 'JPY')).toBe('-1,3tr')
+    expect(formatCompact(-1_200_000_000, 'JPY')).toBe('-1,2tỷ')
+  })
+
+  it('chỉ đổi YÊN — VND và USD vẫn k/M/B, formatMoney không đổi', () => {
+    setCompactStyle('vi')
+    expect(formatCompact(1_500_000, 'VND')).toBe('1.5M')
+    expect(formatCompact(300_000, 'USD')).toBe('3k')
+    expect(formatMoney(241_891, 'JPY')).toBe('¥241,891')
+  })
+
+  it('chế độ che số vẫn che, rộng đúng bằng nhãn thật', () => {
+    setCompactStyle('vi')
+    for (const minor of [460, 91_811, 1_312_870, -1_200_000_000]) {
+      const that = formatCompact(minor, 'JPY')
+      setPrivacyEnabled(true)
+      const che = formatCompact(minor, 'JPY')
+      setPrivacyEnabled(false)
+      expect(che.length).toBe(that.length)
+      expect(che).not.toMatch(/d/)
     }
   })
 })

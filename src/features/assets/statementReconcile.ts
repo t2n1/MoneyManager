@@ -10,7 +10,8 @@
 //
 // Thuần, không phụ thuộc React, để unit-test được.
 
-import { CARD_RECONCILE_NOTE } from './reconcile'
+import type { AdjustKind } from '../../types/database.types'
+import { isBalanceAdjust } from './reconcile'
 import type { MergedStatement } from './statementBatch'
 import type { StatementLine } from './statementLine'
 
@@ -22,6 +23,8 @@ export interface LedgerTx {
   is_refund: boolean
   to_account_id: string | null
   note: string | null
+  /** Dấu khoản bù (migration 0072); vắng/null = dòng cũ, nhận bằng ghi chú. */
+  adjust_kind?: AdjustKind | null
 }
 
 export type ExplainedCause =
@@ -64,8 +67,8 @@ export interface ReconcileResult {
   explained: { cause: ExplainedCause; label: string; amount: number }[]
   /**
    * Σ signedAmount của dòng sổ inScope có occurred_on trong [range.start, range.end) — bất kể
-   * ghép hay không. Cùng rổ với cardMonthCharge: KHÔNG tính transfer trả nợ thẻ và note
-   * CARD_RECONCILE_NOTE.
+   * ghép hay không. Cùng rổ với cardMonthCharge: KHÔNG tính transfer trả nợ thẻ và khoản
+   * bù tổng nợ (`isBalanceAdjust`).
    */
   ledgerTotal: number
   /**
@@ -110,7 +113,8 @@ const signedAmount = (t: LedgerTx) => (t.type === 'income' || t.is_refund ? -t.a
 
 /** Rổ sổ để đối chiếu, loại đúng những gì `cardMonthCharge` loại — hai chỗ phải nói cùng một kiểu. */
 const inScope = (t: LedgerTx, cardId: string) =>
-  !(t.type === 'transfer' && t.to_account_id === cardId) && t.note !== CARD_RECONCILE_NOTE
+  !(t.type === 'transfer' && t.to_account_id === cardId) &&
+  !(t.type !== 'transfer' && isBalanceAdjust(t))
 
 /**
  * Dòng thẻ KHÔNG đi qua vòng ghép 1-1: trả góp lần sau và mua quỹ không có gì để ghép;

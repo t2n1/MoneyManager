@@ -62,6 +62,19 @@ describe('cardMonthCharge', () => {
     expect(cardMonthCharge('card', txs)).toBe(112_760)
   })
 
+  it('nhận khoản bù tổng nợ bằng DẤU, dù người dùng đã sửa ghi chú', () => {
+    // Trước đây sửa ghi chú là khoản bù bị tính thành tiền quẹt → số bị rút sai
+    const txs = [ex(112_760), ex(1_312_870, { type: 'income', note: 'bù sao kê', adjust_kind: 'balance' })]
+    expect(cardMonthCharge('card', txs)).toBe(112_760)
+    expect(cardMonthReconcileNet('card', txs)).toBe(1_312_870)
+  })
+
+  it('khoản "Chỉnh cho khớp" có dấu statement_month vẫn là tiền quẹt, kể cả khi ghi chú trùng chữ', () => {
+    const txs = [ex(112_760), ex(3_000, { note: CARD_RECONCILE_NOTE, adjust_kind: 'statement_month' })]
+    expect(cardMonthCharge('card', txs)).toBe(115_760)
+    expect(cardMonthReconcileNet('card', txs)).toBe(0)
+  })
+
   it('vẫn tính khoản bù của "Chỉnh cho khớp" (ghi chú khác)', () => {
     // Không tính thì chỉnh xong tổng tháng vẫn lệch y như cũ
     const txs = [ex(112_760), ex(3_000, { note: 'Điều chỉnh sao kê 2026/08' })]

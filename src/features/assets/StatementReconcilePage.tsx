@@ -102,6 +102,7 @@ const toLedgerTx = (t: TransactionRow): LedgerTx => ({
   is_refund: t.is_refund ?? false,
   to_account_id: t.to_account_id,
   note: t.note,
+  adjust_kind: t.adjust_kind ?? null,
 })
 
 export function StatementReconcilePage() {

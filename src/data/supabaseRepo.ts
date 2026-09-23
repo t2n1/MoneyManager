@@ -9,6 +9,7 @@ import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
 import { missingTradeTransfers, stockTradeCashFlow } from '../features/assets/stockTradePosting'
 import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
+import { isMissingColumnError } from './missingColumn'
 import type {
   AccountRow,
   AccountValuationRow,
@@ -358,14 +359,23 @@ export const supabaseRepo: Repo = {
     const user_id = await currentUserId()
     // tag_ids là bảng liên kết riêng, không phải cột của transactions
     const { tag_ids, ...fields } = input
-    const { data, error } = await getSupabase()
-      .from('transactions')
-      .insert({ ...fields, user_id })
-      .select()
-      .single()
+    const insert = (row: Omit<NewTransaction, 'tag_ids'>) =>
+      getSupabase()
+        .from('transactions')
+        .insert({ ...row, user_id })
+        .select()
+        .single()
+    let { data, error } = await insert(fields)
+    // Code lên trước khi migration 0072 được dán vào Supabase: bỏ dấu khoản bù rồi ghi
+    // lại, thay vì làm hỏng nút "Điều chỉnh số nợ". Dòng ghi lúc đó không có dấu nhưng
+    // vẫn được nhận bằng ghi chú (isBalanceAdjust), và backfill của 0072 đóng dấu cho nó.
+    if (error && fields.adjust_kind !== undefined && isMissingColumnError(error, 'adjust_kind')) {
+      const { adjust_kind: _bo, ...rest } = fields
+      ;({ data, error } = await insert(rest))
+    }
     if (error) throw error
-    if (tag_ids?.length) await this.setTransactionTags(data.id, tag_ids)
-    return data
+    if (tag_ids?.length) await this.setTransactionTags(data!.id, tag_ids)
+    return data!
   },
 
   async updateTransaction(id: string, patch: TransactionPatch) {

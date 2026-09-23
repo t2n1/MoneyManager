@@ -79,6 +79,17 @@ describe('reconcileBatch — ghep 1-1', () => {
     expect(r.extraInLedger).toHaveLength(1)
   })
 
+  it('khoan bu tong no co dau balance bi loai khoi ro so du ghi chu da sua', () => {
+    const r = one('2026-06', [], [tx('2026-06-06', 92158, { note: 'bu lech', adjust_kind: 'balance' })])
+    expect(r.extraInLedger).toHaveLength(0)
+    expect(r.ledgerTotal).toBe(0)
+  })
+
+  it('khoan Chinh cho khop (statement_month) van nam trong ro so', () => {
+    const r = one('2026-06', [], [tx('2026-06-06', 3000, { note: CARD_RECONCILE_NOTE, adjust_kind: 'statement_month' })])
+    expect(r.ledgerTotal).toBe(3000)
+  })
+
   it('loai tra no the va khoan Dieu chinh so no khoi ro so', () => {
     const r = one('2026-06', [], [
       tx('2026-06-05', 50000, { type: 'transfer', to_account_id: CARD }),

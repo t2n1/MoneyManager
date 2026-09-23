@@ -88,6 +88,9 @@ export function CardMonthAdjustSheet({
         to_account_id: null,
         occurred_on: occurredOn,
         note: `Điều chỉnh sao kê ${monthLabel.toLowerCase()}`,
+        // Khoản bù của MỘT kỳ — vẫn tính là tiền quẹt, kể cả khi ghi chú bị sửa trùng
+        // chữ "Điều chỉnh số nợ" (isBalanceAdjust).
+        adjust_kind: 'statement_month',
         exclude_from_stats: true,
       })
       onClose()

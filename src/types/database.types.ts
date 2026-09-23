@@ -24,6 +24,13 @@ export type CategoryKind = 'expense' | 'transfer'
 export type NeedLevel = 'essential' | 'flexible' | 'education' | 'giving' | 'buffer'
 export type CostType = 'fixed' | 'variable'
 export type TransactionType = 'expense' | 'income' | 'transfer'
+/**
+ * Khoản bù sinh từ nút nào (migration 0072). null = giao dịch thường, HOẶC khoản bù cũ
+ * tạo trước khi có cột mà backfill không nhận ra — nơi đọc rơi về so ghi chú.
+ *   'balance'         = sheet "Điều chỉnh số nợ / số dư" (bù TỔNG nợ/số dư hôm nay)
+ *   'statement_month' = sheet "Chỉnh cho khớp" (bù tổng quẹt của MỘT kỳ sao kê)
+ */
+export type AdjustKind = 'balance' | 'statement_month'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
 export type DebtDirection = 'i_owe' | 'owed_to_me'
 export type DebtStatus = 'open' | 'settled'
@@ -353,6 +360,11 @@ export type TransactionRow = {
    * 05/09/2026 được bấm khi tính năng "Chưa ghi rõ" chưa tồn tại.
    */
   adjust_is_spend?: boolean
+  /**
+   * Dấu khoản bù (migration 0072) — xem `AdjustKind`. Vắng mặt khi DB chưa chạy 0072.
+   * Có dấu thì người dùng sửa ghi chú cũng không làm khoản bù bị tính thành tiền quẹt.
+   */
+  adjust_kind?: AdjustKind | null
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, KHÔNG phải thu nhập). */
   is_refund?: boolean
   /**
@@ -1162,6 +1174,7 @@ export type Database = {
           | 'is_debt_flow'
           | 'exclude_from_stats'
           | 'adjust_is_spend'
+          | 'adjust_kind'
           | 'is_refund'
           | 'owner'
           | 'stock_trade_id'
@@ -1186,6 +1199,7 @@ export type Database = {
             | 'is_debt_flow'
             | 'exclude_from_stats'
             | 'adjust_is_spend'
+            | 'adjust_kind'
             | 'is_refund'
             | 'owner'
             | 'stock_trade_id'

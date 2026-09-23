@@ -5,6 +5,7 @@ import type {
   AccountBalanceRow,
   AccountRow,
   AccountType,
+  AdjustKind,
   AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
@@ -179,6 +180,11 @@ export interface NewTransaction {
    * tiền đã tiêu mà quên ghi. Xem `chiChuaGhi.ts`.
    */
   adjust_is_spend?: boolean
+  /**
+   * Khoản bù sinh từ nút nào (migration 0072) — chỉ hai sheet bù đặt trường này.
+   * supabaseRepo tự bỏ trường này nếu DB chưa có cột (xem `createTransaction`).
+   */
+  adjust_kind?: AdjustKind | null
   /**
    * Lệnh cổ phiếu sinh ra dòng tiền này (migration 0054).
    * Chỉ repo đặt trường này — giao diện nhập giao dịch không bao giờ đặt.

@@ -15,13 +15,14 @@ import { dayOfMonth, statementCloseFor } from '../../lib/cardAutopay'
 import { addDaysISO, addMonths, type MonthKey } from '../../lib/dates'
 import { shiftToBusinessDay } from '../../lib/jpHolidays'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
-import { CARD_RECONCILE_NOTE } from './reconcile'
+import type { AdjustKind } from '../../types/database.types'
+import { isBalanceAdjust } from './reconcile'
 
-export type MonthChargeTx = BalanceTxLike & { note?: string | null }
+export type MonthChargeTx = BalanceTxLike & { note?: string | null; adjust_kind?: AdjustKind | null }
 
-/** Khoản bù tổng nợ do "Điều chỉnh số nợ" tạo — nhận diện bằng ghi chú. */
+/** Khoản bù tổng nợ do "Điều chỉnh số nợ" tạo — dấu `adjust_kind`, dòng cũ thì ghi chú. */
 const isCardReconcile = (t: MonthChargeTx, cardId: string) =>
-  t.account_id === cardId && t.type !== 'transfer' && t.note === CARD_RECONCILE_NOTE
+  t.account_id === cardId && t.type !== 'transfer' && isBalanceAdjust(t)
 
 /**
  * Tổng tiền quẹt trong rổ `txs` (đã lọc sẵn theo tháng ở nơi gọi).

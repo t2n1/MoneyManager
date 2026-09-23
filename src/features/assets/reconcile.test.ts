@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ADJUST_CATEGORY_NAME,
+  CARD_RECONCILE_NOTE,
   cardDebt,
+  isBalanceAdjust,
   defaultAdjustDate,
   findAdjustCategory,
   reconcilePlan,
@@ -170,5 +172,23 @@ describe('defaultAdjustDate', () => {
         todayISO: '2026-08-02',
       }),
     ).toBe('2026-07-01')
+  })
+})
+
+describe('isBalanceAdjust — nhận khoản bù tổng nợ/số dư', () => {
+  it('có dấu balance → là khoản bù, dù ghi chú đã bị sửa', () => {
+    expect(isBalanceAdjust({ adjust_kind: 'balance', note: 'bù lệch tháng 7' })).toBe(true)
+    expect(isBalanceAdjust({ adjust_kind: 'balance', note: '' })).toBe(true)
+  })
+
+  it('có dấu statement_month ("Chỉnh cho khớp") → KHÔNG phải, kể cả khi ghi chú trùng chữ', () => {
+    expect(isBalanceAdjust({ adjust_kind: 'statement_month', note: CARD_RECONCILE_NOTE })).toBe(false)
+  })
+
+  it('dòng cũ chưa có dấu (null/vắng) → nhận bằng ghi chú như trước', () => {
+    expect(isBalanceAdjust({ adjust_kind: null, note: CARD_RECONCILE_NOTE })).toBe(true)
+    expect(isBalanceAdjust({ note: CARD_RECONCILE_NOTE })).toBe(true)
+    expect(isBalanceAdjust({ adjust_kind: null, note: 'Điều chỉnh sao kê tháng 8' })).toBe(false)
+    expect(isBalanceAdjust({ note: null })).toBe(false)
   })
 })

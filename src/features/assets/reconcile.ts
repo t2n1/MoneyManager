@@ -2,6 +2,7 @@
 // Thuần, không phụ thuộc React, để unit-test được.
 
 import { nextStatementPeriod } from '../../lib/cardAutopay'
+import type { AdjustKind } from '../../types/database.types'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 
 export interface ReconcileInput {
@@ -73,12 +74,31 @@ export function defaultAdjustDate({
 }
 
 /**
- * Ghi chú gắn cho khoản bù TỔNG NỢ thẻ — cũng là dấu hiệu để tổng "Quẹt trong
- * kỳ" (cardMonthCharge) nhận ra và bỏ qua nó: khoản bù tổng nợ không phải tiền
- * quẹt, cộng vào sẽ ra số không có trên sao kê thật nào. Khoản bù của "Chỉnh
- * cho khớp" mang ghi chú khác nên vẫn được tính như thiết kế.
+ * Ghi chú mặc định gắn cho khoản bù TỔNG NỢ thẻ. Từ migration 0072 dấu thật là cột
+ * `adjust_kind`; ghi chú chỉ còn là đường nhận dạng cho dòng cũ chưa có dấu — xem
+ * `isBalanceAdjust`.
  */
 export const CARD_RECONCILE_NOTE = 'Điều chỉnh số nợ'
+
+/**
+ * Khoản bù TỔNG nợ/số dư (sheet "Điều chỉnh số nợ") — tổng "Quẹt trong kỳ"
+ * (cardMonthCharge) và rổ đối chiếu sao kê phải bỏ qua nó: nó không phải tiền quẹt,
+ * cộng vào sẽ ra số không có trên sao kê thật nào. Khoản bù của "Chỉnh cho khớp"
+ * ('statement_month') thì vẫn tính — không tính thì chỉnh xong kỳ vẫn lệch.
+ *
+ * Dấu `adjust_kind` thắng ghi chú: trước đây nhận bằng ghi chú, người dùng sửa ghi
+ * chú là khoản bù bị tính thành tiền quẹt và bảng "số bị rút" sai. Dòng chưa có dấu
+ * (tạo trước 0072 hoặc lúc DB chưa chạy 0072) rơi về so ghi chú như cũ.
+ *
+ * Không tự kiểm tài khoản / loại giao dịch — nơi gọi lọc (thẻ nào, không phải chuyển khoản).
+ */
+export function isBalanceAdjust(t: {
+  adjust_kind?: AdjustKind | null
+  note?: string | null
+}): boolean {
+  if (t.adjust_kind != null) return t.adjust_kind === 'balance'
+  return t.note === CARD_RECONCILE_NOTE
+}
 
 // --- Danh mục cho giao dịch bù ---
 // Bảng transactions có CHECK: chi/thu BẮT BUỘC có danh mục (chỉ chuyển khoản mới

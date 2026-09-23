@@ -122,6 +122,8 @@ export function ReconcileSheet({
           to_account_id: null,
           occurred_on: occurredOn,
           note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
+          // Dấu thật để nhận ra khoản bù tổng nợ — ghi chú người dùng sửa được (isBalanceAdjust).
+          adjust_kind: 'balance',
           exclude_from_stats: true,
           // `anhHuongChi` chặn ở đây nữa, không chỉ ở giao diện: kiểu tài khoản mà
           // chiChuaGhi bỏ qua thì cột này phải là false, không phải một giá trị người

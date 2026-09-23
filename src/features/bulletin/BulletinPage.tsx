@@ -55,7 +55,7 @@ import { ngayDiVang } from '../reports/ngayDiVang'
 import { dailySpendSeries } from '../reports/dailySpike'
 import { cumulativeCompare } from '../reports/cumulativeCompare'
 import { dayTagCells } from '../reports/dayTagCells'
-import { headlineOf } from '../reports/headline'
+import { headlineOf, headlinePaceOf } from '../reports/headline'
 import { useMonthPace } from '../reports/useMonthPace'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 import { useAssetsData } from '../assets/useAssetsData'
@@ -295,10 +295,8 @@ export function BulletinPage() {
     expense: expenseKpi.value,
     priorExpense: expenseKpi.prev,
     periodNoun: 'tháng này',
-    pace:
-      bulletinPace.forecast && report
-        ? { forecast: bulletinPace.forecast.projected, budgeted: report.totalBudgeted }
-        : null,
+    // Cùng luật "chưa đặt" và cùng phạm vi so với thẻ ngân sách (`pickBudgetVerdict`).
+    pace: headlinePaceOf(bulletinPace),
     savingsTargetShare: savingsShare,
     rateScope,
   })

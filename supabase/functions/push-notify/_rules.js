@@ -828,7 +828,11 @@ function plannedRules(input) {
       // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
       title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.duePrecision === "month" ? `Trong th\xE1ng ${Number(d.dueISO.slice(5, 7))} c\u1EA7n chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
       detail: d.daysLeft < 0 ? `Qu\xE1 h\u1EA1n ${-d.daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.` : "B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa.",
-      onISO: d.dueISO,
+      // Khoản chỉ biết tháng: đưa HẠN CHÓT (ngày cuối tháng) chứ không phải ngày 1 đang
+      // lưu — Việc cần làm tính nhãn và "có hạn trong tuần" từ đây, đưa ngày 1 là cả
+      // tháng 9 hiện đỏ "QUÁ HẠN" dưới tiêu đề "Trong tháng 9…".
+      onISO: d.duePrecision === "month" ? addDaysISO2(input.todayISO, d.daysLeft) : d.dueISO,
+      ...d.duePrecision === "month" ? { onPrecision: "month" } : {},
       to: "/planned"
     };
   });

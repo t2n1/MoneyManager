@@ -23,9 +23,10 @@ export interface HeadlineInput {
    * nhất — trong khi dự báo cuối tháng ¥126k trên tổng hạn mức ¥68k, tức trên đà vượt
    * 85%. Câu cũ chỉ nói vế đầu nên nó phán "Tốt" ngay cạnh một ô báo vượt gần gấp đôi.
    *
-   * Bỏ trống (hoặc `budgeted <= 0`) = không nói gì. Chưa đặt hạn mức thì không có trần
-   * nào để "trên đà vượt", và bịa ra một kết luận từ mẫu số 0 là cách nhanh nhất để câu
-   * tổng mất tín nhiệm.
+   * Bỏ trống = CHƯA ĐẶT hạn mức = không nói gì: không có trần nào để "trên đà vượt".
+   * `budgeted = 0` KHÔNG có nghĩa là chưa đặt — đó là trần ¥0 THẬT (cùng luật
+   * `totalCapOf` / `pickBudgetVerdict`): chi rồi là vượt. Dựng giá trị này bằng
+   * `headlinePaceOf` để "chưa đặt" và phạm vi so khớp với thẻ ngân sách ngay bên dưới.
    */
   pace?: { forecast: number; budgeted: number } | null
   /**
@@ -60,6 +61,23 @@ export interface Headline {
   short: string
 }
 
+/**
+ * Dựng `HeadlineInput.pace` từ dự báo của tháng — CÙNG luật với `pickBudgetVerdict`:
+ *  · chưa có dòng ngân sách tính-vào-tổng (`budgetedCount = 0`) → null, câu tổng im;
+ *  · so dự báo CÙNG PHẠM VI với tổng trần (`budgetForecast` — chỉ các mục đã đặt hạn
+ *    mức), không phải toàn bộ chi. Lấy toàn bộ chi là ai đặt một trần ¥0 cũng bị câu
+ *    tổng réo "vượt" vì tiền chợ ở mục chưa đặt trần, trong khi thẻ bên dưới nói dưới trần.
+ *  · chưa dựng được dự báo cùng phạm vi → null, không rơi về toàn bộ chi.
+ */
+export function headlinePaceOf(p: {
+  totalBudgeted: number
+  budgetedCount: number
+  budgetForecast: { projected: number } | null
+}): { forecast: number; budgeted: number } | null {
+  if (p.budgetedCount === 0 || !p.budgetForecast) return null
+  return { forecast: p.budgetForecast.projected, budgeted: p.totalBudgeted }
+}
+
 /** Trả null khi kỳ chưa có gì để nói (không thu, không chi). */
 export function headlineOf(input: HeadlineInput): Headline | null {
   const { income, expense, priorExpense, periodNoun, pace, savingsTargetShare = 0.2, rateScope } = input
@@ -73,12 +91,13 @@ export function headlineOf(input: HeadlineInput): Headline | null {
       ? Math.round(((expense - priorExpense) / priorExpense) * 100)
       : null
 
-  // Trên đà vượt trần chi hay không — null = không có trần để so.
+  // Trên đà vượt trần chi hay không — `pace` vắng = không có trần để so.
+  // Trần ¥0: không có % nào để chia (mẫu số 0), nhưng chi một đồng là vượt — nói "vượt"
+  // mà không nói %. Bản trước im ở đây trong khi thẻ ngân sách ngay dưới nói vượt.
+  const zeroCap = pace != null && pace.budgeted <= 0
   const overPct =
-    pace && pace.budgeted > 0
-      ? Math.round(((pace.forecast - pace.budgeted) / pace.budgeted) * 100)
-      : null
-  const overBudget = overPct !== null && overPct > 0
+    pace && !zeroCap ? Math.round(((pace.forecast - pace.budgeted) / pace.budgeted) * 100) : null
+  const overBudget = zeroCap ? pace.forecast > 0 : overPct !== null && overPct > 0
 
   let tone: Headline['tone'] =
     ratePct === null ? 'info' : ratePct < 0 ? 'bad' : ratePct >= savingsTargetPct ? 'good' : 'warn'
@@ -108,10 +127,12 @@ export function headlineOf(input: HeadlineInput): Headline | null {
 
   // Mệnh đề NHÌN VỀ PHÍA TRƯỚC (23a). Hai vế trước nói chuyện đã rồi; vế này nói kỳ sẽ
   // kết thúc thế nào — và nó là vế duy nhất so với TRẦN CHI.
-  if (overPct !== null) {
+  if (pace) {
     parts.push(
       overBudget
-        ? `và đang trên đà vượt ngân sách ${overPct}%`
+        ? zeroCap
+          ? 'và đã vượt ngân sách (tổng trần đang là 0)'
+          : `và đang trên đà vượt ngân sách ${overPct}%`
         : `và đang trên đà kết thúc ${periodNoun} dưới ngân sách`,
     )
   }
@@ -127,7 +148,9 @@ export function headlineOf(input: HeadlineInput): Headline | null {
   // người dùng không bao giờ thấy lời cảnh báo — tức việc thêm nó vào `text` thành vô ích.
   // Chỉ nhường chỗ khi KHÔNG vượt: lúc đó "dưới ngân sách" là tin tốt, không gấp.
   const short = overBudget
-    ? `${shortRate} · trên đà vượt trần ${overPct}%`
+    ? zeroCap
+      ? `${shortRate} · đã vượt trần 0`
+      : `${shortRate} · trên đà vượt trần ${overPct}%`
     : deltaPct !== null && deltaPct !== 0
       ? `${shortRate} · chi ${shortCompare(deltaPct)}`
       : shortRate

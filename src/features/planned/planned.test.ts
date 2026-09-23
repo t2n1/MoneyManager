@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Rates } from '../../lib/rates'
 import type { PlannedExpenseRow } from '../../types/database.types'
-import { daysUntil, groupPlannedByMonth, plannedDue, plannedOutlook } from './planned'
+import { daysUntil, groupPlannedByMonth, plannedDue, plannedOutlook, plannedRowStatus } from './planned'
 
 const TODAY = '2026-08-10'
 // Rates = "1 base đổi được bao nhiêu đơn vị tiền kia" → 1.000.000 ₫ = ¥6.000
@@ -188,5 +188,41 @@ describe('plannedOutlook', () => {
   it('đã chi rồi thì không còn phải lo', () => {
     const rows = [plan({ id: 'a', status: 'done', transaction_id: 't', amount: 99_000 })]
     expect(plannedOutlook(rows, TODAY, 3, 'JPY', RATES).count).toBe(0)
+  })
+})
+
+describe('plannedRowStatus — cùng luật quá hạn với isCommitmentOverdue', () => {
+  it('khoản có ngày: quá hạn / sắp tới / còn xa', () => {
+    expect(plannedRowStatus(plan({ id: 'a', due_on: '2026-08-05' }), TODAY)).toMatchObject({
+      level: 'overdue',
+      overdueDays: 5,
+      label: 'Quá hạn 5 ngày',
+    })
+    expect(plannedRowStatus(plan({ id: 'a', due_on: '2026-08-10' }), TODAY)).toMatchObject({
+      level: 'soon',
+      label: 'Đến hạn hôm nay',
+    })
+    expect(plannedRowStatus(plan({ id: 'a', due_on: '2026-08-17' }), TODAY).level).toBe('soon')
+    expect(plannedRowStatus(plan({ id: 'a', due_on: '2026-08-18' }), TODAY)).toMatchObject({
+      level: 'later',
+      label: 'Còn 8 ngày',
+    })
+  })
+
+  it('khoản chỉ biết tháng, tháng chưa qua: "Trong tháng N", không bao giờ đỏ', () => {
+    const p = plan({ id: 'a', due_on: '2026-08-01', due_precision: 'month' })
+    expect(plannedRowStatus(p, TODAY)).toEqual({ level: 'month', overdueDays: 0, label: 'Trong tháng 8' })
+    expect(plannedRowStatus(p, '2026-08-31').level).toBe('month')
+  })
+
+  // Ca đã gặp: khoản tháng đã qua hết tháng vẫn "Chưa có ngày cụ thể" mãi mãi, trong
+  // khi Ngân sách / Lịch đã coi nó là quá hạn.
+  it('khoản chỉ biết tháng, cả tháng đã qua: quá hạn, đếm từ ngày cuối tháng', () => {
+    const p = plan({ id: 'a', due_on: '2026-07-01', due_precision: 'month' })
+    expect(plannedRowStatus(p, TODAY)).toEqual({
+      level: 'overdue',
+      overdueDays: 10,
+      label: 'Quá hạn 10 ngày',
+    })
   })
 })

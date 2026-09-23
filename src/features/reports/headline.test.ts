@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headlineOf, shortCompare } from './headline'
+import { headlineOf, headlinePaceOf, shortCompare } from './headline'
 
 describe('headlineOf', () => {
   const base = { income: 400_000, expense: 300_000, priorExpense: 250_000, periodNoun: 'tháng này' }
@@ -155,9 +155,21 @@ describe('headlineOf — mệnh đề trên-đà so với ngân sách', () => {
     expect(h.text).not.toContain('ngân sách')
   })
 
-  it('chưa đặt hạn mức (budgeted = 0) cũng im — không có trần nào để vượt', () => {
-    const h = headlineOf({ ...base, pace: { forecast: 126_000, budgeted: 0 } })!
-    expect(h.text).not.toContain('ngân sách')
+  // Trần ¥0 là trần THẬT (cùng luật `totalCapOf` / `pickBudgetVerdict`): "chưa đặt" do
+  // nơi gọi nói bằng cách không truyền pace (xem `headlinePaceOf`), không bằng số 0.
+  it('tổng trần ¥0 mà đã chi → vượt ngân sách, hạ tông, bản ngắn cũng nói', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 12_000, budgeted: 0 } })!
+    expect(h.text).toContain('và đã vượt ngân sách (tổng trần đang là 0)')
+    expect(h.text).not.toContain('NaN')
+    expect(h.text).not.toContain('Infinity')
+    expect(h.tone).toBe('warn')
+    expect(h.short).toContain('vượt trần 0')
+  })
+
+  it('tổng trần ¥0 mà chưa chi trong phạm vi → dưới ngân sách', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 0, budgeted: 0 } })!
+    expect(h.text).toContain('dưới ngân sách')
+    expect(h.tone).toBe('good')
   })
 
   it('trên đà dưới trần → nói ra, và giữ tông tốt', () => {
@@ -221,5 +233,31 @@ describe('headlineOf — rateScope nói kỳ tính của tỷ lệ giữ lại',
 
   it('không truyền thì câu giữ nguyên như cũ', () => {
     expect(headlineOf(base)?.text).toBe('Giữ lại được 25% thu nhập tháng này.')
+  })
+})
+
+// Cùng luật với `pickBudgetVerdict`: chưa có dòng ngân sách nào (budgetedCount = 0) mới là
+// "chưa đặt"; và so trong CÙNG phạm vi với tổng trần (budgetForecast), không phải toàn bộ chi.
+describe('headlinePaceOf', () => {
+  const fc = (projected: number) => ({ projected, low: projected, high: projected })
+
+  it('chưa có dòng ngân sách → null, câu tổng im', () => {
+    expect(headlinePaceOf({ totalBudgeted: 0, budgetedCount: 0, budgetForecast: null })).toBeNull()
+  })
+
+  it('có dòng trần ¥0 → vẫn là một trần để so', () => {
+    expect(
+      headlinePaceOf({ totalBudgeted: 0, budgetedCount: 1, budgetForecast: fc(5_000) }),
+    ).toEqual({ forecast: 5_000, budgeted: 0 })
+  })
+
+  it('lấy dự báo CÙNG phạm vi với trần', () => {
+    expect(
+      headlinePaceOf({ totalBudgeted: 68_000, budgetedCount: 3, budgetForecast: fc(70_000) }),
+    ).toEqual({ forecast: 70_000, budgeted: 68_000 })
+  })
+
+  it('chưa dựng được dự báo cùng phạm vi → null (không rơi về toàn bộ chi)', () => {
+    expect(headlinePaceOf({ totalBudgeted: 68_000, budgetedCount: 3, budgetForecast: null })).toBeNull()
   })
 })

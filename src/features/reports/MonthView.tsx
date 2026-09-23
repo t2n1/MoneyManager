@@ -76,7 +76,7 @@ import {
   sumIncomeExpense,
 } from './aggregate'
 import { detectAnomalies } from './insights'
-import { headlineOf } from './headline'
+import { headlineOf, headlinePaceOf } from './headline'
 import { monthStory } from './monthStory'
 import { MonthStoryNote } from './MonthStoryNote'
 import { useMonthPace } from './useMonthPace'
@@ -143,7 +143,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   const vang = useMemo(() => ngayDiVang(trips), [trips])
   const thangVang = useMemo(() => thangCoChuyenDi(trips, monthStartDay), [trips, monthStartDay])
   const { data: tagLinks = [] } = useTransactionTags()
-  const { data: recurringRules = [] } = useRecurringRules()
+  const { data: recurringRules = [], isSuccess: recurringReady } = useRecurringRules()
   const { data: plannedExpenses = [] } = usePlannedExpenses()
 
   const currencyOf = (id: string): CurrencyCode =>
@@ -171,7 +171,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   )
 
   const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(monthKey)
-  const { data: rangeTxs = [] } = useRangeTransactions(windowRange, !!profile)
+  const { data: rangeTxs = [], isSuccess: rangeReady } = useRangeTransactions(windowRange, !!profile)
 
   // ---------------------------------------------------------------- số của kỳ
   const sums = useMemo(
@@ -411,10 +411,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         expense: sums.expense,
         priorExpense: cmp?.priorSameDays ?? null,
         periodNoun: 'tháng này',
-        pace:
-          pace.forecast && budgetReport
-            ? { forecast: pace.forecast.projected, budgeted: budgetReport.totalBudgeted }
-            : null,
+        // Cùng luật "chưa đặt" và cùng phạm vi so với thẻ ngân sách (`pickBudgetVerdict`).
+        pace: headlinePaceOf(pace),
         savingsTargetShare: savingsShare,
         rateScope: kyNgay.inProgress ? 'tới hôm nay' : undefined,
       })
@@ -788,7 +786,15 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             {backlogRows.length > 0 && (
               <UncategorizedBacklogCard rows={backlogRows} monthsWindow={WINDOW} />
             )}
-            {anomalies.length === 0 &&
+            {/* Khoản lạ, cỡ chi, chưa phân loại đọc dải 6 tháng; thuê bao đọc khoản
+                định kỳ. Cả hai mặc định `[]` lúc đang tải, nên chỉ chờ tháng đang xem là
+                phán "không có gì bất thường" trước khi kịp nhìn. Chờ đủ rồi mới nói. */}
+            {!(rangeReady && recurringReady) ? (
+              <Card as="section" elevation="panel" padding="panel">
+                <p className="text-sm text-fg-muted">Đang soát các khoản bất thường…</p>
+              </Card>
+            ) : (
+              anomalies.length === 0 &&
               subscriptions.count === 0 &&
               !sizes &&
               backlogRows.length === 0 && (
@@ -797,7 +803,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                     Không có gì bất thường trong kỳ này.
                   </p>
                 </Card>
-              )}
+              )
+            )}
           </ReportBlock>
         </div>
 

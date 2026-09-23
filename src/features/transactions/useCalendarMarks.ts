@@ -33,6 +33,11 @@ export interface CalendarMarks {
   schedule: CommitmentSchedule
   /** Thẻ tới hạn trong kỳ, để liệt kê riêng. */
   cardDues: DayMarkInput[]
+  /**
+   * Định kỳ + khoản sắp chi đã tải xong chưa. `false` = `commitments`/`schedule` đang
+   * rỗng GIẢ (mặc định `[]`) — "Còn được tiêu" phải chờ, không chia, không cảnh báo thiếu.
+   */
+  commitmentsReady: boolean
 }
 
 const EMPTY_SCHEDULE: CommitmentSchedule = {
@@ -54,8 +59,8 @@ export interface CalendarMarksArgs {
 
 export function useCalendarMarks(args: CalendarMarksArgs): CalendarMarks {
   const { monthKey, monthStartDay, transactions, currencyOf, base, rates } = args
-  const { data: rules = [] } = useRecurringRules()
-  const { data: planned = [] } = usePlannedExpenses()
+  const { data: rules = [], isSuccess: rulesReady } = useRecurringRules()
+  const { data: planned = [], isSuccess: plannedReady } = usePlannedExpenses()
   const { data: balances = [] } = useAccountBalances()
 
   const range = useMemo(() => getMonthRange(monthKey, monthStartDay), [monthKey, monthStartDay])
@@ -159,5 +164,5 @@ export function useCalendarMarks(args: CalendarMarksArgs): CalendarMarks {
     [commitments.items, cardDues, paydays],
   )
 
-  return { marks, commitments, schedule, cardDues }
+  return { marks, commitments, schedule, cardDues, commitmentsReady: rulesReady && plannedReady }
 }

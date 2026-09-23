@@ -574,15 +574,23 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // ngày đã tự ẩn từ trước.
   const committedRemaining = pace.isCurrentMonth ? commitments.total : 0
   const spendable = spendableRemaining(totalRemaining, committedRemaining)
-  const totalAllowance = pace.isCurrentMonth
-    ? dailyAllowance(spendable, pace.paceDaysElapsed, pace.paceDaysInMonth)
-    : null
+  // Cam kết chưa tải xong thì `commitments.total` là 0 giả: chia ra là một mức mỗi ngày
+  // CAO hơn thật rồi tụt xuống. Hiện "Đang tính…" thay cho con số, và không cảnh báo thiếu.
+  const commitmentsPending = pace.isCurrentMonth && !commitments.ready
+  const totalAllowance =
+    pace.isCurrentMonth && !commitmentsPending
+      ? dailyAllowance(spendable, pace.paceDaysElapsed, pace.paceDaysInMonth)
+      : null
   // B36.2 · Ca "còn tiền trong trần nhưng đã hứa hết" KHÔNG phải ca `null` của
   // `dailyAllowance`. Hàm đó trả `null` khi số chia ≤ 0 và dòng biến mất — đúng cho "đã
   // vượt trần", SAI cho ca này: còn ¥12,000 trong trần mà ¥18,600 đã hứa nghĩa là thiếu
   // ¥6,600, và đó là tin quan trọng nhất trong tháng.
   const thieuTruocCuoiThang =
-    pace.isCurrentMonth && totalRemaining > 0 && committedRemaining > 0 && spendable <= 0
+    pace.isCurrentMonth &&
+    !commitmentsPending &&
+    totalRemaining > 0 &&
+    committedRemaining > 0 &&
+    spendable <= 0
 
   const expenseCats = categories
     .filter((c) => c.type === 'expense' && !c.is_archived)
@@ -1042,6 +1050,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             {/* Chia cho số ngày còn lại vì đó mới là thứ dùng được hôm nay; tháng đã qua
                 thì không chia (chẳng còn ngày nào để tiêu). Không nhắc lại con số "còn
                 lại" nữa — nó đã là số lớn nhất ngay trên đầu thẻ. */}
+            {totalRemaining > 0 && commitmentsPending && (
+              <p className="mt-1.5 text-sm text-fg-muted">Đang tính mức tiêu mỗi ngày…</p>
+            )}
             {totalRemaining > 0 && totalAllowance && (
               <p className="mt-1.5 text-sm text-fg-secondary">
                 {visual
@@ -1199,7 +1210,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </Card>
       )}
 
-      {pace.isCurrentMonth && commitments.items.length > 0 && (
+      {pace.isCurrentMonth && commitments.ready && commitments.items.length > 0 && (
         <Card as="section">
           <div className="mb-1 flex items-baseline justify-between gap-2">
             <SectionTitle>Còn phải trả</SectionTitle>

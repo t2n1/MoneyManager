@@ -26,36 +26,23 @@ import {
 import { toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import type { PlannedExpenseRow } from '../../types/database.types'
-import { daysUntil, groupPlannedByMonth, plannedOutlook } from './planned'
+import { groupPlannedByMonth, plannedOutlook, plannedRowStatus, type PlannedRowStatus } from './planned'
 import { PlannedFormSheet } from './PlannedFormSheet'
 import { EmptyState, PageHeader } from '../../components/ui'
 
 /** Cửa sổ của con số ở đầu màn. 3 tháng = đủ xa để lo, đủ gần để tin. */
 const OUTLOOK_MONTHS = 3
 
-/** Trong bao nhiêu ngày thì coi là "sắp tới rồi" — mức vàng của chấm trạng thái. */
-const SOON_DAYS = 7
-
 /**
- * Mức của một khoản sắp chi, đọc từ số ngày còn lại.
- *
- * Chỉ xét mốc NGÀY. Khoản ghi độ chính xác 'month' (due_on là ngày 1 theo quy ước lưu
- * trữ) không có hạn thật để so — chấm nó thành đỏ/vàng là bịa ra độ chính xác mà dữ
- * liệu không có, đúng cái mà dòng ngày bên dưới đã cố ý tránh.
+ * Màu chấm trạng thái. Khoản chỉ biết tháng mà tháng CHƯA qua thì trung tính: nó không
+ * có ngày nào để vàng/xanh, tô màu là bịa độ chính xác. Qua hết tháng thì đỏ như mọi
+ * khoản quá hạn — luật chung trong `plannedRowStatus`.
  */
-function plannedTone(precision: PlannedExpenseRow['due_precision'], daysLeft: number): StatusTone {
-  if (precision !== 'day') return 'info'
-  if (daysLeft < 0) return 'bad'
-  if (daysLeft <= SOON_DAYS) return 'warn'
-  return 'good'
-}
-
-/** Nhãn đọc thành tiếng cho chấm — màu không phải kênh duy nhất. */
-function plannedToneLabel(tone: StatusTone, daysLeft: number): string {
-  if (tone === 'bad') return `Quá hạn ${-daysLeft} ngày`
-  if (tone === 'warn') return daysLeft === 0 ? 'Đến hạn hôm nay' : `Còn ${daysLeft} ngày`
-  if (tone === 'good') return `Còn ${daysLeft} ngày`
-  return 'Chưa có ngày cụ thể'
+const TONE: Record<PlannedRowStatus['level'], StatusTone> = {
+  overdue: 'bad',
+  soon: 'warn',
+  later: 'good',
+  month: 'info',
 }
 
 const MONTH_LABEL = (key: string) => {
@@ -160,17 +147,13 @@ export function PlannedPage() {
 
               <ul className="mt-1 divide-y divide-border-subtle">
                 {m.items.map((p) => {
-                  const left = daysUntil(todayISO, p.due_on)
-                  const quaHan = p.due_precision === 'day' && left < 0
+                  const st = plannedRowStatus(p, todayISO)
                   const cat = catOf(p.category_id)
                   return (
                     <li key={p.id} className="flex items-center gap-2 py-2">
                       {/* Chấm đứng TRƯỚC tên, không phải sau con số: mắt quét một cột
                           dọc là thấy ngay dòng nào gấp, không phải đọc từng dòng ngày. */}
-                      <StatusDot
-                        tone={plannedTone(p.due_precision, left)}
-                        label={plannedToneLabel(plannedTone(p.due_precision, left), left)}
-                      />
+                      <StatusDot tone={TONE[st.level]} label={st.label} />
                       <button
                         type="button"
                         onClick={() => setSheet({ planned: p })}
@@ -193,8 +176,12 @@ export function PlannedPage() {
                         <p className="text-2xs text-fg-muted">
                           {/* Kiểu 'month' KHÔNG in ngày: due_on là ngày 1 do quy ước
                               lưu trữ, in ra thành "1/10" là bịa độ chính xác. */}
-                          {p.due_precision === 'day' ? ngay(p.due_on) : 'trong tháng'}
-                          {quaHan && <span className="text-money-out"> · quá hạn {-left} ngày</span>}
+                          {p.due_precision === 'day'
+                            ? ngay(p.due_on)
+                            : `trong tháng ${Number(p.due_on.slice(5, 7))}`}
+                          {st.level === 'overdue' && (
+                            <span className="text-money-out"> · quá hạn {st.overdueDays} ngày</span>
+                          )}
                           {cat && ` · ${cat.icon} ${cat.name}`}
                           {p.note && ` · ${p.note}`}
                         </p>

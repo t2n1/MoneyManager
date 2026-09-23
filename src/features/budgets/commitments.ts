@@ -119,7 +119,17 @@ export function collectCommitments(
   for (const p of planned) {
     // Đã chi hoặc đã bỏ thì hết phải lo — cùng luật với `groupPlannedByMonth`.
     if (p.status !== 'planned') continue
-    if (p.due_on < range.start || p.due_on >= range.end) continue
+    // Khoản chỉ biết THÁNG: `due_on` là ngày 1 do quy ước lưu, hạn thật là "lúc nào đó
+    // trong tháng". Nó thuộc khoảng khi tháng dương lịch của nó GIAO với khoảng — so
+    // riêng ngày 1 thì hỏi "phần còn lại của kỳ" (từ ngày mai) làm khoản tháng này chưa
+    // chi rơi mất, và tiền tự do cao giả đúng bằng nó.
+    //
+    // Hệ quả đã biết với kỳ lệch tháng (bắt đầu ngày 25): khoản tháng 9 thuộc cả kỳ
+    // 25/8–24/9 lẫn 25/9–24/10. Đúng nghĩa: chưa chi tới 25/9 thì nó vẫn còn phải chi.
+    const month = p.due_precision === 'month'
+    const from = month ? p.due_on.slice(0, 8) + '01' : p.due_on
+    const until = month ? endOfMonthISO(p.due_on) : p.due_on
+    if (until < range.start || from >= range.end) continue
     const v = p.amount === 0 ? 0 : convert(p.amount, p.currency)
     if (v === null) {
       hasMissingRate = true
@@ -189,7 +199,12 @@ export function spendableRemaining(
  */
 function deadlineISO(c: Pick<Commitment, 'dueISO' | 'duePrecision'>): string {
   if (c.duePrecision !== 'month') return c.dueISO
-  const [y, m] = c.dueISO.split('-').map(Number)
+  return endOfMonthISO(c.dueISO)
+}
+
+/** Ngày cuối tháng dương lịch chứa `iso`. */
+function endOfMonthISO(iso: string): string {
+  const [y, m] = iso.split('-').map(Number)
   const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
   return addDaysISO(next, -1)
 }

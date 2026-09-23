@@ -44,6 +44,9 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
 
   return useMemo(() => {
     if (!report) return null
+    // Cam kết chưa về thì mọi nhóm trông như còn dư — đề nghị cân lại dựng trên số đó là
+    // đề nghị sai. Chờ, không đoán.
+    if (!commitments.ready) return null
 
     const todayISO = toISODate(new Date())
     const currentKey = monthKeyForDate(todayISO, monthStartDay)
@@ -105,5 +108,5 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
       committedByCat: commitments.byCategory,
       parentOf: (id) => catById.get(id)?.parent_id ?? null,
     })
-  }, [report, monthKey, monthStartDay, accounts, categories, budgets, monthTxs, base, r, transferIds, commitments.byCategory])
+  }, [report, monthKey, monthStartDay, accounts, categories, budgets, monthTxs, base, r, transferIds, commitments.byCategory, commitments.ready])
 }

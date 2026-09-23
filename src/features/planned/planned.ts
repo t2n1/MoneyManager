@@ -37,6 +37,46 @@ function lastDayOfMonthISO(iso: string): string {
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
 }
 
+/** Trong bao nhiêu ngày thì một khoản có ngày là "sắp tới rồi". */
+export const PLANNED_SOON_DAYS = 7
+
+export interface PlannedRowStatus {
+  /**
+   * 'overdue' = đã qua hạn chót · 'soon' = trong `PLANNED_SOON_DAYS` ngày · 'later' = còn
+   * xa · 'month' = chỉ biết tháng và tháng đó chưa qua (không có ngày nào để đếm).
+   */
+  level: 'overdue' | 'soon' | 'later' | 'month'
+  /** Trễ bao nhiêu ngày, đếm từ hạn chót (ngày cuối tháng với khoản chỉ biết tháng). */
+  overdueDays: number
+  /** Câu ngắn đọc thành tiếng cho chấm trạng thái. */
+  label: string
+}
+
+/**
+ * Tình trạng một dòng ở trang Sắp chi.
+ *
+ * Cùng luật quá hạn với `isCommitmentOverdue` (Ngân sách, Lịch) và `plannedDue` (nhắc):
+ * khoản chỉ biết THÁNG chỉ quá hạn khi CẢ THÁNG đã qua. Trước đây trang này coi nó
+ * "chưa có ngày cụ thể" mãi mãi — tháng đã qua vẫn không đỏ, trong khi hai màn kia đã
+ * nói quá hạn.
+ */
+export function plannedRowStatus(r: PlannedExpenseRow, todayISO: string): PlannedRowStatus {
+  const month = r.due_precision === 'month'
+  const left = daysUntil(todayISO, month ? lastDayOfMonthISO(r.due_on) : r.due_on)
+  if (left < 0) return { level: 'overdue', overdueDays: -left, label: `Quá hạn ${-left} ngày` }
+  if (month) {
+    return { level: 'month', overdueDays: 0, label: `Trong tháng ${Number(r.due_on.slice(5, 7))}` }
+  }
+  if (left <= PLANNED_SOON_DAYS) {
+    return {
+      level: 'soon',
+      overdueDays: 0,
+      label: left === 0 ? 'Đến hạn hôm nay' : `Còn ${left} ngày`,
+    }
+  }
+  return { level: 'later', overdueDays: 0, label: `Còn ${left} ngày` }
+}
+
 /**
  * Khoản đang cần nhắc: còn `planned`, CÓ bật nhắc, và đã vào tầm nhắc.
  *

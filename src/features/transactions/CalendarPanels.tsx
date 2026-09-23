@@ -66,6 +66,11 @@ export interface SpendableInfo {
   spent: number
   /** Cam kết CHƯA RA đã trừ khỏi mức mỗi ngày (chỉ ở tháng đang chạy). */
   committed: number
+  /**
+   * Cam kết chưa tải xong (tháng đang chạy) — `committed` đang là 0 giả. Khối hiện
+   * "Đang tính…" thay cho con số chính và chú giải, `allowance`/`short`/`segments` = null.
+   */
+  pending: boolean
   segments: SpendableSegments | null
   allowance: DailyAllowance | null
   /** Nhịp 7 ngày qua (base minor / ngày); null = kỳ chưa có ngày nào đã qua. */
@@ -123,7 +128,9 @@ export function SpendableBlock({
         </>
       ) : (
         <>
-          {allowance ? (
+          {info.pending ? (
+            <p className="mt-1.5 text-sm text-fg-muted">Đang tính…</p>
+          ) : allowance ? (
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
               <Money
                 amount={allowance.perDay}
@@ -169,30 +176,32 @@ export function SpendableBlock({
             </div>
           )}
 
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-2xs text-fg-muted">
-            {/* "trong trần", không phải "đã chi": `report.totalSpent` chỉ tính những mục
-                ĐÃ ĐẶT HẠN MỨC, nên nó nhỏ hơn ô "Chi" của hàng tab — có tháng nhỏ hơn cả
-                chục lần. Không nói phạm vi ra thì hai con số trên cùng một màn đọc như
-                một lỗi tính. */}
-            <SegLegend
-              className={SEG.spent}
-              label="đã chi trong trần"
-              amount={info.spent}
-              base={base}
-            />
-            <SegLegend
-              className={SEG.committed}
-              label="đã cam kết"
-              amount={info.committed}
-              base={base}
-            />
-            <SegLegend
-              className={SEG.free}
-              label="tự do"
-              amount={segments ? Math.max(0, segments.freeAmount) : 0}
-              base={base}
-            />
-          </div>
+          {!info.pending && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-2xs text-fg-muted">
+              {/* "trong trần", không phải "đã chi": `report.totalSpent` chỉ tính những mục
+                  ĐÃ ĐẶT HẠN MỨC, nên nó nhỏ hơn ô "Chi" của hàng tab — có tháng nhỏ hơn cả
+                  chục lần. Không nói phạm vi ra thì hai con số trên cùng một màn đọc như
+                  một lỗi tính. */}
+              <SegLegend
+                className={SEG.spent}
+                label="đã chi trong trần"
+                amount={info.spent}
+                base={base}
+              />
+              <SegLegend
+                className={SEG.committed}
+                label="đã cam kết"
+                amount={info.committed}
+                base={base}
+              />
+              <SegLegend
+                className={SEG.free}
+                label="tự do"
+                amount={segments ? Math.max(0, segments.freeAmount) : 0}
+                base={base}
+              />
+            </div>
+          )}
 
           {/* B36.2 · Câu RIÊNG, không phải một dòng biến mất: "còn ¥12.000 trong trần mà
               ¥18.600 đã hứa" là tin quan trọng nhất của tháng. */}

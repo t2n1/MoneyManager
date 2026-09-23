@@ -43,6 +43,11 @@ export interface PlanningData {
   /** trung bình các tháng đã đóng sổ; null = chưa đủ dữ liệu */
   baseline: number | null
   commitments: CommitmentReport
+  /**
+   * Cam kết đã tải xong chưa (`useCommitments().ready`). `false` = `commitments` và
+   * `gaps` đang rỗng GIẢ — đừng khen "phủ hết", đừng in "Cam kết đã biết ¥0".
+   */
+  commitmentsReady: boolean
   /** danh mục có cam kết vượt hạn mức đang đặt */
   gaps: CoverageGap[]
   /** phương pháp phân bổ đang dùng — hồ sơ người dùng, đã áp mốc tự chỉnh */
@@ -211,6 +216,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       declared: plan?.expected_income ?? null,
       baseline,
       commitments,
+      commitmentsReady: commitments.ready,
       gaps,
       method,
       suggestions,

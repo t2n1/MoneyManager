@@ -143,6 +143,38 @@ describe('collectCommitments — khoản sắp chi', () => {
     expect(r.items).toEqual([])
   })
 
+  // Ca đã gặp: MonthView hỏi "phần còn lại của kỳ" = [ngày mai, cuối kỳ). Khoản "tháng
+  // 9" lưu due_on = 1/9 nên rơi ra ngoài khoảng → tiền đã hứa thiếu, tiền tự do cao giả.
+  it('khoản chỉ biết tháng thuộc khoảng nếu THÁNG của nó giao với khoảng', () => {
+    const rest = { start: '2026-09-24', end: '2026-10-01' }
+    const r = collect([], [plan({ id: 'p1', due_on: '2026-09-01', due_precision: 'month' })], rest)
+    expect(r.items).toHaveLength(1)
+    expect(r.items[0]).toMatchObject({ dueISO: '2026-09-01', duePrecision: 'month' })
+  })
+
+  it('khoản chỉ biết tháng: tháng không giao khoảng thì không tính', () => {
+    const r = collect([], [
+      plan({ id: 'p1', due_on: '2026-08-01', due_precision: 'month' }),
+      plan({ id: 'p2', due_on: '2026-10-01', due_precision: 'month' }),
+    ])
+    expect(r.items).toEqual([])
+  })
+
+  it('kỳ lệch tháng (bắt đầu ngày 25): khoản tháng 9 thuộc mọi kỳ chứa ngày tháng 9', () => {
+    const kyTruoc = { start: '2026-08-25', end: '2026-09-25' }
+    const kyNay = { start: '2026-09-25', end: '2026-10-25' }
+    const p = [plan({ id: 'p1', due_on: '2026-09-01', due_precision: 'month' })]
+    expect(collect([], p, kyTruoc).items).toHaveLength(1)
+    // Chưa chi tới 25/9 thì vẫn còn phải chi trong 25–30/9 — không được biến mất.
+    expect(collect([], p, kyNay).items).toHaveLength(1)
+  })
+
+  it('khoản có ngày vẫn so đúng ngày, không nới theo tháng', () => {
+    const rest = { start: '2026-09-24', end: '2026-10-01' }
+    const r = collect([], [plan({ id: 'p1', due_on: '2026-09-10' })], rest)
+    expect(r.items).toEqual([])
+  })
+
   it('đã chi hoặc đã bỏ thì hết phải lo', () => {
     const r = collect([], [
       plan({ id: 'p1', status: 'done' }),

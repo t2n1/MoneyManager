@@ -41,6 +41,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
         points={scoped ? budgetDaily.points : monthDaily.points}
         daysElapsed={paceDaysElapsed}
         totalBudgeted={totalBudgeted}
+        hasBudget={scoped}
         base={base}
         scopeNote={
           scoped

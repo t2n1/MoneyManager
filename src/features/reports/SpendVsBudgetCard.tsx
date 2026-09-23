@@ -14,20 +14,33 @@ const BUDGET = 'var(--fg-muted)'
 
 interface Props {
   /** chi từng ngày cho TRỌN tháng tài chính (0 cho ngày trống/tương lai).
-   *  Khi totalBudgeted > 0, caller phải truyền chi CÙNG PHẠM VI với ngân sách
+   *  Khi hasBudget, caller phải truyền chi CÙNG PHẠM VI với ngân sách
    *  (chỉ các mục đã đặt hạn mức) — hai đường khác phạm vi thì không so được. */
   points: DailyExpensePoint[]
   /** số ngày đã trôi qua (tháng hiện tại); = độ dài tháng nếu là tháng quá khứ */
   daysElapsed: number
-  /** tổng ngân sách tháng (base minor); 0 = chưa đặt ngân sách */
+  /** tổng ngân sách tháng (base minor). 0 KHÔNG có nghĩa là chưa đặt — xem `hasBudget`. */
   totalBudgeted: number
+  /**
+   * Có dòng ngân sách tính-vào-tổng không (cùng luật `totalCapOf`). Trần ¥0 là trần THẬT:
+   * đường ngân sách nằm sát 0 và mọi đồng đã chi đều nằm trên nó — đó chính là tin cần
+   * thấy. Suy từ `totalBudgeted > 0` là giấu mất đường đó cùng chú giải.
+   */
+  hasBudget: boolean
   base: CurrencyCode
   /** Ghi chú phạm vi dưới chú giải — vd "Chỉ tính 3 mục đã đặt hạn mức" */
   scopeNote?: string
 }
 
 /** Chi tích lũy thực tế vs đường ngân sách tuyến tính — thấy đang đi nhanh/chậm hơn kế hoạch. */
-export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, scopeNote }: Props) {
+export function SpendVsBudgetCard({
+  points,
+  daysElapsed,
+  totalBudgeted,
+  hasBudget,
+  base,
+  scopeNote,
+}: Props) {
   const days = points.length
   if (days === 0) return null
   let cum = 0
@@ -38,7 +51,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
       label: `${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8))}`,
       // đường thực chi chỉ vẽ tới hôm nay
       actual: dayNo <= daysElapsed ? cum : null,
-      budget: totalBudgeted > 0 ? Math.round((totalBudgeted * dayNo) / days) : null,
+      budget: hasBudget ? Math.round((totalBudgeted * dayNo) / days) : null,
     }
   })
 
@@ -69,7 +82,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
               labelFormatter={(l) => String(l)}
               contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS, border: '1px solid #e5e7eb' }}
             />
-            {totalBudgeted > 0 && (
+            {hasBudget && (
               <Line
                 type="monotone"
                 dataKey="budget"
@@ -96,7 +109,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACTUAL }} /> Đã chi
         </span>
-        {totalBudgeted > 0 && (
+        {hasBudget && (
           <span className="flex items-center gap-1">
             <span className="h-0.5 w-3.5 rounded" style={{ backgroundColor: BUDGET }} /> Ngân sách
           </span>

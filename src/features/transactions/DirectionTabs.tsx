@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowLeftRight, type LucideIcon } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import {
-  DIRECTION_LABEL, chipAriaLabel, defaultKindOf, directionOf, kindsOf, shapeOf,
+  DIRECTION_HINT, DIRECTION_LABEL, chipAriaLabel, defaultKindOf, directionOf, kindsOf, shapeOf,
   type Direction, type EntryKind,
 } from './entryShape'
 
@@ -56,6 +56,9 @@ export function DirectionTabs({
           }
         })}
       />
+      {DIRECTION_HINT[direction] && (
+        <p className="px-1 text-xs text-fg-muted">{DIRECTION_HINT[direction]}</p>
+      )}
       {/* Hàng Dạng ẩn hẳn khi hướng chỉ có một dạng — quy tắc cho phép, và một bộ
           chọn một-lựa-chọn là một bộ chọn giả. Hiện cả ba hướng đều ≥2 dạng nên
           nhánh này chưa chạy, nhưng để đây thì thêm/bớt dạng không sinh màn lạ. */}

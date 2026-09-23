@@ -372,7 +372,8 @@ export function SearchPage() {
           nhóm loại trừ. */}
       {coupleMode && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-2xs uppercase tracking-label text-fg-muted">Ai chi</span>
+          {/* "Của ai", không "Ai chi": bộ lọc này lọc cả khoản thu. */}
+          <span className="text-2xs uppercase tracking-label text-fg-muted">Của ai</span>
           {OWNER_FILTERS.map((o) => {
             const on = ownerFilter.includes(o.value)
             return (
@@ -488,8 +489,10 @@ export function SearchPage() {
               </div>
             </div>
           )}
-          <div>
-            <p className="mb-1.5 text-sm font-semibold text-fg-muted">
+          {/* Hai ô chỉ có placeholder thì screen reader không đọc được tên — placeholder
+              không phải nhãn. Tên nằm trên từng ô, và nhóm mang tên của tiêu đề. */}
+          <div role="group" aria-labelledby="search-amount-title">
+            <p id="search-amount-title" className="mb-1.5 text-sm font-semibold text-fg-muted">
               Số tiền ({CURRENCIES[base].symbol})
             </p>
             <div className="flex items-center gap-2 text-sm text-fg-secondary">
@@ -499,6 +502,7 @@ export function SearchPage() {
                 value={amountMinStr}
                 onChange={(e) => setAmountMinStr(e.target.value)}
                 placeholder="Tối thiểu"
+                aria-label="Số tiền tối thiểu"
                 className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
               <span className="text-fg-muted">→</span>
@@ -508,6 +512,7 @@ export function SearchPage() {
                 value={amountMaxStr}
                 onChange={(e) => setAmountMaxStr(e.target.value)}
                 placeholder="Tối đa"
+                aria-label="Số tiền tối đa"
                 className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
             </div>

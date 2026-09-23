@@ -17,6 +17,15 @@ export const DIRECTION_LABEL: Record<Direction, string> = {
 }
 
 /**
+ * Một dòng mô tả HIỆN RA dưới hàng Hướng, chỉ cho hướng mà tên không tự nói được nghĩa.
+ * "Tiền ra"/"Tiền vào" thì ai cũng hiểu; "Đổi chỗ" là chữ app tự đặt — không nói ra thì
+ * người dùng không biết khoản này có bị đếm vào Chi hay không.
+ */
+export const DIRECTION_HINT: Partial<Record<Direction, string>> = {
+  move: 'Chuyển tiền giữa các tài khoản của bạn — không tính là thu hay chi.',
+}
+
+/**
  * Nhãn hai pha theo hướng, cho segmented "Đã chi | Sẽ chi".
  *
  * Cả hai nhãn nói TRẠNG THÁI CỦA KHOẢN TIỀN. Nút chuông cũ ở đúng chỗ này nói một VIỆC

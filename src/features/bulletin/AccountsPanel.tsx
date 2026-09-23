@@ -32,11 +32,16 @@ interface Props {
   base: CurrencyCode
   /** id tài khoản quá 30 ngày chưa đối chiếu — xem chú thích đầu file. */
   staleIds: ReadonlySet<string>
+  /**
+   * Số dư chưa về. `groups` lúc đó rỗng vì mảng mặc định của query — không được đọc
+   * thành "Chưa có tài khoản nào" với người đã có hàng chục tài khoản (§14).
+   */
+  pending?: boolean
 }
 
 // Mỗi dòng in số dư ở ĐỒNG TIỀN GỐC của tài khoản — quy hết về base thì số trên màn
 // không khớp số trên app ngân hàng. `base` chỉ dành cho dòng tài sản ròng.
-export function AccountsPanel({ groups, netWorth, base, staleIds }: Props) {
+export function AccountsPanel({ groups, netWorth, base, staleIds, pending = false }: Props) {
   const accounts = groups.flatMap((g) => g.accounts)
   const shown = accounts.slice(0, MAX_ROWS)
 
@@ -89,7 +94,9 @@ export function AccountsPanel({ groups, netWorth, base, staleIds }: Props) {
         </p>
       )}
 
-      {shown.length === 0 ? (
+      {pending ? (
+        <p className="mt-3 text-sm text-fg-muted">Đang tải…</p>
+      ) : shown.length === 0 ? (
         <p className="mt-3 text-sm text-fg-muted">
           Chưa có tài khoản nào.{' '}
           <Link to="/settings/accounts" className="font-medium text-fg-accent hover:underline">

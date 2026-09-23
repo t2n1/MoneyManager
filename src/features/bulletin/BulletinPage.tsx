@@ -37,6 +37,7 @@ import {
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
+  periodDays,
   toISODate,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
@@ -44,7 +45,7 @@ import { convertToBase } from '../../lib/rates'
 import { collectCommitments } from '../budgets/commitments'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
-import { reliability } from '../notifications/reliability'
+import { historyCoverage, reliability } from '../notifications/reliability'
 import { lastReconciledMap } from '../notifications/reconciledAt'
 import { RECONCILE_STALE_DAYS } from '../notifications/rules/dataRules'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
@@ -95,8 +96,8 @@ export function BulletinPage() {
   // Ngày đi vắng (chuyến đi) — mốc so 'cùng số ngày' phải bỏ chúng ra, xem ngayDiVang.ts
   const { data: trips = [] } = useTrips()
   const vang = useMemo(() => ngayDiVang(trips), [trips])
-  const { data: accounts = [] } = useAccounts()
-  const { data: categories = [] } = useCategories()
+  const { data: accounts = [], isSuccess: accountsReady } = useAccounts()
+  const { data: categories = [], isSuccess: categoriesReady } = useCategories()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   const currencyOf = (id: string): CurrencyCode =>
@@ -126,7 +127,15 @@ export function BulletinPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months, monthStartDay, currentMonthKey.year, currentMonthKey.month])
-  const { data: rangeTxs = [] } = useRangeTransactions(range)
+  const { data: rangeData } = useRangeTransactions(range)
+  const rangeTxs = useMemo(() => rangeData ?? [], [rangeData])
+  // MỤC 1a (2026-09-23): dải nhiều tháng là truy vấn NẶNG NHẤT trang (hàng chục request
+  // phân trang), về SAU giao dịch của tháng đang xem. Trước đây nó được đọc bằng mặc định
+  // `[]` mà không ai chờ, nên vài giây đầu ô Thu/Chi in ¥0, câu kết luận nói "chưa có
+  // thu", Độ tin cậy khoe điểm cao — trong khi biểu đồ chi từng ngày ngay dưới (nguồn
+  // nhanh hơn) đã hiện số thật. Mọi thứ tính từ `rangeTxs` phải chờ cờ này.
+  // Lỗi tải thì vẫn là "chưa có" — không có số nào để in, và thà nói đang tính còn hơn ¥0.
+  const seriesReady = rangeData !== undefined
 
   // Các khối CŨ của trang chỉ được nhìn đúng cửa sổ 8 tháng như trước, không phải cả
   // dải hợp: `reliability` đo "% đã phân loại" trên cửa sổ GẦN ĐÂY (giao dịch chưa gắn
@@ -197,6 +206,12 @@ export function BulletinPage() {
   // cha, hạn mức dồn và giao dịch thiếu tỷ giá đều là chỗ dễ tính khác đi.
   const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
 
+  // Kỳ tính của tỷ lệ giữ lại (MỤC 14) — "tới hôm nay" khi tháng đang xem chưa hết. Nguồn
+  // là quy ước chung `periodDays` (lib/dates), cùng chỗ Báo cáo lấy.
+  const rateScope = periodDays(getMonthRange(activeMonthKey, monthStartDay), todayISO).inProgress
+    ? 'tới hôm nay'
+    : undefined
+
   // Tới ngày lương (§4.9). Luôn tính theo KỲ HIỆN TẠI, không theo tháng đang xem — nó
   // nói về hôm nay. Nhưng chỉ HIỆN khi hai cái trùng nhau: đang xem tháng 3 mà có một
   // dòng nói "còn 26 ngày tới ngày lương" thì trên cùng một màn có hai mốc thời gian,
@@ -214,8 +229,8 @@ export function BulletinPage() {
   // (`collectCommitments` đã tự bỏ kỳ đã sinh giao dịch và khoản sắp chi đã ghi).
   // Thiếu nó thì "mỗi ngày còn" ở đây chia cả phần đã hứa, và Bản tin in một con số
   // /ngày KHÁC với hai màn kia cho cùng một kỳ.
-  const { data: recurringRules = [] } = useRecurringRules()
-  const { data: plannedExpenses = [] } = usePlannedExpenses()
+  const { data: recurringRules = [], isSuccess: recurringReady } = useRecurringRules()
+  const { data: plannedExpenses = [], isSuccess: plannedReady } = usePlannedExpenses()
   const camKet = useMemo(() => {
     if (!dangXemThangNay) return 0
     const r = rates ?? {}
@@ -224,8 +239,10 @@ export function BulletinPage() {
     ).total
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dangXemThangNay, recurringRules, plannedExpenses, kyHienTai.start, kyHienTai.end, accounts, base, rates])
+  // Cũng chờ định kỳ + khoản sắp chi: `camKet` tính từ mặc định `[]` là 0, và "mỗi ngày
+  // còn" loé lên một con số CAO hơn thật (chưa trừ cam kết) rồi mới tụt xuống.
   const luong =
-    dangXemThangNay && report && !budgetLoading
+    dangXemThangNay && report && !budgetLoading && recurringReady && plannedReady
       ? toiNgayLuong({
           todayISO: toISODate(new Date()),
           kyBatDauISO: kyHienTai.start,
@@ -236,6 +253,16 @@ export function BulletinPage() {
         })
       : null
 
+  // Một `useMonthTransactions` cho CẢ hai chỗ cần giao dịch của tháng đang xem: dòng
+  // "Giao dịch gần đây" và đường "Chi từng ngày". Gọi hai lần thì react-query vẫn trả
+  // cùng một cache, nhưng hai biến cùng tên trong một component là chỗ để lệch nhau.
+  // Đứng TRƯỚC câu kết luận vì câu đó phải chờ nó (`monthReady`).
+  const { data: monthData, range: activeRange } = useMonthTransactions(activeMonthKey)
+  const monthTxs = useMemo(() => monthData ?? [], [monthData])
+  // Giao dịch tháng đang xem đã về chưa — "Chưa ghi giao dịch nào" và "Chưa ghi khoản chi
+  // nào" chỉ được nói khi đã biết chắc, không phải khi query còn đang chạy.
+  const monthReady = monthData !== undefined
+
   // Câu kết luận đứng đầu màn. Dùng chung `headlineOf` với Báo cáo: hai màn nói cùng một
   // kết luận thì phải nói bằng đúng một câu, không phải hai bản chép tay.
   // Cùng hook dự báo mà tab Ngân sách và Báo cáo dùng — ba màn phải nói CÙNG một con số
@@ -244,7 +271,10 @@ export function BulletinPage() {
   // Cùng mốc với KpiRow ("Giữ lại") — lấy từ khoản Để dành của phương pháp đang chọn,
   // không phải hằng số 20% cứng.
   const savingsShare = savingsTargetShare(resolveMethod(profile))
-  const headline = headlineOf({
+  // Chờ CẢ dải nhiều tháng lẫn giao dịch tháng đang xem (nguồn của dự báo): dựng câu từ
+  // mảng rỗng là "Chưa ghi khoản thu nào tháng này" cho người vừa nhận lương.
+  const headlinePending = !(seriesReady && monthReady)
+  const headline = headlinePending ? null : headlineOf({
     income: incomeKpi.value,
     expense: expenseKpi.value,
     priorExpense: expenseKpi.prev,
@@ -254,6 +284,7 @@ export function BulletinPage() {
         ? { forecast: bulletinPace.forecast.projected, budgeted: report.totalBudgeted }
         : null,
     savingsTargetShare: savingsShare,
+    rateScope,
   })
   // Lấy % từ chính `headline` chứ không gọi `savingsRate` rồi tự nhân 100: savingsRate
   // trả về TỶ LỆ (0,685), còn ô KPI cần PHẦN TRĂM đã làm tròn (69) — và quan trọng hơn,
@@ -261,10 +292,6 @@ export function BulletinPage() {
   // làm tròn song song.
   const keptPct = headline?.ratePct ?? null
 
-  // Một `useMonthTransactions` cho CẢ hai chỗ cần giao dịch của tháng đang xem: dòng
-  // "Giao dịch gần đây" và đường "Chi từng ngày". Gọi hai lần thì react-query vẫn trả
-  // cùng một cache, nhưng hai biến cùng tên trong một component là chỗ để lệch nhau.
-  const { data: monthTxs = [], range: activeRange } = useMonthTransactions(activeMonthKey)
   const recent = useMemo(() => recentTransactions(monthTxs, RECENT), [monthTxs])
 
   // Chi TỪNG NGÀY của tháng đang xem — nguồn của thẻ "Chi từng ngày".
@@ -351,9 +378,12 @@ export function BulletinPage() {
 
   // Dải nhãn dưới biểu đồ (B44). `useTagSpend` dùng chung khoá truy vấn với `useTagBudgets`
   // ngay dưới — react-query gộp thành một lượt tải, không phải hai.
-  const { data: tags = [] } = useTags()
-  const { data: tagGroups = [] } = useTagGroups()
-  const { data: tagSpendRows = [] } = useTagSpend(tags.length > 0)
+  const { data: tags = [], isPending: tagsLoading } = useTags()
+  const { data: tagGroups = [], isPending: groupsLoading } = useTagGroups()
+  const { data: tagSpendRows = [], isPending: tagSpendLoading } = useTagSpend(tags.length > 0)
+  // `useTagSpend` bị tắt khi chưa có nhãn nào — lúc đó isPending luôn true nhưng không có
+  // gì để chờ. Chưa chờ đúng chỗ thì dải nhãn in "¥X chưa gắn nhãn" bằng cả tổng chi.
+  const tagsPending = tagsLoading || groupsLoading || (tags.length > 0 && tagSpendLoading)
   const tagBudgets = useTagBudgets(activeMonthKey)
   const dailyTagCells = useMemo(
     () =>
@@ -374,7 +404,7 @@ export function BulletinPage() {
 
   const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
 
-  const { netWorth, netWorthReliable, purposeGroups } = useAssetsData()
+  const { netWorth, netWorthReliable, purposeGroups, isLoading: assetsLoading } = useAssetsData()
   const { data: snapshots = [] } = useNetWorthSnapshots()
   const netWorthSpark = useMemo(
     () =>
@@ -391,17 +421,28 @@ export function BulletinPage() {
   // Lần đầu mở, chưa có tài khoản nào (§4.8 / 20b). Kiểm bằng `accounts`, KHÔNG bằng
   // `purposeGroups`: nhóm rỗng bị lọc ở useAssetsData, nên người đã tạo tài khoản rồi
   // ẩn hết đi cũng ra mảng rỗng — mà họ đã qua bước này, bày lại lời chào là sai.
-  const laLanDau = accounts.length === 0
+  // Chờ accounts VỀ rồi mới kết luận: mặc định `[]` của query đang chạy từng làm lời chào
+  // lần đầu loé lên với người đã có hàng chục tài khoản.
+  const laLanDau = accountsReady && accounts.length === 0
 
   // Việc cần làm — ĐỌC bộ luật sẵn có, không tính lại điều kiện nào. `actions` đã qua
   // trần 5 việc, đã xếp theo mức, đã lọc loại bị tắt ở Cài đặt và việc đã ẩn.
   const notif = useNotifications()
 
-  // Độ tin cậy dữ liệu. Dùng lại chính chuỗi 8 tháng và danh sách tài khoản trang này
-  // đã tải — không thêm một request nào.
+  // Độ tin cậy dữ liệu. Dùng lại dữ liệu trang này đã tải — không thêm một request nào.
+  //
+  // Phần "Lịch sử" (MỤC 15) đếm 12 tháng GẦN NHẤT từ dải đã tải (`rangeTxs` luôn phủ 25
+  // tháng tới kỳ hiện tại), KHÔNG từ chuỗi 8 tháng của biểu đồ: đếm trên 8 thì câu "mới
+  // 8/12 tháng có dữ liệu" không bao giờ hết, dù sổ đã ghi đủ hai năm.
+  const lichSu = useMemo(
+    () => historyCoverage(rangeTxs, currentMonthKey, monthStartDay),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, currentMonthKey.year, currentMonthKey.month, monthStartDay],
+  )
+  // null = chưa đủ dữ liệu để chấm — xem ReliabilityPanel.
   const doTinCay = useMemo(
     () =>
-      reliability({
+      !(seriesReady && accountsReady && categoriesReady) ? null : reliability({
         todayISO: toISODate(new Date()),
         recentTxs: seriesTxs,
         categories,
@@ -413,12 +454,13 @@ export function BulletinPage() {
         accounts: accounts.filter(
           (a) => !a.is_archived && !a.is_hidden && a.include_in_totals,
         ),
-        monthsWithData: series.points.filter((p) => p.income > 0 || p.expense > 0).length,
+        monthsWithData: lichSu.withData,
+        missingMonths: lichSu.missing,
         // Giả định của Lifetime: chưa khai năm sinh là một giả định trống. Hai giả định
         // còn lại (lợi suất, kịch bản) thuộc màn Tương lai — PR 10 nối vào đây.
         blankAssumptions: profile?.birth_year ? 0 : 1,
       }),
-    [seriesTxs, categories, accounts, series.points, profile?.birth_year],
+    [seriesReady, accountsReady, categoriesReady, seriesTxs, categories, accounts, lichSu, profile?.birth_year],
   )
 
   // Chấm "chưa đối chiếu" cạnh từng dòng ở panel Tài khoản. CÙNG nguồn và CÙNG tập tài
@@ -426,6 +468,9 @@ export function BulletinPage() {
   // ba chỗ trên một màn nói về "tài khoản cũ" mà ba danh sách khác nhau thì người dùng
   // thôi tin cả ba. Không có mục trong map = chưa đối chiếu bao giờ → cũng là cũ.
   const staleIds = useMemo(() => {
+    // Chưa có giao dịch để đọc mốc đối chiếu → chưa biết, KHÔNG phải "cũ hết": chấm cả
+    // danh sách tài khoản là báo động giả trong vài giây đầu.
+    if (!seriesReady || !categoriesReady) return EMPTY_IDS
     const cutoff = addDaysISO(todayISO, -RECONCILE_STALE_DAYS)
     const lanCuoi = lastReconciledMap(
       accounts.filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals),
@@ -439,7 +484,7 @@ export function BulletinPage() {
       if (!ngay || ngay < cutoff) out.add(a.id)
     }
     return out
-  }, [accounts, seriesTxs, categories, todayISO])
+  }, [seriesReady, categoriesReady, accounts, seriesTxs, categories, todayISO])
 
   // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
   // Thoát sớm hẳn chứ không lồng điều kiện vào từng khối: mỗi khối tự lo trạng thái
@@ -531,7 +576,10 @@ export function BulletinPage() {
               daTieu={report?.totalSpent ?? 0}
               hanMuc={report?.totalBudgeted ?? 0}
               headline={headline}
+              headlinePending={headlinePending}
             />
+          ) : headlinePending ? (
+            <p className="text-sm text-fg-muted">Đang tính kết luận tháng…</p>
           ) : (
             headline && (
               <ConclusionLine tone={headline.tone} short={headline.short}>
@@ -550,6 +598,9 @@ export function BulletinPage() {
             netWorth={netWorthReliable ? netWorth : null}
             netWorthSpark={netWorthSpark}
             approx={series.hasMissingRate}
+            pending={!seriesReady}
+            netWorthPending={assetsLoading}
+            keptScope={rateScope}
           />
 
           {/* Thẻ Chi tiêu — GỘP dải 8 tháng với chi từng ngày trong một khung, vì hai
@@ -570,7 +621,7 @@ export function BulletinPage() {
             }
             cells={dailyTagCells}
             tagLines={tagBudgets.lines}
-            compare={expenseCmp}
+            compare={seriesReady ? expenseCmp : null}
             cutoffISO={cutoffISO}
             yoy={yoy}
             yoyApprox={priorSpend.hasMissingRate}
@@ -580,6 +631,9 @@ export function BulletinPage() {
             approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
             scope={dailyScope}
             onScope={pickDailyScope}
+            monthPending={!monthReady}
+            seriesPending={!seriesReady}
+            tagsPending={tagsPending}
           />
 
           <Card elevation="panel" padding="panel" as="section" className="min-w-0">
@@ -589,7 +643,9 @@ export function BulletinPage() {
                 Mở Sổ →
               </Link>
             </div>
-            {recent.length === 0 ? (
+            {!monthReady ? (
+              <p className="mt-3 text-sm text-fg-muted">Đang tải…</p>
+            ) : recent.length === 0 ? (
               <p className="mt-3 text-sm text-fg-muted">
                 Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
                 <Link to="/entry" className="font-medium text-fg-accent hover:underline">
@@ -646,6 +702,7 @@ export function BulletinPage() {
             netWorth={netWorthReliable ? netWorth : null}
             base={base}
             staleIds={staleIds}
+            pending={assetsLoading}
           />
 
           {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay — TÌNH TRẠNG,

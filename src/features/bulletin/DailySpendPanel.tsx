@@ -166,6 +166,18 @@ interface Props {
   approx: boolean
   scope: DailyScope
   onScope: (scope: DailyScope) => void
+  /**
+   * Ba cờ "chưa về" — mỗi cờ cho MỘT nguồn dữ liệu, vì ba nguồn về ở ba nhịp khác nhau.
+   * Không có chúng thì mảng mặc định `[]` của query chưa về được vẽ thành số thật: "0
+   * ngày · ¥0", "Chưa ghi khoản chi nào", dải 8 tháng toàn cột 0, "¥X chưa gắn nhãn"
+   * bằng cả tổng chi. Chưa biết ≠ 0 (§14).
+   *   · monthPending  — giao dịch của tháng đang xem (chi từng ngày).
+   *   · seriesPending — dải nhiều tháng (dải 8 tháng, tổng chưa lọc, so tháng trước).
+   *   · tagsPending   — nhãn và chi theo nhãn (dải nhãn dưới biểu đồ).
+   */
+  monthPending?: boolean
+  seriesPending?: boolean
+  tagsPending?: boolean
 }
 
 /** Tên một khoản chi: ghi chú của người dùng nếu có, không thì tên danh mục. */
@@ -747,6 +759,9 @@ export function DailySpendPanel({
   approx,
   scope,
   onScope,
+  monthPending = false,
+  seriesPending = false,
+  tagsPending = false,
 }: Props) {
   const { days, typical, peakIndex } = series
   const [plotRef, colWidth] = useColumnWidth(days.length)
@@ -836,40 +851,59 @@ export function DailySpendPanel({
           />
         )}
         <p className="ml-auto font-mono text-2xs text-fg-muted">
-          {elapsed.length} ngày ·{' '}
-          <Money
-            amount={spendTotal}
-            currency={base}
-            approx={approx}
-            className="font-medium text-fg-primary"
-          />
-          {filtered ? (
-            <>
-              {' / '}
-              <Money amount={fullTotal} currency={base} approx={approx} /> tổng
-              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 py-0.5 font-sans text-fg-secondary">
-                đã bỏ khoản cố định
-              </span>
-            </>
+          {monthPending ? (
+            'Đang tải…'
           ) : (
-            compare !== null && (
-              <>
-                {/* CÙNG SỐ NGÀY — đừng so 23 ngày với trọn tháng trước (luật B14.3 của
-                    gói Báo cáo). `priorSameDays` đã cắt sẵn; chữ "cùng kỳ" từng nói ra
-                    điều đó ở desktop nhưng ở mobile đã bỏ từ đầu, nên nó không phải chỗ
-                    luật này dựa vào — bản mobile giờ là bản duy nhất. */}
-                {' · tháng trước '}
-                <Money amount={compare.priorSameDays} currency={base} approx={approx} />{' '}
-                {/* `signedPct` chứ không tự dựng chuỗi: nó lo dấu âm THẬT (−, U+2212) và
-                    dấu thập phân kiểu Việt. `${-53.02}` của JS ra "-53.02" — sai cả hai,
-                    ngay cạnh mấy con số tiền vốn đã dùng phẩy. */}
-                <Num tone={deltaTone(compare.deltaPct)}>
-                  {signedPct(
-                    compare.deltaPct === null ? null : Math.round(compare.deltaPct * 10) / 10,
-                  )}
-                </Num>
-              </>
-            )
+            <>
+              {/* "ngày 23/30" khi tháng đang dở — KHÔNG "23 ngày": theo quy ước chung của app
+                  thì hôm đó là "đã qua 22 ngày, còn 8 ngày kể cả hôm nay" (lib/dates
+                  periodDays), và "23 ngày" đọc thành số ngày đã qua. */}
+              {elapsed.length === 0
+                ? 'chưa tới kỳ'
+                : future.length > 0
+                  ? `ngày ${elapsed.length}/${days.length}`
+                  : `${elapsed.length} ngày`}{' '}
+              ·{' '}
+              <Money
+                amount={spendTotal}
+                currency={base}
+                approx={approx}
+                className="font-medium text-fg-primary"
+              />
+              {filtered ? (
+                <>
+                  {' / '}
+                  {seriesPending ? (
+                    'đang tính'
+                  ) : (
+                    <Money amount={fullTotal} currency={base} approx={approx} />
+                  )}{' '}
+                  tổng
+                  <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 py-0.5 font-sans text-fg-secondary">
+                    đã bỏ khoản cố định
+                  </span>
+                </>
+              ) : (
+                compare !== null && (
+                  <>
+                    {/* CÙNG SỐ NGÀY — đừng so 23 ngày với trọn tháng trước (luật B14.3 của
+                        gói Báo cáo). `priorSameDays` đã cắt sẵn; chữ "cùng kỳ" từng nói ra
+                        điều đó ở desktop nhưng ở mobile đã bỏ từ đầu, nên nó không phải chỗ
+                        luật này dựa vào — bản mobile giờ là bản duy nhất. */}
+                    {' · tháng trước '}
+                    <Money amount={compare.priorSameDays} currency={base} approx={approx} />{' '}
+                    {/* `signedPct` chứ không tự dựng chuỗi: nó lo dấu âm THẬT (−, U+2212) và
+                        dấu thập phân kiểu Việt. `${-53.02}` của JS ra "-53.02" — sai cả hai,
+                        ngay cạnh mấy con số tiền vốn đã dùng phẩy. */}
+                    <Num tone={deltaTone(compare.deltaPct)}>
+                      {signedPct(
+                        compare.deltaPct === null ? null : Math.round(compare.deltaPct * 10) / 10,
+                      )}
+                    </Num>
+                  </>
+                )
+              )}
+            </>
           )}
         </p>
       </div>
@@ -877,10 +911,18 @@ export function DailySpendPanel({
       {/* Dải 8 tháng đứng TRÊN phần ngày, và đứng NGOÀI mọi nhánh: tháng trắng vẫn phải
           bấm sang tháng khác được — dải chính là điều khiển đổi tháng của cả thẻ. */}
       <div className="mt-3">
-        <CashflowStrip points={points} active={activeMonth} base={base} onPick={onPickMonth} />
+        <CashflowStrip
+          points={points}
+          active={activeMonth}
+          base={base}
+          onPick={onPickMonth}
+          pending={seriesPending}
+        />
       </div>
 
-      {peak === null ? (
+      {monthPending ? (
+        <p className="mt-3 text-sm text-fg-muted">Đang tải chi từng ngày…</p>
+      ) : peak === null ? (
         <p className="mt-3 text-sm text-fg-muted">
           Chưa ghi khoản chi nào trong tháng này.
         </p>
@@ -1206,18 +1248,24 @@ export function DailySpendPanel({
             </div>
           )}
 
-          <DayTagStrip
-            cells={cells}
-            days={days}
-            tagLines={tagLines}
-            base={base}
-            approx={approx}
-            spendTotal={spendTotal}
-            untaggedCount={Math.max(0, series.txCount - cells.taggedCount)}
-            fromISO={days[0].date}
-            toISO={days[days.length - 1].date}
-            dayStep={dayLabelStep(colWidth)}
-          />
+          {tagsPending ? (
+            <p className="mt-3 border-t border-border-subtle pt-2 text-2xs text-fg-muted">
+              Đang tải nhãn…
+            </p>
+          ) : (
+            <DayTagStrip
+              cells={cells}
+              days={days}
+              tagLines={tagLines}
+              base={base}
+              approx={approx}
+              spendTotal={spendTotal}
+              untaggedCount={Math.max(0, series.txCount - cells.taggedCount)}
+              fromISO={days[0].date}
+              toISO={days[days.length - 1].date}
+              dayStep={dayLabelStep(colWidth)}
+            />
+          )}
         </>
       )}
     </Card>

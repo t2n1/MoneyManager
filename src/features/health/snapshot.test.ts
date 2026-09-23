@@ -4,10 +4,12 @@ import type {
   CategoryRow,
   DebtPaymentRow,
   DebtRow,
+  SavingsGoalRow,
   TransactionRow,
 } from '../../types/database.types'
 import type { Rates } from '../../lib/rates'
 import { buildHealthSnapshot, type SnapshotInput } from './snapshot'
+import { earmarkedForGoals } from './earmarked'
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165 }
@@ -183,6 +185,94 @@ describe('buildHealthSnapshot — bảng cân đối', () => {
     expect(s.cardDebt).toBe(80_000)
     expect(s.liquidAssets).toBe(200_000)
     expect(s.totalDebt).toBe(80_000)
+  })
+})
+
+// Giá trị hiện tại (`accountCurrentValue` qua `useAccountCurrentValues`) — cùng map mà
+// `earmarkedForGoals` dùng, để "quỹ dự phòng" trừ "phần có chủ" trên cùng một thước đo.
+describe('buildHealthSnapshot — giá trị hiện tại thay cho số dư sổ', () => {
+  const cv = (entries: [string, number][]) =>
+    new Map(entries.map(([id, value]) => [id, { value }]))
+
+  it('đầu tư được khai "rút ngay được" cộng theo giá trị hiện tại, không theo số dư sổ', () => {
+    const nisa = bal({ id: 'nisa', type: 'investment', balance: 80_809, is_liquid: true })
+    const s = build({
+      balances: [nisa, bal({ type: 'bank', balance: 100_000 })],
+      currentValues: cv([['nisa', 78_913]]),
+    })
+    expect(s.liquidAssets).toBe(178_913)
+  })
+
+  it('tài khoản thường không đổi: giá trị hiện tại của nó CHÍNH là số dư', () => {
+    const balances = [
+      bal({ id: 'tm', type: 'cash', balance: 30_000 }),
+      bal({ id: 'nh', type: 'bank', balance: 500_000 }),
+      bal({ id: 'the', type: 'card', balance: -80_000 }),
+    ]
+    const khong = build({ balances })
+    const co = build({
+      balances,
+      currentValues: cv([
+        ['tm', 30_000],
+        ['nh', 500_000],
+        ['the', -80_000],
+      ]),
+    })
+    expect(co.liquidAssets).toBe(khong.liquidAssets)
+    expect(co.liquidAssets).toBe(530_000)
+    expect(co.cardDebt).toBe(80_000)
+  })
+
+  it('tài khoản vắng trong map → rơi về số dư sổ', () => {
+    const s = build({
+      balances: [bal({ type: 'investment', balance: 50_000, is_liquid: true })],
+      currentValues: cv([]),
+    })
+    expect(s.liquidAssets).toBe(50_000)
+  })
+
+  it('rổ "bán được" của khối mô phỏng cũng theo giá trị hiện tại', () => {
+    const s = build({
+      balances: [bal({ id: 'ck', type: 'investment', balance: 1_000_000 })],
+      currentValues: cv([['ck', 1_250_000]]),
+    })
+    expect(s.investableAssets).toBe(1_250_000)
+    expect(s.liquidAssets).toBe(0)
+  })
+
+  it('giá trị hiện tại ngoại tệ vẫn quy đổi; thiếu tỷ giá thì loại ra và bật cờ', () => {
+    const s = build({
+      balances: [
+        bal({ id: 'vn', type: 'investment', currency: 'VND', balance: 1_000, is_liquid: true }),
+        bal({ id: 'us', type: 'investment', currency: 'USD', balance: 100, is_liquid: true }),
+      ],
+      currentValues: cv([
+        ['vn', 1_650_000],
+        ['us', 200],
+      ]),
+    })
+    expect(s.liquidAssets).toBe(10_000)
+    expect(s.hasMissingRate).toBe(true)
+  })
+
+  it('khớp earmarkedForGoals: mục tiêu giữ trọn tài khoản thì phần tự do về đúng 0', () => {
+    const balances = [bal({ id: 'nisa', type: 'investment', balance: 80_809, is_liquid: true })]
+    const currentValues = cv([['nisa', 78_913]])
+    const s = build({ balances, currentValues })
+    const goal: SavingsGoalRow = {
+      id: 'g',
+      user_id: 'u',
+      name: 'Về VN',
+      account_id: 'nisa',
+      target_amount: 1_000_000,
+      target_date: null,
+      note: '',
+      sort_order: 0,
+      created_at: '',
+    }
+    const e = earmarkedForGoals([goal], balances, 'JPY', RATES, currentValues)
+    // Trước đây: 80.809 (số dư sổ) − 78.913 (giá trị hiện tại) = 1.896 "tiền tự do" ma.
+    expect(s.liquidAssets - e.total).toBe(0)
   })
 })
 

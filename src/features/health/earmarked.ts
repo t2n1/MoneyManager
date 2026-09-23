@@ -32,8 +32,8 @@ export interface Earmarked {
  * tiết kiệm dùng để đo "đã có bao nhiêu". Không đưa, hoặc tài khoản vắng trong map, thì rơi
  * về số dư sổ. Với tài khoản lỏng thường (tiền mặt, ngân hàng, IC, ví) hai số là MỘT —
  * `accountCurrentValue` trả thẳng số dư — nên chỉ ca tài khoản đầu tư/tài sản cố định được
- * đánh dấu "rút ngay được" là đổi số. Ca đó `liquidAssets` của trang Sức khỏe vẫn cộng số dư
- * sổ (xem ghi chú ở HealthView), nên phép trừ được kẹp ≥ 0 ở nơi gọi.
+ * đánh dấu "rút ngay được" là đổi số — và `buildHealthSnapshot` nhận CÙNG map đó cho
+ * `liquidAssets`, nên phép trừ ở trang Sức khỏe đi trên một thước đo.
  */
 export function earmarkedForGoals(
   goals: SavingsGoalRow[],

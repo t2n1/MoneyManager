@@ -156,6 +156,13 @@ export function HealthView() {
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
 
+  // Giá trị hiện tại theo tài khoản — MỘT map cho cả `liquidAssets` (mẫu số của quỹ dự
+  // phòng, cầm cự nếu mất việc, khả năng trả nợ ngắn hạn) lẫn phần "có chủ" bên dưới, và
+  // cùng số với khối Mục tiêu tiết kiệm ở trang Tài sản. Bộ luật thông báo (cả chuông
+  // trong app lẫn bản gói cho edge function) không dùng `buildHealthSnapshot`, nên không
+  // có bản chạy trên máy chủ nào phải khớp theo.
+  const currentValues = useAccountCurrentValues()
+
   const snap = useMemo(
     () =>
       buildHealthSnapshot({
@@ -171,9 +178,10 @@ export function HealthView() {
         rates: r,
         today: todayISO,
         taxCategoryIds: taxCategoryIds(categories),
+        currentValues,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [balances, debts, debtPayments, txs, categories, months, monthStartDay, accounts, base, rates, todayISO],
+    [balances, debts, debtPayments, txs, categories, months, monthStartDay, accounts, base, rates, todayISO, currentValues],
   )
 
   // Chuỗi thu/chi theo tháng — nền cho kịch bản "nếp cũ" của khối mô phỏng. Dùng lại
@@ -188,15 +196,8 @@ export function HealthView() {
   const fund = emergencyFundMonths(snap.liquidAssets, snap.monthlyFixedExpense)
   const fundVerdict = verdictFor(fund, 3, 6)
   // Tiền đang gom cho mục tiêu thì không thực sự sẵn sàng cho lúc mất thu nhập.
-  //
-  // Phần "có chủ" đo bằng GIÁ TRỊ HIỆN TẠI (`useAccountCurrentValues`) — cùng số với khối
-  // Mục tiêu tiết kiệm ở trang Tài sản, nên hai trang nói một con số. Riêng `liquidAssets`
-  // (mẫu số của quỹ dự phòng và khả năng trả nợ ngắn hạn) CỐ Ý vẫn cộng số dư sổ:
-  // `buildHealthSnapshot` nằm trong đồ thị bộ luật thông báo, mà bản gói cho edge function
-  // không có giá thị trường (giá tính tại máy từ sổ lệnh) — đổi ở đây là chuông trong app và
-  // chuông gửi từ máy chủ nói hai con số. Hai cách đo chỉ khác nhau ở tài khoản đầu tư/tài
-  // sản cố định được đánh dấu "rút ngay được"; phép trừ dưới đây kẹp ≥ 0 cho ca đó.
-  const currentValues = useAccountCurrentValues()
+  // Cùng map `currentValues` với `snap.liquidAssets` nên phép trừ đi trên một thước đo;
+  // kẹp ≥ 0 chỉ còn là lưới an toàn (vd. tỷ giá thiếu ở một bên).
   const earmarked = useMemo(
     () => earmarkedForGoals(goals, balances, base, r, currentValues),
     // eslint-disable-next-line react-hooks/exhaustive-deps

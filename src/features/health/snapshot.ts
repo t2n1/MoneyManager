@@ -119,6 +119,16 @@ export interface SnapshotInput {
   today: string
   /** id danh mục thuộc nhóm Thuế & An sinh; bỏ trống = không tách khoản này */
   taxCategoryIds?: Set<string>
+  /**
+   * Giá trị hiện tại theo tài khoản (`accountCurrentValue` qua `useAccountCurrentValues`) —
+   * đúng map mà `earmarkedForGoals` nhận. Dùng cho `liquidAssets` và `investableAssets`:
+   * tài khoản đầu tư/tài sản cố định được khai "rút ngay được" tính theo giá thị trường /
+   * lần định giá gần nhất, không theo tiền đã nạp. Tài khoản thường thì giá trị hiện tại
+   * CHÍNH là số dư, nên không đổi gì. Bỏ trống, hoặc tài khoản vắng trong map → số dư sổ.
+   *
+   * Thẻ tín dụng KHÔNG đọc map này: nợ thẻ luôn là số dư sổ.
+   */
+  currentValues?: ReadonlyMap<string, { value: number }>
 }
 
 const monthId = (k: MonthKey) => `${k.year}-${k.month}`
@@ -128,8 +138,11 @@ const monthId = (k: MonthKey) => `${k.year}-${k.month}`
 
 export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   const { balances, debts, debtPayments, txs, categories, months, monthStartDay } = input
-  const { currencyOf, base, rates, today } = input
+  const { currencyOf, base, rates, today, currentValues } = input
   let hasMissingRate = false
+  // Cùng phép rơi với `earmarkedForGoals` — hai bên phải cùng gốc thì phép trừ
+  // "quỹ dự phòng đã trừ phần có chủ" mới có nghĩa.
+  const valueOf = (b: AccountBalanceRow) => currentValues?.get(b.id)?.value ?? b.balance
 
   // --- Bảng cân đối: tài sản lỏng & công nợ ---
   let liquidAssets = 0
@@ -149,13 +162,13 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
       // Đầu tư đếm riêng cho thanh trượt mô phỏng; tài sản cố định (nhà, xe) thì không —
       // "bán nhà để cầm cự" không phải một nếp chi, nó là một quyết định khác hẳn.
       if (b.type === 'investment') {
-        const iv = convertToBase(b.balance, b.currency, base, rates)
+        const iv = convertToBase(valueOf(b), b.currency, base, rates)
         if (iv === null) hasMissingRate = true
         else if (iv > 0) investableAssets += iv
       }
       continue
     }
-    const v = convertToBase(b.balance, b.currency, base, rates)
+    const v = convertToBase(valueOf(b), b.currency, base, rates)
     if (v === null) hasMissingRate = true
     else liquidAssets += v
   }

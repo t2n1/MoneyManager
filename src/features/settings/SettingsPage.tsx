@@ -11,6 +11,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { formatRateLine } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
 import { CoupleToggle } from './CoupleToggle'
+import { CompactNumberToggle } from './CompactNumberToggle'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
@@ -133,6 +134,8 @@ export function SettingsPage() {
           <DensityToggle />
 
           <FontSizeToggle />
+
+          <CompactNumberToggle />
 
           <CoupleToggle />
 

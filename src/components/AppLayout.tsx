@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type UIEvent } from 'react'
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppFooter } from './AppFooter'
 import { AppRail } from './AppRail'
@@ -15,6 +15,7 @@ import {
   useRunRecurringCatchUp,
 } from '../hooks/queries'
 import { usePrivacyMode } from '../lib/privacy'
+import { useCompactStyle } from '../lib/compactStyle'
 import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { dismissErrorToast, useErrorToast } from '../lib/errorToast'
@@ -55,6 +56,9 @@ export function AppLayout() {
   // Đăng ký chế độ riêng tư ở gốc cây: bật/tắt sẽ re-render toàn bộ trang con
   // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
   const privacyOn = usePrivacyMode()
+  // "Số rút gọn" cũng vậy: formatCompact đọc lựa chọn tức thời, nên đổi thì phải vẽ lại
+  // cả trang — nhất là tickFormatter của biểu đồ, thứ không tự biết lựa chọn đã đổi.
+  const compactStyle = useCompactStyle()
   // Bơm "Cách trình bày" từ hồ sơ vào bản sao ở máy. Ở ĐÂY và chỉ ở đây: hook đọc chế
   // độ có ở hàng chục component, để effect trong đó thì mỗi lần hồ sơ đổi tham chiếu là
   // hàng chục lần đồng bộ cho cùng một giá trị. Xem src/hooks/useDensity.ts.
@@ -91,6 +95,17 @@ export function AppLayout() {
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
   }, [shown.pathname])
+  // Đổi "Số rút gọn" là đổi key của <main> → <main> MỚI, cuộn về 0. Mà nút đổi nằm giữa
+  // trang Cài đặt: không giữ lại vị trí thì bấm xong là nút vừa bấm trôi mất khỏi màn.
+  const mainScrollTop = useRef(0)
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo(0, mainScrollTop.current)
+  }, [compactStyle])
+  // Hàm có tên, không viết arrow ngay trong thẻ <main>: tests/overlayLayers.test.ts dò thẻ
+  // mở của <main> tới dấu ">" đầu tiên, và "=>" sẽ cắt ngang phép dò đó.
+  const ghiViTriCuon = (e: UIEvent<HTMLElement>) => {
+    mainScrollTop.current = e.currentTarget.scrollTop
+  }
 
   useEffect(() => {
     const hit = pageTitle(shown.pathname)
@@ -232,8 +247,9 @@ export function AppLayout() {
               cuộn tràn sang <main> → nút trôi khỏi panel rồi panel đóng, tức mấy tài
               khoản cuối KHÔNG bấm được. Một nguyên nhân, hai triệu chứng. */}
           <main
-            key={privacyOn ? 'priv-on' : 'priv-off'}
+            key={`${privacyOn ? 'priv-on' : 'priv-off'}-${compactStyle}`}
             ref={mainRef}
+            onScroll={ghiViTriCuon}
             className={`relative w-full min-h-0 flex-1 pt-[env(safe-area-inset-top)] lg:pt-0 ${
               onEntry ? 'overflow-hidden' : 'overflow-y-auto pb-6'
             }`}

@@ -45,7 +45,7 @@ import {
   type LedgerFilter,
 } from './ledgerView'
 import { MonthlyView } from './MonthlyView'
-import { toNewTransaction } from './restore'
+import { toDuplicateTransaction, toNewTransaction } from './restore'
 import { SelectionActionBar } from './SelectionActionBar'
 import { SummaryView } from './SummaryView'
 import { useTxSelection } from './useTxSelection'
@@ -233,7 +233,7 @@ export function LedgerPage() {
     const today = toISODate(new Date())
     const tagIds = (tagsOfTx.get(tx.id) ?? []).map((g) => g.id)
     const row = await repo.createTransaction({
-      ...toNewTransaction(tx, tagIds),
+      ...toDuplicateTransaction(tx, tagIds),
       occurred_on: today,
     })
     qc.invalidateQueries({ queryKey: ['transactions'] })

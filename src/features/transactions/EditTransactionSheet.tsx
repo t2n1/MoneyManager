@@ -8,6 +8,7 @@ import {
   useDebtPayments,
   useDeleteTransaction,
   useRates,
+  useTransactionTags,
   useUpdateTransaction,
 } from '../../hooks/queries'
 import { showUndoToast } from '../../lib/undoToast'
@@ -38,6 +39,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
   const [moChia, setMoChia] = useState(false)
+  const { data: tagLinks = [] } = useTransactionTags()
   const laiLich = provenanceLine(txProvenance(tx))
   // Tiền của giao dịch = tiền của TÀI KHOẢN NGUỒN, không phải base — `amount` được khai
   // theo đơn vị đó (xem chú thích cột amount ở database.types).
@@ -54,6 +56,8 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
 
   async function handleDelete() {
     const snapshot = tx
+    // Nhãn nằm ở bảng liên kết, xoá giao dịch là mất theo — chụp lại để hoàn tác gắn lại.
+    const snapshotTags = tagLinks.filter((l) => l.transaction_id === tx.id).map((l) => l.tag_id)
     // try/catch: xóa hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã báo) —
     // không được hiện "Đã xóa · Hoàn tác" cho một giao dịch còn nguyên.
     try {
@@ -64,7 +68,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
     onClose()
     // Xóa xong mới cho hoàn tác: tạo lại giao dịch (id mới) nếu người dùng bấm.
     showUndoToast('Đã xóa giao dịch', async () => {
-      await repo.createTransaction(toNewTransaction(snapshot))
+      await repo.createTransaction(toNewTransaction(snapshot, snapshotTags))
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
       qc.invalidateQueries({ queryKey: ['search'] })

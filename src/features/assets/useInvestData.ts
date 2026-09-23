@@ -49,9 +49,9 @@ export interface InvestData {
 
 export function useInvestData(accountId?: string | null): InvestData {
   const { data: accountRows = [], isLoading: accLoading } = useAccounts()
-  const { data: balances = [] } = useAccountBalances()
+  const { data: balances = [], isLoading: balLoading } = useAccountBalances()
   const { data: allTrades = [], isLoading: tradesLoading } = useStockTrades()
-  const { data: prices = [] } = useStockPrices()
+  const { data: prices = [], isLoading: pricesLoading } = useStockPrices()
 
   const accounts = useMemo(
     () =>
@@ -118,6 +118,10 @@ export function useInvestData(accountId?: string | null): InvestData {
     session,
     staleHeld,
     accountName: (id) => nameById.get(id) ?? '—',
-    isLoading: accLoading || tradesLoading,
+    // Cả số dư và bảng giá cũng tính — cùng lý do đã ghi ở useAccountPortfolio: giá về
+    // muộn thì `marketValue` null và tab khẳng định "chưa có giá cho mã nào đang giữ";
+    // số dư về muộn thì tiền mặt = 0 − đã mua ra số ÂM, và tab buộc tội sổ lệnh "đang
+    // mua nhiều hơn tiền đã nạp". Cả hai là kết luận sai chỉ vì đang tải.
+    isLoading: accLoading || tradesLoading || balLoading || pricesLoading,
   }
 }

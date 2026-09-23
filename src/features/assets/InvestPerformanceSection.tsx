@@ -116,11 +116,13 @@ export function InvestPerformanceSection({
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
-        <SoLoi nhan="Tổng lợi nhuận" pct={loi.total} />
-        <SoLoi nhan="1 tuần" pct={loi.week} />
-        <SoLoi nhan="Từ đầu năm" pct={loi.ytd} />
-        <SoLoi nhan="1 năm" pct={loi.year} />
-        <SoLoi nhan="Lãi kép/năm" pct={loi.cagr} />
+        {/* Đang tải thì cả năm ô nói "Đang tính", không in số tạm: một nguồn về muộn (sổ
+            nạp/rút) từng làm ô Tổng lợi nhuận hiện +2.559,7% rồi mới về +56,6%. */}
+        <SoLoi nhan="Tổng lợi nhuận" pct={loi.total} dangTai={dangTai} />
+        <SoLoi nhan="1 tuần" pct={loi.week} dangTai={dangTai} />
+        <SoLoi nhan="Từ đầu năm" pct={loi.ytd} dangTai={dangTai} />
+        <SoLoi nhan="1 năm" pct={loi.year} dangTai={dangTai} />
+        <SoLoi nhan="Lãi kép/năm" pct={loi.cagr} dangTai={dangTai} />
       </dl>
 
       {rows.length < 2 ? (
@@ -231,8 +233,8 @@ export function InvestPerformanceSection({
 /**
  * Vì sao biểu đồ đang trống — bốn lý do khác nhau, và nói nhầm là hướng người dùng đi sai.
  *
- * Thứ tự có ý: `dangTai` đứng trước `noPrices` vì trong 1,2 giây chờ `stockPriceHistory`
- * thì cả hai đều đúng, mà "đang tải" mới là câu người ta cần. Chỉ khi đã tải xong mà vẫn
+ * Thứ tự có ý: `dangTai` đứng trước mọi lý do khác — lúc đang tải thì chưa lý do nào được
+ * phép kết luận (useInvestChartData cũng trả `noPrices: false` trong lúc đó). Chỉ khi đã tải xong mà vẫn
  * không có giá thì mới nói tới chuyện chờ cron chiều — trước đó, câu cũ ở chỗ này là
  * "chọn khoảng rộng hơn", tức bảo người dùng đi bấm một cái chip không giúp được gì.
  */
@@ -245,7 +247,7 @@ function lyDoChuaVe({
   hasTrades: boolean
   noPrices: boolean
 }): string {
-  if (dangTai) return 'Đang tải lịch sử giá…'
+  if (dangTai) return 'Đang tính…'
   if (!hasTrades)
     return 'Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.'
   if (noPrices)
@@ -253,13 +255,17 @@ function lyDoChuaVe({
   return 'Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.'
 }
 
-function SoLoi({ nhan, pct }: { nhan: string; pct: number | null }) {
+function SoLoi({ nhan, pct, dangTai }: { nhan: string; pct: number | null; dangTai: boolean }) {
   const tone = pct == null || pct === 0 ? 'neutral' : pct > 0 ? 'in' : 'out'
   return (
     <div>
       <dt className="text-2xs text-fg-muted">{nhan}</dt>
       <dd className="text-sm font-semibold">
-        <Num tone={tone}>{signedPct(pct == null ? null : pct1(pct / 100))}</Num>
+        {dangTai ? (
+          <span className="font-normal text-fg-muted">Đang tính…</span>
+        ) : (
+          <Num tone={tone}>{signedPct(pct == null ? null : pct1(pct / 100))}</Num>
+        )}
       </dd>
     </div>
   )

@@ -106,7 +106,10 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   const { data: priceRows = [] } = useStockPrices()
   const todayISO = toISODate(new Date())
   const accountIds = useMemo(() => new Set(shown.map((a) => a.id)), [shown])
-  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
+  const { data: txs = [], isLoading: dangTaiSo } = useRangeTransactions(
+    investTxRange(todayISO),
+    accountIds.size > 0,
+  )
 
   /**
    * Nạp/rút người dùng tự ghi — đọc lại đúng `txs` ở trên, không thêm lượt đọc nào.
@@ -231,8 +234,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
               và phần thừa nổi lên ở ô “Tiền chưa mua”. Xoá bộ tự ghi trước thì hãy bấm.
             </p>
           )}
-          <ActionButton onClick={ghiBuCoHoi} disabled={ghiBu.isPending} className="mt-2">
-            {ghiBu.isPending ? 'Đang ghi…' : 'Ghi bù'}
+          {/* Chờ sổ về rồi mới cho bấm: câu hỏi lại ở `ghiBuCoHoi` đếm bộ nạp/rút tự ghi
+              TỪ `txs`, nên bấm lúc sổ chưa về là bỏ qua đúng câu hỏi chặn nhân đôi tiền. */}
+          <ActionButton
+            onClick={ghiBuCoHoi}
+            disabled={ghiBu.isPending || dangTaiSo}
+            className="mt-2"
+          >
+            {ghiBu.isPending ? 'Đang ghi…' : dangTaiSo ? 'Đang kiểm sổ…' : 'Ghi bù'}
           </ActionButton>
         </div>
       )}

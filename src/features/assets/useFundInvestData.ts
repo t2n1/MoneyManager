@@ -79,7 +79,7 @@ export interface FundInvestData {
 export function useFundInvestData(accountId?: string | null): FundInvestData {
   const { data: accountRows = [], isLoading: accLoading } = useAccounts()
   const { data: allTrades = [], isLoading: tradesLoading } = useFundTrades()
-  const { data: navRows = [] } = useFundPrices()
+  const { data: navRows = [], isLoading: navLoading } = useFundPrices()
   const { data: funds = [] } = useFunds()
   const { data: balanceRows = [], isLoading: balLoading } = useAccountBalances()
 
@@ -106,8 +106,8 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
 
   // Nhịp đóng và năm ngừng làm CHỈ cần khi có tài khoản tính theo số dư — `enabled` để
   // mở tab này với một tài khoản quỹ thường không phải kéo về cả năm giao dịch.
-  const { data: profile } = useProfile()
-  const { data: phases = [] } = useLifePhases()
+  const { data: profile, isLoading: profileLoading } = useProfile()
+  const { data: phases = [], isLoading: phasesLoading } = useLifePhases()
   const monthStartDay = profile?.month_start_day ?? 1
   const todayISO = toISODate(new Date())
   /** Tháng hiện tại THEO CÁCH NGƯỜI DÙNG CHIA THÁNG — dùng cho cả khoảng đọc và phép chiếu. */
@@ -122,7 +122,10 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
     }),
     [thangNay, monthStartDay],
   )
-  const { data: namQua = [] } = useRangeTransactions(range, soDuAccounts.length > 0 && !!profile)
+  const { data: namQua = [], isLoading: namQuaLoading } = useRangeTransactions(
+    range,
+    soDuAccounts.length > 0 && !!profile,
+  )
 
   /**
    * Chặng CUỐI của trang Tương lai — chỗ duy nhất trong app có năm người dùng dự tính
@@ -258,6 +261,18 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
     fundName: (cd) => tenQuy.get(cd) || cd,
     // balLoading cũng tính: số dư về muộn thì `balanceAccounts` tạm ¥0, và một con số
     // tổng nhấp từ ¥0 sang số thật là thứ người đọc kịp thấy và kịp tin.
-    isLoading: accLoading || tradesLoading || balLoading,
+    //
+    // Và mọi nguồn khác của con số: 基準価額 về muộn thì mọi quỹ "chưa có giá"; giao dịch
+    // 12 tháng, hồ sơ (ngày đầu tháng) và chặng cuộc đời về muộn thì nhịp đóng đo ra 0 và
+    // phép chiếu tới lúc nghỉ biến mất rồi hiện lại. `isLoading` của một truy vấn đang
+    // tắt là false, nên tài khoản không cần nguồn nào thì không phải chờ nó.
+    isLoading:
+      accLoading ||
+      tradesLoading ||
+      balLoading ||
+      navLoading ||
+      profileLoading ||
+      phasesLoading ||
+      namQuaLoading,
   }
 }

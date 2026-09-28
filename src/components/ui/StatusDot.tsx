@@ -21,6 +21,8 @@ export function StatusDot({ tone, label, className = '' }: Props) {
   return (
     <span
       role="img"
+      // Chấm là chỗ DUY NHẤT e-ink giữ bo tròn (index.css: `.eink [data-dot]`).
+      data-dot
       aria-label={label}
       className={`inline-block h-2 w-2 shrink-0 rounded-full ${STATUS_FILL[tone]} ${className}`.trim()}
     />

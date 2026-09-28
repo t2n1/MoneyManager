@@ -23,9 +23,12 @@ export type CardPadding = 'none' | 'sm' | 'md' | 'lg' | 'panel'
 // quanh thẻ. Cố ý dùng `dark:` chứ không đổi cả hai chế độ — light giữ nguyên diện mạo
 // (và giữ nguyên cả hình học: viền chỉ mọc thêm ở dark, nơi cả thang bề mặt đã đổi).
 const ELEVATION: Record<CardElevation, string> = {
-  raised: 'rounded-xl shadow-sm dark:border dark:border-border-panel dark:shadow-none',
-  flat: 'rounded-xl border border-border-subtle',
-  panel: 'rounded-lg border border-border-panel',
+  // E-ink: khung mực thay cho bóng — raised/panel 2px, flat 1,5px nét LIỀN (border-subtle
+  // ở e-ink mặc định là nét đứt của kẻ dòng, xem khối @layer base trong index.css).
+  raised:
+    'rounded-xl shadow-sm dark:border dark:border-border-panel dark:shadow-none eink:border eink:border-frame eink:border-border-panel',
+  flat: 'rounded-xl border border-border-subtle eink:border-rule eink:border-solid',
+  panel: 'rounded-lg border border-border-panel eink:border-frame',
 }
 
 const PADDING: Record<CardPadding, string> = {

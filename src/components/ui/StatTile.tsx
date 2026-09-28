@@ -39,7 +39,7 @@ export function StatTile({
       {/* Nhãn = "eyebrow" của 1a: 11px hoa, giãn chữ .1em. Chữ hoa nhỏ đọc chậm hơn
           chữ thường, nên nó chỉ hợp với NHÃN (2–3 từ, người ta quét chứ không đọc) —
           đừng bê cách viết này sang câu. */}
-      <p className="text-2xs uppercase tracking-label text-fg-muted">{label}</p>
+      <p className="text-2xs uppercase tracking-label text-fg-muted eink:font-mono">{label}</p>
       {/* text-kpi (22px) mono/500, không phải text-base/bold: khoảng cách nhãn–số giãn
           từ một bậc lên ba, nên số bắt mắt bằng KÍCH THƯỚC chứ không cần độ đậm — và ở
           cỡ này font-bold làm chữ số mono bít nét. Bậc này mang sẵn line-height 1 để số
@@ -48,10 +48,10 @@ export function StatTile({
           cỡ tuỳ ý đang phục vụ cùng vai trò "số chính". Nay cả bảy về hai bậc có tên.
           tabular-nums/font-mono đặt ở đây luôn cho trường hợp giá trị là chuỗi thuần
           chứ không phải <Money>. */}
-      <p className="mt-1.5 font-mono text-kpi font-medium tracking-number tabular-nums text-fg-primary">
+      <p className="mt-1.5 font-mono text-kpi font-medium tracking-number eink:font-bold tabular-nums text-fg-primary">
         {children}
       </p>
-      {note && <p className="mt-1 text-2xs text-fg-muted">{note}</p>}
+      {note && <p className="mt-1 text-2xs text-fg-muted eink:text-xs eink:italic">{note}</p>}
     </Card>
   )
 }

@@ -40,7 +40,7 @@ const VARIANT: Record<IconButtonVariant, string> = {
   // Viền ở CẢ hai chế độ từ redesign 2 (nút tròn không viền trên nền trang chỉ là một
   // hình mờ): light viền panel rất nhạt + shadow như cũ, dark viền control.
   surface:
-    'border border-border-panel bg-surface shadow-sm hover:bg-surface-sunken dark:border-border-strong dark:shadow-none',
+    'border border-border-panel bg-surface shadow-sm hover:bg-surface-sunken dark:border-border-strong dark:shadow-none eink:border-rule',
   ghost: 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary',
   'ghost-accent': 'text-fg-accent hover:bg-surface-sunken',
   // Nền xanh NHẠT, không phải nền xanh đặc: nút này lặp trên mỗi dòng danh mục cha, một

@@ -148,7 +148,7 @@ export function SegmentedControl<T extends string>({
       // Pill track của redesign 2: nền chrome (lùi sau nội dung) + viền panel, bo tròn
       // hết cỡ. font-semibold cho MỌI mục — active không được đổi độ đậm riêng, không
       // thì bề rộng nhãn đổi theo và nền trượt phải đo lại giữa chừng.
-      className={`relative flex rounded-full border border-border-panel bg-surface-chrome p-0.5 font-semibold ${s.track} ${w.track} ${className}`.trim()}
+      className={`relative flex rounded-full border border-border-panel bg-surface-chrome p-0.5 font-semibold eink:border-rule eink:p-0 ${s.track} ${w.track} ${className}`.trim()}
     >
       {/* Nền ô đang chọn. Chỉ vẽ sau lần đo đầu: vẽ trước khi biết chỗ thì nó xuất hiện
           ở mép trái rồi trượt sang — một chuyển động lúc MỞ MÀN, đúng thứ "console
@@ -163,7 +163,7 @@ export function SegmentedControl<T extends string>({
           // lần và nền lệch phải đúng 2px. Đo được trên /so trước khi thêm.
           // Ô đang chọn của redesign 2: nền accent pha loãng + ring TRONG (box-shadow,
           // không chiếm chỗ nên không có chuyện chữ xê 1px khi đổi tab).
-          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-full bg-accent-soft ring-1 ring-accent-soft-ring ring-inset motion-segment"
+          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-full bg-accent-soft ring-1 ring-accent-soft-ring ring-inset motion-segment eink:inset-y-0 eink:bg-accent eink:ring-0"
           style={{ width: pill.width, transform: `translateX(${pill.left}px)` }}
         />
       )}
@@ -180,7 +180,7 @@ export function SegmentedControl<T extends string>({
             // `relative` để chữ nằm TRÊN nền tuyệt đối ở trên. Viền trong suốt ở cả hai
             // trạng thái (nền mới là thứ mang viền đậm): cho riêng ô đang chọn một viền
             // thì mỗi lần bấm tab, chữ của mọi ô xê 1px — thấy rõ trên dải 4 tab của Sổ.
-            className={`relative rounded-full border border-transparent ${s.item} ${w.item} ${active ? (item.activeClassName ?? 'text-fg-accent-on-track') : 'text-fg-muted hover:text-fg-primary'}`}
+            className={`relative rounded-full border border-transparent ${s.item} ${w.item} ${active ? `${item.activeClassName ?? 'text-fg-accent-on-track'} eink:text-fg-on-accent!` : 'text-fg-muted hover:text-fg-primary'}`}
           >
             {item.label}
           </button>

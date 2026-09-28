@@ -33,7 +33,7 @@ const SIZE: Record<FilterChipSize, string> = {
 }
 
 const BASE =
-  'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border font-medium transition active:scale-95'
+  'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border font-medium transition active:scale-95 eink:border-rule'
 
 const ON = 'border-accent bg-accent text-fg-on-accent'
 // Tắt có NỀN thẻ (redesign 2) chứ không trong suốt: chip đứng thẳng trên nền trang,

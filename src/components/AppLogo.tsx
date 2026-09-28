@@ -2,8 +2,13 @@
 // dùng chung một hình. Sửa hình thì sửa CẢ HAI file (favicon.svg là nguồn cho
 // icon PWA nên không import lẫn nhau được).
 export function AppLogo({ className }: { className?: string }) {
+  // E-ink hiện logo XÁM (handoff: không vẽ lại, chỉ lọc màu).
   return (
-    <svg viewBox="0 0 512 512" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 512 512"
+      className={`eink:grayscale eink:contrast-125 ${className ?? ''}`.trim()}
+      aria-hidden="true"
+    >
       <rect width="512" height="512" rx="120" fill="#1d4a2c" />
       <rect x="132" y="100" width="248" height="312" rx="36" fill="#eef2ec" />
       <rect x="176" y="100" width="10" height="312" fill="#5ce08a" />

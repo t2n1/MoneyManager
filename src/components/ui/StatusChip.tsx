@@ -21,7 +21,7 @@ interface Props {
 export function StatusChip({ tone, icon: Icon, children, className = '' }: Props) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium ${STATUS_CHIP[tone]} ${className}`.trim()}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium eink:font-mono eink:uppercase eink:tracking-label eink:px-1.5 ${STATUS_CHIP[tone]} ${className}`.trim()}
     >
       {Icon && <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />}
       {children}

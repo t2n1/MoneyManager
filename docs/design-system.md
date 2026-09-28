@@ -428,6 +428,28 @@ chip (nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có sha
 `STATUS_FILL` **giữ nền đặc** — §2.6 nói chip *và* dot cùng đổi sang "nền tối + viền",
 nhưng áp vào chấm 8px là xoá luôn cái chấm.
 
+## Giao diện E-ink
+
+Lựa chọn thứ tư ở Cài đặt → Giao diện (cạnh Sáng / Tối / Hệ thống), từ handoff "Sổ Gạo
+E-ink redesign" (09/2026): mực trên giấy xám, góc vuông, không bóng, không chuyển động,
+một lớp hạt giấy. Class `.eink` trên `<html>`, **không kèm `.dark`** — nên mọi nhánh
+light của component vẫn chạy, và e-ink không có bản tối.
+
+- **Token là chỗ làm việc chính.** Khối `.eink` ở cuối `src/index.css` khai lại đúng các
+  tên token ngữ nghĩa, *và* ánh các bảng màu Tailwind thô (green/red/amber/sky/gray…) về
+  bốn mực trầm theo nghĩa: xanh lá → rêu (thu), đỏ → gỉ sắt (chi/vượt), vàng → đất (chú
+  ý), xám/lam → mực. Chàm `--money-transfer` để riêng cho chuyển khoản.
+- **Hình toàn cục** (`@layer base` của cùng khối): bán kính 0 trừ chấm (`[data-dot]` của
+  `<StatusDot>` và chấm chú giải cỡ ≤ 3), bỏ `--tw-shadow` nhưng giữ ring, kẻ dòng
+  `border-border-subtle` thành nét đứt, link `text-fg-accent` gạch chân.
+- **Primitive chỉ đổi HÌNH qua biến thể `eink:`** — viền `border-frame` (2px, thẻ) /
+  `border-rule` (1,5px, control), mục đang chọn ĐẢO màu (`eink:bg-accent
+  eink:text-fg-on-accent`). Thêm primitive mới thì tự hỏi: dưới e-ink nó có cần khung
+  dày hơn hay đảo màu không.
+- `--accent-soft-bg` ở e-ink là giấy lún chứ không phải mực: nó còn tô ô "hôm nay" của
+  lịch hoá đơn, nơi có số tiền nằm bên trong. Đảo màu làm ở primitive, không ở token.
+- Rêu và đất đậm hơn bản vẽ 5% để đạt 4,5:1 trên nền lún (bản vẽ đo trên giấy sáng).
+
 ## Chế độ trình bày: Gọn / Đầy đủ
 
 Cài đặt → **Cách trình bày**. Mặc định **Gọn**. Nguồn sự thật là **hồ sơ người dùng**

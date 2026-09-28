@@ -17,7 +17,7 @@ import type { SelectHTMLAttributes } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 const BOX =
-  'min-h-11 w-full appearance-none rounded-md border border-border-strong bg-surface pl-3 pr-9 text-sm text-fg-primary transition disabled:opacity-50'
+  'min-h-11 w-full appearance-none rounded-md border border-border-strong bg-surface pl-3 pr-9 text-sm text-fg-primary transition disabled:opacity-50 eink:border-rule'
 
 interface Props extends SelectHTMLAttributes<HTMLSelectElement> {
   /** Lớp cho KHUNG BAO (bề rộng, lề), không cho chính <select>. */

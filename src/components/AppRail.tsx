@@ -118,7 +118,8 @@ export function AppRail() {
             // tiền) — hai token đã tách nghĩa.
             `${row} ${
               isActive
-                ? 'bg-accent-soft text-fg-accent-on-track ring-1 ring-accent-soft-ring ring-inset'
+                ? // E-ink: mục đang chọn là khối ĐẢO màu (nền mực, chữ giấy), không ring.
+                  'bg-accent-soft text-fg-accent-on-track ring-1 ring-accent-soft-ring ring-inset eink:bg-accent eink:text-fg-on-accent eink:ring-0'
                 : 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary'
             }`
           }

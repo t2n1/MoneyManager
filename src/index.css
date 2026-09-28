@@ -2,6 +2,10 @@
 
 /* Bật dark mode theo class '.dark' trên <html> (Tailwind v4) */
 @custom-variant dark (&:where(.dark, .dark *));
+/* Giao diện E-ink (Cài đặt → Giao diện): class '.eink' trên <html>, KHÔNG kèm '.dark'
+   — e-ink là giấy sáng, nên mọi nhánh light của component vẫn chạy. Biến thể này chỉ
+   dành cho primitive cần đổi HÌNH (viền dày, đảo màu mục đang chọn); màu thì token lo. */
+@custom-variant eink (&:where(.eink, .eink *));
 
 /* ============================================================================
    DESIGN TOKENS
@@ -792,6 +796,291 @@ html.dark .recharts-default-tooltip {
 }
 html.dark .recharts-tooltip-label,
 html.dark .recharts-tooltip-item {
+  color: var(--fg-primary) !important;
+}
+
+/* ============================================================================
+   GIAO DIỆN E-INK (handoff "Sổ Gạo E-ink redesign", 09/2026)
+   Mực trên giấy xám như máy đọc sách màu (Kaleido 3): góc vuông, không bóng, không
+   chuyển động, một lớp hạt giấy, và bốn màu trầm — MỖI MÀU MỘT NGHĨA:
+     gỉ sắt #9e2a1c = chi / vượt / rủi ro · rêu #4f6b4a = thu / ổn
+     đất   #7a5f1c = chú ý (≥85% hạn mức) · chàm #3f5870 = chuyển khoản
+   Tên token GIỮ NGUYÊN như :root/.dark nên mọi tiện ích (text-fg-muted, bg-surface…)
+   tự đổi theo; chỗ duy nhất phải biết e-ink là vài primitive đổi HÌNH qua `eink:`.
+
+   Khối này nằm CUỐI file là có chủ đích: `.eink` cùng độ đặc hiệu với `:root`, nên nó
+   phải đứng sau khối :root chuyển động ở trên thì `--motion-*: 0ms` mới thắng.
+
+   Tương phản tính thẳng từ sRGB, ca XẤU NHẤT là nền lún #dcd9d0 (nền trang #e6e4dd):
+     mực 13,4 (14,8) · ink-700 9,0 (9,9) · ink-500 5,3 (5,9) · gỉ sắt 5,3 (5,9) ·
+     chàm 5,2 (5,8) · rêu 4,6 (5,1) · đất 4,6 (5,1) — sàn 4,55:1, đạt AA ở cả bốn nền.
+   Rêu và đất ĐẬM hơn bản vẽ một chút (#4f6b4a→#4a6546, #7a5f1c→#755b1b): số 4,7:1 của
+   handoff đo trên giấy SÁNG #eeece6; trên nền lún hai màu gốc chỉ còn 4,21 / 4,27 — trượt.
+   Lệch 5% độ sáng, mắt không phân biệt được với bản vẽ.
+   ============================================================================ */
+/* Token mới của e-ink cũng cần giá trị ở chế độ thường, không thì tiện ích rỗng màu.
+   Đứng TRƯỚC khối .eink: cùng độ đặc hiệu, khối sau thắng. */
+:root {
+  --money-transfer: var(--fg-secondary);
+  --surface-raised: var(--surface);
+  --banner-bg: var(--state-bad-bg);
+  --banner-fg: var(--state-bad-fg);
+}
+.eink {
+  /* Nguyên thuỷ */
+  --ink-900: #111111;
+  --ink-700: #333333;
+  --ink-600: #444444;
+  --ink-500: #555555;
+  --ink-300: #8a8780;
+  --paper-50: #f4f2ec;
+  --paper-100: #eeece6;
+  --paper-200: #e6e4dd;
+  --paper-300: #dcd9d0;
+  --rust-700: #9e2a1c;
+  --rust-800: #7e2014;
+  --moss-700: #4a6546;
+  --moss-500: #7d9477;
+  --ochre-700: #755b1b;
+  --ochre-500: #b08a34; /* chỉ tô khối, không bao giờ làm chữ */
+  --ochre-100: #e9dcb8;
+  --indigo-700: #3f5870;
+
+  color-scheme: light;
+
+  /* Chữ */
+  --fg-primary: var(--ink-900);
+  --fg-secondary: var(--ink-700);
+  --fg-muted: var(--ink-500);
+  --fg-on-track: var(--ink-600);
+  --fg-inverse: var(--paper-200);
+  --fg-disabled: var(--ink-300);
+
+  /* Tiền */
+  --money-in: var(--moss-700);
+  --money-out: var(--rust-700);
+  --money-transfer: var(--indigo-700);
+
+  /* Bề mặt: giấy phẳng, phân cấp bằng VIỀN chứ không bằng nền */
+  --surface-page: var(--paper-200);
+  --surface-chrome: var(--paper-200);
+  --surface: var(--paper-200);
+  --surface-raised: var(--paper-100);
+  --surface-sunken: var(--paper-300);
+  --surface-grad-to: var(--paper-200); /* không gradient */
+
+  /* Viền: cùng một mực — độ dày và nét (liền/đứt) mới là thứ phân cấp */
+  --border-subtle: var(--ink-900);
+  --border-panel: var(--ink-900);
+  --border-strong: var(--ink-900);
+
+  /* Nhấn: hành động = khối mực đặc, chữ giấy.
+     --accent-soft-bg CỐ Ý không phải mực: token này còn tô nền ô "hôm nay" của lịch
+     hoá đơn, nơi có số tiền nằm bên trong. Đảo màu mục đang chọn (rail, segmented) làm
+     ở primitive bằng `eink:` — chỉ ở đó chữ trong ô là chữ của chính nó. */
+  --accent: var(--ink-900);
+  --accent-hover: var(--ink-700);
+  --fg-accent: var(--ink-900); /* link: mực + gạch chân (xem khối base bên dưới) */
+  --fg-accent-on-track: var(--ink-900);
+  --fg-on-accent: var(--paper-200);
+  --accent-soft-bg: var(--paper-300);
+  --accent-soft-ring: var(--ink-900);
+  --accent-band-bg: rgba(17, 17, 17, 0.08);
+  --accent-muted-bg: var(--paper-300);
+  --accent-muted-fg: var(--ink-700);
+
+  /* Trạng thái */
+  --fg-warn: var(--ochre-700);
+  --state-good-bg: transparent;
+  --state-good-border: var(--moss-700);
+  --state-good-fg: var(--moss-700);
+  --state-warn-bg: var(--ochre-100);
+  --state-warn-border: var(--ochre-700);
+  --state-warn-fg: #6e5518;
+  --state-bad-bg: var(--rust-700);
+  --state-bad-border: var(--rust-700);
+  --state-bad-fg: #ffffff;
+
+  --banner-bg: var(--ink-900);
+  --banner-fg: var(--paper-200);
+
+  /* Bảng màu Tailwind thô (bg-green-50, text-red-700, sky của đồ thị…) còn ~160 chỗ trong
+     src — dưới e-ink chúng rơi về bốn mực trầm theo NGHĨA: xanh lá → rêu, đỏ → gỉ sắt,
+     vàng/cam → đất, xám/lam (chuỗi số trung tính) → mực. Chàm để riêng cho chuyển khoản
+     nên không bảng nào ánh vào nó. Chỉ những bảng có mặt trong src. */
+  --color-gray-50: var(--paper-100); --color-gray-100: var(--paper-300); --color-gray-200: var(--paper-300);
+  --color-gray-300: var(--ink-300); --color-gray-400: var(--ink-300); --color-gray-500: var(--ink-500);
+  --color-gray-600: var(--ink-700); --color-gray-700: var(--ink-700); --color-gray-800: var(--ink-900);
+  --color-gray-900: var(--ink-900); --color-gray-950: var(--ink-900);
+  --color-slate-50: var(--paper-100); --color-slate-100: var(--paper-300); --color-slate-200: var(--paper-300);
+  --color-slate-300: var(--ink-300); --color-slate-400: var(--ink-300); --color-slate-500: var(--ink-500);
+  --color-slate-600: var(--ink-700); --color-slate-700: var(--ink-700); --color-slate-800: var(--ink-900);
+  --color-slate-900: var(--ink-900); --color-slate-950: var(--ink-900);
+  --color-green-50: #e1e5d9; --color-green-100: #e1e5d9; --color-green-200: #c9d1c0;
+  --color-green-300: var(--moss-500); --color-green-400: var(--moss-500); --color-green-500: var(--moss-700);
+  --color-green-600: var(--moss-700); --color-green-700: var(--moss-700); --color-green-800: var(--moss-700);
+  --color-green-900: var(--moss-700); --color-green-950: var(--moss-700);
+  --color-emerald-50: #e1e5d9; --color-emerald-100: #e1e5d9; --color-emerald-200: #c9d1c0;
+  --color-emerald-300: var(--moss-500); --color-emerald-400: var(--moss-500); --color-emerald-500: var(--moss-700);
+  --color-emerald-600: var(--moss-700); --color-emerald-700: var(--moss-700); --color-emerald-800: var(--moss-700);
+  --color-emerald-900: var(--moss-700); --color-emerald-950: var(--moss-700);
+  --color-red-50: #eed8d2; --color-red-100: #eed8d2; --color-red-200: #e2bdb4;
+  --color-red-300: #c46a5c; --color-red-400: #c46a5c; --color-red-500: var(--rust-700);
+  --color-red-600: var(--rust-700); --color-red-700: var(--rust-700); --color-red-800: var(--rust-800);
+  --color-red-900: var(--rust-800); --color-red-950: var(--rust-800);
+  --color-rose-50: #eed8d2; --color-rose-100: #eed8d2; --color-rose-200: #e2bdb4;
+  --color-rose-300: #c46a5c; --color-rose-400: #c46a5c; --color-rose-500: var(--rust-700);
+  --color-rose-600: var(--rust-700); --color-rose-700: var(--rust-700); --color-rose-800: var(--rust-800);
+  --color-rose-900: var(--rust-800); --color-rose-950: var(--rust-800);
+  --color-amber-50: var(--ochre-100); --color-amber-100: var(--ochre-100); --color-amber-200: #dcc68f;
+  --color-amber-300: var(--ochre-500); --color-amber-400: var(--ochre-500); --color-amber-500: var(--ochre-500);
+  --color-amber-600: var(--ochre-700); --color-amber-700: var(--ochre-700); --color-amber-800: var(--ochre-700);
+  --color-amber-900: var(--ochre-700); --color-amber-950: var(--ochre-700);
+  --color-orange-50: var(--ochre-100); --color-orange-100: var(--ochre-100); --color-orange-200: #dcc68f;
+  --color-orange-300: var(--ochre-500); --color-orange-400: var(--ochre-500); --color-orange-500: var(--ochre-500);
+  --color-orange-600: var(--ochre-700); --color-orange-700: var(--ochre-700); --color-orange-800: var(--ochre-700);
+  --color-orange-900: var(--ochre-700); --color-orange-950: var(--ochre-700);
+  --color-sky-50: var(--paper-300); --color-sky-100: var(--paper-300); --color-sky-200: #c9c6bd;
+  --color-sky-300: var(--ink-300); --color-sky-400: var(--ink-500); --color-sky-500: var(--ink-700);
+  --color-sky-600: var(--ink-900); --color-sky-700: var(--ink-900); --color-sky-800: var(--ink-900);
+  --color-sky-900: var(--ink-900); --color-sky-950: var(--ink-900);
+  --color-blue-50: var(--paper-300); --color-blue-100: var(--paper-300); --color-blue-200: #c9c6bd;
+  --color-blue-300: var(--ink-300); --color-blue-400: var(--ink-500); --color-blue-500: var(--ink-700);
+  --color-blue-600: var(--ink-900); --color-blue-700: var(--ink-900); --color-blue-800: var(--ink-900);
+  --color-blue-900: var(--ink-900); --color-blue-950: var(--ink-900);
+  /* Không có giấy trắng tinh trên máy đọc sách: bg-white/text-white về giấy sáng nhất. */
+  --color-white: var(--paper-100);
+
+  /* Lát donut: dải mực đổi độ đậm (e-ink không có thang một tông màu nào khác) */
+  --chart-slice-1: #111111;
+  --chart-slice-2: #444444;
+  --chart-slice-3: #6b6964;
+  --chart-slice-4: #8a8780;
+  --chart-slice-5: #b3b0a7;
+
+  /* Chữ: Literata (serif của máy đọc sách) cho chữ, JetBrains Mono cho MỌI con số.
+     `--font-sans` giữ TÊN để thay tại chỗ — preflight trỏ font trang vào nó. */
+  --font-serif: 'Literata', Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-serif);
+  --text-kpi: 1.5rem; /* 24 */
+  --text-hero: 1.75rem; /* 28 */
+  --tracking-label: 0.12em;
+  --tracking-number: -0.03em;
+
+  /* Hình học & hoạ tiết */
+  --rule-frame: 2px solid var(--ink-900);
+  --rule-control: 1.5px solid var(--ink-900);
+  --rule-row: 1px dashed var(--ink-900);
+  --hatch-ink: repeating-linear-gradient(45deg, #111111 0 1.5px, transparent 1.5px 4px);
+  --hatch-rust: repeating-linear-gradient(45deg, #9e2a1c 0 1.5px, transparent 1.5px 4px);
+  --hatch-ochre: repeating-linear-gradient(45deg, #b08a34 0 1.5px, transparent 1.5px 4px);
+  --hatch-time: repeating-linear-gradient(90deg, #111111 0 1px, transparent 1px 4px);
+  --grain-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27220%27%20height%3D%27220%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.9%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20values%3D%270%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200.9%200%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url(%2523n)%27%2F%3E%3C%2Fsvg%3E");
+
+  /* Chuyển động: e-ink KHÔNG nội suy — thay đổi hiện ra tức thì như một lần làm mới giấy */
+  --motion-period: 0ms;
+  --motion-segment: 0ms;
+  --motion-sheet: 0ms;
+  --motion-group: 0ms;
+  --motion-todo: 0ms;
+  --motion-drag: 0ms;
+  --motion-assume: 0ms;
+  --motion-block: 0ms;
+  --motion-popover: 0ms;
+  --motion-toast: 0ms;
+  --motion-progress: 0ms;
+}
+
+@theme inline {
+  --color-money-transfer: var(--money-transfer);
+  --color-surface-raised: var(--surface-raised);
+  --color-banner: var(--banner-bg);
+  --color-fg-banner: var(--banner-fg);
+}
+
+/* Hai độ dày viền có tên của e-ink: khung thẻ 2px, control 1,5px. Tên chứ không phải
+   `border-[1.5px]`: chêm giá trị tuỳ ý là thứ designSystem.test.ts cấm. */
+@utility border-frame {
+  border-width: 2px;
+}
+@utility border-rule {
+  border-width: 1.5px;
+}
+/* Riêng cạnh dưới (PanelHeader): border-rule đặt CẢ bốn cạnh, trên một phần tử chỉ có
+   border-b thì nó mọc thêm ba cạnh kia. */
+@utility border-b-rule {
+  border-bottom-width: 1.5px;
+}
+
+html.eink {
+  background-color: var(--surface-page);
+}
+
+/* Luật HÌNH toàn cục của e-ink. Nằm ở @layer base để tiện ích tại chỗ vẫn thắng khi cần
+   (vd `eink:border-solid` của Card flat), còn mặc định thì cả app đổi một lượt. */
+@layer base {
+  /* Góc vuông ở mọi chỗ — trừ chấm trạng thái (StatusDot và chấm chú giải nhỏ). */
+  .eink *,
+  .eink *::before,
+  .eink *::after {
+    border-radius: 0 !important;
+    /* Bỏ đổ bóng nhưng GIỮ ring: ring của Tailwind v4 cũng đi qua box-shadow, và nó còn
+       là chỉ báo tiêu điểm của mấy ô nhập `focus-within:ring`. */
+    --tw-shadow: 0 0 #0000 !important;
+  }
+  .eink [data-dot],
+  .eink .rounded-full:is(.h-1, .h-1\.5, .h-2, .h-2\.5, .h-3):is(.w-1, .w-1\.5, .w-2, .w-2\.5, .w-3),
+  .eink .rounded-full:is(.size-1\.5, .size-2, .size-2\.5, .size-3) {
+    border-radius: 9999px !important;
+  }
+
+  /* Kẻ dòng trong danh sách = nét ĐỨT mảnh; khung = nét liền. */
+  .eink .border-border-subtle,
+  .eink .divide-border-subtle > :not(:last-child) {
+    --tw-border-style: dashed;
+  }
+
+  /* Link và hành động phụ: mực + gạch chân, vì màu không còn tách chúng khỏi chữ thường. */
+  .eink :is(a, button).text-fg-accent {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .eink :where(a, button, input, select, textarea, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
+    outline: 2px solid var(--ink-900);
+  }
+}
+
+/* Không chuyển động, không co khi bấm. Cùng cách với khối `prefers-reduced-motion`:
+   0,01ms chứ không `none`, để animationend vẫn nổ cho chỗ nào đang chờ nó. */
+.eink *,
+.eink *::before,
+.eink *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+.eink *:active {
+  scale: none !important;
+}
+
+/* Hạt giấy — MỘT lớp duy nhất, phủ cả khung (kể cả sheet), không nhận cú bấm. */
+html.eink body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  background-image: var(--grain-image);
+  background-size: 220px 220px;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+
+html.eink .recharts-default-tooltip {
+  background-color: var(--surface-raised) !important;
+  border: 1.5px solid var(--ink-900) !important;
   color: var(--fg-primary) !important;
 }
 

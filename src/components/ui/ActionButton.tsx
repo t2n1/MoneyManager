@@ -32,7 +32,7 @@ const VARIANT: Record<ActionButtonVariant, string> = {
   // thẳng lên nền nó đang đứng. Hover đổi nền thay vì đổi màu viền — cùng ý "nút này
   // sống", nhưng không cần thêm một token viền chỉ dùng cho hover.
   outline:
-    'border border-border-strong bg-transparent px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken',
+    'border border-border-strong bg-transparent px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken eink:border-rule eink:text-fg-primary',
   // bg-accent + text-fg-on-accent, không phải bg-green-700 + text-white: token đã lật
   // sẵn theo chế độ, còn chữ trắng trên --accent ở dark chỉ được 2,22:1 (bẫy ghi ở
   // tests/contrast.test.ts). 13px/600 là bậc chữ nút của 1a.
@@ -42,7 +42,9 @@ const VARIANT: Record<ActionButtonVariant, string> = {
   // nút loại này đang có TÁM dáng — px-2 py-1 / px-3 py-2 / px-4 py-3 / min-h-9 /
   // min-h-11 / có viền / không hover / và một chỗ dùng `hover:bg-red-50` thô (bảng màu
   // trần, không lật theo Sáng-Tối) thay cho token `state-bad-bg`.
-  danger: 'px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg',
+  // E-ink: nền đỏ đặc của hover là khối mực thứ hai trên màn — thay bằng gạch chân.
+  danger:
+    'px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg eink:underline eink:underline-offset-3 eink:hover:bg-transparent',
 }
 
 export function actionButtonClass(variant: ActionButtonVariant = 'outline', extra = ''): string {

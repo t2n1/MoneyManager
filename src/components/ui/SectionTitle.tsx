@@ -23,9 +23,10 @@ import type { ReactNode } from 'react'
 export type TitleRole = 'micro' | 'card' | 'block'
 
 const ROLE: Record<TitleRole, string> = {
-  micro: 'text-2xs font-semibold uppercase tracking-label text-fg-muted',
-  card: 'text-sm font-semibold text-fg-primary',
-  block: 'text-base font-bold text-fg-primary',
+  // E-ink: nhãn chữ hoa đi bằng mono, tiêu đề là serif đậm lên một bậc.
+  micro: 'text-2xs font-semibold uppercase tracking-label text-fg-muted eink:font-mono',
+  card: 'text-sm font-semibold text-fg-primary eink:text-base eink:font-bold',
+  block: 'text-base font-bold text-fg-primary eink:text-lg',
 }
 
 interface Props {

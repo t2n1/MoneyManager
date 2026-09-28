@@ -222,7 +222,8 @@ export function PlannedFields({
           <span className="text-sm text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
         </div>
       ) : (
-        <p className="mb-3 text-sm text-fg-muted">
+        // E-ink + Gọn: bỏ lời giải thích — ô tích ngay trên đã nói đang tắt.
+        <p className="mb-3 text-sm text-fg-muted eink-gon:hidden">
           Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
         </p>
       )}

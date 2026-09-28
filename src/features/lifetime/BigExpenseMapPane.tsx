@@ -308,9 +308,13 @@ export function BigExpenseMapPane({
 
       {over && surplus !== null && (
         <p className="mt-1 text-2xs leading-snug text-state-warn-fg">
-          Các mốc đang đòi nhiều hơn phần dư — không mốc nào sai, chúng chỉ chưa từng được
-          nhìn cùng lúc. Ba lối thoát đều rẻ khi còn thời gian: dời một mốc, thu nhỏ nó,
-          hoặc bắt đầu tích sớm hơn.
+          Các mốc đang đòi nhiều hơn phần dư
+          {/* E-ink + Gọn: giữ câu cảnh báo, bỏ lời khuyên phía sau. */}
+          <span className="eink-gon:hidden">
+            {' '}— không mốc nào sai, chúng chỉ chưa từng được nhìn cùng lúc. Ba lối thoát đều
+            rẻ khi còn thời gian: dời một mốc, thu nhỏ nó, hoặc bắt đầu tích sớm hơn
+          </span>
+          .
         </p>
       )}
 

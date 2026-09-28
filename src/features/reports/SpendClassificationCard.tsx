@@ -249,8 +249,9 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           )}
         </p>
       ) : (
+        // E-ink + Gọn: bỏ lời gợi ý — link "Phân loại … danh mục" ở đầu thẻ đã là đường bấm.
         totalExpense > 0 && (
-          <p className="mt-3 text-center text-sm text-fg-muted">
+          <p className="mt-3 text-center text-sm text-fg-muted eink-gon:hidden">
             Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.
           </p>
         )

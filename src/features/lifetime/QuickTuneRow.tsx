@@ -80,7 +80,10 @@ export function QuickTuneRow({
             chưa có gì được ghi. */}
         <div className="shrink-0">
           <SectionTitle role="micro">Chỉnh nhanh giả định</SectionTitle>
-          <p className="mt-0.5 text-2xs text-fg-muted">Kéo để thử — bấm Lưu mới ghi lại.</p>
+          {/* E-ink + Gọn: bỏ dòng hướng dẫn — cặp nút Lưu/Bỏ bên dưới đã nói. */}
+          <p className="mt-0.5 text-2xs text-fg-muted eink-gon:hidden">
+            Kéo để thử — bấm Lưu mới ghi lại.
+          </p>
         </div>
 
         {/* --- Lợi suất thực -------------------------------------------------------- */}

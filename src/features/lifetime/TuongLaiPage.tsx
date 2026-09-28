@@ -1304,7 +1304,8 @@ function TuongLaiConsole({
   if (scenarios.length === 0) {
     return (
       <Card as="section">
-        <p className="text-sm text-fg-secondary">
+        {/* E-ink + Gọn: bỏ đoạn giới thiệu màn — nút tạo bên dưới đã tự nói. */}
+        <p className="text-sm text-fg-secondary eink-gon:hidden">
           Màn này chiếu tài sản ròng của bạn tới năm bạn {DEFAULT_END_AGE} tuổi, dựa trên thu
           chi nền và các mốc (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi
           tiêu thật của bạn — không cần khai tay từng con số.
@@ -2535,7 +2536,7 @@ function BirthYearCard() {
 
   return (
     <Card as="section">
-      <p className="text-sm text-fg-secondary">
+      <p className="text-sm text-fg-secondary eink-gon:hidden">
         Màn này chiếu tài sản ròng của bạn theo từng năm tới tuổi cuối của kịch bản (mặc
         định {DEFAULT_END_AGE} tuổi), nên cần năm sinh để
         đổi qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài

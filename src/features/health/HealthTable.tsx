@@ -161,7 +161,8 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
 
       {/* Trọng số: MỘT dòng chân bảng. In cạnh mỗi nhãn (như bản trước) làm chỉ số rủi ro
           trông ít quan trọng vì nó chỉ nặng 10% — trong khi nó là chỉ số duy nhất đang đỏ. */}
-      <p className="border-t border-border-panel px-4 py-2.5 text-2xs text-fg-muted">
+      {/* E-ink + Gọn: bỏ ghi chú phương pháp (trọng số). */}
+      <p className="border-t border-border-panel px-4 py-2.5 text-2xs text-fg-muted eink-gon:hidden">
         Trọng số trong điểm tổng:{' '}
         {[...rows]
           .sort((a, b) => b.weight - a.weight)

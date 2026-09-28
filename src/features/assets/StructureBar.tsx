@@ -300,8 +300,12 @@ export function StructureBar({
               <>
                 {' '}
                 — góp thêm{' '}
-                <Money {...view.view(plan.worst.addToReachMinor)} className="text-sm" /> bằng
-                tiền mới là về mục tiêu, không cần bán gì
+                <Money {...view.view(plan.worst.addToReachMinor)} className="text-sm" />
+                {/* E-ink + Gọn: giữ con số góp thêm, bỏ vế giải thích. */}
+                <span className="eink-gon:hidden">
+                  {' '}
+                  bằng tiền mới là về mục tiêu, không cần bán gì
+                </span>
               </>
             )}
             .
@@ -309,7 +313,7 @@ export function StructureBar({
         ) : (
           <p className="border-t border-border-panel px-4 py-2.5 text-sm text-fg-secondary">
             Cơ cấu đang trong ngưỡng ±<Num tone="muted">{REBAL_DRIFT_ALERT_PP}đ%</Num> quanh
-            mục tiêu — chưa cần làm gì.
+            mục tiêu<span className="eink-gon:hidden"> — chưa cần làm gì</span>.
           </p>
         ))}
 
@@ -323,7 +327,8 @@ export function StructureBar({
               khoản, {tienGoc(g, view)}
             </span>
           ))}
-          . Không có lát nào trên vạch vì mẫu số không chứa nó.
+          .
+          <span className="eink-gon:hidden"> Không có lát nào trên vạch vì mẫu số không chứa nó.</span>
         </p>
       )}
 

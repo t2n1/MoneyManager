@@ -89,7 +89,11 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
                 ) : erPpm !== null && erPpm > 0 ? (
                   'chưa đủ mốc giá để ước phí đã trả'
                 ) : (
-                  'chưa khai — xem 信託報酬 trong 目論見書 của quỹ'
+                  <>
+                    chưa khai
+                    {/* E-ink + Gọn: bỏ lời chỉ chỗ tra / lời giải thích, giữ con số. */}
+                    <span className="eink-gon:hidden"> — xem 信託報酬 trong 目論見書 của quỹ</span>
+                  </>
                 )}
               </p>
             </div>
@@ -127,11 +131,18 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
         </div>
       )}
       {share > 0 && (
-        <p className="mt-1 text-2xs text-fg-secondary">
-          Giữ thêm <Num tone="muted">{PROJECTION_YEARS} năm</Num> với mức phí này, phí sẽ lấy
-          khoảng <Num tone="muted">{(share * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</Num>{' '}
-          số cuối cùng — vì phần bị trừ mỗi năm mất luôn lãi kép của nó.
-        </p>
+        <>
+          <p className="mt-1 hidden text-2xs text-fg-secondary eink-gon:block">
+            +<Num tone="muted">{PROJECTION_YEARS} năm</Num> → phí ≈{' '}
+            <Num tone="muted">{(share * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</Num>{' '}
+            số cuối
+          </p>
+          <p className="mt-1 text-2xs text-fg-secondary eink-gon:hidden">
+            Giữ thêm <Num tone="muted">{PROJECTION_YEARS} năm</Num> với mức phí này, phí sẽ lấy
+            khoảng <Num tone="muted">{(share * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</Num>{' '}
+            số cuối cùng — vì phần bị trừ mỗi năm mất luôn lãi kép của nó.
+          </p>
+        </>
       )}
 
       <ExplainBox label="Cách tính">

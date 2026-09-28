@@ -439,8 +439,9 @@ export function StatementReconcilePage() {
 
           {!coNgay && (
             <p className="text-sm text-fg-muted">
-              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên chưa dựng được kỳ. Sửa tài
-              khoản rồi quay lại đây.
+              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên chưa dựng được kỳ.
+              {/* E-ink + Gọn: giữ trạng thái, bỏ lời khuyên. */}
+              <span className="eink-gon:hidden"> Sửa tài khoản rồi quay lại đây.</span>
             </p>
           )}
 
@@ -718,8 +719,11 @@ export function StatementReconcilePage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {soLanSua > 0 && (
               <p className="mr-auto text-2xs text-fg-muted">
-                Đã sửa <Num tone="muted">{soLanSua}</Num> dòng. Số dư thẻ đổi theo — nhớ Chỉnh số
-                nợ trên trang thẻ.
+                Đã sửa <Num tone="muted">{soLanSua}</Num> dòng.
+                <span className="eink-gon:hidden">
+                  {' '}
+                  Số dư thẻ đổi theo — nhớ Chỉnh số nợ trên trang thẻ.
+                </span>
               </p>
             )}
             {merged.length > 0 && (

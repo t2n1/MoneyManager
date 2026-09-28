@@ -277,8 +277,9 @@ export function KeptWhereCard({
         ))}
       </ul>
 
+      {/* E-ink + Gọn: bỏ câu diễn giải — cột % của bảng ngay trên đã nói. */}
       {liquidShare && (
-        <p className="mt-2.5 text-2xs text-fg-secondary">
+        <p className="mt-2.5 text-2xs text-fg-secondary eink-gon:hidden">
           Phần lớn nhất nằm ở <b>{liquidShare.name}</b> ({liquidShare.pct}% phần tăng).
         </p>
       )}

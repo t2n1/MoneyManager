@@ -726,7 +726,13 @@ export function HealthView() {
         )}
       </Section>
 
-      <p className="px-1 pb-2 text-2xs text-fg-muted">
+      {/* E-ink + Gọn: bỏ ghi chú phương pháp, chỉ giữ tỷ lệ trả nợ — số này không có ở đâu khác. */}
+      {dsr !== null && dsr > 0 && (
+        <p className="hidden px-1 pb-2 text-2xs text-fg-secondary eink-gon:block">
+          Trả nợ chiếm {pct(dsr)} thu nhập tháng
+        </p>
+      )}
+      <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
         {snap.monthsCounted} tháng gần nhất · quy đổi ≈ {base} · mô phỏng không tính lạm phát
         và thuế bán tài sản
         {dsr !== null && dsr > 0 && <> · trả nợ chiếm {pct(dsr)} thu nhập tháng</>}

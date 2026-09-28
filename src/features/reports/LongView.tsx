@@ -982,7 +982,13 @@ export function LongView() {
         </Card>
       )}
 
-      <p className="px-1 pb-2 text-2xs text-fg-muted">
+      {/* E-ink + Gọn: bỏ ghi chú phương pháp, chỉ giữ cảnh báo thiếu danh mục. */}
+      {categories.length === 0 && (
+        <p className="hidden px-1 pb-2 text-2xs text-fg-secondary eink-gon:block">
+          Chưa có danh mục nào
+        </p>
+      )}
+      <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
         {dataMonths} tháng có giao dịch · quy đổi ≈ {base}
         {regime && <> · mức nền = trung vị từ {monthLabel(regime.key)}</>}
         {categories.length === 0 && ' · chưa có danh mục nào'}

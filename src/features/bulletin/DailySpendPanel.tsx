@@ -524,7 +524,8 @@ function YoyBlock({
             title="Trần này gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức."
           >
             {' · '}hạn mức <Money amount={monthBudget} currency={base} tone="muted" approx={approx} />
-            {' — chỉ so được ở “Tất cả”'}
+            {/* E-ink + Gọn: bỏ vế giải thích vì sao không vẽ đường hạn mức. */}
+            <span className="eink-gon:hidden">{' — chỉ so được ở “Tất cả”'}</span>
           </span>
         )}
       </p>

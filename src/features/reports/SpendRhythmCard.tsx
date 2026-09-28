@@ -117,7 +117,8 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )
             })}
           </div>
-          <p className="mt-1.5 text-sm text-fg-secondary">
+          {/* E-ink + Gọn: bỏ câu diễn giải — cột đỏ và số trên cột đã nói. */}
+          <p className="mt-1.5 text-sm text-fg-secondary eink-gon:hidden">
             Tốn nhất là <b>{WEEKDAY_LABELS[busiest.dow]}</b> ({money(busiest.avg)}/ngày).
           </p>
         </div>

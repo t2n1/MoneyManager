@@ -504,14 +504,17 @@ export function ImportPhieuLuongPage() {
             ))}
           </Select>
           {no ? (
-            <p className="mt-1 text-2xs text-fg-muted">
+            // E-ink + Gọn: bỏ câu diễn giải lựa chọn — ô chọn phía trên đã hiện số còn nợ.
+            <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
               Mỗi phiếu có {NHAN_LA_THEO} sẽ ghi một lần trả vào khoản “{no.ten}” (đang còn{' '}
               <Money amount={no.conLai} currency="JPY" tone="muted" />
               ). Lựa chọn được nhớ trên máy này.
             </p>
           ) : (
             <p className="mt-1 text-2xs text-fg-muted">
-              Không trừ: {NHAN_LA_THEO} chỉ bị rút khỏi Thu, không khoản nợ nào giảm.
+              <span className="eink-gon:hidden">
+                Không trừ: {NHAN_LA_THEO} chỉ bị rút khỏi Thu, không khoản nợ nào giảm.
+              </span>
               {tenGanGiong.length > 0 && (
                 <> Sổ có khoản tên gần giống: {tenGanGiong.map((t) => `“${t}”`).join(', ')} — nếu đúng là khoản công ty nợ thì chọn ở trên.</>
               )}

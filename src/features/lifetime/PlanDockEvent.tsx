@@ -833,8 +833,12 @@ export function PlanDockEvent({
                 biết ngay là do chặng hay do chính mình đã đổi. */}
             <span className={DOCK_LABEL}>Tiền tệ khai</span>
             <p className="mb-2 text-2xs text-fg-secondary">
-              {CURRENCIES[currency].label} — chọn ở ô cạnh số tiền. Mốc mới mặc định theo
-              chặng{phaseLabel === null ? '' : ` "${phaseLabel}"`}.
+              {CURRENCIES[currency].label}
+              {/* E-ink + Gọn: giữ tên đơn vị, bỏ lời chỉ chỗ đổi. */}
+              <span className="eink-gon:hidden">
+                {' '}— chọn ở ô cạnh số tiền. Mốc mới mặc định theo chặng
+                {phaseLabel === null ? '' : ` "${phaseLabel}"`}.
+              </span>
             </p>
 
             <label className="mb-2 flex min-h-8 items-center gap-2 text-2xs text-fg-secondary">

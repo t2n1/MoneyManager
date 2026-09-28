@@ -583,8 +583,12 @@ export function AccountDetailPage() {
               </>
             ) : (
               <p className="text-sm text-fg-muted">
-                Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ. Sửa tài khoản
-                để bật khấu hao tự động.
+                Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ.
+                {/* E-ink + Gọn: bỏ lời khuyên, giữ trạng thái. */}
+                <span className="eink-gon:hidden">
+                  {' '}
+                  Sửa tài khoản để bật khấu hao tự động.
+                </span>
               </p>
             )}
             <button
@@ -914,8 +918,11 @@ export function AccountDetailPage() {
             // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
             // thay vì suy ra một ngày rút sai.
             <p className="mt-1.5 text-sm text-fg-muted">
-              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch. Sửa
-              tài khoản để xem đúng kỳ như app thẻ.
+              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch.
+              <span className="eink-gon:hidden">
+                {' '}
+                Sửa tài khoản để xem đúng kỳ như app thẻ.
+              </span>
             </p>
           )}
 

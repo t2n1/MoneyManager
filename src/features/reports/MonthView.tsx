@@ -839,8 +839,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
       </div>
 
       {/* Chân trang nói nguồn MỘT LẦN (§G: ước chừng nói nguồn một lần, không lặp từng
-          dòng), và nói ra hai quy ước quyết định mọi con số ở trên. */}
-      <p className="px-1 pb-2 text-2xs text-fg-muted">
+          dòng), và nói ra hai quy ước quyết định mọi con số ở trên.
+          E-ink + Gọn: bỏ ghi chú phương pháp này. */}
+      <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
         Tháng bắt đầu ngày {monthStartDay} · so cùng số ngày · quy đổi ≈ {base} theo tỷ giá
         cuối kỳ · khoản chuyển tài sản tính riêng, không vào chi tiêu.
       </p>

@@ -86,7 +86,8 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
             </FilterChip>
           ))}
         </div>
-        <p className="mt-2 text-sm text-fg-muted">
+        {/* E-ink + Gọn: bỏ lời dặn và định nghĩa, giữ con số. */}
+        <p className="mt-2 text-sm text-fg-muted eink-gon:hidden">
           Đây là bản xem nhanh. Muốn chỉnh kế hoạch thì mở trên máy tính.
         </p>
       </Card>
@@ -103,7 +104,8 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
             {/* Nghĩa của "tự do tài chính" viết ra chữ — trên điện thoại không có rê chuột
                 để đọc `title` (mục 26). */}
             <p className="mt-2 text-sm text-fg-secondary">
-              Tự do tài chính ({FIRE_MEANING}):{' '}
+              Tự do tài chính
+              <span className="eink-gon:hidden"> ({FIRE_MEANING})</span>:{' '}
               {verdict.fireYear !== null ? (
                 <>
                   năm <Num>{verdict.fireYear}</Num>, tuổi <Num>{verdict.fireAge}</Num>.

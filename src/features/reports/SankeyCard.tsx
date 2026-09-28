@@ -157,7 +157,9 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
           <>
             {' — trong đó '}
             <b className="text-fg-warn">{money(nodeValue(nodes, 'in:deficit'))}</b> lấy từ số dư
-            sẵn có, vì kỳ này chi nhiều hơn thu.
+            sẵn có
+            {/* E-ink + Gọn: bỏ vế "vì sao" — con số ngay trước đã nói. */}
+            <span className="eink-gon:hidden">, vì kỳ này chi nhiều hơn thu</span>.
           </>
         ) : (
           <>

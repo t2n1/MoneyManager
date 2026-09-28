@@ -128,7 +128,8 @@ export function PlannedPage() {
                 Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.
               </p>
             )}
-            <p className="mt-1 text-2xs text-fg-muted">
+            {/* E-ink + Gọn: bỏ lời giải thích cách cộng tổng. */}
+            <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
               Gồm cả khoản đã quá hạn mà chưa chi — vẫn là tiền chưa trả.
             </p>
           </Card>

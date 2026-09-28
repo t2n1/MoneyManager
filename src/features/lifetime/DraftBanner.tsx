@@ -107,14 +107,20 @@ export function DraftBanner({
       >
         {dirty ? (
           <>
-            <b>Đang thử trên bản nháp</b> — kịch bản "{scenarioName}" gốc chưa bị đụng.
+            <b>Đang thử trên bản nháp</b>
+            {/* E-ink + Gọn: bỏ câu trấn an / hướng dẫn, giữ trạng thái và phần đang đổi. */}
+            <span className="eink-gon:hidden">
+              {' '}— kịch bản "{scenarioName}" gốc chưa bị đụng.
+            </span>
             {parts.length > 0 && ` Đang đổi: ${parts.join(' · ')}.`}
           </>
         ) : (
           <>
-            <b>Đã lưu</b> — kịch bản "{scenarioName}" đang chiếu đúng bản đã lưu. Kéo mốc trên đồ
-            thị, kéo khối chặng, hoặc sửa số ở bảng bên phải để thử một hướng khác; bản gốc chỉ
-            đổi khi bạn bấm Lưu.
+            <b>Đã lưu</b> — kịch bản "{scenarioName}" đang chiếu đúng bản đã lưu.
+            <span className="eink-gon:hidden">
+              {' '}Kéo mốc trên đồ thị, kéo khối chặng, hoặc sửa số ở bảng bên phải để thử một
+              hướng khác; bản gốc chỉ đổi khi bạn bấm Lưu.
+            </span>
           </>
         )}
       </p>

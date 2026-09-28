@@ -105,7 +105,9 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
           </ul>
           {flows.length > TOI_DA && (
             <p className="mt-1.5 text-2xs text-fg-muted">
-              Còn <Num>{flows.length - TOI_DA}</Num> khoản cũ hơn — sửa trực tiếp trong Sổ.
+              Còn <Num>{flows.length - TOI_DA}</Num> khoản cũ hơn
+              {/* E-ink + Gọn: giữ số đếm, bỏ lời chỉ đường. */}
+              <span className="eink-gon:hidden"> — sửa trực tiếp trong Sổ</span>.
             </p>
           )}
         </>

@@ -61,7 +61,8 @@ export function CoupleToggle() {
           )
         })}
       </div>
-      <p className="px-3 pb-3 text-2xs text-fg-muted">
+      {/* E-ink + Gọn: bỏ câu giải thích — hai nút phía trên đã nói lựa chọn. */}
+      <p className="px-3 pb-3 text-2xs text-fg-muted eink-gon:hidden">
         Đây chỉ là <b>một chiều phân loại</b> trên sổ của bạn — chưa có tài khoản đăng nhập
         thứ hai và chưa ai xem được sổ này. Tắt lại không mất dữ liệu đã gắn.
       </p>

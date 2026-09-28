@@ -501,7 +501,8 @@ export function ImportCsvPage() {
         {format && (
           <p className="mt-2 rounded-lg bg-state-good-bg px-2.5 py-2 text-sm text-state-good-fg">
             Đã nhận ra sao kê <b>{format.label}</b> — khoản mua ghi số dương, đã đặt sẵn chiều
-            tiền cho đúng. Nếu muốn đổi thì công tắc vẫn ở dưới.
+            tiền cho đúng.
+            <span className="eink-gon:hidden"> Nếu muốn đổi thì công tắc vẫn ở dưới.</span>
           </p>
         )}
         {/* Trang trống trơn thì người chưa dùng lần nào không biết file của mình có hợp
@@ -605,8 +606,14 @@ export function ImportCsvPage() {
                   có thể sai đơn vị". Ở đây nói được cụ thể hơn — bày luôn khoản nhỏ nhất và
                   lớn nhất đọc được, vì chọn nhầm cột tiền hay nhầm đơn vị thì hai đầu này
                   lệch ngay, mà nhìn bảng xem trước 10 dòng đầu thì không thấy. */}
+              {/* E-ink + Gọn: bỏ lời giải thích, chỉ giữ hai đầu khoảng tiền. */}
               {amountRange && (
-                <p className="mt-1.5 text-2xs text-fg-muted">
+                <p className="mt-1.5 hidden text-2xs text-fg-secondary eink-gon:block">
+                  {formatMoney(amountRange.min, currency)} – {formatMoney(amountRange.max, currency)}
+                </p>
+              )}
+              {amountRange && (
+                <p className="mt-1.5 text-2xs text-fg-muted eink-gon:hidden">
                   Số tiền đọc được chạy từ <b>{formatMoney(amountRange.min, currency)}</b> tới{' '}
                   <b>{formatMoney(amountRange.max, currency)}</b>. Nếu hai con số này trông sai
                   cỡ (một bữa trưa thành tiền triệu) thì thường là chọn nhầm cột số tiền, hoặc
@@ -626,9 +633,12 @@ export function ImportCsvPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <b>{likelyRows.length} dòng có vẻ đã có trong sổ</b> — cùng số tiền, lệch
-                      không quá 3 ngày, nhưng ghi chú khác (sao kê ghi tên quán, sổ ghi tay
-                      tiếng Việt). Mặc định bỏ qua; bỏ tick nếu đó thật sự là khoản khác.
+                      <b>{likelyRows.length} dòng có vẻ đã có trong sổ</b>
+                      <span className="eink-gon:hidden">
+                        {' '}— cùng số tiền, lệch không quá 3 ngày, nhưng ghi chú khác (sao kê
+                        ghi tên quán, sổ ghi tay tiếng Việt)
+                      </span>
+                      . Mặc định bỏ qua; bỏ tick nếu đó thật sự là khoản khác.
                     </span>
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
@@ -676,9 +686,12 @@ export function ImportCsvPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <b>{crossRows.length} dòng có vẻ đã ghi ở ví khác</b> — cùng số tiền, cùng
-                      chiều, lệch không quá 3 ngày, nhưng khoản cũ nằm ở ví khác (quẹt thẻ mà
-                      ghi vào Tiền mặt). Mặc định <b>vẫn nhập</b>; tick vào để bỏ qua. Ví của
+                      <b>{crossRows.length} dòng có vẻ đã ghi ở ví khác</b>
+                      <span className="eink-gon:hidden">
+                        {' '}— cùng số tiền, cùng chiều, lệch không quá 3 ngày, nhưng khoản cũ
+                        nằm ở ví khác (quẹt thẻ mà ghi vào Tiền mặt)
+                      </span>
+                      . Mặc định <b>vẫn nhập</b>; tick vào để bỏ qua. Ví của
                       khoản cũ không bị đổi dù tick hay không.
                     </span>
                   </label>
@@ -728,8 +741,12 @@ export function ImportCsvPage() {
                     />
                     <span>
                       <b>{transferCount} dòng có vẻ là chuyển tiền giữa ví của bạn</b>, không phải
-                      chi tiêu thật — mỗi dòng đều có một giao dịch ngược chiều, cùng số tiền ở tài
-                      khoản khác. Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
+                      chi tiêu thật
+                      <span className="eink-gon:hidden">
+                        {' '}— mỗi dòng đều có một giao dịch ngược chiều, cùng số tiền ở tài
+                        khoản khác
+                      </span>
+                      . Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
                     </span>
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
@@ -755,7 +772,7 @@ export function ImportCsvPage() {
               {groups.length > 0 && (
                 <div className="mt-3 rounded-lg border border-border-subtle p-2.5">
                   <SectionTitle as="h3">Danh mục cho từng quán</SectionTitle>
-                  <p className="mt-1 text-2xs text-fg-muted">
+                  <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
                     Chọn một lần cho mỗi quán, tất cả dòng của quán đó ăn theo. Ô nào đã điền
                     sẵn là máy đoán — từ chính sổ của bạn, hoặc từ bảng quán quen. Để trống
                     cũng được, nhưng khoản đó sẽ không hiện trong bảng “tiêu vào việc gì”.

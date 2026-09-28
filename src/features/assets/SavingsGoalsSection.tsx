@@ -200,11 +200,17 @@ export function SavingsGoalsSection({ view }: Props) {
           <b className="tabular-nums text-fg-primary">
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}
-          trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}
+          trong số dư đang có chủ cho các mục tiêu trên.{' '}
+          {/* E-ink + Gọn: giữ con số và link, bỏ lời giải thích trang kia dùng số này ra sao. */}
+          <span className="eink-gon:hidden">Trang </span>
           <Link to="/reports?view=health" className="font-medium text-fg-accent">
             Sức khỏe tài chính
-          </Link>{' '}
-          trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.
+            <span className="hidden eink-gon:inline"> →</span>
+          </Link>
+          <span className="eink-gon:hidden">
+            {' '}
+            trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.
+          </span>
         </p>
       )}
 

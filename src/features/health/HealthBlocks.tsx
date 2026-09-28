@@ -158,8 +158,9 @@ export function WeakestCard({
         ))}
       </dl>
 
+      {/* E-ink + Gọn: bỏ câu diễn giải — cột Trạng thái của bảng đã nói. */}
       {onlyRisk && (
-        <p className="mt-2 text-2xs text-fg-secondary">
+        <p className="mt-2 text-2xs text-fg-secondary eink-gon:hidden">
           Đây là chỉ số <b>duy nhất</b> đang ở mức rủi ro — năm chỉ số còn lại đều từ “cần chú
           ý” trở lên.
         </p>
@@ -376,11 +377,11 @@ export function JobLossPanel({
       <p className="mt-2 text-sm text-fg-secondary">
         Đang tính trên <b>{formatMoney(assets, base)}</b> tài sản dùng được
         {investableAssets > 0 && (
-          <>
+          <span className="eink-gon:hidden">
             {' '}
             (tiền lỏng {formatMoney(liquidAssets, base)} + {sellPct}% của{' '}
             {formatMoney(investableAssets, base)} đầu tư)
-          </>
+          </span>
         )}
         .
       </p>
@@ -392,7 +393,7 @@ export function JobLossPanel({
           Quỹ dự phòng thì KHÔNG khớp và không được hứa khớp: nó chia cho chi CỐ ĐỊNH, còn mô
           phỏng trừ TỔNG chi — hai mẫu số khác nhau (bản trước hứa hai số đó "gặp nhau"). */}
       {liquidOnly && runwayMonths !== null && (
-        <p className="mt-1.5 rounded-md border border-state-good-border bg-state-good-bg px-2.5 py-2 text-2xs text-state-good-fg">
+        <p className="mt-1.5 rounded-md border border-state-good-border bg-state-good-bg px-2.5 py-2 text-2xs text-state-good-fg eink-gon:hidden">
           {investableAssets > 0 ? (
             <>
               Ở <b>0%</b> đầu tư, mô phỏng chỉ còn tiền lỏng.{' '}
@@ -422,7 +423,7 @@ export function JobLossPanel({
       )}
 
       {investableAssets <= 0 && (
-        <p className="mt-1.5 text-2xs text-fg-muted">
+        <p className="mt-1.5 text-2xs text-fg-muted eink-gon:hidden">
           Chưa có tài khoản đầu tư nào nên thanh trượt thứ hai không có gì để kéo.
         </p>
       )}

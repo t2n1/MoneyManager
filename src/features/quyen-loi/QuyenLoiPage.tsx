@@ -52,7 +52,8 @@ function CheDoIryohi({ ten, dieuKien, nhanChi, chi, nguong, khauTru, thang, lyDo
         <SectionTitle as="h3">{ten}</SectionTitle>
         {thang && <StatusChip tone="good" className="shrink-0">Lợi hơn</StatusChip>}
       </div>
-      <p className="mt-1 text-2xs text-fg-muted">{dieuKien}</p>
+      {/* E-ink + Gọn: bỏ điều kiện / luật / nguồn — ba ô số ngay dưới đã nói. */}
+      <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">{dieuKien}</p>
       <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
         <div>
           <dt className="text-2xs text-fg-muted">{nhanChi}</dt>
@@ -77,7 +78,7 @@ function CheDoIryohi({ ten, dieuKien, nhanChi, chi, nguong, khauTru, thang, lyDo
 function NguonLuat({ year }: { year: number }) {
   const luat = luatChoNam(year)
   return (
-    <p className="mt-3 text-2xs text-fg-muted">
+    <p className="mt-3 text-2xs text-fg-muted eink-gon:hidden">
       Theo{' '}
       <a href={luat.nguon[0]} target="_blank" rel="noreferrer" className="underline">
         Cục thuế Nhật (NTA)
@@ -331,7 +332,7 @@ export function QuyenLoiPage() {
               )}
             </div>
             <p className="mt-2 text-sm text-fg-secondary">
-              Chỉ được chọn một trong hai.{' '}
+              <span className="eink-gon:hidden">Chỉ được chọn một trong hai. </span>
               {ketQua.iryohi.nhanh === null ? (
                 <>Chưa cái nào tới ngưỡng.</>
               ) : (

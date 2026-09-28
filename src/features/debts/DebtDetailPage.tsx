@@ -338,7 +338,9 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
           </div>
         </div>
         <p className="mt-2 text-2xs text-fg-muted">
-          {(bps! / 100).toString()}%/năm · {term} kỳ · ước tính theo niên kim (thực tế có thể lệch chút)
+          {(bps! / 100).toString()}%/năm · {term} kỳ
+          {/* E-ink + Gọn: bỏ ghi chú phương pháp, giữ lãi suất và số kỳ. */}
+          <span className="eink-gon:hidden"> · ước tính theo niên kim (thực tế có thể lệch chút)</span>
         </p>
 
         <button

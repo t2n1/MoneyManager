@@ -110,10 +110,16 @@ export function InvestAllocationSection({
       )}
 
       {soldDividend !== 0 && (
-        <p className="mt-2 text-2xs text-fg-secondary">
-          Ngoài bảng còn <Money amount={soldDividend} currency={VND} showSign /> cổ tức của
-          những mã đã bán hết — tiền đã về tài khoản, nhưng không còn dòng nào để đứng.
-        </p>
+        <>
+          {/* E-ink + Gọn: chỉ giữ con số, bỏ câu giải thích vì sao nó nằm ngoài bảng. */}
+          <p className="mt-2 hidden text-2xs text-fg-secondary eink-gon:block">
+            Cổ tức mã đã bán hết <Money amount={soldDividend} currency={VND} showSign />
+          </p>
+          <p className="mt-2 text-2xs text-fg-secondary eink-gon:hidden">
+            Ngoài bảng còn <Money amount={soldDividend} currency={VND} showSign /> cổ tức của
+            những mã đã bán hết — tiền đã về tài khoản, nhưng không còn dòng nào để đứng.
+          </p>
+        </>
       )}
 
       <InvestDividendTagger flows={cashflows} symbols={allSymbols} />

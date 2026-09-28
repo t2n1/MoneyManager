@@ -295,7 +295,10 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
             {pct(lit.share)} tổng chi
           </>
         ) : (
-          <span className="text-fg-muted">Trỏ vào một ô để xem số; bấm để mở chi tiết.</span>
+          // E-ink + Gọn: bỏ chữ dạy cách dùng; dòng vẫn giữ chỗ (min-h-5) để bảng không nhảy.
+          <span className="text-fg-muted eink-gon:hidden">
+            Trỏ vào một ô để xem số; bấm để mở chi tiết.
+          </span>
         )}
       </p>
 

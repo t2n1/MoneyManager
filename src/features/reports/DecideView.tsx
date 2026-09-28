@@ -525,9 +525,12 @@ export function DecideView() {
                 ? 'Tiền mặt đã đủ trả hết nợ tới hạn'
                 : `Còn thiếu ${money(gap)} để đủ 1× trả nợ`}
             </SectionTitle>
+            {/* E-ink + Gọn: bỏ lời giải thích — tiêu đề và bảng ngay dưới đã nói. */}
             <p className="mt-0.5 text-2xs text-fg-muted">
               {gap <= 0 ? (
-                <>Không còn khoảng nào phải lấp, nên bảng đòn bẩy dưới đây trống.</>
+                <span className="eink-gon:hidden">
+                  Không còn khoảng nào phải lấp, nên bảng đòn bẩy dưới đây trống.
+                </span>
               ) : baseMonths === null ? (
                 <>
                   Với nhịp tiền mặt hiện tại ({money(cashPace)}/tháng) thì <b>không tới được</b> —
@@ -536,8 +539,8 @@ export function DecideView() {
               ) : (
                 <>
                   Theo nhịp tiền mặt hiện tại: <b>{baseMonths} tháng</b>
-                  {' '}— tới {monthYearLabel(range.end)} + {Math.ceil(baseMonths)} tháng. Mọi dòng
-                  dưới đây đo bằng CÙNG thước đó.
+                  {' '}— tới {monthYearLabel(range.end)} + {Math.ceil(baseMonths)} tháng.
+                  <span className="eink-gon:hidden"> Mọi dòng dưới đây đo bằng CÙNG thước đó.</span>
                 </>
               )}
             </p>
@@ -667,7 +670,9 @@ export function DecideView() {
             {/* Insight của khối: xếp theo LÃI đổi hẳn thứ tự ưu tiên so với xếp theo dư nợ. */}
             {debtInfo.lines.length > 1 && debtInfo.totalInterest > 0 && (
               <p className="border-t border-border-panel px-4 py-2.5 text-2xs text-fg-secondary">
-                Bảng xếp theo <b>tiền lãi</b>, không theo dư nợ.{' '}
+                <span className="eink-gon:hidden">
+                  Bảng xếp theo <b>tiền lãi</b>, không theo dư nợ.{' '}
+                </span>
                 {(() => {
                   const top = debtInfo.lines[0]
                   const debtShare = Math.round(((top.remainingBase ?? 0) / debtInfo.totalRemaining) * 100)
@@ -679,11 +684,11 @@ export function DecideView() {
                       lãi — trả trước khoản này tiết kiệm được{' '}
                       <b>{formatMoney(top.interestLeft ?? 0, top.currency)}</b>.
                       {zero.length > 0 && (
-                        <>
+                        <span className="eink-gon:hidden">
                           {' '}
                           Còn “{zero[0].label}” lãi 0%: trả trước nó không tiết kiệm đồng nào mà lại
                           làm tiền mặt mỏng đi.
-                        </>
+                        </span>
                       )}
                     </>
                   )
@@ -709,11 +714,15 @@ export function DecideView() {
         {goalLines.length === 0 ? (
           <Card as="section" elevation="panel" padding="panel">
             <p className="text-sm text-fg-secondary">
-              Chưa có mục tiêu nào. Cả trang này đang đo bạn bằng <b>chuẩn sách vở</b> (6 tháng
-              đệm, 50/30/20) vì chưa biết bạn muốn gì — và với người Việt ở Nhật gửi tiền về nhà
-              thì mục tiêu thật có thể khác hẳn.
+              Chưa có mục tiêu nào.
+              <span className="eink-gon:hidden">
+                {' '}
+                Cả trang này đang đo bạn bằng <b>chuẩn sách vở</b> (6 tháng đệm, 50/30/20) vì chưa
+                biết bạn muốn gì — và với người Việt ở Nhật gửi tiền về nhà thì mục tiêu thật có
+                thể khác hẳn.
+              </span>
             </p>
-            <p className="mt-1.5 text-2xs text-fg-muted">
+            <p className="mt-1.5 text-2xs text-fg-muted eink-gon:hidden">
               Có mục tiêu thật thì <b>bảng đòn bẩy ở khối 02 đổi thứ tự</b>: đích là gửi tiền về
               nhà thì “tạm dừng gửi về VN” tụt xuống cuối, dù nó rút ngắn nhiều nhất.
             </p>
@@ -770,7 +779,18 @@ export function DecideView() {
         )}
       </ReportBlock>
 
-      <p className="px-1 pb-2 text-2xs text-fg-muted">
+      {/* E-ink + Gọn: bỏ ghi chú phương pháp, chỉ giữ hai cảnh báo số chưa đủ. */}
+      {(debtInfo.hasMissingRate || categories.length === 0) && (
+        <p className="hidden px-1 pb-2 text-2xs text-fg-secondary eink-gon:block">
+          {[
+            debtInfo.hasMissingRate && 'Một phần dư nợ chưa quy đổi được',
+            categories.length === 0 && 'Chưa có danh mục nào',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
+      <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
         Nhịp tính trên {monthsCounted} tháng gần nhất · quy đổi ≈ {base}
         {debtInfo.hasMissingRate && ' · một phần dư nợ chưa quy đổi được'}
         {categories.length === 0 && ' · chưa có danh mục nào'} · mọi mốc thời gian là suy từ

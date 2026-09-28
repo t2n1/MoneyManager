@@ -147,7 +147,8 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
-        <p className="mt-2 text-sm text-fg-muted">
+        {/* E-ink + Gọn: bỏ lời giải thích — form không có ô loại tiền để đổi. */}
+        <p className="mt-2 text-sm text-fg-muted eink-gon:hidden">
           Không đổi được loại tiền của khoản nợ đã tạo.
         </p>
 

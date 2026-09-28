@@ -478,9 +478,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
             )}
             {summary.incomeSource === 'unknown' ? (
               <>
+                {/* E-ink + Gọn: bỏ lời khuyên — nút ngay dưới đã nói việc cần làm. */}
                 <p className="text-sm text-fg-secondary">
-                  Chưa biết tháng này thu bao nhiêu nên chưa chia được. Khai một số dự kiến
-                  là cả kế hoạch chạy.
+                  Chưa biết tháng này thu bao nhiêu nên chưa chia được.
+                  <span className="eink-gon:hidden">
+                    {' '}
+                    Khai một số dự kiến là cả kế hoạch chạy.
+                  </span>
                 </p>
                 <ActionButton
                   variant="primary"
@@ -740,7 +744,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 </p>
               )}
               {groups.markerTotal > 0 && (
-                <p className="mt-0.5 text-2xs text-fg-muted">
+                <p className="mt-0.5 text-2xs text-fg-muted eink-gon:hidden">
                   Các dòng dưới đây cộng lại {money(groups.lineTotal)} — lệch{' '}
                   {money(groups.markerTotal)} là mốc con nằm trong trần nhóm, không cộng hai lần.
                 </p>
@@ -1045,11 +1049,12 @@ function PlanSummaryBox({
           và không tự đi đường nào hộ họ (B35.4). */}
       {headroom <= 0 && (
         <p className="text-2xs text-fg-muted">
-          Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc{' '}
+          {/* E-ink + Gọn: bỏ lời khuyên, chừa lại link. */}
+          <span className="eink-gon:hidden">Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc </span>
           <Link to="/settings?edit=budget-method" className="underline">
             đổi mục tiêu để dành
           </Link>
-          .
+          <span className="eink-gon:hidden">.</span>
         </p>
       )}
     </div>
@@ -1146,22 +1151,23 @@ function UnsetSummary({
         {SUGGEST_MONTHS} tháng qua bạn tiêu trung bình{' '}
         <span className="font-semibold text-fg-primary">{money(suggestedTotal)}</span> cho{' '}
         <Num>{count}</Num> mục này.
+        {/* E-ink + Gọn: vế sau chỉ nói lại "Còn được chia" ở bảng trên và nút ngay dưới. */}
         {headroom !== null && headroom <= 0 && (
-          <> Không còn gì để chia mà vẫn giữ mục tiêu để dành.</>
+          <span className="eink-gon:hidden"> Không còn gì để chia mà vẫn giữ mục tiêu để dành.</span>
         )}
         {headroom !== null && headroom > 0 && !fits && sharePct !== null && (
-          <>
+          <span className="eink-gon:hidden">
             {' '}
             Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
             chia, nên mỗi mục sẽ nhận khoảng <Num>{sharePct}%</Num> mức quen tiêu.
-          </>
+          </span>
         )}
         {headroom !== null && headroom > 0 && fits && (
-          <>
+          <span className="eink-gon:hidden">
             {' '}
             Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
             chia — đủ cho cả <Num>{count}</Num> mục theo mức quen tiêu.
-          </>
+          </span>
         )}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">

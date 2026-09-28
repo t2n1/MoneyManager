@@ -383,7 +383,12 @@ export function RetirementPage() {
               currency={JPY}
               className="text-2xs"
             />
-            /tháng. Đổi mức đóng là việc làm với 基金 hoặc phòng nhân sự — app chỉ tính số.
+            /tháng.
+            {/* E-ink + Gọn: giữ con số, bỏ lời giải thích ai đổi được mức đóng. */}
+            <span className="eink-gon:hidden">
+              {' '}
+              Đổi mức đóng là việc làm với 基金 hoặc phòng nhân sự — app chỉ tính số.
+            </span>
           </p>
         )}
       </Card>

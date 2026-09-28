@@ -119,12 +119,19 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
             </SectionTitle>
             {/* Câu định nghĩa kỳ ướm đứng ngoài <Guide>: không có nó thì các huy hiệu
                 số bên dưới không rõ đo trên cái gì. */}
+            {/* E-ink + Gọn: câu định nghĩa rút về con số thu trung bình. */}
             {fitData ? (
-              <p className="mt-1 text-sm text-fg-muted">
-                Mỗi tấm dưới đây đã ướm sẵn số 3 tháng gần nhất của bạn — thu trung bình{' '}
-                <Money amount={fitData.avgIncome} currency={base} />
-                /tháng.
-              </p>
+              <>
+                <p className="mt-1 hidden text-sm text-fg-secondary eink-gon:block">
+                  Thu TB 3 tháng <Money amount={fitData.avgIncome} currency={base} />
+                  /tháng
+                </p>
+                <p className="mt-1 text-sm text-fg-muted eink-gon:hidden">
+                  Mỗi tấm dưới đây đã ướm sẵn số 3 tháng gần nhất của bạn — thu trung bình{' '}
+                  <Money amount={fitData.avgIncome} currency={base} />
+                  /tháng.
+                </p>
+              </>
             ) : fitData === null ? (
               <p className="mt-1 text-sm text-fg-muted">
                 Chưa có khoản thu nào trong 3 tháng gần nhất nên chưa ướm số được — chọn theo

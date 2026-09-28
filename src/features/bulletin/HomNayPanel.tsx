@@ -180,8 +180,11 @@ export function HomNayPanel({
         // duy nhất biết chắc mà không cần hạn mức nào.
         <p className="mt-2.5 text-sm text-fg-secondary">
           Còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY} tới{' '}
-          {moc} —
-          chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu được bao nhiêu.{' '}
+          {moc} —{' '}
+          {/* E-ink + Gọn: bỏ vế giải thích, link ngay sau đã nói việc cần làm. */}
+          <span className="eink-gon:hidden">
+            chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu được bao nhiêu.
+          </span>{' '}
           <Link to="/budget" className="font-medium text-fg-accent hover:underline">
             Đặt hạn mức
           </Link>

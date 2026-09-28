@@ -209,8 +209,9 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
         ) : (
           <>
           {/* 口 là chữ Nhật, người dùng Việt không đọc được — giải thích một lần, ngay
-              trên danh sách đầu tiên dùng nó (cả "/1万口" ở mỗi dòng). */}
-          <p className="mt-1 text-2xs text-fg-muted">
+              trên danh sách đầu tiên dùng nó (cả "/1万口" ở mỗi dòng).
+              E-ink + Gọn: bỏ định nghĩa. */}
+          <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
             口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Giá quỹ tính trên 1万口
             (10.000 đơn vị).
           </p>

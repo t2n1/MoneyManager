@@ -220,26 +220,30 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
         // một ngày, hoặc phương trình không có nghiệm trong khoảng dò (xem xirr.ts) — nên
         // không có mốc "≥12 tháng" nào để hứa.
         <p className="mt-3 border-t border-border-subtle pt-3 text-2xs leading-snug text-fg-muted">
-          Chưa quy ra <span className="text-fg-secondary">%/năm</span> —{' '}
-          {flows.length === 0
-            ? 'cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc một giao dịch Chuyển khoản).'
-            : `lịch sử mới ${flows.length} dòng tiền, còn quá ngắn hoặc biến động quá lớn nên con số quy ra cả năm sẽ vô nghĩa.`}{' '}
-          Danh nghĩa · sau thuế{' '}
-          {((profile?.capital_gains_tax_bps ?? 2032) / 100).toFixed(2).replace('.', ',')}%
-          {profile?.annual_inflation_bps != null && (
-            <>
-              {' '}· sau lạm phát{' '}
-              {(profile.annual_inflation_bps / 100).toFixed(1).replace('.', ',')}%
-            </>
-          )}{' '}
-          sẽ hiện khi đủ dữ liệu.
+          Chưa quy ra <span className="text-fg-secondary">%/năm</span>
+          {/* E-ink + Gọn: giữ trạng thái "chưa quy ra", bỏ lời giải thích vì sao. */}
+          <span className="eink-gon:hidden">
+            {' '}—{' '}
+            {flows.length === 0
+              ? 'cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc một giao dịch Chuyển khoản).'
+              : `lịch sử mới ${flows.length} dòng tiền, còn quá ngắn hoặc biến động quá lớn nên con số quy ra cả năm sẽ vô nghĩa.`}{' '}
+            Danh nghĩa · sau thuế{' '}
+            {((profile?.capital_gains_tax_bps ?? 2032) / 100).toFixed(2).replace('.', ',')}%
+            {profile?.annual_inflation_bps != null && (
+              <>
+                {' '}· sau lạm phát{' '}
+                {(profile.annual_inflation_bps / 100).toFixed(1).replace('.', ',')}%
+              </>
+            )}{' '}
+            sẽ hiện khi đủ dữ liệu.
+          </span>
         </p>
       )}
 
       {/* Vì sao con số ở đây lệch với dòng "Đầu tư" của bảng nhóm bên dưới. Xem
           groupInsight.investmentScope — trả null khi mọi tài khoản đầu tư cùng một nhóm. */}
       {scope && (
-        <p className="mt-2 text-2xs leading-snug text-fg-muted">
+        <p className="mt-2 text-2xs leading-snug text-fg-muted eink-gon:hidden">
           Tính theo <span className="text-fg-secondary">loại</span> tài khoản nên gồm{' '}
           {scope.outsiders.map((o, i) => (
             <span key={o.name}>

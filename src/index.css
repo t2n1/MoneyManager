@@ -1078,6 +1078,38 @@ html.eink body::after {
   opacity: 0.4;
 }
 
+/* Thanh hạn mức (<LimitBar>): khung mực 1,5px cao 10px trên nền giấy. Khối tô = mực khi
+   còn trong hạn, đất khi gần chạm trần; VƯỢT thì thanh tách đôi — khối đặc đúng phần
+   trần, khe giấy 2px, rồi sọc gỉ sắt cho phần vượt. Hình nói "vượt" chứ không riêng màu.
+   Móc vào data-attr chứ không vào class: khối tô ở Sáng/Tối mang lớp màu của nơi gọi, và
+   khối này ngoài @layer nên thắng lớp đó mà không cần biết tên nó. */
+.eink [data-limit-track] {
+  box-sizing: border-box;
+  height: 0.625rem;
+  background-color: transparent;
+  border: var(--rule-control);
+}
+.eink [data-limit-fill] {
+  background-color: var(--ink-900);
+}
+.eink [data-limit-fill='warn'] {
+  background-color: var(--ochre-500);
+}
+.eink [data-limit-rest] {
+  display: block;
+  background-color: transparent;
+  background-image: var(--hatch-rust);
+}
+.eink [data-limit-fill] + [data-limit-rest] {
+  margin-left: 2px;
+}
+/* Thanh THỜI GIAN đứng cạnh thanh hạn mức (Hôm nay): vạch dọc mảnh = thời gian đã trôi,
+   để hai thanh không đọc nhầm là cùng một loại khối. */
+.eink [data-time-fill] {
+  background-color: transparent;
+  background-image: var(--hatch-time);
+}
+
 html.eink .recharts-default-tooltip {
   background-color: var(--surface-raised) !important;
   border: 1.5px solid var(--ink-900) !important;

@@ -21,7 +21,7 @@ import { planAutoBudget } from './autoBudget'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
 import { ActionButton } from '../../components/ui'
-import { EmptyState, Money, SectionTitle, SegmentedControl } from '../../components/ui'
+import { EmptyState, LimitBar, Money, SectionTitle, SegmentedControl } from '../../components/ui'
 import { useChiChuaGhi } from '../reports/useChiChuaGhi'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ChiChuaGhiLine } from './ChiChuaGhiLine'
@@ -267,21 +267,15 @@ function ProgressBar({
     // ghi chú ở chính nó), mà `overflow-hidden` của thanh — thứ giữ cho phần tô bo tròn
     // đúng — sẽ xén mất phần nhô ấy.
     <div className={`relative ${className}`.trim()}>
-      <div
-        className="h-2 overflow-hidden rounded-full bg-surface-sunken"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={pct}
-        aria-valuetext={
-          pacePct === null ? undefined : `${pct}% hạn mức, kỳ đã trôi ${pacePct}%`
-        }
-      >
-        <div
-          className={`h-full rounded-full ${BAR_COLOR[status]}`}
-          style={{ width: `${Math.min(ratio * 100, 100)}%` }}
-        />
-      </div>
+      {/* <LimitBar> vẽ y như thanh cũ ở Sáng/Tối (vượt thì đầy thanh); ở E-ink nó tách
+          phần vượt ra thành sọc — nên truyền `ratio` THẬT, không kẹp 100% ở đây. */}
+      <LimitBar
+        ratio={ratio}
+        fillClassName={BAR_COLOR[status]}
+        warn={status === 'warn'}
+        label="Hạn mức đã dùng"
+        valueText={pacePct === null ? undefined : `${pct}% hạn mức, kỳ đã trôi ${pacePct}%`}
+      />
       {pacePct !== null && (
         // CAO HƠN thanh (12px so với 8px) và nhô ra hai đầu, thay vì một vạch nằm gọn
         // bên trong: vạch nằm trong thì phải chọn một màu vừa nổi trên nền lún vừa nổi
@@ -294,7 +288,7 @@ function ProgressBar({
         <span
           aria-hidden
           title={`Đến hôm nay: ${pacePct}% kỳ đã trôi`}
-          className="pointer-events-none absolute top-1/2 h-[12px] w-[1.5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-primary"
+          className="pointer-events-none absolute top-1/2 h-[12px] w-[1.5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-primary eink:h-5 eink:w-0.5"
           style={{ left: `${Math.min(pacePct, 100)}%` }}
         />
       )}

@@ -19,7 +19,7 @@
 // `good`, sắp hụt → `warn`, vượt trần → `out`. KHÔNG dùng `in` cho mức mỗi ngày dù cũng
 // ra màu xanh: `in`/`out` nghĩa là THU/CHI, mà mức tiêu cho phép không phải khoản thu.
 import { Link } from 'react-router-dom'
-import { Card, Money, Num } from '../../components/ui'
+import { Card, LimitBar, Money, Num } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import type { Headline } from '../reports/headline'
 import { KE_CA_HOM_NAY, dayMonthLabel, dueDateLabel } from '../../lib/dates'
@@ -118,13 +118,18 @@ export function HomNayPanel({
   // thanh nên cả hàng không cần vai trò ảnh.
   const timePct = tongNgay > 0 ? Math.min((ngayDaQua / tongNgay) * 100, 100) : 0
   // `budgetRatio`: trần ¥0 mà đã chi là thanh đầy (vượt), không chia cho 0.
-  const spentPct = Math.min(budgetRatio(daTieu, hanMuc) * 100, 100)
+  // Tỷ lệ THẬT (có thể > 1): <LimitBar> tự kẹp ở Sáng/Tối, còn E-ink vẽ phần vượt.
+  const spentRatio = budgetRatio(daTieu, hanMuc)
   const spentBar = conLai < 0 ? 'bg-money-out' : hutTruocLuong ? 'bg-fg-warn' : 'bg-money-in'
   const bars = !chuaDatHanMuc && (
     <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 font-mono text-2xs text-fg-muted">
       <span>Thời gian</span>
-      <span className="relative h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+      <span
+        data-limit-track
+        className="relative h-1.5 overflow-hidden rounded-full bg-surface-sunken"
+      >
         <span
+          data-time-fill
           className="absolute inset-y-0 left-0 rounded-full bg-border-strong"
           style={{ width: `${timePct}%` }}
           aria-hidden
@@ -136,19 +141,15 @@ export function HomNayPanel({
         ngày {ngayDaQua}/{tongNgay}
       </Num>
       <span>Hạn mức</span>
-      <span className="relative h-1.5 rounded-full bg-surface-sunken">
+      <LimitBar ratio={spentRatio} size="sm" fillClassName={spentBar} warn={hutTruocLuong && conLai >= 0}>
+        {/* Vạch mốc thời gian — nhô ra hai đầu 2px để không lẫn vào thanh màu. E-ink:
+            vạch mực 2px nhô 5px (handoff LimitBar `marker`). */}
         <span
-          className={`absolute inset-y-0 left-0 rounded-full ${spentBar}`}
-          style={{ width: `${spentPct}%` }}
-          aria-hidden
-        />
-        {/* Vạch mốc thời gian — nhô ra hai đầu 2px để không lẫn vào thanh màu. */}
-        <span
-          className="absolute -inset-y-0.5 w-px bg-fg-primary"
+          className="absolute -inset-y-0.5 w-px bg-fg-primary eink:-inset-y-1.5 eink:w-0.5"
           style={{ left: `${timePct}%` }}
           aria-hidden
         />
-      </span>
+      </LimitBar>
       <span>
         <Money amount={daTieu} currency={base} approx={approx} compact /> /{' '}
         <Money amount={hanMuc} currency={base} approx={approx} compact />

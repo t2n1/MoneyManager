@@ -25,7 +25,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Pencil, PiggyBank, Target } from 'lucide-react'
-import { ActionButton, Card, Money, Num, SectionTitle, SegmentedControl } from '../../components/ui'
+import {
+  ActionButton,
+  Card,
+  LimitBar,
+  Money,
+  Num,
+  SectionTitle,
+  SegmentedControl,
+} from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
 import {
@@ -519,18 +527,20 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     )}
                   </PlanTile>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
-                  <div
-                    className={`h-full rounded-full ${over ? STATUS_FILL.bad : STATUS_FILL.good}`}
-                    style={{
-                      width: `${
-                        summary.income > 0
-                          ? Math.min(100, (summary.allocated / summary.income) * 100)
-                          : 100
-                      }%`,
-                    }}
-                  />
-                </div>
+                {/* Thu nhập là "trần" của phần phân bổ. Chưa có thu nhập thì thanh đầy như
+                    trước (1), trừ khi đã phân bổ — lúc đó toàn bộ là phần vượt. */}
+                <LimitBar
+                  ratio={
+                    summary.income > 0
+                      ? summary.allocated / summary.income
+                      : summary.allocated > 0
+                        ? Infinity
+                        : 1
+                  }
+                  fillClassName={over ? STATUS_FILL.bad : STATUS_FILL.good}
+                  label="Đã phân bổ trên thu nhập"
+                  className="mt-3"
+                />
                 <div className="mt-1.5 flex items-baseline justify-between gap-2 text-sm text-fg-secondary">
                   <button
                     type="button"

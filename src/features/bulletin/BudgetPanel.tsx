@@ -7,7 +7,7 @@
 // thì sớm muộn lệch — trần nhóm cha, hạn mức dồn và giao dịch thiếu tỷ giá đều là những
 // chỗ dễ tính khác đi.
 import { Link } from 'react-router-dom'
-import { Card, Money, SectionTitle, StatusDot } from '../../components/ui'
+import { Card, LimitBar, Money, SectionTitle, StatusDot } from '../../components/ui'
 import type { BudgetReport } from '../budgets/progress'
 import type { CurrencyCode } from '../../lib/money'
 
@@ -101,18 +101,17 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
                       {l.budgeted === 0 ? 'vượt' : `${Math.round(l.ratio * 100)}%`}
                     </span>
                   </div>
-                  {/* Thanh 4px dưới dòng — kẹp 100%: phần vượt đã nói bằng % đỏ, thanh
-                      tràn khung thì đọc ra lỗi vẽ. Thụt trái bằng bề chấm + gap để thẳng
-                      cột với tên. */}
-                  <span className="ml-4 mt-1 block h-1 overflow-hidden rounded-full bg-surface-sunken">
-                    <span
-                      className={`block h-full rounded-full ${
-                        l.status === 'over' ? 'bg-money-out' : 'bg-fg-warn'
-                      }`}
-                      style={{ width: `${Math.min(l.ratio, 1) * 100}%` }}
-                      aria-hidden
-                    />
-                  </span>
+                  {/* Thanh 4px dưới dòng — ở Sáng/Tối kẹp 100%: phần vượt đã nói bằng %
+                      đỏ, thanh tràn khung thì đọc ra lỗi vẽ. E-ink thì tách phần vượt ra
+                      thành sọc (xem <LimitBar>). Thụt trái bằng bề chấm + gap để thẳng
+                      cột với tên. Không nhãn: con số % ngay trên đã nói hết. */}
+                  <LimitBar
+                    ratio={l.ratio}
+                    size="xs"
+                    fillClassName={l.status === 'over' ? 'bg-money-out' : 'bg-fg-warn'}
+                    warn={l.status !== 'over'}
+                    className="ml-4 mt-1"
+                  />
                 </li>
               ))}
             </ul>

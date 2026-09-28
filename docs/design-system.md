@@ -450,6 +450,7 @@ light của component vẫn chạy, và e-ink không có bản tối.
 - `--accent-soft-bg` ở e-ink là giấy lún chứ không phải mực: nó còn tô ô "hôm nay" của
   lịch hoá đơn, nơi có số tiền nằm bên trong. Đảo màu làm ở primitive, không ở token.
 - **Thanh hạn mức** đi qua `<LimitBar>` — đừng viết lại `h-2 rounded-full bg-surface-sunken` + khối kẹp 100%. Truyền tỷ lệ THẬT: ở Sáng/Tối nó vẫn đầy thanh khi vượt, còn e-ink tách thanh thành khối đặc đúng phần trần + khe giấy 2px + sọc gỉ sắt cho phần vượt (CSS ở `[data-limit-*]` trong index.css). Thanh cơ cấu so với mốc (AxisStrip, AxisTargetsCard) KHÔNG phải thanh hạn mức — chưa chuyển.
+- **Font: Literata cho cả chữ lẫn số** — `.eink` trỏ cả `--font-sans` và `--font-mono` về Literata (bản vẽ để số bằng JetBrains Mono; user chọn Literata cho cả số, 09/2026). Nên `font-mono` ở e-ink KHÔNG phải mono: cột số thẳng hàng là nhờ `tabular-nums` (Literata có chữ số đều bề ngang), đừng bỏ `tabular-nums` khỏi chỗ có cột số.
 - Rêu và đất đậm hơn bản vẽ 5% để đạt 4,5:1 trên nền lún (bản vẽ đo trên giấy sáng).
 
 ## Chế độ trình bày: Gọn / Đầy đủ

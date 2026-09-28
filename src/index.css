@@ -958,14 +958,20 @@ html.dark .recharts-tooltip-item {
   --chart-slice-4: #8a8780;
   --chart-slice-5: #b3b0a7;
 
-  /* Chữ: Literata (serif của máy đọc sách) cho chữ, JetBrains Mono cho MỌI con số.
-     `--font-sans` giữ TÊN để thay tại chỗ — preflight trỏ font trang vào nó. */
+  /* Chữ: Literata (serif của máy đọc sách) cho MỌI thứ — cả chữ lẫn con số. Bản vẽ để số
+     đi bằng JetBrains Mono; user chọn Literata cho cả số (09/2026). `--font-sans` và
+     `--font-mono` giữ TÊN để thay tại chỗ: preflight trỏ font trang vào `--font-sans`,
+     còn tiện ích `font-mono` (mà <Money>/<Num> dùng) đọc `--font-mono`.
+     Cột số vẫn thẳng hàng theo chữ số: <Money>/<Num> bật sẵn `tabular-nums`, và Literata
+     có bộ chữ số đều bề ngang. Chỉ mất "mọi KÝ TỰ cùng bề rộng" của mono. */
   --font-serif: 'Literata', Georgia, 'Times New Roman', serif;
   --font-sans: var(--font-serif);
+  --font-mono: var(--font-serif);
   --text-kpi: 1.5rem; /* 24 */
   --text-hero: 1.75rem; /* 28 */
   --tracking-label: 0.12em;
-  --tracking-number: -0.03em;
+  /* -0.03em của bản vẽ tính cho chữ số MONO (rộng, thưa); chữ số serif vốn đã khít. */
+  --tracking-number: -0.01em;
 
   /* Hình học & hoạ tiết */
   --rule-frame: 2px solid var(--ink-900);

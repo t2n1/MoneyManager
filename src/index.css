@@ -6,6 +6,10 @@
    — e-ink là giấy sáng, nên mọi nhánh light của component vẫn chạy. Biến thể này chỉ
    dành cho primitive cần đổi HÌNH (viền dày, đảo màu mục đang chọn); màu thì token lo. */
 @custom-variant eink (&:where(.eink, .eink *));
+/* E-ink + chế độ Gọn (<html data-density="visual">, do src/lib/density.ts đặt): lớp chữ
+   thứ hai mà e-ink bỏ thêm — dòng nguồn, câu diễn giải, lời khuyên. Chọn Đầy đủ là hiện
+   lại hết. Dùng `eink-gon:hidden`, và `hidden eink-gon:inline` cho bản rút gọn. */
+@custom-variant eink-gon (&:where(.eink[data-density="visual"] *));
 
 /* ============================================================================
    DESIGN TOKENS

@@ -82,7 +82,8 @@ export function DriftPanel({ txs, className = '' }: Props) {
             <Num tone="muted">{formatMonthLabel(raise.fromKey)}</Num>.
           </p>
           {/* Cùng vai với actionLine của tab Tương lai: câu DUY NHẤT hành động được ngay. */}
-          <p className="mt-1 text-sm font-medium text-fg-accent">
+          {/* E-ink + Gọn: lời khuyên bỏ, giữ con số. */}
+          <p className="mt-1 text-sm font-medium text-fg-accent eink-gon:hidden">
             Cửa sổ vàng: nâng mức để dành ngay bây giờ — vài tháng nữa mức sống sẽ dâng
             theo và cùng con số đó bắt đầu thấy đau.
           </p>
@@ -110,9 +111,11 @@ export function DriftPanel({ txs, className = '' }: Props) {
             </>
           )}
           .{' '}
-          {drift.verdict === 'chi-dang-theo-thu'
-            ? 'Chi đang dâng nhanh hơn thu — phần tăng thêm đang bị mức sống nuốt dần.'
-            : 'Tỷ lệ để dành đang tụt so với nửa năm trước.'}
+          <span className="eink-gon:hidden">
+            {drift.verdict === 'chi-dang-theo-thu'
+              ? 'Chi đang dâng nhanh hơn thu — phần tăng thêm đang bị mức sống nuốt dần.'
+              : 'Tỷ lệ để dành đang tụt so với nửa năm trước.'}
+          </span>
         </p>
       )}
 
@@ -144,9 +147,13 @@ export function DriftPanel({ txs, className = '' }: Props) {
             <Num tone="muted">{fees.items.length}</Num> khoản lặp hằng tháng chưa thành lệnh
             định kỳ{fees.approx ? ' ≈' : ''} —{' '}
             <Money amount={fees.totalPerMonthMinor} currency={base} className="text-sm" />
-            /tháng, tức{' '}
-            <Money amount={fees.totalPerMonthMinor * 12} currency={base} className="text-sm" />
-            /năm.
+            /tháng
+            <span className="eink-gon:hidden">
+              , tức{' '}
+              <Money amount={fees.totalPerMonthMinor * 12} currency={base} className="text-sm" />
+              /năm
+            </span>
+            .
           </p>
           <ul className="mt-1">
             {fees.items.slice(0, FEE_SHOW_MAX).map((f) => (
@@ -162,7 +169,7 @@ export function DriftPanel({ txs, className = '' }: Props) {
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-sm font-medium text-fg-accent">
+          <p className="mt-1 text-sm font-medium text-fg-accent eink-gon:hidden">
             Đáng rà một lượt: thứ còn dùng thì khai thành lệnh định kỳ, thứ không còn dùng
             — 10 năm của nó là{' '}
             <Money

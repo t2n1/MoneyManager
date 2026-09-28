@@ -958,7 +958,8 @@ export function DailySpendPanel({
               Phần thêm đi kèm cỡ chữ 2xs mono, không phải text-sm như câu kết luận: nó là
               số phụ trợ, và giữ nguyên kích thước cũ nghĩa là mắt vẫn đọc ra "câu chính
               trước, số phụ sau" dù giờ hai thứ nằm chung một dòng. */}
-          <p className="mt-1.5 text-sm text-fg-secondary">
+          {/* E-ink + Gọn: bỏ dòng tóm tắt — biểu đồ ngay dưới đã nói ngày nào vọt. */}
+          <p className="mt-1.5 text-sm text-fg-secondary eink-gon:hidden">
             <Headline headline={headline} base={base} approx={approx} />
             {/* Nhánh 'typical' của câu kết luận VỪA in đúng con số này. */}
             {headline?.kind !== 'typical' && (

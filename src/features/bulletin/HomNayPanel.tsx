@@ -242,7 +242,18 @@ export function HomNayPanel({
             />
             <span className="font-sans text-sm font-medium text-fg-muted"> / ngày</span>
           </p>
-          <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary">
+          {/* E-ink + Gọn: câu dài dưới số lớn rút về hai con số của nó (số thay cho câu). */}
+          <p className="mt-2 hidden font-mono text-xs text-fg-secondary eink-gon:block">
+            còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> · nhịp{' '}
+            {so(nhipHienTai)}/ngày
+            {hutTruocLuong && canTruocLuong !== null && (
+              <span className="font-semibold text-fg-warn">
+                {' '}
+                · cạn {canTruocLuong} ngày trước {moc}
+              </span>
+            )}
+          </p>
+          <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary eink-gon:hidden">
             Mức tiêu mỗi ngày cho{' '}
             <span className="font-semibold text-fg-primary">{soNgay} ngày</span> còn lại{' '}
             {KE_CA_HOM_NAY} tới {moc}

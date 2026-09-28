@@ -205,7 +205,9 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                     quay về màn có đầy đủ ngữ cảnh. Ghép trước `detail` bằng dấu gạch dài
                     để cả hai nằm trên MỘT dòng: khối này có trần 5 việc, thêm một dòng
                     thứ ba cho mỗi việc là cao thêm gần một nửa. */}
-                        <span className="block truncate text-2xs text-fg-muted">
+                        {/* E-ink + Gọn: bỏ dòng này — còn tên việc + chip; bấm vào việc vẫn
+                            về màn nguồn nên đường quay về không mất. */}
+                        <span className="block truncate text-2xs text-fg-muted eink-gon:hidden">
                           Từ {todoSource(n)}
                           {n.detail && ` — ${n.detail}`}
                         </span>

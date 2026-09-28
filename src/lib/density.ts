@@ -82,9 +82,23 @@ function readMirror(): DensityPref {
 let current: DensityPref | null = null
 const listeners = new Set<() => void>()
 
+/**
+ * Chép chế độ ra `<html data-density>` để CSS đọc được — cụ thể là biến thể `eink-gon:`
+ * (index.css): giao diện E-ink ở chế độ Gọn còn bỏ thêm một lớp chữ nữa (dòng nguồn của
+ * việc cần làm, câu diễn giải dưới số lớn, chú thích biểu đồ, lời khuyên). Là CSS chứ
+ * không phải hook vì giao diện (Sáng/Tối/E-ink) sống ở class của <html>, ngoài React.
+ * index.html đặt giá trị đầu tiên trước khi vẽ; đây giữ nó đúng khi đổi chế độ.
+ */
+function reflectDensity(p: DensityPref) {
+  if (typeof document !== 'undefined') document.documentElement.dataset.density = p
+}
+
 /** Chế độ đang áp dụng, đọc từ bản sao ở máy. */
 export function getMirroredDensity(): DensityPref {
-  if (current === null) current = readMirror()
+  if (current === null) {
+    current = readMirror()
+    reflectDensity(current)
+  }
   return current
 }
 
@@ -98,6 +112,7 @@ export function getMirroredDensity(): DensityPref {
 export function setMirroredDensity(next: DensityPref) {
   if (getMirroredDensity() === next) return
   current = next
+  reflectDensity(next)
   try {
     localStorage.setItem(STORAGE_KEY, next)
   } catch {

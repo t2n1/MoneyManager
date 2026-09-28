@@ -60,6 +60,16 @@
         } catch (e) {}
       })()
 
+      // Chế độ Gọn/Đầy đủ lên <html data-density> để CSS (biến thể eink-gon: trong
+      // src/index.css) đọc được ngay lần vẽ đầu. Mặc định 'visual' = DEFAULT_DENSITY của
+      // src/lib/density.ts.
+      ;(function () {
+        try {
+          var d = localStorage.getItem('density')
+          document.documentElement.setAttribute('data-density', d === 'full' ? 'full' : 'visual')
+        } catch (e) {}
+      })()
+
       // Áp cỡ chữ đã lưu ngay trước khi vẽ để tránh nhảy layout
       ;(function () {
         try {

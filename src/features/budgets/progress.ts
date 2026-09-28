@@ -28,6 +28,17 @@ export function budgetRatio(spent: number, budgeted: number): number {
 }
 
 /**
+ * Tỷ lệ cho HÌNH của thanh hạn mức (<LimitBar>), không cho chữ. Khác `budgetRatio` đúng
+ * một ca: trần ¥0 mà đã chi → Infinity chứ không 1. Quy về 1 thì thanh vẽ ra "vừa chạm
+ * trần" — một khối đầy, không có phần vượt — trong khi con số bên cạnh nói "vượt".
+ * Infinity thì LimitBar vẽ TOÀN BỘ là phần vượt (sọc ở e-ink; Sáng/Tối vẫn đầy thanh).
+ * Đừng đưa số này vào `Math.round(ratio*100)%` — đó là việc của `budgetRatio`.
+ */
+export function budgetBarRatio(spent: number, budgeted: number): number {
+  return budgeted > 0 ? spent / budgeted : spent > 0 ? Infinity : 0
+}
+
+/**
  * Tình trạng TỔNG TRẦN của một báo cáo — cùng luật với `budgetRatio`, cho các thẻ tổng.
  *
  *  · 'unset' — không có dòng ngân sách nào (tính-vào-tổng): chưa đặt trần, mời đặt.

@@ -2,7 +2,29 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { BudgetRow, TransactionRow } from '../../types/database.types'
-import { buildBudgetReport, carryFromPreviousMonth, totalCapOf } from './progress'
+import {
+  budgetBarRatio,
+  budgetRatio,
+  buildBudgetReport,
+  carryFromPreviousMonth,
+  totalCapOf,
+} from './progress'
+
+describe('budgetBarRatio — hình của thanh hạn mức', () => {
+  it('trần > 0: trùng budgetRatio, kể cả khi vượt', () => {
+    for (const [s, b] of [[0, 100], [42, 100], [100, 100], [332, 280]])
+      expect(budgetBarRatio(s, b)).toBe(budgetRatio(s, b))
+  })
+
+  it('trần ¥0 mà đã chi → Infinity (thanh là toàn bộ phần vượt), không phải 1', () => {
+    expect(budgetBarRatio(500, 0)).toBe(Infinity)
+    expect(budgetRatio(500, 0)).toBe(1) // chữ vẫn đi đường cũ
+  })
+
+  it('trần ¥0 chưa chi → 0 (thanh rỗng)', () => {
+    expect(budgetBarRatio(0, 0)).toBe(0)
+  })
+})
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }

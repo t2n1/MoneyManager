@@ -63,7 +63,7 @@ export function LimitBar({
         // meter không cho valuenow vượt max; vượt trần là trạng thái thật, nên nới max.
         'aria-valuemax': Math.max(100, pct),
         'aria-valuenow': pct,
-        'aria-valuetext': valueText ?? `${pct}% hạn mức`,
+        'aria-valuetext': valueText ?? (Number.isFinite(ratio) ? `${pct}% hạn mức` : 'vượt trần 0'),
       }
     : { 'aria-hidden': true }
   return (

@@ -42,7 +42,6 @@ import { useSyncedBudget } from './useSyncedBudget'
 import {
   budgetedOf,
   pickAttention,
-  ratioOf,
   sortBudgetItems,
   spentOf,
   type BudgetSortMode,
@@ -60,7 +59,7 @@ import { nenHoiLai } from './rebalance'
 import { useRebalance } from './useRebalance'
 import { useCommitments } from './useCommitments'
 import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
-import { budgetRatio, totalCapOf, type BudgetStatus } from './progress'
+import { budgetBarRatio, totalCapOf, type BudgetStatus } from './progress'
 import type { CategoryRow } from '../../types/database.types'
 import {
   BudgetVerdictLine,
@@ -251,6 +250,7 @@ function ProgressBar({
   pace = null,
   className = '',
 }: {
+  /** Tỷ lệ cho HÌNH — lấy từ `budgetBarRatio` (trần ¥0 mà đã chi = Infinity). */
   ratio: number
   status: BudgetStatus
   /**
@@ -260,7 +260,8 @@ function ProgressBar({
   pace?: number | null
   className?: string
 }) {
-  const pct = Math.round(ratio * 100)
+  // Infinity (trần ¥0 mà đã chi) không in thành phần trăm được: câu đọc nói thẳng "vượt".
+  const pctText = Number.isFinite(ratio) ? `${Math.round(ratio * 100)}% hạn mức` : 'vượt trần ¥0'
   const pacePct = pace === null ? null : Math.round(pace * 100)
   return (
     // Bọc thêm một lớp KHÔNG cắt tràn: vạch cao hơn thanh và phải nhô ra hai đầu (xem
@@ -274,7 +275,7 @@ function ProgressBar({
         fillClassName={BAR_COLOR[status]}
         warn={status === 'warn'}
         label="Hạn mức đã dùng"
-        valueText={pacePct === null ? undefined : `${pct}% hạn mức, kỳ đã trôi ${pacePct}%`}
+        valueText={pacePct === null ? pctText : `${pctText}, kỳ đã trôi ${pacePct}%`}
       />
       {pacePct !== null && (
         // CAO HƠN thanh (12px so với 8px) và nhô ra hai đầu, thay vì một vạch nằm gọn
@@ -551,10 +552,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     return <EmptyState>Đang tải…</EmptyState>
   }
 
-  // "Chưa đặt" = không có dòng ngân sách; tổng trần ¥0 là trần thật (`totalCapOf`). Tỷ lệ
-  // đi qua `budgetRatio` để ¥0 mà đã chi là thanh đầy đỏ, không chia cho 0.
+  // "Chưa đặt" = không có dòng ngân sách; tổng trần ¥0 là trần thật (`totalCapOf`). Thanh
+  // tổng đi qua `budgetBarRatio` để ¥0 mà đã chi là thanh toàn phần vượt, không chia cho 0.
   const totalCap = totalCapOf(report)
-  const totalPct = budgetRatio(report.totalSpent, report.totalBudgeted) * 100
   const totalRemaining = restOf(report.totalBudgeted, report.totalSpent)
 
   // B36 · "Tiêu ¥X/ngày" KHÔNG được chia cả tiền đã hứa cho người khác.
@@ -916,7 +916,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               )}
             </span>
             <ProgressBar
-              ratio={ratioOf(item)}
+              ratio={budgetBarRatio(spent, budgeted)}
               status={status}
               pace={paceMark}
               className="w-12 shrink-0 sm:w-24"
@@ -1036,7 +1036,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               / {formatMoney(report.totalBudgeted, base)}
             </p>
             <ProgressBar
-              ratio={totalPct / 100}
+              ratio={budgetBarRatio(report.totalSpent, report.totalBudgeted)}
               status={report.totalStatus}
               pace={paceMark}
               className="mt-1"
@@ -1088,7 +1088,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               </span>
             </div>
             <ProgressBar
-              ratio={totalPct / 100}
+              ratio={budgetBarRatio(report.totalSpent, report.totalBudgeted)}
               status={report.totalStatus}
               pace={paceMark}
               className="mt-1"

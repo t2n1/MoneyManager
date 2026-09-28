@@ -8,7 +8,7 @@
 // chỗ dễ tính khác đi.
 import { Link } from 'react-router-dom'
 import { Card, LimitBar, Money, SectionTitle, StatusDot } from '../../components/ui'
-import type { BudgetReport } from '../budgets/progress'
+import { budgetBarRatio, type BudgetReport } from '../budgets/progress'
 import type { CurrencyCode } from '../../lib/money'
 
 interface Props {
@@ -106,7 +106,7 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
                       thành sọc (xem <LimitBar>). Thụt trái bằng bề chấm + gap để thẳng
                       cột với tên. Không nhãn: con số % ngay trên đã nói hết. */}
                   <LimitBar
-                    ratio={l.ratio}
+                    ratio={budgetBarRatio(l.spent, l.budgeted)}
                     size="xs"
                     fillClassName={l.status === 'over' ? 'bg-money-out' : 'bg-fg-warn'}
                     warn={l.status !== 'over'}

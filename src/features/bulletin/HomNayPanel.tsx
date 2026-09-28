@@ -24,7 +24,7 @@ import { ConclusionLine } from '../../components/VerdictNote'
 import type { Headline } from '../reports/headline'
 import { KE_CA_HOM_NAY, dayMonthLabel, dueDateLabel } from '../../lib/dates'
 import type { ToiNgayLuong } from './bulletin'
-import { budgetRatio } from '../budgets/progress'
+import { budgetBarRatio } from '../budgets/progress'
 import type { CurrencyCode } from '../../lib/money'
 
 interface Props {
@@ -117,9 +117,9 @@ export function HomNayPanel({
   // ngay, không cần nhẩm hai phân số. Hình là bằng chứng, con số thật đứng cạnh từng
   // thanh nên cả hàng không cần vai trò ảnh.
   const timePct = tongNgay > 0 ? Math.min((ngayDaQua / tongNgay) * 100, 100) : 0
-  // `budgetRatio`: trần ¥0 mà đã chi là thanh đầy (vượt), không chia cho 0.
-  // Tỷ lệ THẬT (có thể > 1): <LimitBar> tự kẹp ở Sáng/Tối, còn E-ink vẽ phần vượt.
-  const spentRatio = budgetRatio(daTieu, hanMuc)
+  // Tỷ lệ THẬT (có thể > 1, và Infinity khi trần ¥0 mà đã chi): <LimitBar> tự kẹp ở
+  // Sáng/Tối, còn E-ink vẽ phần vượt.
+  const spentRatio = budgetBarRatio(daTieu, hanMuc)
   const spentBar = conLai < 0 ? 'bg-money-out' : hutTruocLuong ? 'bg-fg-warn' : 'bg-money-in'
   const bars = !chuaDatHanMuc && (
     <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 font-mono text-2xs text-fg-muted">

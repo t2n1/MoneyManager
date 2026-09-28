@@ -358,7 +358,8 @@ export function LedgerPage() {
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
-          <p aria-live="polite" className="font-mono text-sm text-fg-muted">
+          {/* E-ink: tháng là nhãn CHÍNH của cụm ‹ › — chữ mực đậm, không xám (xám đọc ra "bị khoá"). */}
+          <p aria-live="polite" className="font-mono text-sm text-fg-muted eink:px-1 eink:font-semibold eink:text-fg-primary">
             {label}
           </p>
           <IconButton

@@ -13,15 +13,18 @@ export const TAG_COLOR_KEYS = [
 
 export type TagColorKey = (typeof TAG_COLOR_KEYS)[number]
 
+// E-ink: `eink:grayscale` ở MỌI màu — nhãn trên máy đọc sách là chữ mực, không phải
+// chip màu; nó cũng tắt màu của emoji nằm trong tên nhãn (#❤️…). Nền/chữ thì bảng màu
+// thô đã được .eink ánh về giấy/mực (index.css).
 /** Lớp Tailwind cho chip nhãn (nền nhạt + chữ đậm màu), có bản dark. */
 export const TAG_CHIP_CLASS: Record<TagColorKey, string> = {
-  gray: 'bg-surface-sunken text-gray-700 dark:text-gray-300',
-  red: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  green: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  sky: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-  pink: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  gray: 'bg-surface-sunken text-gray-700 dark:text-gray-300 eink:grayscale',
+  red: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 eink:grayscale',
+  amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 eink:grayscale',
+  green: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 eink:grayscale',
+  sky: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 eink:grayscale',
+  indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 eink:grayscale',
+  pink: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300 eink:grayscale',
 }
 
 /** Tên màu tiếng Việt — cho aria-label của nút chọn màu (nút chỉ là chấm tròn). */

@@ -26,9 +26,11 @@ export function resolveTheme(pref: ThemePref): 'light' | 'dark' | 'eink' {
 }
 
 // Màu thanh trạng thái trình duyệt. Sáng giữ màu nhấn như <meta> mặc định của
-// index.html; Tối và E-ink lấy --surface-page của thang mình (script đầu index.html
-// viết lại đúng mấy giá trị này, vì nó chạy trước khi CSS nạp).
-const THEME_COLOR = { light: '#008236', dark: '#0b0d0c', eink: '#e6e4dd' } as const
+// index.html; Tối lấy --surface-page của thang mình. E-ink lấy màu giấy SAU KHI phủ hạt
+// (#e6e4dd tối đi ~5% → #dbd9d2): iOS tô vùng thanh trạng thái bằng màu này, lấy màu giấy
+// trần thì lộ một dải sáng hơn phần trang ngay dưới. Script đầu index.html viết lại đúng
+// mấy giá trị này, vì nó chạy trước khi CSS nạp.
+const THEME_COLOR = { light: '#008236', dark: '#0b0d0c', eink: '#dbd9d2' } as const
 
 /** Áp class 'dark' / 'eink' và cập nhật màu thanh trạng thái trình duyệt. */
 export function applyTheme(pref: ThemePref) {

@@ -134,13 +134,15 @@ export function TransactionItem({
           như tan vào dòng, ô màu cho mắt một cột "đây là loại gì" để quét dọc.
           Chuyển khoản không có danh mục → ô trung tính với icon mũi tên như cũ. */}
       {tx.type === 'transfer' ? (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-fg-secondary">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-fg-secondary eink:border-rule eink:border-border-strong eink:bg-transparent eink:text-money-transfer">
           <ArrowRightLeft className="h-4 w-4" />
         </span>
       ) : (
         <span
           aria-hidden
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base leading-none"
+          // E-ink: khung mực 1,5px thay nền pastel, emoji về xám (bản vẽ: "emoji danh mục
+          // nếu còn sẽ bị e-ink hiển thị xám"). `!` để thắng nền viết ở style.
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base leading-none eink:border-rule eink:border-border-strong eink:bg-transparent! eink:grayscale eink:contrast-125"
           style={{ backgroundColor: categoryTint(tx.category_id).tile }}
         >
           {cat?.icon}

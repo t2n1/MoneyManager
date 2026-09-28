@@ -952,6 +952,24 @@ html.dark .recharts-tooltip-item {
   --color-blue-300: var(--ink-300); --color-blue-400: var(--ink-500); --color-blue-500: var(--ink-700);
   --color-blue-600: var(--ink-900); --color-blue-700: var(--ink-900); --color-blue-800: var(--ink-900);
   --color-blue-900: var(--ink-900); --color-blue-950: var(--ink-900);
+  /* Màu nhận diện không mang nghĩa (nhãn indigo/pink, thanh danh mục teal/violet) → mực:
+     e-ink chỉ có bốn mực có nghĩa, không dành màu cho "loại". */
+  --color-indigo-50: var(--paper-300); --color-indigo-100: var(--paper-300); --color-indigo-200: #c9c6bd;
+  --color-indigo-300: var(--ink-300); --color-indigo-400: var(--ink-500); --color-indigo-500: var(--ink-700);
+  --color-indigo-600: var(--ink-900); --color-indigo-700: var(--ink-900); --color-indigo-800: var(--ink-900);
+  --color-indigo-900: var(--ink-900); --color-indigo-950: var(--ink-900);
+  --color-violet-50: var(--paper-300); --color-violet-100: var(--paper-300); --color-violet-200: #c9c6bd;
+  --color-violet-300: var(--ink-300); --color-violet-400: var(--ink-500); --color-violet-500: var(--ink-700);
+  --color-violet-600: var(--ink-900); --color-violet-700: var(--ink-900); --color-violet-800: var(--ink-900);
+  --color-violet-900: var(--ink-900); --color-violet-950: var(--ink-900);
+  --color-teal-50: var(--paper-300); --color-teal-100: var(--paper-300); --color-teal-200: #c9c6bd;
+  --color-teal-300: var(--ink-300); --color-teal-400: var(--ink-500); --color-teal-500: var(--ink-700);
+  --color-teal-600: var(--ink-900); --color-teal-700: var(--ink-900); --color-teal-800: var(--ink-900);
+  --color-teal-900: var(--ink-900); --color-teal-950: var(--ink-900);
+  --color-pink-50: var(--paper-300); --color-pink-100: var(--paper-300); --color-pink-200: #c9c6bd;
+  --color-pink-300: var(--ink-300); --color-pink-400: var(--ink-500); --color-pink-500: var(--ink-700);
+  --color-pink-600: var(--ink-900); --color-pink-700: var(--ink-900); --color-pink-800: var(--ink-900);
+  --color-pink-900: var(--ink-900); --color-pink-950: var(--ink-900);
   /* Không có giấy trắng tinh trên máy đọc sách: bg-white/text-white về giấy sáng nhất. */
   --color-white: var(--paper-100);
 
@@ -985,7 +1003,13 @@ html.dark .recharts-tooltip-item {
   --hatch-rust: repeating-linear-gradient(45deg, #9e2a1c 0 1.5px, transparent 1.5px 4px);
   --hatch-ochre: repeating-linear-gradient(45deg, #b08a34 0 1.5px, transparent 1.5px 4px);
   --hatch-time: repeating-linear-gradient(90deg, #111111 0 1px, transparent 1px 4px);
-  --grain-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27220%27%20height%3D%27220%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.9%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20values%3D%270%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200.9%200%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url(%2523n)%27%2F%3E%3C%2Fsvg%3E");
+  /* Hạt giấy. Bản của handoff ghi `url(%2523n)` — `#` mã hoá HAI lần — nên SVG không
+     tìm thấy bộ lọc nhiễu và vẽ ra một hình chữ nhật ĐEN ĐẶC: đo canvas độ phủ = 1,000,
+     phủ 40% là giấy #e6e4dd tụt thành ~#8a8985 (xám chì, và lệch hẳn với vùng thanh
+     trạng thái iOS). Sửa `url(%23n)`, và kênh alpha lấy từ ĐỘ SÁNG của nhiễu
+     (4·R − 1,8) thay vì alpha của nó: ra hạt lấm tấm thật, phủ trung bình 0,30 (lệch
+     chuẩn 0,32). Nhân độ phủ 0,16 của lớp → giấy chỉ tối đi ~5% (#dbd9d2). */
+  --grain-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27220%27%20height%3D%27220%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.9%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27%2F%3E%3CfeColorMatrix%20values%3D%270%200%200%200%200%20%200%200%200%200%200%20%200%200%200%200%200%20%204%200%200%200%20-1.8%27%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%27100%25%27%20height%3D%27100%25%27%20filter%3D%27url(%23n)%27%2F%3E%3C%2Fsvg%3E");
 
   /* Chuyển động: e-ink KHÔNG nội suy — thay đổi hiện ra tức thì như một lần làm mới giấy */
   --motion-period: 0ms;
@@ -1085,7 +1109,8 @@ html.eink body::after {
   background-image: var(--grain-image);
   background-size: 220px 220px;
   mix-blend-mode: multiply;
-  opacity: 0.4;
+  /* 0,16 chứ không 0,4 của handoff: 0,4 được chọn khi hạt còn là tấm đen đặc bị lỗi. */
+  opacity: 0.16;
 }
 
 /* Thanh hạn mức (<LimitBar>): khung mực 1,5px cao 10px trên nền giấy. Khối tô = mực khi

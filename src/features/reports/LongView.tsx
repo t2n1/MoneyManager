@@ -973,12 +973,17 @@ export function LongView() {
               <>
                 {' '}Chi phí thật so với tỷ giá thị trường app tự ghi mỗi phiên (có từ cuối
                 07/2026); số ẩn ÂM nghĩa là lần đó đổi được giá hơn thị trường.
-                {remitCost.missingRateCount > 0 && (
-                  <> {remitCost.missingRateCount} lần gửi cũ hơn lịch sử tỷ giá nên chưa tính được.</>
-                )}
               </>
             )}
           </Guide>
+          {/* NGOÀI <Guide>, cùng lý do với KeptWhereCard: "Chi phí thật" ở trên đang thiếu
+              đúng những lần này, và chế độ Gọn (mặc định) ẩn Guide. */}
+          {remitCost !== null && remitCost.missingRateCount > 0 && (
+            <p className="mt-1.5 text-2xs text-state-warn-fg">
+              <Num tone="warn">{remitCost.missingRateCount} lần gửi</Num> cũ hơn lịch sử tỷ giá nên chưa
+              tính vào chi phí thật.
+            </p>
+          )}
         </Card>
       )}
 

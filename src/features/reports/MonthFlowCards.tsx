@@ -289,8 +289,14 @@ export function KeptWhereCard({
         rổ giao dịch với khối 01: bút toán điều chỉnh số dư và dòng tiền nợ/cho vay không
         tính, nên tổng ròng các dòng đúng bằng phần để lại ở trên. Phần trăm tính trên tổng
         các tài khoản TĂNG có tính-vào-tổng; dòng giảm và dòng ngoài tổng không có phần trăm.
-        {data.hasMissingRate && ' Một phần chưa quy đổi được (đang chờ tỷ giá).'}
       </Guide>
+      {/* Cảnh báo thiếu tỷ giá đứng NGOÀI <Guide>: Guide ẩn ở chế độ Gọn (mặc định), mà
+          "số này chưa đủ" là dữ liệu chứ không phải chữ dạy — CLAUDE.md, mục thiếu tỷ giá. */}
+      {data.hasMissingRate && (
+        <p className="mt-1.5 text-2xs text-state-warn-fg">
+          Một phần chưa quy đổi được (đang chờ tỷ giá) nên các dòng trên còn thiếu.
+        </p>
+      )}
     </Card>
   )
 }

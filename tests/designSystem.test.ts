@@ -1585,6 +1585,50 @@ describe('chế độ Gọn — chữ để dạy phải đi qua cổng', () => 
     ).toBe(0)
   })
 
+  // Chiều NGƯỢC của luật trên: cảnh báo "số này chưa đủ vì thiếu tỷ giá" là DỮ LIỆU, không
+  // phải chữ dạy — CLAUDE.md (mục thiếu tỷ giá) đòi UI nói thẳng là số chưa đủ. Nhét nó vào
+  // <Guide>/<FullOnly>/<ExplainBox> thì chế độ Gọn — chế độ MẶC ĐỊNH — lặng lẽ giấu nó đi,
+  // và nhìn ở Đầy đủ thì không thấy gì sai. Đã xảy ra thật ở hai chỗ (MonthFlowCards, dòng
+  // "chưa quy đổi (chờ tỷ giá)"; LongView, "N lần gửi … chưa tính được"), sửa 2026-09-30.
+  //
+  // KHÔNG cấm chữ "tỷ giá" nói chung: ExplainBox của FxSplitSection DẠY về tỷ giá, đúng
+  // chỗ. Thứ bị cấm là CỜ thiếu tỷ giá (điều kiện chỉ có nghĩa khi số đang thiếu) và các
+  // cụm câu cảnh báo. Mẫu đúng: một <p className="… text-state-warn-fg"> ngay sau khối,
+  // như InvestmentValueHistorySection.
+  it('cảnh báo thiếu tỷ giá không nằm trong khối bị ẩn ở chế độ Gọn', () => {
+    const CANH_BAO = /hasMissingRate|missingRate|MissingRate|chưa quy đổi|chờ tỷ giá/
+    const hits: string[] = []
+    for (const f of FILES) {
+      if (!f.path.endsWith('.tsx')) continue
+      for (const tag of ['Guide', 'FullOnly', 'ExplainBox']) {
+        // Dò cặp mở/đóng có tính lồng nhau (<Guide as="span"> nằm trong <Guide> có thật).
+        const re = new RegExp(`<${tag}\\b[^>]*?(/?)>|</${tag}>`, 'g')
+        let depth = 0
+        let start = -1
+        for (const m of f.text.matchAll(re)) {
+          if (m[0].startsWith('</')) {
+            depth--
+            if (depth === 0 && start >= 0) {
+              const body = f.text.slice(start, m.index! + m[0].length)
+              if (CANH_BAO.test(body)) {
+                // Không in số dòng: FILES đã bỏ comment nên số dòng lệch với file thật.
+                hits.push(`${f.path.slice(SRC.length + 1)} <${tag}>`)
+              }
+              start = -1
+            }
+          } else if (m[1] !== '/') {
+            if (depth === 0) start = m.index!
+            depth++
+          }
+        }
+      }
+    }
+    expect(
+      hits,
+      `Cảnh báo thiếu tỷ giá phải đứng NGOÀI khối — tách ra thành <p className="… text-state-warn-fg">.\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
+
   // Ba sắc độ trạng thái (đỏ/vàng/xanh đạt 3:1 cho ĐỒ HOẠ) khai một chỗ ở
   // components/ui/statusColors.ts. Trước đây chúng nằm ở features/health với tên
   // zoneColors và chỉ tab Sức khỏe dùng; chế độ Gọn kéo chúng ra khắp app (chấm trạng

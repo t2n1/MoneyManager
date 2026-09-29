@@ -112,7 +112,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v18' // v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
+export const STORAGE_KEY = 'sct-demo-db-v19' // v19: lệnh つみたて khớp tiền Nạp NISA. v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
 const DEMO_USER = 'demo-user'
 
 /**
@@ -881,8 +881,8 @@ function seed(): DemoDB {
       updated_at: '2026-08-12T13:00:00.000Z',
     },
   ]
-  // Đúng hai lệnh mua ngày 約定 2026-04-09 — tái tạo vị thế thật: 70.000 ¥ vốn,
-  // 80.757 ¥ giá trị theo phiên 2026-08-10. Tài khoản NISA (investment/JPY) đã seed ở trên.
+  // Hai lệnh mua ngày 約定 2026-04-09 — tái tạo vị thế thật: 70.000 ¥ vốn,
+  // 80.757 ¥ giá trị theo phiên 2026-08-10 (lệnh つみたて hằng tháng thêm ở dưới). Tài khoản NISA (investment/JPY) đã seed ở trên.
   const idNisaJPY = nisaAcc.id
   const fundTrades: FundTradeRow[] = [
     {
@@ -916,6 +916,44 @@ function seed(): DemoDB {
       updated_at: '2026-04-14T00:00:00.000Z',
     },
   ]
+  // Tiền nạp cho hai lệnh trên — thiếu nó thì số dư sổ NISA thấp hơn giá vốn 70.000 ¥.
+  transactions.push(
+    tx({
+      type: 'transfer',
+      amount: 70_000,
+      occurred_on: '2026-04-09',
+      note: 'Nạp NISA',
+      account_id: bank.id,
+      to_account_id: idNisaJPY,
+    }),
+  )
+  // Mỗi lần "Nạp NISA" hằng tháng của lichSu24Thang là một lệnh つみたて cùng ngày, như
+  // Rakuten thật (自動出金 không để tiền nằm lại). Không có lệnh này thì số dư sổ (¥630k
+  // tiền nạp) đứng cạnh một danh mục chỉ ¥70k vốn: ô "lãi đầu tư" của Tài sản — tính
+  // giá trị − số dư sổ — báo lỗ ~¥550k trong khi trang NISA báo lời. 基準価額 dựng tăng
+  // dần tới dưới giá phiên 2026-08-10 để vị thế có lời vừa phải.
+  transactions
+    .filter((t) => t.to_account_id === idNisaJPY && t.note === 'Nạp NISA' && t.occurred_on !== '2026-04-09')
+    .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
+    .forEach((t, k) => {
+      const nav = 15_600 + k * 300
+      const stamp = `${t.occurred_on}T00:00:00.000Z`
+      fundTrades.push({
+        id: uuid(),
+        user_id: DEMO_USER,
+        account_id: idNisaJPY,
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: t.occurred_on,
+        units: Math.floor((t.amount * 10_000) / nav),
+        nav,
+        amount: t.amount,
+        bucket: 'NISAつみたて投資枠',
+        note: '',
+        created_at: stamp,
+        updated_at: stamp,
+      })
+    })
 
   /**
    * Hai khoản nợ nữa, cố ý dựng để khối 03 tab Quyết định nói được điều nó tồn tại để nói:

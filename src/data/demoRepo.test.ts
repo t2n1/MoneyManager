@@ -1143,8 +1143,8 @@ async function taiKhoanNisa() {
   return acc
 }
 
-// Số đối chiếu tay cho seed 'NISA Rakuten' (số dư sổ 0 — vốn gốc đến từ fund_trades,
-// KHÔNG phải số dư sổ, nên market_value không được suy từ balance):
+// Số đối chiếu tay cho HAI LỆNH GỐC của seed 'NISA Rakuten' (vị thế thật; market_value
+// không được suy từ balance):
 //   S&P500 (9I31223A): mua 28.429 口, amount 50.000 ¥
 //     giá phiên 2026-08-10 = 20.053 ¥/1万口
 //     giá trị = round(28.429 × 20.053 ÷ 10.000) = round(57.008,6737) = 57.009 ¥
@@ -1154,18 +1154,43 @@ async function taiKhoanNisa() {
 //   market_value = 57.009 + 23.748 = 80.757 ¥   (khớp chú thích của seed fundTrades)
 //   giá vốn = 50.000 + 20.000 = 70.000 ¥ ⇒ lời chưa bán +10.757 ¥
 //
+// Seed còn thêm một lệnh つみたて S&P500 cho mỗi lần "Nạp NISA" hằng tháng, nên số của cả
+// tài khoản cộng dồn 口数 theo từng quỹ rồi mới nhân giá — tính lại ngay trong test bằng
+// phép nhân tay, không gọi fundHoldings.ts (đó là thứ đang bị đối chiếu).
+//
 // Cả hai quỹ cùng nav_date 2026-08-10 nên không quỹ nào "giá lệch phiên cũ", và không quỹ
 // nào thiếu giá — tức cron thật cũng sẽ ghi, nên demo phải ghi.
 describe('getAccountBalances — tự tính market_value cho tài khoản quỹ Nhật (demo)', () => {
-  const MARKET_VALUE_NISA = 80_757
+  const NAV_20260810: Record<string, number> = { '9I31223A': 20_053, '9I314241': 18_855 }
 
   it('tài khoản NISA seed có market_value = số tính tay từ sổ lệnh quỹ + 基準価額, không phải null', async () => {
     const acc = await taiKhoanNisa()
+    const trades = (await demoRepo.getFundTrades()).filter((t) => t.account_id === acc.id)
+    // Hai lệnh gốc vẫn còn nguyên — con số 80.757 ¥ ở chú thích trên vẫn đối chiếu được.
+    const goc = trades.filter((t) => t.traded_on === '2026-04-09')
+    expect(goc.map((t) => [t.units, t.amount])).toEqual([[28_429, 50_000], [12_595, 20_000]])
+
+    const unitsByFund = new Map<string, number>()
+    for (const t of trades) unitsByFund.set(t.assoc_fund_cd, (unitsByFund.get(t.assoc_fund_cd) ?? 0) + t.units)
+    let expected = 0
+    for (const [fund, units] of unitsByFund) expected += Math.round((units * NAV_20260810[fund]) / 10_000)
+
     const balances = await demoRepo.getAccountBalances()
     const row = balances.find((b) => b.id === acc.id)
     // Trước đợt này là `null`: demo chỉ mô phỏng stock-refresh, nên NISA đứng ở số dư sổ
-    // (0) trong Tổng tài sản trong khi khu danh mục quỹ hiện đủ 80.757 ¥.
-    expect(row?.market_value).toBe(MARKET_VALUE_NISA)
+    // trong Tổng tài sản trong khi khu danh mục quỹ hiện đủ giá trị.
+    expect(row?.market_value).toBe(expected)
+  })
+
+  it('số dư sổ NISA = tổng tiền các lệnh mua — tiền nạp và sổ lệnh không lệch nhau', async () => {
+    // Ô "lãi đầu tư" của Tài sản tính giá trị − số dư sổ, còn trang NISA tính giá trị − giá
+    // vốn sổ lệnh. Seed cũ nạp ¥45k mỗi tháng (¥630k) mà sổ lệnh chỉ có ¥70k: ô KPI báo lỗ
+    // ~¥550k ngay cạnh một trang NISA báo lời.
+    const acc = await taiKhoanNisa()
+    const trades = (await demoRepo.getFundTrades()).filter((t) => t.account_id === acc.id)
+    const cost = trades.reduce((s, t) => s + (t.kind === 'buy' ? t.amount : t.kind === 'sell' ? -t.amount : 0), 0)
+    const row = (await demoRepo.getAccountBalances()).find((b) => b.id === acc.id)
+    expect(row?.balance).toBe(cost)
   })
 
   it('thiếu 基準価額 của MỘT quỹ đang giữ thì bỏ qua cả tài khoản, không ghi số lệch', async () => {

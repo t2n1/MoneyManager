@@ -114,6 +114,13 @@ export type ProfileRow = {
    * tắc này tắt. Tắt lại không mất dữ liệu đã gắn — chỉ là thôi hỏi.
    */
   couple_mode?: boolean
+  /** Tên người kia (migration 0073). Vắng/rỗng = giao diện ghi "Người ấy". */
+  partner_name?: string
+  /**
+   * Tài khoản quỹ chung hai người (migration 0073). Vắng/null = chưa đặt.
+   * Xem `features/sharedFund/sharedFund.ts`.
+   */
+  shared_fund_account_id?: string | null
   created_at: string
 }
 
@@ -390,6 +397,14 @@ export type TransactionRow = {
    * mang tiền vào sổ lệnh là đếm hai lần.
    */
   stock_symbol?: string | null
+  /**
+   * Khoản góp quỹ chung này góp cho PHẦN nào — một danh mục chi (migration 0073).
+   * null/vắng = không phải khoản góp. Chỉ có trên chuyển khoản (DB check).
+   *
+   * Cột riêng chứ không dùng `category_id`: chuyển khoản không mang danh mục (check 0001),
+   * và mọi hàm tổng hợp chi dựa vào điều đó — tiền góp không bao giờ là tiền chi.
+   */
+  fund_part_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -975,6 +990,10 @@ export type RecurringRuleRow = {
   mode: RecurringMode
   /** Chỉ dùng với `mode = 'remind'`: nhắc trước ngày đến hạn bấy nhiêu ngày. */
   remind_days_before: number
+  /** Ai góp/chi (migration 0073), chép xuống từng kỳ. Vắng = 'mine'. */
+  owner?: TxOwner
+  /** Phần quỹ chung mà khoản góp định kỳ này góp cho (migration 0073). */
+  fund_part_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -1039,6 +1058,8 @@ export type Database = {
           | 'push_last_sent_at'
           | 'density_pref'
           | 'couple_mode'
+          | 'partner_name'
+          | 'shared_fund_account_id'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
           | 'fuyo_claimed_years'
@@ -1061,6 +1082,8 @@ export type Database = {
             | 'push_last_sent_at'
           | 'density_pref'
           | 'couple_mode'
+          | 'partner_name'
+          | 'shared_fund_account_id'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
           | 'fuyo_claimed_years'
@@ -1179,6 +1202,7 @@ export type Database = {
           | 'owner'
           | 'stock_trade_id'
           | 'stock_symbol'
+          | 'fund_part_id'
         >
         Update: Partial<
           Pick<
@@ -1204,6 +1228,7 @@ export type Database = {
             | 'owner'
             | 'stock_trade_id'
             | 'stock_symbol'
+            | 'fund_part_id'
           >
         >
         Relationships: []
@@ -1297,6 +1322,8 @@ export type Database = {
           | 'mode'
           | 'remind_days_before'
           | 'is_refund'
+          | 'owner'
+          | 'fund_part_id'
         >
         Update: Partial<
           Pick<
@@ -1316,6 +1343,8 @@ export type Database = {
             | 'last_generated_on'
             | 'mode'
             | 'remind_days_before'
+            | 'owner'
+            | 'fund_part_id'
           >
         >
         Relationships: []

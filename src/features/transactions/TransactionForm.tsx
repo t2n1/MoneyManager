@@ -98,6 +98,7 @@ import { DebtFields, FeeField, RemitFields, RemitMonthStrip, SplitFields } from 
 import { entryGate, plannedModeActive } from './entryValidation'
 import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
 import { NguoiThanSheet } from '../../components/NguoiThanSheet'
+import { fundLegOf, fundPartOptions, partnerLabel } from '../sharedFund/labels'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 /** Ba lựa chọn "ai chi". Nhãn ngắn vì chúng đứng thành hàng ba trên màn 375px. */
@@ -337,6 +338,8 @@ export function TransactionForm({
   // Hoàn tiền: giao dịch CHI mang dấu âm — tiền về ví nhưng không phải thu nhập
   const [isRefund, setIsRefund] = useState(initial?.is_refund ?? false)
   const [owner, setOwner] = useState<TxOwner>(initial?.owner ?? 'mine')
+  // Góp quỹ chung cho phần nào (migration 0073) — chỉ hỏi khi chuyển khoản chạm quỹ.
+  const [fundPartId, setFundPartId] = useState<string | null>(initial?.fund_part_id ?? null)
   // Nhãn: form sửa nạp sẵn nhãn hiện có của giao dịch
   const { data: allLinks = [] } = useTransactionTags()
   const initialTagIds = useMemo(
@@ -544,6 +547,17 @@ export function TransactionForm({
     accountId && pickerAccounts.some((a) => a.id === accountId)
       ? accountId
       : (pickerAccounts[0]?.id ?? null)
+
+  // Quỹ chung (migration 0073): 'in' = khoản GÓP vào quỹ, 'out' = RÚT ra khỏi quỹ, null =
+  // chuyển khoản này không chạm quỹ → form y như cũ, không thêm câu hỏi nào.
+  const fundLeg = fundLegOf(
+    kind === 'between' && coupleMode,
+    profile?.shared_fund_account_id,
+    effectiveAccountId,
+    toAccountId,
+  )
+  const fundParts = useMemo(() => fundPartOptions(categories, fundPartId), [categories, fundPartId])
+  const partnerName = partnerLabel(profile)
 
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   /** Dạng chỉ ghi khoản nợ, không bút toán nào (Khách nợ công). Đọc từ bảng. */
@@ -1151,7 +1165,11 @@ export function TransactionForm({
         // Gửi kể cả khi công tắc tắt: cột luôn có giá trị, và giữ nguyên giá trị cũ của
         // một giao dịch đang sửa (nếu không thì tắt công tắc rồi sửa ghi chú là âm thầm
         // xoá mất nhãn "người ấy" đã gắn).
-        owner,
+        // Góp/rút quỹ chung thì chỉ có hai người góp — 'Chung' góp cho chung là vô nghĩa.
+        owner: fundLeg === 'in' && owner === 'shared' ? 'mine' : owner,
+        // CHỈ gửi cột 0073 khi chuyển khoản chạm quỹ (hoặc gỡ phần của khoản vốn là góp):
+        // DB chưa chạy 0073 mà nhận khoá lạ là từ chối cả chuyển khoản thường.
+        ...(fundLeg ? { fund_part_id: fundPartId } : initial?.fund_part_id ? { fund_part_id: null } : {}),
         tag_ids: effectiveTagIds,
       }
       if (showTransferFee && transferFee > 0) {
@@ -1528,6 +1546,50 @@ export function TransactionForm({
           )}
         </>
       )}
+      {/* Quỹ chung (migration 0073) — chỉ khi chuyển khoản chạm tài khoản quỹ. */}
+      {fundLeg && (
+        <div className="mt-1.5 flex flex-col gap-1.5 px-1">
+          <label className="flex flex-col gap-1">
+            <span className="text-2xs uppercase tracking-label text-fg-muted">
+              {fundLeg === 'in' ? tr('Góp cho phần') : tr('Rút từ phần')}
+            </span>
+            <Select
+              value={fundPartId ?? ''}
+              onChange={(e) => setFundPartId(e.target.value || null)}
+              wrapClassName="w-full"
+              className="w-full"
+            >
+              <option value="">{tr('Chưa gán phần')}</option>
+              {fundParts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          {fundLeg === 'in' && (
+            <div>
+              <span className="mb-1 block text-2xs uppercase tracking-label text-fg-muted">{tr('Ai góp')}</span>
+              <div className="flex gap-1">
+                {(['mine', 'partner'] as const).map((v) => {
+                  const on = (owner === 'partner' ? 'partner' : 'mine') === v
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setOwner(v)}
+                      aria-pressed={on}
+                      className={filterChipClass(on, 'md', 'flex-1 justify-center')}
+                    >
+                      {v === 'mine' ? tr('Mình') : partnerName}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Chuyển khoản: phí ngân hàng/dịch vụ → giao dịch chi riêng vào "Tài chính" */}
       {showTransferFee && (
         <FeeField
@@ -1774,7 +1836,7 @@ export function TransactionForm({
                 aria-pressed={owner === o.value}
                 className={filterChipClass(owner === o.value, 'md', 'flex-1 justify-center')}
               >
-                {o.label}
+                {o.value === 'partner' ? partnerName : o.label}
               </button>
             ))}
           </div>

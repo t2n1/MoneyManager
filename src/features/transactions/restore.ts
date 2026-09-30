@@ -50,6 +50,8 @@ export const CACH_CHEP: { [K in keyof Required<TransactionRow>]: CachChep } = {
   owner: 'giu',
   // Cổ tức/phí lưu ký của mã nào — người dùng gán, lặp lại hằng kỳ là chuyện thường.
   stock_symbol: 'giu',
+  // Góp cho phần nào của quỹ chung — góp lại tháng sau vẫn là góp cho phần đó.
+  fund_part_id: 'giu',
   adjust_kind: 'hoan-tac',
   stock_trade_id: 'hoan-tac',
   recurring_rule_id: 'hoan-tac',

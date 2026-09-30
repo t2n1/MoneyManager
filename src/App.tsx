@@ -42,6 +42,9 @@ const PlannedPage = lazy(() =>
 const QuyenLoiPage = lazy(() =>
   import('./features/quyen-loi/QuyenLoiPage').then((m) => ({ default: m.QuyenLoiPage })),
 )
+const SharedFundPage = lazy(() =>
+  import('./features/sharedFund/SharedFundPage').then((m) => ({ default: m.SharedFundPage })),
+)
 const InvestPage = lazy(() =>
   import('./features/assets/InvestPage').then((m) => ({ default: m.InvestPage })),
 )
@@ -201,6 +204,7 @@ function AppRoutes() {
           <Route path="/tuong-lai" element={lazyRoute(<TuongLaiPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/quyen-loi" element={lazyRoute(<QuyenLoiPage />)} />
+          <Route path="/quy-chung" element={lazyRoute(<SharedFundPage />, 'list')} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/assets/account/:accountId/sao-ke" element={lazyRoute(<StatementReconcilePage />, 'table')} />
           <Route path="/assets/retirement" element={lazyRoute(<RetirementPage />)} />

@@ -10,6 +10,13 @@ import { missingTradeTransfers, stockTradeCashFlow } from '../features/assets/st
 import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
 import { COT_GIAO_DICH_MOI, runDropMissingColumns } from './missingColumn'
+
+/**
+ * Cột được bỏ khi KHÔI PHỤC vào một DB chưa chạy migration. Rộng hơn COT_GIAO_DICH_MOI:
+ * lúc ghi thường, mất `fund_part_id` là khoản góp mất phần nên phải báo lỗi; lúc khôi phục
+ * vào DB cũ thì cột đó vốn không có chỗ chứa — giữ được mọi thứ khác vẫn hơn nổ cả lượt.
+ */
+const COT_KHOI_PHUC_MOI = [...COT_GIAO_DICH_MOI, 'fund_part_id'] as const
 import type {
   AccountRow,
   AccountValuationRow,
@@ -2389,8 +2396,11 @@ export const supabaseRepo: Repo = {
               end_on: r.end_on,
               is_paused: r.is_paused,
               last_generated_on: r.last_generated_on,
+              // 0073. `??` = mặc định của migration (xem chú thích ở transactions dưới).
+              owner: r.owner ?? 'mine',
+              fund_part_id: r.fund_part_id ?? null,
             })),
-        (part) => sb.from('recurring_rules').insert(part),
+        (part) => runDropMissingColumns(part, COT_KHOI_PHUC_MOI, (p) => sb.from('recurring_rules').insert(p)),
       )
     }
 
@@ -2482,8 +2492,9 @@ export const supabaseRepo: Repo = {
               owner: t.owner ?? 'mine',
               stock_trade_id: t.stock_trade_id ?? null,
               stock_symbol: t.stock_symbol ?? null,
+              fund_part_id: t.fund_part_id ?? null, // 0073
             })),
-        (part) => runDropMissingColumns(part, COT_GIAO_DICH_MOI, (p) => sb.from('transactions').insert(p)),
+        (part) => runDropMissingColumns(part, COT_KHOI_PHUC_MOI, (p) => sb.from('transactions').insert(p)),
       )
     }
 
@@ -2903,6 +2914,9 @@ export const supabaseRepo: Repo = {
             // 0056. Bản lưu trước migration này thiếu hẳn cột → rơi về mảng rỗng, đúng
             // nghĩa "chưa năm nào khai" của cột mới.
             fuyo_claimed_years: data.profile.fuyo_claimed_years ?? [], // 0056
+            // 0073. Tài khoản quỹ chung đã chèn ở bước 3 (giữ nguyên id) nên FK trỏ được.
+            partner_name: data.profile.partner_name ?? '', // 0073
+            shared_fund_account_id: data.profile.shared_fund_account_id ?? null, // 0073
           })
           .eq('user_id', uid)
       ).error,

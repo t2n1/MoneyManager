@@ -123,7 +123,9 @@ const DEMO_USER = 'demo-user'
  * Không có chốt này, demo nhận cả những dòng Postgres từ chối → bug chỉ nổ ở
  * bản thật, còn test và kiểm tra tay trên demo thì xanh.
  */
-function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount'>) {
+function assertTxShape(
+  input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount' | 'fund_part_id'>,
+) {
   if (input.type === 'transfer') {
     if (!input.to_account_id) throw new Error(tr('Chuyển khoản phải có tài khoản đích'))
     if (input.to_account_id === input.account_id)
@@ -131,6 +133,8 @@ function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'acc
     if (input.category_id) throw new Error(tr('Chuyển khoản không mang danh mục'))
     return
   }
+  // Check transactions_fund_part_transfer_only (0073).
+  if (input.fund_part_id) throw new Error(tr('Chỉ chuyển khoản mới góp được vào quỹ chung'))
   if (!input.category_id) throw new Error(tr('Giao dịch thu/chi phải có danh mục'))
   if (input.to_account_id || input.to_amount)
     throw new Error(tr('Giao dịch thu/chi không có tài khoản đích'))
@@ -1485,6 +1489,8 @@ export const demoRepo: Repo = {
       throw new Error(tr('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.'))
     if ((db.fundTrades ?? []).some((t) => t.account_id === id))
       throw new Error(tr('Không xóa được: còn sổ lệnh quỹ của tài khoản này.'))
+    // FK `on delete set null (shared_fund_account_id)` của 0073: gỡ cài đặt, không chặn.
+    if (db.profile.shared_fund_account_id === id) db.profile.shared_fund_account_id = null
     db.accounts = db.accounts.filter((a) => a.id !== id)
     save(db)
   },
@@ -2460,6 +2466,9 @@ export const demoRepo: Repo = {
       throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.budgets ?? []).some((b) => ids.has(b.category_id)))
       throw new Error(tr('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.'))
+    // FK `on delete set null (fund_part_id)` của 0073: khoản góp còn đó, chỉ mất phần.
+    for (const t of db.transactions) if (t.fund_part_id && ids.has(t.fund_part_id)) t.fund_part_id = null
+    for (const r of db.recurringRules ?? []) if (r.fund_part_id && ids.has(r.fund_part_id)) r.fund_part_id = null
     db.categories = db.categories.filter((c) => !ids.has(c.id))
     save(db)
   },

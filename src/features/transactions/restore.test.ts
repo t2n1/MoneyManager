@@ -92,7 +92,7 @@ describe('toNewTransaction', () => {
       note: '', is_remittance: false, remit_service: null, remit_fee_jpy: null,
       remit_received_vnd: null, remit_recipient_id: null, is_debt_flow: false,
       exclude_from_stats: false, adjust_is_spend: false, adjust_kind: null, is_refund: false,
-      owner: 'mine', stock_trade_id: null, stock_symbol: null, created_at: '', updated_at: '',
+      owner: 'mine', stock_trade_id: null, stock_symbol: null, fund_part_id: null, created_at: '', updated_at: '',
     }
     expect(Object.keys(CACH_CHEP).sort()).toEqual(Object.keys(full).sort())
   })

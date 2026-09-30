@@ -30,6 +30,9 @@ export const COT_GIAO_DICH_MOI = [
   'stock_symbol',
   'stock_trade_id',
   'remit_recipient_id',
+  // KHÔNG có `fund_part_id` (0073): bỏ nó đi là khoản góp quỹ chung lưu xong mà mất phần
+  // góp — đúng thông tin duy nhất làm nó thành khoản góp. Thà báo lỗi. Form chỉ gửi cột
+  // này khi đang ghi khoản góp, nên DB chưa chạy 0073 không làm hỏng chuyển khoản thường.
 ] as const
 
 function carries(payload: object, column: string): boolean {

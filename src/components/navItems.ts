@@ -69,6 +69,7 @@ const PAGE_TITLES: [prefix: string, title: string][] = [
   ['/recurring', tr('Giao dịch định kỳ')],
   ['/planned', tr('Sắp chi')],
   ['/quyen-loi', tr('Quyền lợi')],
+  ['/quy-chung', tr('Quỹ chung')],
   ['/invest', tr('Đầu tư')],
   ['/budget', tr('Ngân sách')],
   ['/assets', tr('Tài sản')],
@@ -94,7 +95,7 @@ export function topBarTitle(pathname: string): string {
 
 // Những màn ĐỌC kỳ đang xem. Bộ đổi tháng trên top bar chỉ hiện ở đây — hiện ở màn
 // không dùng tháng thì nó là cái nút bấm vào không có gì đổi, tệ hơn hẳn không có nút.
-const MONTH_ROUTES = ['/', '/so', '/budget', '/reports']
+const MONTH_ROUTES = ['/', '/so', '/budget', '/reports', '/quy-chung']
 
 export function usesMonth(pathname: string): boolean {
   return MONTH_ROUTES.includes(pathname)

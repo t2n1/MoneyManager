@@ -134,6 +134,10 @@ export function validateBackupPayload(data: BackupData): string[] {
     // CHECK transactions_adjust_kind_check (0072).
     if (t.adjust_kind != null && !ADJUST_KINDS.has(t.adjust_kind))
       p.add(tr('Dấu khoản bù không hợp lệ'), `${at} → ${String(t.adjust_kind)}`)
+    // FK + CHECK fund_part_id (0073).
+    if (t.fund_part_id && !categoryIds.has(t.fund_part_id))
+      p.add(tr('Khoản góp quỹ chung trỏ tới phần không có trong file'), `${at} → ${t.fund_part_id}`)
+    if (t.fund_part_id && t.type !== 'transfer') p.add(tr('Chỉ chuyển khoản mới góp được vào quỹ chung'), at)
   }
 
   const budgetKey = uniques(tr('ngân sách (danh mục + tháng)'))
@@ -150,7 +154,13 @@ export function validateBackupPayload(data: BackupData): string[] {
       p.add(tr('Quy tắc định kỳ trỏ tới tài khoản đích không có trong file'), r.to_account_id)
     if (r.category_id && !categoryIds.has(r.category_id))
       p.add(tr('Quy tắc định kỳ trỏ tới danh mục không có trong file'), r.category_id)
+    if (r.fund_part_id && !categoryIds.has(r.fund_part_id))
+      p.add(tr('Khoản góp quỹ chung trỏ tới phần không có trong file'), r.fund_part_id)
   }
+
+  // FK shared_fund_account_id (0073): hồ sơ khôi phục sau tài khoản nên trỏ sai là nổ.
+  const quy = data.profile?.shared_fund_account_id
+  if (quy && !accountIds.has(quy)) p.add(tr('Quỹ chung trỏ tới tài khoản không có trong file'), quy)
 
   for (const d of data.debts ?? [])
     if (d.disbursement_transaction_id && !transactionIds.has(d.disbursement_transaction_id))

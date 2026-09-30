@@ -49,6 +49,7 @@ import {
   phieuLoi,
   type KhoanNeo,
 } from './nhap'
+import { formatDateLabel } from '../../lib/dates'
 import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
@@ -623,7 +624,7 @@ export function ImportPhieuLuongPage() {
                 {k.lyDo && <p className="mt-0.5 text-fg-secondary">{k.lyDo}</p>}
                 {k.trangThai === 'dat' && k.neo && (
                   <p className="mt-0.5 text-fg-muted">
-                    {tr('neo {date} · giữ lại {amount}', { date: k.neo.occurred_on, amount: formatMoney(k.thu!.amount, 'JPY') })}
+                    {tr('neo {date} · giữ lại {amount}', { date: formatDateLabel(k.neo.occurred_on), amount: formatMoney(k.thu!.amount, 'JPY') })}
                     {k.thuKhac && ` · ${tr('mua hàng {amount}', { amount: formatMoney(k.thuKhac.amount, 'JPY') })}`}
                   </p>
                 )}

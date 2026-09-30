@@ -30,7 +30,7 @@ export interface LastYearSpend {
 
 export function useLastYearSpend(monthKey: MonthKey): LastYearSpend {
   const priorKey = { year: monthKey.year - 1, month: monthKey.month }
-  const { data: txs = [] } = useMonthTransactions(priorKey)
+  const { data: txs = [] } = useMonthTransactions(priorKey, { perspective: 'report' })
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()

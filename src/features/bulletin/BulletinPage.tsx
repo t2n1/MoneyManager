@@ -142,7 +142,7 @@ export function BulletinPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [months, monthStartDay, currentMonthKey.year, currentMonthKey.month])
-  const rangeQ = useRangeTransactions(range)
+  const rangeQ = useRangeTransactions(range, true, { perspective: 'report' })
   const rangeData = rangeQ.data
   const rangeTxs = useMemo(() => rangeData ?? [], [rangeData])
   // MỤC 1a (2026-09-23): dải nhiều tháng là truy vấn NẶNG NHẤT trang (hàng chục request
@@ -225,7 +225,7 @@ export function BulletinPage() {
   // Nguồn của cả `headline`, `BudgetPanel` LẪN dòng "tới ngày lương" — một `useBudgetReport`
   // cho cả màn. Ba chỗ tự cộng lại "đã tiêu" là ba con số sớm muộn lệch nhau: trần nhóm
   // cha, hạn mức dồn và giao dịch thiếu tỷ giá đều là chỗ dễ tính khác đi.
-  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
+  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey, { perspective: 'report' })
 
   // Kỳ tính của tỷ lệ giữ lại (MỤC 14) — "tới hôm nay" khi tháng đang xem chưa hết. Nguồn
   // là quy ước chung `periodDays` (lib/dates), cùng chỗ Báo cáo lấy.
@@ -280,7 +280,7 @@ export function BulletinPage() {
   // "Giao dịch gần đây" và đường "Chi từng ngày". Gọi hai lần thì react-query vẫn trả
   // cùng một cache, nhưng hai biến cùng tên trong một component là chỗ để lệch nhau.
   // Đứng TRƯỚC câu kết luận vì câu đó phải chờ nó (`monthReady`).
-  const monthQ = useMonthTransactions(activeMonthKey)
+  const monthQ = useMonthTransactions(activeMonthKey, { perspective: 'report' })
   const { data: monthData, range: activeRange } = monthQ
   const monthTxs = useMemo(() => monthData ?? [], [monthData])
   // Giao dịch tháng đang xem đã về chưa — "Chưa ghi giao dịch nào" và "Chưa ghi khoản chi
@@ -373,7 +373,7 @@ export function BulletinPage() {
   // Cùng `excludeIds` với chuỗi năm nay: công tắc "bỏ cố định" mà chỉ áp một bên thì
   // hai đường không còn so được với nhau.
   const priorYearKey = { year: activeMonthKey.year - 1, month: activeMonthKey.month }
-  const { data: priorTxs = [], range: priorRange } = useMonthTransactions(priorYearKey)
+  const { data: priorTxs = [], range: priorRange } = useMonthTransactions(priorYearKey, { perspective: 'report' })
   const priorLastISO = addDaysISO(priorRange.end, -1)
   const priorSpend = useMemo(
     () =>

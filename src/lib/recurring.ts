@@ -158,6 +158,10 @@ export interface RecurringRuleLike extends RuleSchedule {
   mode?: RecurringMode
   /** Hoàn tiền lặp lại (migration 0043); vắng mặt = false. Chỉ có nghĩa với CHI. */
   is_refund?: boolean
+  /** Ai góp/chi (migration 0073); vắng mặt = 'mine'. */
+  owner?: 'mine' | 'partner' | 'shared'
+  /** Phần quỹ chung của khoản góp (migration 0073); vắng/null = không phải khoản góp. */
+  fund_part_id?: string | null
 }
 
 /** Giao dịch 1 kỳ cần sinh (NewRecurringOccurrence của repo thỏa type này). */
@@ -173,6 +177,9 @@ export interface RecurringOccurrenceInput {
   recurring_rule_id: string
   /** Chép từ quy tắc (migration 0043). Luôn false với thu/chuyển khoản. */
   is_refund: boolean
+  /** Chép từ quy tắc (0073) — CHỈ có mặt khi khác mặc định, xem runRecurringCatchUp. */
+  owner?: 'mine' | 'partner' | 'shared'
+  fund_part_id?: string
 }
 
 /** Subset của Repo mà engine cần — test dùng fake, app truyền repo thật. */
@@ -214,6 +221,10 @@ export async function runRecurringCatchUp(repo: RecurringRepo, todayISO: string)
         // thu/chuyển khoản lỡ mang cờ thì bỏ ở đây, chứ để DB từ chối là cả quy tắc
         // đó ngừng sinh mà không ai biết.
         is_refund: rule.type === 'expense' && rule.is_refund === true,
+        // Hai cột 0073 chỉ đi kèm khi khác mặc định: DB chưa chạy 0073 mà nhận khoá lạ là
+        // từ chối cả dòng — mọi quy tắc cũ ngừng sinh chỉ vì một cột chúng không dùng.
+        ...(rule.owner && rule.owner !== 'mine' ? { owner: rule.owner } : {}),
+        ...(rule.type === 'transfer' && rule.fund_part_id ? { fund_part_id: rule.fund_part_id } : {}),
       })
       if (ok) created++
     }

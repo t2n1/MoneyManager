@@ -19,6 +19,7 @@ import {
   useRates,
   useRecurringRules,
   useSavingsGoals,
+  useSearchTransactions,
   useTrips,
   useTransferCategoryIds,
 } from '../../hooks/queries'
@@ -47,6 +48,7 @@ import {
 import { monthlySeries } from '../reports/aggregate'
 import { LEVEL_SHIFT_MIN_MONTHS } from './rules/trendRules'
 import { RECENT_TXS_DAYS } from './types'
+import { STREAK_MONTHS, fundAlertsFor } from '../sharedFund/sharedFund'
 import type {
   AppNotification,
   MonthlyExpensePoint,
@@ -208,6 +210,26 @@ export function useNotifications(): UseNotificationsResult {
   const quyenLoi = useQuyenLoi(calendarYearOf(todayISO), todayISO, !!profile)
   const benefits = quyenLoi.ketQua?.ketLuan
 
+  // Quỹ chung (0073): cần CẢ lịch sử của tài khoản quỹ — "còn lại" là luỹ kế — nên một
+  // truy vấn riêng lọc theo đúng tài khoản đó (nhỏ: chỉ dòng tiền của quỹ). Chỉ chạy khi
+  // đã bật hai người và đặt quỹ; không thì luật im và không có gì phải chờ.
+  const fundId = profile?.couple_mode ? (profile.shared_fund_account_id ?? null) : null
+  const fundQ = useSearchTransactions(
+    { start: '1900-01-01', end: addDaysISO(todayISO, 1), accountIds: fundId ? [fundId] : [] },
+    !!fundId,
+  )
+  const sharedFund = useMemo(() => {
+    if (!fundId || !fundQ.data) return undefined
+    const thisMonth = monthKeyForDate(todayISO, monthStartDay)
+    const done = Array.from({ length: STREAK_MONTHS }, (_, i) =>
+      getMonthRange(addMonths(thisMonth, i - STREAK_MONTHS), monthStartDay),
+    )
+    return {
+      alerts: fundAlertsFor(fundQ.data, fundId, categories, getMonthRange(thisMonth, monthStartDay), done),
+      currency: currencyOf(fundId),
+    }
+  }, [fundId, fundQ.data, todayISO, monthStartDay, categories, currencyOf])
+
   /**
    * Chuỗi chi theo tháng cho luật điểm gãy (§4.9).
    *
@@ -297,6 +319,7 @@ export function useNotifications(): UseNotificationsResult {
         monthlyExpense,
         lifetime,
         benefits,
+        sharedFund,
         offTypes,
       })
     } catch (error) {
@@ -328,6 +351,7 @@ export function useNotifications(): UseNotificationsResult {
     monthlyExpense,
     lifetime,
     benefits,
+    sharedFund,
     offTypes,
     privacyOn,
   ])
@@ -389,6 +413,7 @@ export function useNotifications(): UseNotificationsResult {
     // Lỗi hẳn cũng tính là ngã ngũ, cùng lý lẽ với lifetimeOk ở trên: không chặn dọn
     // dẹp mãi mãi vì một query Quyền lợi hỏng.
     benefitsOk: quyenLoi.isReady || quyenLoi.isError,
+    sharedFundOk: !fundId || fundQ.isSuccess || fundQ.isError,
     notificationStateOk: stateQ.isSuccess,
   })
 

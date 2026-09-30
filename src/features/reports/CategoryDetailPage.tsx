@@ -21,6 +21,7 @@ import {
   monthKeyString,
   toISODate,
   type MonthKey,
+  formatDateLabel,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { categoryMonthlySeries, sumIncomeExpense } from './aggregate'
@@ -97,6 +98,7 @@ export function CategoryDetailPage() {
   const { data: windowTxs = [], isFetched: txsFetched } = useRangeTransactions(
     windowRange,
     !!profile && !!category,
+    { perspective: 'report' },
   )
 
   const trend = useMemo(
@@ -254,7 +256,7 @@ export function CategoryDetailPage() {
         ) : (
           days.map(([day, txs]) => (
             <section key={day} className="mb-3">
-              <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
+              <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{formatDateLabel(day)}</div>
               <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
                 {txs.map((tx) => (
                   <TransactionItem

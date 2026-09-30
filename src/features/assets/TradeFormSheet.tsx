@@ -10,7 +10,7 @@ import { DateField } from '../../components/DateField'
 import { SectionTitle, SegmentedControl, actionButtonClass } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
 import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { toISODate, formatDateLabel } from '../../lib/dates'
 import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../../lib/signedInt'
 import type { AccountRow, StockTradeKind, StockTradeRow } from '../../types/database.types'
 import { HOSE_SYMBOLS } from './hoseSymbols'
@@ -116,7 +116,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
     if (!trade) return
     if (
       !(await confirmDialog({
-        title: tr('Xóa lệnh {symbol} ngày {date}?', { symbol: trade.symbol, date: trade.traded_on }),
+        title: tr('Xóa lệnh {symbol} ngày {date}?', { symbol: trade.symbol, date: formatDateLabel(trade.traded_on) }),
         danger: true,
         confirmLabel: tr('Xóa'),
       }))

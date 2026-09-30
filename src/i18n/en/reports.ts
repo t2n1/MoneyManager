@@ -538,6 +538,8 @@ const d: Dict = {
   'goal|Mục tiêu': 'Goal',
   'csv|Số tiền đích': 'Destination amount',
   'class|Chưa phân loại': 'Unclassified',
+  'sau cả chuyển tài sản': 'after asset transfers',
+  'Tiền vào {total}, giữ lại {pct} sau cả chuyển tài sản.': 'Money in {total}, kept {pct} after asset transfers.',
 }
 
 export default d

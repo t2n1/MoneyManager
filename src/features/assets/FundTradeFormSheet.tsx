@@ -17,7 +17,7 @@ import {
   useFunds,
   useUpdateFundTrade,
 } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { toISODate, formatDateLabel } from '../../lib/dates'
 import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../../lib/signedInt'
 import type { AccountRow, FundTradeKind, FundTradeRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -129,7 +129,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
       !(await confirmDialog({
         title: tr('Xóa lệnh {fund} ngày {date}?', {
           fund: fundName.get(trade.assoc_fund_cd) ?? trade.assoc_fund_cd,
-          date: trade.traded_on,
+          date: formatDateLabel(trade.traded_on),
         }),
         danger: true,
         confirmLabel: tr('Xóa'),

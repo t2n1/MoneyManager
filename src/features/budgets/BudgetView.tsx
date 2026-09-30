@@ -312,7 +312,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { visual } = useDensity()
   const monthKeyStr = monthKeyString(monthKey)
   const { base } = useRates()
-  const { report, isLoading } = useBudgetReport(monthKey)
+  const { report, isLoading } = useBudgetReport(monthKey, { perspective: 'report' })
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: categories = [] } = useCategories()
   // Dùng chung hook với màn Báo cáo — hai màn phải ra CÙNG một con số cho cùng một tháng.
@@ -902,9 +902,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             type="button"
             onClick={() => openLimit(id)}
             aria-expanded={hasLimit(id) ? sliderOpen : undefined}
-            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
+            className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center gap-x-2 text-left"
           >
-            <span className="min-w-0 flex-1 text-sm font-medium text-fg-primary">
+            {/* Sàn `min-w-28` + `flex-wrap` (design-system §13): ở 375px cỡ chữ 1,25× thanh
+                và ô "còn ¥…" nở theo rem, tên bị bóp còn "🍜 Ăn…". Có sàn thì cụm số
+                xuống hàng dưới thay vì ăn vào tên; ở cỡ thường vẫn đủ một hàng. */}
+            <span className="min-w-28 flex-1 text-sm font-medium text-fg-primary">
               <span className="block truncate">
                 {item.cat.icon} {categoryLabel(item.cat.name)}
                 {/* Meta ("trần nhóm" / "3 mục con") chỉ từ sm: ở 375px nó tranh chỗ với
@@ -923,13 +926,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 </span>
               )}
             </span>
-            <ProgressBar
-              ratio={budgetBarRatio(spent, budgeted)}
-              status={status}
-              pace={paceMark}
-              className="w-12 shrink-0 sm:w-24"
-            />
-            <RestCell budgeted={budgeted} spent={spent} status={status} base={base} />
+            <span className="ml-auto flex shrink-0 items-center gap-2">
+              <ProgressBar
+                ratio={budgetBarRatio(spent, budgeted)}
+                status={status}
+                pace={paceMark}
+                className="w-12 shrink-0 sm:w-24"
+              />
+              <RestCell budgeted={budgeted} spent={spent} status={status} base={base} />
+            </span>
           </button>
         </div>
         {sliderOpen && <LimitSlider {...sliderPropsFor(id)} />}

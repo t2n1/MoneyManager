@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
-import { amountDisplay, sumInBase, sumPerCurrency, uncategorizedAmount } from './ledgerShared'
+import { amountDisplay, splitExpense, sumInBase, sumPerCurrency, uncategorizedAmount } from './ledgerShared'
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165 }
@@ -58,6 +58,35 @@ describe('sumInBase', () => {
   it('hoàn tiền không đụng vào thu', () => {
     const txs = [tx({ type: 'income', amount: 1_000 }), tx({ type: 'expense', amount: 400, is_refund: true })]
     expect(sumInBase(txs, 'income', currencyOf, 'JPY', RATES)?.value).toBe(1_000)
+  })
+})
+
+describe('splitExpense', () => {
+  const REMIT = new Set(['remit'])
+
+  // Sổ từng gộp Gửi tiền về VN vào ô Chi: cùng tháng Sổ ghi ¥120,930, Bản tin/Báo cáo ¥90,930.
+  it('tách khoản thuộc danh mục chuyển tài sản khỏi chi tiêu', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 90_930, category_id: 'food' }),
+      tx({ type: 'expense', amount: 30_000, category_id: 'remit' }),
+      tx({ type: 'income', amount: 578_280, category_id: 'remit' }),
+    ]
+    const r = splitExpense(txs, REMIT, currencyOf, 'JPY', RATES)
+    expect(r.spending?.value).toBe(90_930)
+    expect(r.moved?.value).toBe(30_000)
+  })
+
+  it('khoản chưa phân loại vẫn là chi tiêu', () => {
+    const r = splitExpense([tx({ type: 'expense', amount: 500 })], REMIT, currencyOf, 'JPY', RATES)
+    expect(r.spending?.value).toBe(500)
+    expect(r.moved?.value).toBe(0)
+  })
+
+  it('thiếu tỷ giá ở vế chuyển tài sản → null vế đó, không quy 1:1', () => {
+    const txs = [tx({ type: 'expense', amount: 1_650_000, account_id: 'vnd', category_id: 'remit' })]
+    const r = splitExpense(txs, REMIT, currencyOf, 'JPY', { JPY: 1 })
+    expect(r.moved).toBeNull()
+    expect(r.spending?.value).toBe(0)
   })
 })
 

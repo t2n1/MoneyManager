@@ -49,7 +49,7 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
   const { data: profile } = useProfile()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const { data: monthTxs = [] } = useMonthTransactions(monthKey, { perspective: 'report' })
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
 
@@ -76,6 +76,7 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
   const { data: baseTxs = [] } = useRangeTransactions(
     baseRange,
     !!profile && isCurrentMonth,
+    { perspective: 'report' },
   )
 
   return useMemo(() => {

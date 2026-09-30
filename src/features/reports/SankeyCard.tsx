@@ -161,7 +161,18 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
               // E-ink + Gọn: bỏ vế "vì sao" — con số ngay trước đã nói.
               why: <span className="eink-gon:hidden">{tr(', vì kỳ này chi nhiều hơn thu')}</span>,
             })
-          : trn('Tiền vào {total}, giữ lại {pct}.', {
+          : // Khác % "Không tiêu" đầu trang đúng ở vế "sau cả chuyển tài sản" — nói ra, không để
+            // người đọc tự dò.
+            nodes.some((n) => n.id === 'tier:transfer')
+            ? trn('Tiền vào {total}, giữ lại {pct} sau cả chuyển tài sản.', {
+                total: <b>{money(total)}</b>,
+                pct: (
+                  <b className="text-money-in">
+                    <Num>{pctOf(nodes, 'tier:kept')}</Num>%
+                  </b>
+                ),
+              })
+            : trn('Tiền vào {total}, giữ lại {pct}.', {
               total: <b>{money(total)}</b>,
               pct: (
                 <b className="text-money-in">

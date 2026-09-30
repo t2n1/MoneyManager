@@ -5,6 +5,7 @@ import {
   useAccounts,
   useCategories,
   useCreateRecurringRule,
+  useProfile,
   useRecurringRuleTags,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
@@ -21,6 +22,7 @@ import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
 import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
+import { fundLegOf, fundPartOptions, partnerLabel } from '../sharedFund/labels'
 
 const TYPE_TABS: { value: TransactionType; label: string }[] = [
   { value: 'expense', label: tr('Chi') },
@@ -87,6 +89,11 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const [remindDays, setRemindDays] = useState(String(rule?.remind_days_before ?? 0))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Góp quỹ chung cố định (migration 0073): người góp + phần góp chép xuống từng kỳ.
+  const { data: profile } = useProfile()
+  const [owner, setOwner] = useState<'mine' | 'partner'>(rule?.owner === 'partner' ? 'partner' : 'mine')
+  const [fundPartId, setFundPartId] = useState<string | null>(rule?.fund_part_id ?? null)
+  const fundParts = useMemo(() => fundPartOptions(categories, fundPartId), [categories, fundPartId])
 
   // Tài khoản chọn được: đang hoạt động + tài khoản của rule đang sửa (kể cả đã
   // lưu trữ) — nếu không, form sửa sẽ âm thầm gán rule sang tài khoản khác.
@@ -114,6 +121,12 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+  const fundLeg = fundLegOf(
+    type === 'transfer' && !!profile?.couple_mode,
+    profile?.shared_fund_account_id,
+    effectiveAccountId,
+    toAccountId,
+  )
 
   const canSave =
     amount > 0 &&
@@ -153,6 +166,13 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         remind_days_before: mode === 'remind' ? Number(remindDays) || 0 : 0,
         tag_ids: effectiveTagIds,
         is_refund: type === 'expense' && isRefund,
+        // Hai cột 0073 CHỈ gửi khi quy tắc chạm quỹ (hoặc gỡ khỏi quỹ một quy tắc vốn là
+        // góp): DB chưa chạy 0073 mà nhận khoá lạ là từ chối cả quy tắc thường.
+        ...(fundLeg
+          ? { fund_part_id: fundPartId, owner: fundLeg === 'in' ? owner : 'mine' }
+          : rule?.fund_part_id || (rule?.owner && rule.owner !== 'mine')
+            ? { fund_part_id: null, owner: 'mine' as const }
+            : {}),
       }
       if (rule) await update.mutateAsync({ id: rule.id, patch: input })
       else await create.mutateAsync(input)
@@ -247,6 +267,50 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               />
             </div>
           </>
+        )}
+
+        {/* Quỹ chung (migration 0073) — góp cố định hằng tháng là quy tắc loại này. */}
+        {fundLeg && (
+          <div className="mb-3 flex flex-col gap-3">
+            <div>
+              <label htmlFor={`${uid}-part`} className="mb-1 block text-sm font-medium text-fg-muted">
+                {fundLeg === 'in' ? tr('Góp cho phần') : tr('Rút từ phần')}
+              </label>
+              <Select
+                id={`${uid}-part`}
+                value={fundPartId ?? ''}
+                onChange={(e) => setFundPartId(e.target.value || null)}
+                wrapClassName="w-full"
+              >
+                <option value="">{tr('Chưa gán phần')}</option>
+                {fundParts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {fundLeg === 'in' && (
+              <div>
+                <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ai góp')}</span>
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-surface-sunken p-1">
+                  {(['mine', 'partner'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setOwner(v)}
+                      aria-pressed={owner === v}
+                      className={`min-h-11 rounded-md py-1.5 text-sm font-medium transition ${
+                        owner === v ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-muted'
+                      }`}
+                    >
+                      {v === 'mine' ? tr('Mình') : partnerLabel(profile)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Danh mục (ẩn khi chuyển khoản) */}

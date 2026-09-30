@@ -77,7 +77,15 @@ export function outflowTiers(
       amount: transfer,
       pct: pct(transfer),
     },
-    { key: 'kept', label: tr('Phần để lại'), note: '', amount: kept, pct: pct(kept) },
+    // Có chuyển tài sản thì % này THẤP hơn ô "Không tiêu" (chỉ trừ chi tiêu) — ghi rõ, không
+    // thì 79% đứng cạnh 84% đọc như app tự mâu thuẫn.
+    {
+      key: 'kept',
+      label: tr('Phần để lại'),
+      note: transfer > 0 ? tr('sau cả chuyển tài sản') : '',
+      amount: kept,
+      pct: pct(kept),
+    },
   ]
 }
 

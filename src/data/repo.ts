@@ -207,6 +207,8 @@ export interface NewTransaction {
   is_refund?: boolean
   /** Ai chi khoản này (migration 0064). Bỏ trống = 'mine'. */
   owner?: TxOwner
+  /** Khoản góp quỹ chung: góp cho phần (danh mục chi) nào (migration 0073). Chỉ trên chuyển khoản. */
+  fund_part_id?: string | null
   /** Nhãn gắn kèm (ghi đè toàn bộ nhãn hiện có khi patch). Bỏ trống = không đổi. */
   tag_ids?: string[]
 }
@@ -344,6 +346,9 @@ export type ProfilePatch = Partial<
     // Cách trình bày Gọn/Đầy đủ (migration 0040)
     | 'density_pref'
     | 'couple_mode'
+    // Quỹ chung hai người (migration 0073)
+    | 'partner_name'
+    | 'shared_fund_account_id'
     // Năm đã khai khấu trừ người phụ thuộc ở nước ngoài (migration 0056).
     | 'fuyo_claimed_years'
   >
@@ -425,6 +430,10 @@ export interface NewRecurringRule {
   is_refund?: boolean
   /** Chỉ dùng với mode = 'remind'; bỏ trống = 0 (nhắc đúng ngày đến hạn). */
   remind_days_before?: number
+  /** Ai góp/chi (migration 0073); engine chép xuống từng kỳ. Bỏ trống = 'mine'. */
+  owner?: TxOwner
+  /** Phần quỹ chung của khoản góp định kỳ (migration 0073). Chỉ trên chuyển khoản. */
+  fund_part_id?: string | null
 }
 
 export type RecurringRulePatch = Partial<

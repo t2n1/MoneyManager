@@ -13,7 +13,7 @@ export function useChiChuaGhi(monthKey: MonthKey): ChiChuaGhi {
   const { base, rates } = useRates()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const { data: monthTxs = [] } = useMonthTransactions(monthKey, { perspective: 'report' })
 
   return useMemo(
     () => tinhChiChuaGhi(monthTxs, categories, accounts, base, rates ?? {}),

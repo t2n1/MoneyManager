@@ -117,7 +117,7 @@ export function DecideView() {
     }),
     [months, monthStartDay],
   )
-  const txQ = useRangeTransactions(range, !!profile)
+  const txQ = useRangeTransactions(range, !!profile, { perspective: 'report' })
   const { data: txs = [] } = txQ
   // Cả tab chờ ĐỦ nguồn. Bản trước chỉ chờ giao dịch: nợ / số dư / mục tiêu về sau thì vài
   // giây đầu trang in "Tiền mặt đã đủ trả hết nợ tới hạn", "Không có gì cần đổi", "Chưa có

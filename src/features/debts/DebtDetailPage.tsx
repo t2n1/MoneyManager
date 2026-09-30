@@ -19,6 +19,7 @@ import { debtBalance, disbursedOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
 import { Card, EmptyState, Money, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
+import { formatDateLabel } from '../../lib/dates'
 import { tr } from '../../i18n'
 
 export function DebtDetailPage() {
@@ -164,7 +165,7 @@ export function DebtDetailPage() {
                 paid: formatMoney(paid, debt.currency),
               })}
         </p>
-        {debt.due_on && <p className="mt-1 text-sm text-fg-muted">{tr('Hạn: {date}', { date: debt.due_on })}</p>}
+        {debt.due_on && <p className="mt-1 text-sm text-fg-muted">{tr('Hạn: {date}', { date: formatDateLabel(debt.due_on) })}</p>}
         {debt.note && <p className="mt-1 text-sm text-fg-secondary">{debt.note}</p>}
       </Card>
 
@@ -242,7 +243,7 @@ export function DebtDetailPage() {
                   )}
                 </p>
                 <p className="truncate text-sm text-fg-muted">
-                  {p.paid_on}
+                  {formatDateLabel(p.paid_on)}
                   {p.note && ` · ${p.note}`}
                 </p>
               </div>

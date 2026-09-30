@@ -161,6 +161,30 @@ describe('runRecurringCatchUp — cờ hoàn tiền (migration 0043)', () => {
   })
 })
 
+describe('runRecurringCatchUp — góp quỹ chung (migration 0073)', () => {
+  const gop = { type: 'transfer' as const, category_id: null, to_account_id: 'quy' }
+
+  it('kỳ sinh ra mang người góp và phần góp của quy tắc', async () => {
+    const f = makeFakeRepo([makeRule({ ...gop, owner: 'partner', fund_part_id: 'nha' })])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.length).toBe(3)
+    expect(f.inserted.every((i) => i.owner === 'partner' && i.fund_part_id === 'nha')).toBe(true)
+  })
+
+  // DB chưa chạy 0073 từ chối cả dòng mang khoá lạ → quy tắc cũ phải KHÔNG mang khoá nào.
+  it('quy tắc thường không gửi hai cột mới', async () => {
+    const f = makeFakeRepo([makeRule()])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.every((i) => !('owner' in i) && !('fund_part_id' in i))).toBe(true)
+  })
+
+  it('phần góp trên quy tắc không phải chuyển khoản bị bỏ (DB chỉ nhận trên chuyển khoản)', async () => {
+    const f = makeFakeRepo([makeRule({ fund_part_id: 'nha' })])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.every((i) => !('fund_part_id' in i))).toBe(true)
+  })
+})
+
 describe('runRecurringCatchUp', () => {
   it('sinh đủ các kỳ lỡ với đúng ngày quá khứ + cập nhật last_generated_on', async () => {
     const f = makeFakeRepo([makeRule()])

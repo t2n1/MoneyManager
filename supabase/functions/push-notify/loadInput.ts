@@ -18,6 +18,8 @@ import {
   earliestNeededDate,
   fetchAllPages,
   FURUSATO_CATEGORY_NAME,
+  fundAlertsFor,
+  STREAK_MONTHS,
   IRYOHI_CATEGORY_NAMES,
   getMonthRange,
   missingRateCurrencies,
@@ -313,6 +315,32 @@ export async function loadNotificationInput(
     fmt: (n: number) => serverFormatMoney(n, 'JPY'),
   }).ketLuan
 
+  // --- Quỹ chung (0073) --- cả lịch sử của tài khoản quỹ ("còn lại" là luỹ kế), chỉ khi
+  // đã bật hai người và đặt quỹ. Cùng `fundAlertsFor` với trình duyệt (useNotifications.ts).
+  const fundId: string | null = profile.couple_mode ? (profile.shared_fund_account_id ?? null) : null
+  let sharedFund: Row = undefined
+  if (fundId) {
+    const fundTxs = await fetchAllPages<Row>((from: number, to: number) =>
+      sb
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .lt('occurred_on', addDaysISO(todayISO, 1))
+        .or(`account_id.eq.${fundId},to_account_id.eq.${fundId}`)
+        .order('occurred_on', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, to),
+    )
+    const thisMonth = monthKeyForDate(todayISO, monthStartDay)
+    const done = Array.from({ length: STREAK_MONTHS }, (_: unknown, i: number) =>
+      getMonthRange(addMonths(thisMonth, i - STREAK_MONTHS), monthStartDay),
+    )
+    sharedFund = {
+      alerts: fundAlertsFor(fundTxs, fundId, categories, getMonthRange(thisMonth, monthStartDay), done),
+      currency: currencyOf(fundId),
+    }
+  }
+
   return {
     ok: true,
     input: {
@@ -334,6 +362,7 @@ export async function loadNotificationInput(
       recentTxs,
       lifetime,
       benefits,
+      sharedFund,
       offTypes: profile.notif_off ?? [],
     },
   }

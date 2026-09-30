@@ -71,9 +71,9 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   const vang = useMemo(() => ngayDiVang(trips), [trips])
   const r = rates ?? {}
   const { data: accounts = [] } = useAccounts()
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const { data: monthTxs = [] } = useMonthTransactions(monthKey, { perspective: 'report' })
   const { data: categories = [] } = useCategories()
-  const { report } = useBudgetReport(monthKey)
+  const { report } = useBudgetReport(monthKey, { perspective: 'report' })
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base

@@ -38,6 +38,7 @@ import {
   monthKeyForDate,
   toISODate,
   type MonthKey,
+  formatDateLabel,
 } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
@@ -753,7 +754,7 @@ export function AccountDetailPage() {
                     currency={currency}
                     className="text-sm font-medium"
                   />
-                  <span className="ml-2 text-sm text-fg-muted">{v.valued_on}</span>
+                  <span className="ml-2 text-sm text-fg-muted">{formatDateLabel(v.valued_on)}</span>
                   {v.note && <span className="block truncate text-sm text-fg-muted">{v.note}</span>}
                 </div>
                 <IconButton
@@ -1009,7 +1010,7 @@ export function AccountDetailPage() {
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
+            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{formatDateLabel(day)}</div>
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem

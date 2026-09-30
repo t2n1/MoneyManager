@@ -113,7 +113,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v18' // v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
+export const STORAGE_KEY = 'sct-demo-db-v20' // v20: rút tiền mặt hằng tháng. v19: lệnh つみたて khớp tiền Nạp NISA. v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
 const DEMO_USER = 'demo-user'
 
 /**
@@ -123,7 +123,9 @@ const DEMO_USER = 'demo-user'
  * Không có chốt này, demo nhận cả những dòng Postgres từ chối → bug chỉ nổ ở
  * bản thật, còn test và kiểm tra tay trên demo thì xanh.
  */
-function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount'>) {
+function assertTxShape(
+  input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount' | 'fund_part_id'>,
+) {
   if (input.type === 'transfer') {
     if (!input.to_account_id) throw new Error(tr('Chuyển khoản phải có tài khoản đích'))
     if (input.to_account_id === input.account_id)
@@ -131,6 +133,8 @@ function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'acc
     if (input.category_id) throw new Error(tr('Chuyển khoản không mang danh mục'))
     return
   }
+  // Check transactions_fund_part_transfer_only (0073).
+  if (input.fund_part_id) throw new Error(tr('Chỉ chuyển khoản mới góp được vào quỹ chung'))
   if (!input.category_id) throw new Error(tr('Giao dịch thu/chi phải có danh mục'))
   if (input.to_account_id || input.to_amount)
     throw new Error(tr('Giao dịch thu/chi không có tài khoản đích'))
@@ -655,6 +659,20 @@ function seed(): DemoDB {
 
       // Ăn uống + đi chợ + đi lại: phần biến đổi, cũng tụt sau cú đổi nếp.
       const bienDoi = (cuNep ? 210_000 : 120_000) + wobble * 4_000
+      // Ăn ngoài + Tàu điện trả bằng tiền mặt (tài khoản mặc định của `tx`). Không rút bù
+      // thì 24 tháng dồn Tiền mặt xuống −¥2 triệu, và Bản tin mở ra luôn có một việc "gấp"
+      // giả. Rút đủ số của tháng (làm tròn lên nghìn) trước ngày chi đầu tiên.
+      const chiTienMat = Math.round(bienDoi * 0.4) + Math.round(bienDoi * 0.15)
+      out.push(
+        tx({
+          type: 'transfer',
+          amount: Math.ceil(chiTienMat / 1_000) * 1_000,
+          occurred_on: monthsAgoISO(i, 5),
+          note: tr('Rút tiền mặt'),
+          account_id: bank.id,
+          to_account_id: cash.id,
+        }),
+      )
       out.push(
         tx({
           type: 'expense',
@@ -882,8 +900,8 @@ function seed(): DemoDB {
       updated_at: '2026-08-12T13:00:00.000Z',
     },
   ]
-  // Đúng hai lệnh mua ngày 約定 2026-04-09 — tái tạo vị thế thật: 70.000 ¥ vốn,
-  // 80.757 ¥ giá trị theo phiên 2026-08-10. Tài khoản NISA (investment/JPY) đã seed ở trên.
+  // Hai lệnh mua ngày 約定 2026-04-09 — tái tạo vị thế thật: 70.000 ¥ vốn,
+  // 80.757 ¥ giá trị theo phiên 2026-08-10 (lệnh つみたて hằng tháng thêm ở dưới). Tài khoản NISA (investment/JPY) đã seed ở trên.
   const idNisaJPY = nisaAcc.id
   const fundTrades: FundTradeRow[] = [
     {
@@ -917,6 +935,44 @@ function seed(): DemoDB {
       updated_at: '2026-04-14T00:00:00.000Z',
     },
   ]
+  // Tiền nạp cho hai lệnh trên — thiếu nó thì số dư sổ NISA thấp hơn giá vốn 70.000 ¥.
+  transactions.push(
+    tx({
+      type: 'transfer',
+      amount: 70_000,
+      occurred_on: '2026-04-09',
+      note: tr('Nạp NISA'),
+      account_id: bank.id,
+      to_account_id: idNisaJPY,
+    }),
+  )
+  // Mỗi lần "Nạp NISA" hằng tháng của lichSu24Thang là một lệnh つみたて cùng ngày, như
+  // Rakuten thật (自動出金 không để tiền nằm lại). Không có lệnh này thì số dư sổ (¥630k
+  // tiền nạp) đứng cạnh một danh mục chỉ ¥70k vốn: ô "lãi đầu tư" của Tài sản — tính
+  // giá trị − số dư sổ — báo lỗ ~¥550k trong khi trang NISA báo lời. 基準価額 dựng tăng
+  // dần tới dưới giá phiên 2026-08-10 để vị thế có lời vừa phải.
+  transactions
+    .filter((t) => t.to_account_id === idNisaJPY && t.note === tr('Nạp NISA') && t.occurred_on !== '2026-04-09')
+    .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
+    .forEach((t, k) => {
+      const nav = 15_600 + k * 300
+      const stamp = `${t.occurred_on}T00:00:00.000Z`
+      fundTrades.push({
+        id: uuid(),
+        user_id: DEMO_USER,
+        account_id: idNisaJPY,
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: t.occurred_on,
+        units: Math.floor((t.amount * 10_000) / nav),
+        nav,
+        amount: t.amount,
+        bucket: 'NISAつみたて投資枠',
+        note: '',
+        created_at: stamp,
+        updated_at: stamp,
+      })
+    })
 
   /**
    * Hai khoản nợ nữa, cố ý dựng để khối 03 tab Quyết định nói được điều nó tồn tại để nói:
@@ -1433,6 +1489,8 @@ export const demoRepo: Repo = {
       throw new Error(tr('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.'))
     if ((db.fundTrades ?? []).some((t) => t.account_id === id))
       throw new Error(tr('Không xóa được: còn sổ lệnh quỹ của tài khoản này.'))
+    // FK `on delete set null (shared_fund_account_id)` của 0073: gỡ cài đặt, không chặn.
+    if (db.profile.shared_fund_account_id === id) db.profile.shared_fund_account_id = null
     db.accounts = db.accounts.filter((a) => a.id !== id)
     save(db)
   },
@@ -2408,6 +2466,9 @@ export const demoRepo: Repo = {
       throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.budgets ?? []).some((b) => ids.has(b.category_id)))
       throw new Error(tr('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.'))
+    // FK `on delete set null (fund_part_id)` của 0073: khoản góp còn đó, chỉ mất phần.
+    for (const t of db.transactions) if (t.fund_part_id && ids.has(t.fund_part_id)) t.fund_part_id = null
+    for (const r of db.recurringRules ?? []) if (r.fund_part_id && ids.has(r.fund_part_id)) r.fund_part_id = null
     db.categories = db.categories.filter((c) => !ids.has(c.id))
     save(db)
   },

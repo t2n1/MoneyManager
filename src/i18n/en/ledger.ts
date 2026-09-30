@@ -633,6 +633,7 @@ const d: Dict = {
   'column|Phân loại': 'Classification',
   'class|Chưa phân loại': 'Unclassified',
   'chip|nhãn': 'label',
+  '+ {amount} chuyển tài sản': '+ {amount} asset transfers',
 }
 
 export default d

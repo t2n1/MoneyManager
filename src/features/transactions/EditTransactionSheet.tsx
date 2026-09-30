@@ -21,6 +21,7 @@ import { toNewTransaction } from './restore'
 import { laKhoanBu } from './splitTransaction'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 import { provenanceLine, txProvenance } from './txProvenance'
+import { realRow } from '../sharedFund/perspective'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
 
@@ -30,7 +31,10 @@ interface Props {
 }
 
 /** Sheet sửa/xóa giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
-export function EditTransactionSheet({ tx, onClose }: Props) {
+export function EditTransactionSheet({ tx: shown, onClose }: Props) {
+  // Danh sách đã qua góc nhìn (Bản tin, Báo cáo) có thể đưa vào một dòng "chi" dựng từ
+  // khoản góp quỹ — form phải sửa DÒNG THẬT (chuyển khoản), không phải bản dựng.
+  const tx = realRow(shown)
   useEscClose(onClose)
   // Focus MỘT LẦN lúc mở. Không dùng ref callback: callback chạy lại mỗi lần render
   // nên đang gõ trong form là bị giật focus ra ngoài.

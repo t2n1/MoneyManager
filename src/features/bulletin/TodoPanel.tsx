@@ -167,6 +167,11 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
           <ul className="mt-2 divide-y divide-border-subtle">
             {items.map((n) => {
               const badge = todoBadge(n, todayISO);
+              const badgeClass = `shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold tabular-nums tracking-label ${
+                badge.urgent
+                  ? "bg-state-warn-bg text-state-warn-fg"
+                  : "bg-surface-sunken text-fg-muted"
+              }`;
               const going = leaving.includes(n.key);
               return (
                 // <li> thành lưới MỘT hàng để co được bằng grid-template-rows: chiều cao `auto`
@@ -198,7 +203,9 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                     Từ lg thì giữ một dòng: ở đó khối nằm cột phải 380px cạnh nội dung
                     chính, và trần 5 việc nghĩa là mỗi dòng cao thêm là cả khối cao thêm
                     năm lần. */}
-                        <span className="block text-sm text-fg-primary line-clamp-2 lg:line-clamp-none lg:truncate">
+                        {/* KHÔNG kèm `block`: line-clamp cần `display: -webkit-box`, `block` đè mất
+                            nên trước đây tiêu đề cứ xuống 4–5 dòng. */}
+                        <span className="text-sm text-fg-primary line-clamp-2 lg:line-clamp-none lg:truncate">
                           {n.title}
                         </span>
                         {/* Dòng NGUỒN — luận điểm chính của 16a: gom mọi kết luận về một chỗ thì
@@ -208,22 +215,24 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                     thứ ba cho mỗi việc là cao thêm gần một nửa. */}
                         {/* E-ink + Gọn: bỏ dòng này — còn tên việc + chip; bấm vào việc vẫn
                             về màn nguồn nên đường quay về không mất. */}
-                        <span className="block truncate text-2xs text-fg-muted eink-gon:hidden">
-                          {tr("Từ {source}", { source: todoSource(n) })}
-                          {n.detail && ` — ${n.detail}`}
+                        <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                          <span className={`lg:hidden ${badgeClass}`}>
+                            {badge.text}
+                          </span>
+                          <span className="min-w-0 truncate text-2xs text-fg-muted eink-gon:hidden">
+                            {tr("Từ {source}", { source: todoSource(n) })}
+                            {n.detail && ` — ${n.detail}`}
+                          </span>
                         </span>
                       </span>
                       {/* Nhãn hạn/loại ĐỨNG PHẢI, không đứng trái như mock: ở đây bên trái đã có
                   StatusDot mang mức độ, mà hai huy hiệu cạnh nhau thì không ai biết cái
                   nào là cái phải đọc trước. Bên phải nó nằm cùng cột với chevron, thành
                   một cột "trạng thái" đọc dọc được. */}
-                      <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold tabular-nums tracking-label ${
-                          badge.urgent
-                            ? "bg-state-warn-bg text-state-warn-fg"
-                            : "bg-surface-sunken text-fg-muted"
-                        }`}
-                      >
+                      {/* Chỉ từ lg. Dưới lg nhãn xuống dòng nguồn (xem trên): ở 375px cột phải
+                  "1189 NGÀY" + chevron + nút ẩn ăn gần nửa bề ngang, và ở cỡ chữ 1,25×
+                  tiêu đề còn ~90px — một hai chữ mỗi dòng. */}
+                      <span className={`hidden lg:inline ${badgeClass}`}>
                         {badge.text}
                       </span>
                       <ChevronRight

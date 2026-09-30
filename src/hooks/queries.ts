@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { NewCardBill, NewLifetimeVerdictSnapshot } from '../data/repo'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -47,6 +47,8 @@ import type { TransactionRow } from '../types/database.types'
 import { runRecurringCatchUp } from '../lib/recurring'
 import { runCardAutopayCatchUp } from '../lib/cardAutopay'
 import { useProfile } from './useProfile'
+import { usePerspective } from './usePerspective'
+import { applyPerspective, type PerspectiveMode } from '../features/sharedFund/perspective'
 
 export { useProfile }
 
@@ -200,25 +202,56 @@ export function useUpsertLifetimeVerdictSnapshot() {
   })
 }
 
+/**
+ * Tuỳ chọn GÓC NHÌN (Cả nhà / Mình / người kia) cho hai hook giao dịch dưới.
+ *
+ * OPT-IN, mặc định tắt: chỉ màn nào tự xin (Bản tin, Sổ, Ngân sách, Báo cáo) mới thấy sổ
+ * đã lọc theo người. Mọi nơi còn lại — chuông thông báo (phải khớp push phía server), Tài
+ * sản (số dư là của tài khoản, không của người), sao lưu, chống nhập trùng CSV — cần NGUYÊN
+ * sổ, và lọc nhầm ở đó là mất dữ liệu hoặc nhập trùng chứ không chỉ sai một con số.
+ *
+ * Làm bằng `select` của React Query: cache vẫn là một bản nguyên sổ theo khoảng ngày, đổi
+ * góc nhìn không tải lại gì.
+ */
+export interface TxViewOpts {
+  /** 'report' = khoản góp quỹ thành chi của phần; 'ledger' = giữ nguyên dòng thật (Sổ). */
+  perspective?: PerspectiveMode
+}
+
+function usePerspectiveSelect(opts?: TxViewOpts) {
+  const { view } = usePerspective()
+  const { data: profile } = useProfile()
+  const fundId = profile?.shared_fund_account_id ?? null
+  const mode = opts?.perspective
+  return useCallback(
+    (rows: TransactionRow[]) => (mode ? applyPerspective(rows, view, fundId, mode) : rows),
+    [mode, view, fundId],
+  )
+}
+
 /** Giao dịch của "tháng" đang xem (tôn trọng month_start_day trong profile). */
-export function useMonthTransactions(monthKey: MonthKey) {
+export function useMonthTransactions(monthKey: MonthKey, opts?: TxViewOpts) {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const range = getMonthRange(monthKey, monthStartDay)
+  const select = usePerspectiveSelect(opts)
   const query = useQuery({
     queryKey: ['transactions', range.start, range.end],
     queryFn: () => repo.listTransactions(range),
     enabled: !!profile,
+    select,
   })
   return { range, ...query }
 }
 
 /** Giao dịch trong một khoảng ngày tùy ý (cho báo cáo nhiều tháng). */
-export function useRangeTransactions(range: DateRange, enabled = true) {
+export function useRangeTransactions(range: DateRange, enabled = true, opts?: TxViewOpts) {
+  const select = usePerspectiveSelect(opts)
   return useQuery({
     queryKey: ['transactions', range.start, range.end],
     queryFn: () => repo.listTransactions(range),
     enabled,
+    select,
     // Dải nhiều tháng của sổ lớn là hàng chục nghìn dòng = cả chục request phân trang.
     // Hạn "tươi" mặc định 30 giây làm MỖI lần mở Bản tin kéo lại từ đầu. 5 phút là đủ:
     // ghi/sửa/xóa giao dịch vẫn tươi NGAY vì mọi mutation đã invalidate ['transactions'].
@@ -1207,7 +1240,7 @@ export function useDeleteMonthPlan() {
 }
 
 /** Kết hợp budgets + giao dịch tháng + tỷ giá → báo cáo tiến độ ngân sách. */
-export function useBudgetReport(monthKey: MonthKey): {
+export function useBudgetReport(monthKey: MonthKey, opts?: TxViewOpts): {
   report: BudgetReport | undefined
   isLoading: boolean
   /**
@@ -1224,10 +1257,10 @@ export function useBudgetReport(monthKey: MonthKey): {
   const monthKeyStr = monthKeyString(monthKey)
   const prevMonthKey = addMonths(monthKey, -1)
   const budgetsQ = useBudgets(monthKeyStr)
-  const { data: monthTxs, isLoading: txLoading, isSuccess: txOk } = useMonthTransactions(monthKey)
+  const { data: monthTxs, isLoading: txLoading, isSuccess: txOk } = useMonthTransactions(monthKey, opts)
   // Dồn hạn mức (mục AH): cần budgets + giao dịch tháng trước để tính phần chưa tiêu
   const prevBudgetsQ = useBudgets(monthKeyString(prevMonthKey))
-  const { data: prevMonthTxs, isSuccess: prevTxOk } = useMonthTransactions(prevMonthKey)
+  const { data: prevMonthTxs, isSuccess: prevTxOk } = useMonthTransactions(prevMonthKey, opts)
   const accountsQ = useAccounts()
   const categoriesQ = useCategories()
   const { data: accounts = [] } = accountsQ

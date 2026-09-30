@@ -12,6 +12,7 @@ import { formatRateLine } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
 import { CoupleToggle } from './CoupleToggle'
 import { CompactNumberToggle } from './CompactNumberToggle'
+import { LanguageToggle } from './LanguageToggle'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
@@ -129,6 +130,8 @@ export function SettingsPage() {
           `auto-fit` + `minmax(19rem, …)` thì thẻ tự xếp: hẹp một cột, rộng hai–ba cột, và
           thẻ Tỷ giá vắng mặt cũng không để lại lỗ hổng nào. rem chứ px (§13). */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(19rem,1fr))] items-start gap-3">
+          <LanguageToggle />
+
           <ThemeToggle />
 
           <DensityToggle />

@@ -18,7 +18,7 @@ import type { DayTagCells, TagDayRow } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
 import { TAG_HEX, tagColor } from '../tags/colors'
 import { AXIS_CAP, AXIS_GAP, AXIS_LEAD, AXIS_TOTAL, CELL_GAP_PX } from './dayAxisCols'
-import { tr } from '../../i18n'
+import { tagGroupLabel, tagLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -75,7 +75,7 @@ function TagRow({
           style={{ backgroundColor: hex }}
           aria-hidden
         />
-        <span className="truncate text-2xs text-fg-secondary">{row.name}</span>
+        <span className="truncate text-2xs text-fg-secondary">{tagLabel(row.name)}</span>
       </span>
 
       {/* Ô rời, mỗi ngày một ô, THẲNG chỉ số với `days`. Ẩn dưới md: ở 375px mỗi ô rộng
@@ -96,12 +96,12 @@ function TagRow({
             <Link
               key={day.date}
               to={`/search?tags=${encodeURIComponent(row.tagId)}&from=${day.date}&to=${day.date}`}
-              title={`${row.name} · ${dayLabel(day.date)}`}
+              title={`${tagLabel(row.name)} · ${dayLabel(day.date)}`}
               className="h-2 min-w-0 flex-1 rounded-[2px] outline-offset-1 hover:brightness-125"
               style={{ backgroundColor: v < 0 ? 'var(--money-in)' : hex }}
             >
               <span className="sr-only">
-                {row.name} {dayLabel(day.date)}
+                {tagLabel(row.name)} {dayLabel(day.date)}
               </span>
             </Link>
           )
@@ -173,7 +173,7 @@ export function DayTagStrip({
                 <span
                   className={`text-2xs font-semibold uppercase tracking-label text-fg-muted ${NAME_COL}`}
                 >
-                  {g.title}
+                  {tagGroupLabel(g.title)}
                 </span>
                 <span className="hidden h-px flex-1 bg-border-subtle md:block" aria-hidden />
               </div>

@@ -34,6 +34,9 @@ function categoryLabel(name) {
 function accountLabel(name) {
   return dataLabel("acc", name);
 }
+function tagLabel(name) {
+  return dataLabel("tag", name);
+}
 function dataLabel(prefix, name) {
   if (lang === "vi") return name;
   const hit = dict[`${prefix}|${name}`];
@@ -1008,7 +1011,7 @@ function tagRules(input) {
       kind: "action",
       type: "tag-budget-over",
       severity: "medium",
-      title: tr('Nh\xE3n "{name}" v\u01B0\u1EE3t tr\u1EA7n {amount}', { name: l.name, amount: input.formatMoney(over, input.base) }),
+      title: tr('Nh\xE3n "{name}" v\u01B0\u1EE3t tr\u1EA7n {amount}', { name: tagLabel(l.name), amount: input.formatMoney(over, input.base) }),
       detail: l.period === "monthly" ? tr("Th\xE1ng n\xE0y {spent} / tr\u1EA7n {budget}.", {
         spent: input.formatMoney(Math.round(l.spent), input.base),
         budget: input.formatMoney(l.budget, input.base)

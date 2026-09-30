@@ -10,7 +10,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import type { TagBreakdown } from '../tags/aggregate'
 import { Card, SectionTitle } from '../../components/ui'
-import { tr } from '../../i18n'
+import { tagLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -89,14 +89,14 @@ export function TagBreakdownCard({
           <li key={s.tagId}>
             <Link
               to={`/search?tags=${encodeURIComponent(s.tagId)}&from=${rangeFrom}&to=${rangeTo}`}
-              aria-label={tr('Xem {n} khoản mang nhãn {name}', { n: s.count, name: s.name })}
+              aria-label={tr('Xem {n} khoản mang nhãn {name}', { n: s.count, name: tagLabel(s.name) })}
               className="block rounded-lg py-1 transition active:scale-[0.99] hover:bg-surface-sunken"
             >
               <div className="flex items-center justify-between gap-2">
                 <span
                   className={`min-w-0 truncate rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(s.color)]}`}
                 >
-                  {s.name}
+                  {tagLabel(s.name)}
                 </span>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                   {money(s.amount)}

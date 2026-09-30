@@ -43,7 +43,7 @@ import { useEscClose } from '../../hooks/useEscClose'
 import type { BudgetStatus } from '../budgets/progress'
 import { tagSpendTotals, type TagBudgetLine } from './budget'
 import { useTagBudgets } from './useTagBudgets'
-import { tr } from '../../i18n'
+import { tagGroupLabel, tagLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 import { QuickSortStrip, readQuickSortDone, writeQuickSortDone } from './QuickSortStrip'
@@ -204,7 +204,7 @@ export function TagsPage() {
   async function removeGroup(id: string, name: string) {
     const inGroup = tags.filter((t) => t.group_id === id).length
     const ok = await confirmDialog({
-      title: tr('Xóa nhóm "{name}"?', { name }),
+      title: tr('Xóa nhóm "{name}"?', { name: tagGroupLabel(name) }),
       message:
         inGroup > 0
           ? tr('{n} nhãn đang ở nhóm này. Nhãn KHÔNG bị xóa — chúng chuyển sang mục "Khác", giao dịch và trần chi giữ nguyên.', { n: inGroup })
@@ -214,7 +214,7 @@ export function TagsPage() {
     })
     if (!ok) return
     await deleteGroup.mutateAsync(id)
-    showToast(tr('Đã xóa nhóm "{name}"', { name }))
+    showToast(tr('Đã xóa nhóm "{name}"', { name: tagGroupLabel(name) }))
   }
 
   async function remove(t: TagRow) {
@@ -223,7 +223,7 @@ export function TagsPage() {
     // một số chưa có là hỏi sai. Nút Xóa đã tắt trong lúc này; dòng này chặn nốt.
     if (used === null && !demLoi) return
     const ok = await confirmDialog({
-      title: tr('Xóa nhãn "{name}"?', { name: t.name }),
+      title: tr('Xóa nhãn "{name}"?', { name: tagLabel(t.name) }),
       message:
         used === null
           ? tr('Không đếm được số giao dịch đang mang nhãn này. Mọi giao dịch mang nó vẫn giữ nguyên, nhưng sẽ MẤT nhãn. Chỉ muốn dẹp nó khỏi form nhập thì bấm Lưu trữ thay vì Xóa.')
@@ -236,13 +236,13 @@ export function TagsPage() {
     if (!ok) return
     await deleteTag.mutateAsync(t.id)
     setEditing(null)
-    showToast(tr('Đã xóa nhãn "{name}"', { name: t.name }))
+    showToast(tr('Đã xóa nhãn "{name}"', { name: tagLabel(t.name) }))
   }
 
   function setArchived(t: TagRow, is_archived: boolean) {
     updateTag.mutate({ id: t.id, patch: { is_archived } })
     setEditing(null)
-    showToast(is_archived ? tr('Đã lưu trữ nhãn "{name}"', { name: t.name }) : tr('Đã dùng lại nhãn "{name}"', { name: t.name }))
+    showToast(is_archived ? tr('Đã lưu trữ nhãn "{name}"', { name: tagLabel(t.name) }) : tr('Đã dùng lại nhãn "{name}"', { name: tagLabel(t.name) }))
   }
 
   /** Ô cột "Trần" — thanh tiến độ + một dòng chữ, hoặc gạch ngang khi chưa đặt. */
@@ -300,7 +300,7 @@ export function TagsPage() {
               TAG_CHIP_CLASS[tagColor(t.color)]
             } ${t.is_archived ? 'opacity-75' : ''}`}
           >
-            {t.name}
+            {tagLabel(t.name)}
           </span>
           {/* Dòng phụ chỉ ở điện thoại — từ `lg` hai con số này đã là hai cột. */}
           <span className="text-2xs text-fg-muted lg:hidden">
@@ -341,23 +341,25 @@ export function TagsPage() {
       <div className="flex items-center gap-2 border-b border-border-panel bg-surface-chrome px-3 py-1.5">
         {s.groupId ? (
           <input
-            defaultValue={s.title}
+            // Ô hiện TÊN HIỂN THỊ (chế độ Anh: "With whom?" cho nhóm mặc định "Với ai?"), và chỉ
+            // ghi DB khi người dùng gõ khác đi — rời ô mà không sửa thì tên gốc trong DB giữ nguyên.
+            defaultValue={tagGroupLabel(s.title)}
             onBlur={async (e) => {
               const name = e.target.value.trim()
               const input = e.target
-              if (name && name !== s.title) {
+              if (name && name !== tagGroupLabel(s.title)) {
                 setGroupError(null)
                 try {
                   await updateGroup.mutateAsync({ id: s.groupId!, patch: { name } })
                 } catch (err) {
                   setGroupError(err instanceof Error ? err.message : tr('Không đổi được tên nhóm'))
-                  input.value = s.title
+                  input.value = tagGroupLabel(s.title)
                 }
               } else {
-                input.value = s.title
+                input.value = tagGroupLabel(s.title)
               }
             }}
-            aria-label={tr('Tên nhóm {name}', { name: s.title })}
+            aria-label={tr('Tên nhóm {name}', { name: tagGroupLabel(s.title) })}
             className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xs uppercase tracking-label text-fg-muted hover:border-border-strong"
           />
         ) : (
@@ -380,7 +382,7 @@ export function TagsPage() {
         {s.groupId && (
           <IconButton
             variant="ghost"
-            aria-label={tr('Xóa nhóm {name}', { name: s.title })}
+            aria-label={tr('Xóa nhóm {name}', { name: tagGroupLabel(s.title) })}
             onClick={() => removeGroup(s.groupId!, s.title)}
             className="hover:text-money-out"
           >
@@ -409,7 +411,7 @@ export function TagsPage() {
             setDraft('')
           }}
         >
-          <Plus className="h-4 w-4" /> {tr('Nhãn')}
+          <Plus className="h-4 w-4" /> {trx('add', 'Nhãn')}
         </ActionButton>
       </PageHeader>
 
@@ -447,7 +449,7 @@ export function TagsPage() {
             <option value="">{tr('— Khác —')}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.name}
+                {tagGroupLabel(g.name)}
               </option>
             ))}
           </Select>
@@ -716,6 +718,13 @@ function TagEditSheet({
           }}
           className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         />
+        {/* Tên lưu DB giữ nguyên; chế độ Anh chỉ ĐỔI CHỮ HIỂN THỊ của tên mặc định — nói ra
+            để người sửa không tưởng tên mình gõ bị đổi mất. */}
+        {tagLabel(name.trim()) !== name.trim() && (
+          <p className="mt-1 text-2xs text-fg-muted">
+            {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: tagLabel(name.trim()) })}
+          </p>
+        )}
 
         <p className="mt-3 text-sm font-medium text-fg-muted">{tr('Màu')}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -724,7 +733,7 @@ function TagEditSheet({
           <span
             className={`mr-1 shrink-0 rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[color]}`}
           >
-            {name.trim() || tag.name}
+            {tagLabel(name.trim() || tag.name)}
           </span>
           {TAG_COLOR_KEYS.map((c) => (
             <button
@@ -756,7 +765,7 @@ function TagEditSheet({
           <option value="">{tr('— Khác —')}</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
-              {g.name}
+              {tagGroupLabel(g.name)}
             </option>
           ))}
         </Select>

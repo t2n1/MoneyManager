@@ -9,7 +9,7 @@
 // Sự khác nhau đó nằm ở tầng repo (setTransactionsCategory vs addTagToTransactions), ở
 // đây chỉ nói ra bằng chữ trên nút.
 import { useState } from 'react'
-import { categoryLabel, tr } from '../../i18n'
+import { categoryLabel, tagLabel, tr } from '../../i18n'
 import { ActionButton, EmptyState, SectionTitle } from '../../components/ui'
 import { showToast } from '../../lib/dialog'
 import { useAddTagToTransactions, useSetTransactionsCategory } from '../../hooks/queries'
@@ -121,12 +121,12 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                   onClick={() =>
                     apply(
                       () => addTag.mutateAsync({ ids, tagId: t.id }),
-                      tr('Đã gắn nhãn {name} cho {n} khoản', { name: t.name, n: ids.length }),
+                      tr('Đã gắn nhãn {name} cho {n} khoản', { name: tagLabel(t.name), n: ids.length }),
                     )
                   }
                   className={`min-h-11 rounded-full px-3 text-sm font-medium transition disabled:opacity-50 ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
                 >
-                  {t.name}
+                  {tagLabel(t.name)}
                 </button>
               ))}
             </div>

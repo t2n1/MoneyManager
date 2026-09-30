@@ -3,7 +3,7 @@
 // Không tự cộng tiền: `input.tagBudgets` đã được tính sẵn ở nơi gọi. Trần kiểu
 // 'total' cần chi CẢ ĐỜI nhãn, mà bộ luật chỉ có `recentTxs` 90 ngày — tự tính ở
 // đây là lặng lẽ ra số nhỏ hơn thật rồi im khi đáng lẽ phải báo.
-import { tr } from '../../../i18n'
+import { tagLabel, tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 export function tagRules(input: NotificationInput): AppNotification[] {
@@ -26,7 +26,7 @@ export function tagRules(input: NotificationInput): AppNotification[] {
       kind: 'action',
       type: 'tag-budget-over',
       severity: 'medium',
-      title: tr('Nhãn "{name}" vượt trần {amount}', { name: l.name, amount: input.formatMoney(over, input.base) }),
+      title: tr('Nhãn "{name}" vượt trần {amount}', { name: tagLabel(l.name), amount: input.formatMoney(over, input.base) }),
       detail:
         l.period === 'monthly'
           ? tr('Tháng này {spent} / trần {budget}.', {

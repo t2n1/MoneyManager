@@ -68,6 +68,11 @@ export type ModuleType =
   | 'networth'
   | 'cumulative'
   | 'assetMix'
+  | 'upcoming'
+  | 'debts'
+  | 'goals'
+  | 'remittance'
+  | 'cardImport'
 
 export interface ModuleView {
   id: string
@@ -109,6 +114,23 @@ export const MODULES: readonly ModuleDef[] = [
   { type: 'accounts', title: tr('Tài khoản'), desc: tr('Tài sản ròng và số dư từng tài khoản.'), fit: 'auto', w: 4, minW: 3, px: 340, single: true },
   { type: 'quyenloi', title: tr('Quyền lợi'), desc: tr('Tình trạng các khoản quyền lợi năm nay.'), fit: 'auto', w: 4, minW: 3, px: 140, single: true },
   { type: 'reliability', title: tr('Độ tin cậy dữ liệu'), desc: tr('Con số trên màn này đáng tin tới đâu.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
+  { type: 'upcoming', title: tr('Sắp tới phải chi'), desc: tr('Khoản định kỳ và khoản sắp chi trong 30 ngày tới, theo ngày.'), fit: 'auto', w: 4, minW: 3, px: 260, single: true },
+  {
+    type: 'debts',
+    title: tr('Nợ / cho vay'),
+    desc: tr('Còn nợ ai bao nhiêu, ai còn nợ mình, đã trả được bao nhiêu phần.'),
+    fit: 'auto', w: 4, minW: 3, px: 240, single: true,
+    views: [V('list', tr('Danh sách')), V('summary', tr('Tổng'))],
+  },
+  { type: 'cardImport', title: tr('Nhập sao kê thẻ'), desc: tr('Thả file CSV sao kê thẻ tín dụng vào là sang thẳng trang nhập; xem mỗi thẻ đã ghi tới ngày nào.'), fit: 'auto', w: 4, minW: 3, px: 260, single: true },
+  { type: 'goals', title: tr('Mục tiêu tiết kiệm'), desc: tr('Tiến độ từng mục tiêu và tháng dự kiến đạt theo đà hiện tại.'), fit: 'auto', w: 4, minW: 3, px: 220, single: true },
+  {
+    type: 'remittance',
+    title: tr('Gửi tiền về nhà'),
+    desc: tr('Số tiền gửi về mỗi tháng trong 12 tháng qua, và tổng năm nay.'),
+    fit: 'fill', w: 6, minW: 3, px: 260, single: true,
+    views: [V('bars', tr('Cột theo tháng')), V('summary', tr('Tổng năm'))],
+  },
   {
     type: 'cashflow',
     title: tr('Thu & chi theo tháng'),

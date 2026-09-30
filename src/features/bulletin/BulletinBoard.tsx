@@ -1,28 +1,38 @@
-// Bảng module của Bản tin — phần VẼ: dải trang, chế độ "Sắp xếp", lưới kéo–thả.
+// Bảng module của Bản tin — phần VẼ: dải trang, lưới kéo–thả, khung từng module.
 //
 // Mô hình và mọi phép biến đổi ở board.ts (thuần, có test). BulletinPage.tsx vẫn là nơi
 // tính MỌI con số và dựng từng khối; nó đưa vào đây một bảng `slots` "loại module → cách
 // vẽ", và file này chỉ quyết định khối nào đứng ở ô nào.
 //
-// Ba quyết định đáng nhớ:
+// Bốn quyết định đáng nhớ:
 //
-//  1. Chỉ kéo được ở chế độ Sắp xếp, và chỉ kéo bằng THANH trên đầu module. Kéo cả thân
-//     module thì ở điện thoại không cuộn trang được nữa (mọi cú vuốt thành cú kéo), và bấm
-//     vào một cột biểu đồ thành nhấc cả thẻ lên.
-//  2. Panel chữ (Việc cần làm, Ngân sách…) tự đo chiều cao nội dung và giữ ô cao đúng
+//  1. KHÔNG có chế độ "Sắp xếp" — lúc nào cũng kéo được. Hai rủi ro của việc đó được chặn
+//     theo thiết bị trỏ, không phải bằng một nút bật/tắt:
+//       · chuột: nắm BẤT KỲ chỗ nào không bấm được của thẻ (tiêu đề, chữ, nền). Nút, link,
+//         ô nhập, dải chọn và vùng biểu đồ nằm trong `CANCEL` nên bấm vào chúng vẫn là
+//         bấm; thêm ngưỡng 5px để một cú bấm hơi rung tay không thành cú kéo.
+//       · cảm ứng: CHỈ nắm ở tay nắm ⠿ trên đỉnh thẻ (`touch-action: none` riêng ở đó).
+//         Cho nắm cả thẻ thì mọi cú vuốt để cuộn trang thành cú nhấc thẻ.
+//  2. Tay nắm ⠿ và nút ⋯ nằm CHUNG một viên thuốc nhỏ vắt ngang mép trên của thẻ — không
+//     có thanh tiêu đề thứ hai. Tên module đã là tiêu đề của chính thẻ; in lại lần nữa
+//     phía trên nó chỉ là hai hộp cho một cái tên. Viên thuốc hiện khi rê chuột/tiêu điểm
+//     vào thẻ, luôn hiện (mờ) trên thiết bị cảm ứng (không có hover).
+//  3. Panel chữ (Việc cần làm, Ngân sách…) tự đo chiều cao nội dung và giữ ô cao đúng
 //     chừng đó — cắt bớt là mất thông tin, còn dư là một khoảng trống giữa trang. Biểu đồ
 //     thì người dùng kéo giãn cả hai chiều. Xem `fit` ở board.ts.
-//  3. Lưới dùng `transform` để dời ô (mượt, chạy trên GPU). Cái giá: một phần tử
+//  4. Lưới dùng `transform` để dời ô (mượt, chạy trên GPU). Cái giá: một phần tử
 //     `position: fixed` NẰM TRONG ô sẽ bị ô đó giam lại. Các panel hiện không mở sheet từ
 //     bên trong (sheet sửa giao dịch dựng ở BulletinPage, ngoài lưới) — thêm panel mới có
 //     sheet thì dựng sheet ngoài lưới, hoặc đổi `positionStrategy` sang `absoluteStrategy`.
 import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Responsive, useContainerWidth, type Layout, type LayoutItem } from 'react-grid-layout'
-import { Check, GripVertical, LayoutGrid, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
-import { ActionButton, Card, EmptyState, IconButton, SectionTitle, SegmentedControl, Select } from '../../components/ui'
+import { Check, GripHorizontal, MoreHorizontal, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
+import { ActionButton, Card, EmptyState, IconButton, SectionTitle, SegmentedControl } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { useEscClose } from '../../hooks/useEscClose'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { confirmDialog, promptDialog, showToast } from '../../lib/dialog'
+import { showUndoToast } from '../../lib/undoToast'
 import { tr } from '../../i18n'
 import {
   BPS,
@@ -52,6 +62,7 @@ import {
   viewOf,
   writeBoard,
   type BoardModule,
+  type BoardPage,
   type BoardState,
   type Bp,
   type ModuleType,
@@ -63,7 +74,10 @@ export type Slots = Record<ModuleType, (view: string, onView: (v: string) => voi
 
 const MARGIN = [GAP, GAP] as const
 const PADDING = [0, 0] as const
-const DRAG_HANDLE = '.board-drag'
+/** Chỗ bấm được thì không bao giờ là chỗ nắm — xem quyết định 1 ở đầu file. */
+const CANCEL =
+  'a, button, input, select, textarea, label, summary, [role="tab"], [role="button"], [role="switch"], [role="menu"], .recharts-wrapper, [data-board-nodrag]'
+const GRIP = '.board-grip'
 
 function useBoard() {
   const [board, setBoard] = useState<BoardState>(readBoard)
@@ -80,9 +94,10 @@ function useBoard() {
 export function BulletinBoard({ slots }: { slots: Slots }) {
   const [board, update] = useBoard()
   const page = board.pages.find((p) => p.id === board.activeId) ?? board.pages[0]
-  const [editing, setEditing] = useState(false)
   const [picker, setPicker] = useState(false)
   const [newPage, setNewPage] = useState(false)
+  // Không có hover = thiết bị cảm ứng → chỉ kéo bằng tay nắm (quyết định 1).
+  const touch = useMediaQuery('(hover: none)')
 
   // Dải trang cuộn ngang ở màn hẹp: trang đang chọn phải luôn nằm trong tầm mắt, không
   // thì vừa tạo trang mới xong đã không thấy nó đâu (đo được ở 375px, trang thứ hai khuất).
@@ -131,15 +146,13 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
           maxH: auto ? h : undefined,
           // Panel tự-cao chỉ giãn NGANG — nên ở lưới một cột thì không có gì để giãn;
           // biểu đồ giãn cả hai chiều (một cột: chỉ còn chiều dọc).
-          // Cờ của TỪNG Ô thắng cờ của lưới (`resizeConfig.enabled`) — thiếu `editing` ở
-          // đây là tay nắm hiện cả lúc xem thường.
-          isResizable: editing && !(auto && cols === 1),
+          isResizable: !(auto && cols === 1),
           resizeHandles: auto ? ['e'] : cols === 1 ? ['s'] : ['se', 'e', 's'],
         }
       })
     }
     return out
-  }, [page, measured, bp, editing])
+  }, [page, measured, bp])
 
   const saveLayout = useCallback(
     (layout: Layout) => update((s) => setLayout(s, page.id, bp, layout)),
@@ -147,6 +160,16 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
   )
 
   const onView = (id: string) => (v: string) => update((s) => setView(s, page.id, id, v))
+
+  // Bỏ một module không hỏi lại — hỏi thì mỗi lần dọn trang là một chuỗi hộp thoại. Thay
+  // vào đó là toast Hoàn tác: dựng lại ĐÚNG trang lúc trước, gồm cả vị trí các ô.
+  function removeWithUndo(m: BoardModule) {
+    const before: BoardPage = page
+    update((s) => removeModule(s, before.id, m.id))
+    showUndoToast(tr('Đã bỏ “{title}”', { title: moduleDef(m.type).title }), () =>
+      update((s) => ({ ...s, pages: s.pages.map((p) => (p.id === before.id ? before : p)) })),
+    )
+  }
 
   async function rename() {
     const name = await promptDialog({
@@ -182,18 +205,15 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
     update((s) => addPage(s, { name: name.trim() || null, preset }))
     setNewPage(false)
     // Trang trống thì mở luôn bảng module — trang trống không có gì để xem cả.
-    if (!preset) {
-      setEditing(true)
-      setPicker(true)
-    }
+    if (!preset) setPicker(true)
   }
 
   return (
     <div className="flex min-w-0 flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1">
         {/* Dải trang cuộn ngang khi nhiều trang: ở 375px + Cỡ chữ 1,25× bốn năm tên trang
             không vừa một hàng, và xuống dòng giữa dải tab đọc ra như hai dải khác nhau. */}
-        <div ref={tabsRef} className="min-w-0 basis-full overflow-x-auto sm:flex-1 sm:basis-0">
+        <div ref={tabsRef} className="min-w-0 flex-1 overflow-x-auto">
           <SegmentedControl
             size="sm"
             stretch={false}
@@ -203,44 +223,35 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
             items={board.pages.map((p) => ({ value: p.id, label: <span className="whitespace-nowrap">{pageName(p)}</span> }))}
           />
         </div>
-        <IconButton variant="ghost" className="ml-auto" aria-label={tr('Thêm trang')} title={tr('Thêm trang')} onClick={() => setNewPage(true)}>
+        <IconButton variant="ghost" aria-label={tr('Thêm trang')} title={tr('Thêm trang')} onClick={() => setNewPage(true)}>
           <Plus className="h-5 w-5" />
         </IconButton>
-        <ActionButton variant={editing ? 'primary' : 'outline'} onClick={() => setEditing((e) => !e)} aria-pressed={editing}>
-          {editing ? <Check className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          {editing ? tr('Xong') : tr('Sắp xếp')}
-        </ActionButton>
+        <Menu
+          label={tr('Tuỳ chọn trang “{name}”', { name: pageName(page) })}
+          trigger={<MoreHorizontal className="h-5 w-5" />}
+          triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-sunken hover:text-fg-primary"
+          align="right"
+          items={[
+            { key: 'add', label: tr('Thêm module'), icon: <Plus className="h-4 w-4" />, onSelect: () => setPicker(true) },
+            { key: 'rename', label: tr('Đổi tên trang'), icon: <Pencil className="h-4 w-4" />, onSelect: rename },
+            {
+              key: 'reset',
+              label: page.preset ? tr('Khôi phục mặc định') : tr('Xếp lại'),
+              icon: <RotateCcw className="h-4 w-4" />,
+              onSelect: reset,
+            },
+            ...(board.pages.length > 1
+              ? [{ key: 'del', label: tr('Xoá trang'), icon: <Trash2 className="h-4 w-4" />, onSelect: remove, danger: true }]
+              : []),
+          ]}
+        />
       </div>
-
-      {editing && (
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-accent bg-accent-soft px-3 py-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <ActionButton variant="primary" onClick={() => setPicker(true)}>
-              <Plus className="h-4 w-4" /> {tr('Thêm module')}
-            </ActionButton>
-            <ActionButton onClick={rename}>
-              <Pencil className="h-4 w-4" /> {tr('Đổi tên')}
-            </ActionButton>
-            <ActionButton onClick={reset}>
-              <RotateCcw className="h-4 w-4" /> {page.preset ? tr('Khôi phục mặc định') : tr('Xếp lại')}
-            </ActionButton>
-            {board.pages.length > 1 && (
-              <ActionButton variant="danger" onClick={remove}>
-                <Trash2 className="h-4 w-4" /> {tr('Xoá trang')}
-              </ActionButton>
-            )}
-          </div>
-          <Guide className="text-sm text-fg-secondary">
-            {tr('Kéo thanh trên đầu mỗi module để đổi chỗ, kéo mép phải hoặc góc dưới để đổi cỡ. Bố cục điện thoại và máy tính được nhớ riêng.')}
-          </Guide>
-        </div>
-      )}
 
       <div ref={containerRef} className="min-w-0">
         {page.modules.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-strong px-4 py-10 text-center">
             <p className="text-sm text-fg-muted">{tr('Trang này chưa có module nào.')}</p>
-            <ActionButton variant="primary" onClick={() => { setEditing(true); setPicker(true) }}>
+            <ActionButton variant="primary" onClick={() => setPicker(true)}>
               <Plus className="h-4 w-4" /> {tr('Thêm module')}
             </ActionButton>
           </div>
@@ -255,21 +266,15 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
               rowHeight={ROW_H}
               margin={MARGIN}
               containerPadding={PADDING}
-              className={`board ${settled ? 'board-settled' : ''} ${editing ? 'board-editing' : ''}`}
-              dragConfig={{ enabled: editing, handle: DRAG_HANDLE, cancel: 'button, select, input', threshold: 4 }}
-              resizeConfig={{ enabled: editing }}
+              className={`board ${settled ? 'board-settled' : ''}`}
+              dragConfig={touch ? { enabled: true, handle: GRIP, threshold: 3 } : { enabled: true, cancel: CANCEL, threshold: 5 }}
+              resizeConfig={{ enabled: true }}
               onDragStop={(layout) => saveLayout(layout)}
               onResizeStop={(layout) => saveLayout(layout)}
             >
               {page.modules.map((m) => (
                 <div key={m.id}>
-                  <ModuleFrame
-                    m={m}
-                    editing={editing}
-                    onMeasure={onMeasure}
-                    onView={onView(m.id)}
-                    onRemove={() => update((s) => removeModule(s, page.id, m.id))}
-                  >
+                  <ModuleFrame m={m} onMeasure={onMeasure} onView={onView(m.id)} onRemove={() => removeWithUndo(m)}>
                     {slots[m.type](viewOf(m), onView(m.id))}
                   </ModuleFrame>
                 </div>
@@ -295,18 +300,122 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
   )
 }
 
+// ---- Menu nhỏ (⋯) --------------------------------------------------------------------
+
+interface MenuItem {
+  key: string
+  label: string
+  icon?: ReactNode
+  onSelect: () => void
+  danger?: boolean
+  /** mục chọn-một (cách xem): có dấu ✓ khi đang chọn */
+  checked?: boolean
+}
+
+function Menu({
+  label,
+  trigger,
+  triggerClassName,
+  items,
+  align,
+}: {
+  label: string
+  trigger: ReactNode
+  triggerClassName: string
+  items: (MenuItem | 'sep')[]
+  align: 'right' | 'center'
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    // Mở ra thì tiêu điểm vào mục đầu — bàn phím đi tiếp bằng Tab / mũi tên.
+    ref.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus()
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const onKeyNav = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const list = [...(ref.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])]
+    const i = list.indexOf(document.activeElement as HTMLElement)
+    list[(i + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length]?.focus()
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={triggerClassName}
+      >
+        {trigger}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label={label}
+          onKeyDown={onKeyNav}
+          className={`absolute top-full z-30 mt-1 min-w-48 rounded-lg border border-border-panel bg-surface py-1 shadow-lg animate-pop-in ${
+            align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
+          }`}
+        >
+          {items.map((it, i) =>
+            it === 'sep' ? (
+              <div key={`sep-${i}`} role="separator" className="my-1 border-t border-border-subtle" />
+            ) : (
+              <button
+                key={it.key}
+                type="button"
+                role={it.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={it.checked}
+                onClick={() => {
+                  setOpen(false)
+                  it.onSelect()
+                }}
+                className={`flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm hover:bg-surface-sunken lg:min-h-9 ${
+                  it.danger ? 'text-money-out' : 'text-fg-primary'
+                }`}
+              >
+                <span className="flex w-4 shrink-0 justify-center text-fg-muted" aria-hidden>
+                  {it.checked ? <Check className="h-4 w-4 text-fg-accent" /> : it.icon}
+                </span>
+                {it.label}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ---- Khung một module ----------------------------------------------------------------
 
 interface FrameProps {
   m: BoardModule
-  editing: boolean
   onMeasure: (id: string, rows: number) => void
   onView: (v: string) => void
   onRemove: () => void
   children: ReactNode
 }
 
-function ModuleFrame({ m, editing, onMeasure, onView, onRemove, children }: FrameProps) {
+function ModuleFrame({ m, onMeasure, onView, onRemove, children }: FrameProps) {
   const d = moduleDef(m.type)
   const ref = useRef<HTMLDivElement>(null)
   const auto = d.fit === 'auto'
@@ -324,38 +433,36 @@ function ModuleFrame({ m, editing, onMeasure, onView, onRemove, children }: Fram
     return () => ro.disconnect()
   }, [auto, m.id, onMeasure])
 
-  const strip = editing && (
-    <div className="board-drag mb-1.5 flex cursor-grab touch-none items-center gap-1.5 rounded-lg border border-dashed border-accent bg-accent-soft py-0.5 pr-0.5 pl-2 select-none active:cursor-grabbing">
-      <GripVertical className="h-4 w-4 shrink-0 text-fg-accent" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-primary">{d.title}</span>
-      {d.views && (
-        <Select
-          aria-label={tr('Cách xem {title}', { title: d.title })}
-          value={viewOf(m)}
-          onChange={(e) => onView(e.target.value)}
-          className="text-sm"
-          wrapClassName="shrink-0"
-        >
-          {d.views.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.label}
-            </option>
-          ))}
-        </Select>
-      )}
-      <IconButton variant="ghost" aria-label={tr('Bỏ “{title}” khỏi trang', { title: d.title })} onClick={onRemove}>
-        <X className="h-5 w-5" />
-      </IconButton>
-    </div>
-  )
+  const view = viewOf(m)
+  const items: (MenuItem | 'sep')[] = [
+    ...(d.views ?? []).map((v) => ({ key: `v-${v.id}`, label: v.label, checked: v.id === view, onSelect: () => onView(v.id) })),
+    ...(d.views ? (['sep'] as const) : []),
+    { key: 'rm', label: tr('Bỏ khỏi trang'), icon: <X className="h-4 w-4" />, onSelect: onRemove, danger: true },
+  ]
 
-  // Ở chế độ Sắp xếp, nội dung `inert`: không bấm nhầm vào cột biểu đồ hay dòng giao
-  // dịch khi đang định nhấc module lên, và Tab không lạc vào bên trong.
-  const lock = editing ? 'pointer-events-none select-none' : ''
   return (
-    <div ref={auto ? ref : undefined} className={auto ? 'min-w-0' : 'flex h-full min-w-0 flex-col'}>
-      {strip}
-      <div inert={editing} className={`${auto ? '' : 'min-h-0 flex-1'} ${lock}`.trim() || undefined}>
+    <div className={auto ? 'relative min-w-0' : 'relative h-full min-w-0'}>
+      {/* Viên thuốc công cụ vắt ngang mép trên thẻ: tay nắm + ⋯ (quyết định 2). Nó là
+          hộp DUY NHẤT thêm vào quanh thẻ — tên module vẫn là tiêu đề của chính thẻ. */}
+      <div className="board-tools absolute top-0 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center rounded-full border border-border-panel bg-surface shadow-sm">
+        <span
+          className="board-grip flex h-7 cursor-grab touch-none items-center pr-0.5 pl-2.5 text-fg-muted select-none active:cursor-grabbing"
+          title={tr('Kéo để đổi chỗ')}
+          aria-hidden
+        >
+          <GripHorizontal className="h-4 w-4" />
+        </span>
+        <Menu
+          label={tr('Tuỳ chọn “{title}”', { title: d.title })}
+          trigger={<MoreHorizontal className="h-4 w-4" />}
+          // Vùng chạm 44px bằng lớp giả ::after — viên thuốc chỉ cao 28px để không đè lên
+          // tiêu đề thẻ (lề trên của thẻ là 14px).
+          triggerClassName="relative flex h-7 w-8 items-center justify-center rounded-full text-fg-muted after:absolute after:-inset-2 after:content-[''] hover:text-fg-primary"
+          align="center"
+          items={items}
+        />
+      </div>
+      <div ref={auto ? ref : undefined} className={auto ? undefined : 'h-full'}>
         {/* Module biểu đồ tải lười (xem BulletinPage) — chờ trong đúng khung của nó. */}
         <Suspense
           fallback={
@@ -413,6 +520,9 @@ function AddModuleSheet({
   ]
   return (
     <Sheet title={tr('Thêm module vào “{page}”', { page: pageTitle })} onClose={onClose}>
+      <Guide className="mb-3 text-sm text-fg-secondary">
+        {tr('Kéo thẻ để đổi chỗ (điện thoại: kéo tay nắm ⠿ trên đỉnh thẻ), kéo mép phải hoặc góc dưới để đổi cỡ. Bố cục điện thoại và máy tính được nhớ riêng.')}
+      </Guide>
       <div className="-mx-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-1">
         {groups.map(([label, defs]) => (
           <section key={label} className="flex flex-col gap-1.5">

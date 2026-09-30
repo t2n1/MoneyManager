@@ -94,6 +94,14 @@ const CashflowChart = lazy(() => charts().then((m) => ({ default: m.CashflowChar
 const CumulativeChart = lazy(() => charts().then((m) => ({ default: m.CumulativeChart })))
 const NetWorthChart = lazy(() => charts().then((m) => ({ default: m.NetWorthChart })))
 const SliceChart = lazy(() => charts().then((m) => ({ default: m.SliceChart })))
+// Bốn panel "ngoài Bản tin cũ" cũng lười: mỗi cái tự tải nguồn của nó (nợ, mục tiêu…),
+// nên chỉ trang nào có chúng mới kéo những request đó.
+const panels = () => import('./BoardPanels')
+const UpcomingPanel = lazy(() => panels().then((m) => ({ default: m.UpcomingPanel })))
+const DebtsPanel = lazy(() => panels().then((m) => ({ default: m.DebtsPanel })))
+const GoalsPanel = lazy(() => panels().then((m) => ({ default: m.GoalsPanel })))
+const RemittancePanel = lazy(() => panels().then((m) => ({ default: m.RemittancePanel })))
+const CardImportPanel = lazy(() => panels().then((m) => ({ default: m.CardImportPanel })))
 
 /** Số dòng ở khối Giao dịch gần đây. */
 const RECENT = 6
@@ -868,6 +876,23 @@ export function BulletinPage() {
               pending={assetsLoading}
               failed={assetsFailed}
               emptyText={tr('Chưa có tài sản nào được tính vào tổng.')}
+            />
+          ),
+
+          // ---- Module từ các mảng khác của app (BoardPanels.tsx) ----
+          upcoming: () => <UpcomingPanel todayISO={todayISO} />,
+          debts: (view) => <DebtsPanel view={view} />,
+          // Tốc độ tích lũy đo trên dải HỢP đã tải (25 tháng phủ đủ 6 tháng cần đo) —
+          // không thêm một lượt tải giao dịch nào.
+          goals: () => <GoalsPanel txs={rangeTxs} txsReady={seriesReady} />,
+          cardImport: () => <CardImportPanel txs={rangeTxs} txsReady={seriesReady} />,
+          remittance: (view) => (
+            <RemittancePanel
+              txs={rangeTxs}
+              pending={!seriesReady}
+              failed={seriesFailed}
+              view={view}
+              monthStartDay={monthStartDay}
             />
           ),
         }}

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Guide } from '../../components/Guide'
 import { useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
@@ -43,8 +44,20 @@ function nextDay(iso: string): string {
   return toISODate(new Date(y, m - 1, d + 1))
 }
 
+/**
+ * File + thẻ do module "Nhập sao kê thẻ" của Bản tin chuyển sang (router state). File đi
+ * thẳng trong state — `history.pushState` sao chép được `File` — nên người dùng không phải
+ * chọn file lần thứ hai.
+ */
+export interface ImportHandoff {
+  files: File[]
+  accountId?: string
+}
+
 export function ImportCsvPage() {
   const qc = useQueryClient()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
 
@@ -102,6 +115,21 @@ export function ImportCsvPage() {
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? [])
     e.target.value = ''
+    await loadFiles(picked)
+  }
+
+  // Nhận file từ Bản tin đúng MỘT lần rồi xoá state: để nguyên thì bấm Quay lại / tải lại
+  // trang là cả xấp sao kê được nạp lại vào bảng xem trước như chưa từng nhập.
+  const handoff = location.state as ImportHandoff | null
+  useEffect(() => {
+    if (!handoff?.files?.length) return
+    if (handoff.accountId) setAccountId(handoff.accountId)
+    void loadFiles(handoff.files)
+    navigate(location.pathname, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff])
+
+  async function loadFiles(picked: File[]) {
     if (picked.length === 0) return
     setResult(null)
     setCatByMerchant({})

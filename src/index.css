@@ -717,6 +717,30 @@
 .board .react-resizable-hide > .react-resizable-handle {
   display: none;
 }
+/* Không có chế độ "Sắp xếp" (BulletinBoard.tsx, quyết định 1): viên công cụ ⠿ ⋯ và tay
+   nắm đổi cỡ chỉ hiện khi rê chuột / tiêu điểm vào thẻ — lúc đọc thì trang sạch như bản
+   cũ. Thiết bị cảm ứng không có hover nên chúng luôn hiện, mờ bớt để không giành chỗ
+   của nội dung. */
+.board .board-tools,
+.board .react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  transition: opacity var(--motion-segment) var(--ease-out);
+}
+.board .react-grid-item:hover > .react-resizable-handle,
+.board .react-grid-item:hover .board-tools,
+.board .react-grid-item:focus-within .board-tools,
+.board .react-grid-item.react-draggable-dragging .board-tools,
+.board .react-grid-item.resizing > .react-resizable-handle {
+  opacity: 1;
+}
+@media (hover: none) {
+  .board .board-tools {
+    opacity: 1;
+  }
+  .board .react-grid-item > .react-resizable-handle {
+    opacity: 0.6;
+  }
+}
 .board .react-grid-item > .react-resizable-handle-se {
   right: 0;
   bottom: 0;

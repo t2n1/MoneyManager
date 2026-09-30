@@ -81,6 +81,19 @@ import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } fro
 import { KpiRow } from './KpiRow'
 import { HomNayPanel } from './HomNayPanel'
 import { BulletinBoard } from './BulletinBoard'
+import {
+  BigSpendPanel,
+  DebtsPanel,
+  HealthPanel,
+  HeatmapPanel,
+  PlannedPanel,
+  RemittancePanel,
+  SharedFundPanel,
+  TagBudgetsPanel,
+} from './MorePanels'
+import { BillCalendarCard } from '../recurring/BillCalendarCard'
+import { SavingsGoalsSection } from '../assets/SavingsGoalsSection'
+import { makeMoneyView } from '../assets/moneyView'
 import { moduleDef } from './board'
 import { assetMixRows, cashflowRows, categoryRows, cumulativeRows, netWorthRows } from './boardCharts'
 import type { TransactionRow } from '../../types/database.types'
@@ -102,7 +115,7 @@ const RECENT = 6
 const EMPTY_IDS: ReadonlySet<string> = new Set()
 
 export function BulletinPage() {
-  const { activeMonthKey, setMonthKey } = useMonthKey()
+  const { activeMonthKey, setMonthKey, stepMonth } = useMonthKey()
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const todayISO = toISODate(new Date())
@@ -548,6 +561,22 @@ export function BulletinPage() {
     [fullDaily.days, cutoffISO, monthBudget],
   )
   const netWorthData = useMemo(() => netWorthRows(snapshots), [snapshots])
+
+  // ---- Dữ liệu của các module thêm đợt 2026-09-30 (MorePanels.tsx) ----
+  // Lịch định kỳ ghép kỳ với giao dịch THẬT của sổ — không qua góc nhìn: khoản tiền nhà
+  // chuyển vào quỹ chung vẫn là kỳ đã trả, dù ở góc Mình nó hiện thành một khoản chi.
+  const { data: rawMonthTxs = [] } = useMonthTransactions(activeMonthKey)
+  const currencyOfRule = useMemo(() => {
+    const byId = new Map(recurringRules.map((r) => [r.id, r.account_id]))
+    return (ruleId: string): CurrencyCode => accounts.find((a) => a.id === byId.get(ruleId))?.currency ?? base
+  }, [recurringRules, accounts, base])
+  // Gửi tiền về VN: 12 kỳ gần nhất tới hết kỳ hiện tại — lấy từ dải đã tải (luôn phủ 25 kỳ).
+  const remitTxs = useMemo(() => {
+    const start = getMonthRange(addMonths(currentMonthKey, -11), monthStartDay).start
+    return rangeTxs.filter((t) => t.occurred_on >= start && t.occurred_on < kyHienTai.end)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeTxs, currentMonthKey.year, currentMonthKey.month, monthStartDay, kyHienTai.end])
+  const goalsView = useMemo(() => makeMoneyView(base, base, rates ?? {}), [base, rates])
   const assetMixData = useMemo(() => assetMixRows(purposeGroups), [purposeGroups])
 
   // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
@@ -856,6 +885,55 @@ export function BulletinPage() {
               rows={netWorthData}
             />
           ),
+          sharedFund: () => <SharedFundPanel monthKey={activeMonthKey} />,
+          tagBudgets: () => <TagBudgetsPanel data={tagBudgets} base={base} />,
+          bigSpend: () => (
+            <BigSpendPanel
+              txs={monthTxs}
+              monthKey={activeMonthKey}
+              base={base}
+              rates={rates ?? {}}
+              currencyOf={currencyOf}
+              transferIds={transferIds}
+              categoryOf={categoryOf}
+              accountOf={accountOf}
+              onPick={setEditing}
+              pending={!monthReady}
+              failed={monthFailed}
+            />
+          ),
+          heatmap: () => (
+            <HeatmapPanel
+              days={fullDaily.days}
+              typical={fullDaily.typical}
+              range={activeRange}
+              todayISO={todayISO}
+              monthKey={activeMonthKey}
+              base={base}
+              pending={!monthReady}
+              failed={monthFailed}
+            />
+          ),
+          bills: () => (
+            <BillCalendarCard
+              rules={recurringRules}
+              txs={rawMonthTxs}
+              range={activeRange}
+              todayISO={todayISO}
+              monthLabel={formatMonthLabel(activeMonthKey)}
+              currencyOf={currencyOfRule}
+              onPrev={() => stepMonth(-1)}
+              onNext={() => stepMonth(1)}
+            />
+          ),
+          planned: () => (
+            <PlannedPanel rows={plannedExpenses} todayISO={todayISO} base={base} rates={rates ?? {}} pending={!plannedReady} />
+          ),
+          debts: () => <DebtsPanel />,
+          goals: () => <SavingsGoalsSection view={goalsView} />,
+          remittance: () => <RemittancePanel txs={remitTxs} pending={!seriesReady} failed={seriesFailed} />,
+          health: () => <HealthPanel />,
+
           assetMix: (view, onView) => (
             <SliceChart
               title={moduleDef('assetMix').title}

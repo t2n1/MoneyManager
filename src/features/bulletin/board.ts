@@ -68,6 +68,16 @@ export type ModuleType =
   | 'networth'
   | 'cumulative'
   | 'assetMix'
+  | 'sharedFund'
+  | 'tagBudgets'
+  | 'bigSpend'
+  | 'heatmap'
+  | 'bills'
+  | 'planned'
+  | 'debts'
+  | 'goals'
+  | 'remittance'
+  | 'health'
 
 export interface ModuleView {
   id: string
@@ -75,14 +85,15 @@ export interface ModuleView {
 }
 
 /** Nhóm trong bảng "Thêm module" — theo CÂU HỎI module trả lời, không theo dạng vẽ. */
-export type ModuleGroup = 'month' | 'spend' | 'income' | 'assets' | 'check'
+export type ModuleGroup = 'month' | 'spend' | 'upcoming' | 'income' | 'assets' | 'check'
 
 export const MODULE_GROUPS: readonly { id: ModuleGroup; label: string; desc: string }[] = [
   { id: 'month', label: tr('Tháng này'), desc: tr('Còn bao nhiêu, đã tiêu bao nhiêu, việc gì cần làm.') },
   { id: 'spend', label: tr('Chi tiêu'), desc: tr('Tiền đi đâu, đi nhanh tới mức nào.') },
+  { id: 'upcoming', label: tr('Sắp tới & cam kết'), desc: tr('Khoản định kỳ, khoản sắp chi, nợ còn phải trả.') },
   { id: 'income', label: tr('Thu nhập & xu hướng'), desc: tr('Thu, chi và phần giữ lại qua nhiều tháng.') },
-  { id: 'assets', label: tr('Tài sản'), desc: tr('Tài khoản, tài sản ròng và quyền lợi.') },
-  { id: 'check', label: tr('Kiểm tra'), desc: tr('Con số trên màn đáng tin tới đâu.') },
+  { id: 'assets', label: tr('Tài sản'), desc: tr('Tài khoản, tài sản ròng, mục tiêu và quyền lợi.') },
+  { id: 'check', label: tr('Kiểm tra'), desc: tr('Sức khỏe tài chính và con số trên màn đáng tin tới đâu.') },
 ]
 
 export interface ModuleDef {
@@ -121,6 +132,16 @@ export const MODULES: readonly ModuleDef[] = [
   { type: 'accounts', group: 'assets', title: tr('Tài khoản'), desc: tr('Tài sản ròng và số dư từng tài khoản.'), fit: 'auto', w: 4, minW: 3, px: 340, single: true },
   { type: 'quyenloi', group: 'assets', title: tr('Quyền lợi'), desc: tr('Tình trạng các khoản quyền lợi năm nay.'), fit: 'auto', w: 4, minW: 3, px: 140, single: true },
   { type: 'reliability', group: 'check', title: tr('Độ tin cậy dữ liệu'), desc: tr('Con số trên màn này đáng tin tới đâu.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
+  { type: 'sharedFund', group: 'month', title: tr('Quỹ chung'), desc: tr('Tháng này mỗi người góp bao nhiêu, từng phần của quỹ còn dư hay đang thiếu.'), fit: 'auto', w: 4, minW: 3, px: 300, single: true },
+  { type: 'tagBudgets', group: 'month', title: tr('Ngân sách theo nhãn'), desc: tr('Chuyến đi, dự án… đã tiêu bao nhiêu so với trần của nhãn.'), fit: 'auto', w: 4, minW: 3, px: 220, single: true },
+  { type: 'bigSpend', group: 'spend', title: tr('Khoản chi lớn nhất'), desc: tr('Năm khoản chi lớn nhất của tháng đang xem.'), fit: 'auto', w: 4, minW: 3, px: 380, single: true },
+  { type: 'heatmap', group: 'spend', title: tr('Lịch chi tiêu'), desc: tr('Mỗi ngày trong tháng một ô, càng đậm là chi càng nhiều so với ngày thường.'), fit: 'auto', w: 4, minW: 3, px: 340, single: true },
+  { type: 'bills', group: 'upcoming', title: tr('Lịch khoản định kỳ'), desc: tr('Tháng này khoản định kỳ nào đã trả, sắp tới hay bị lỡ.'), fit: 'auto', w: 8, minW: 6, px: 460, single: true },
+  { type: 'planned', group: 'upcoming', title: tr('Sắp chi'), desc: tr('Những khoản đã biết sẽ phải chi, gần hạn nhất trước.'), fit: 'auto', w: 4, minW: 3, px: 280, single: true },
+  { type: 'debts', group: 'upcoming', title: tr('Nợ & cho vay'), desc: tr('Mình đang nợ bao nhiêu, người khác nợ mình bao nhiêu.'), fit: 'auto', w: 4, minW: 3, px: 280, single: true },
+  { type: 'goals', group: 'assets', title: tr('Mục tiêu tiết kiệm'), desc: tr('Tiến độ từng mục tiêu và ngày dự kiến đạt.'), fit: 'auto', w: 6, minW: 4, px: 320, single: true },
+  { type: 'remittance', group: 'income', title: tr('Gửi tiền về VN'), desc: tr('12 tháng qua đã gửi bao nhiêu, phí bao nhiêu, tỷ giá trung bình.'), fit: 'auto', w: 4, minW: 3, px: 180, single: true },
+  { type: 'health', group: 'check', title: tr('Sức khỏe tài chính'), desc: tr('Điểm sức khỏe lần chấm gần nhất và xu hướng.'), fit: 'auto', w: 4, minW: 3, px: 150, single: true },
   {
     type: 'cashflow', group: 'income',
     title: tr('Thu & chi theo tháng'),

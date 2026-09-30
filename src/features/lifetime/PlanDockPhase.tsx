@@ -44,6 +44,8 @@ import { MAX_PHASE_PCT, resolvePhasePercents } from './phasePercent'
 import { clampPhaseStartYear } from './phaseYear'
 import { phaseColorKey } from './planColors'
 import { PHASE_WORDS } from './planWords'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export interface PlanDockPhaseProps {
   /** MỌI chặng của bản nháp, đã sắp theo năm — cần cho ba việc: chặn năm trùng, biết
@@ -139,7 +141,7 @@ export function PlanDockPhase({
         renderIcon={(icon) => <PhaseIcon icon={icon} />}
         name={phase.label}
         onName={(label) => onPatch({ label })}
-        nameLabel="Tên chặng"
+        nameLabel={tr('Tên chặng')}
         fromYear={
           laChangDau ? (
             // Chặng đầu KHÔNG có ô nhập: năm của nó là năm hiện tại, không phải một
@@ -157,7 +159,7 @@ export function PlanDockPhase({
           ) : (
             <YearBox
               value={phase.startYear}
-              ariaLabel={`Năm bắt đầu chặng ${phase.label}`}
+              ariaLabel={tr('Năm bắt đầu chặng {label}', { label: phase.label })}
               onCommit={(y) =>
                 onPatch({ startYear: clampPhaseStartYear(sorted, phase.id, y, currentYear) })
               }
@@ -173,7 +175,7 @@ export function PlanDockPhase({
       {laChangDau &&
         (phase.startYear === currentYear ? (
           <Guide className="mt-1 block text-2xs text-fg-muted">
-            Chặng đầu bắt đầu từ năm nay — bản chiếu tính từ hôm nay.
+            {tr('Chặng đầu bắt đầu từ năm nay — bản chiếu tính từ hôm nay.')}
           </Guide>
         ) : (
           // Chặng đầu KHÔNG ở năm nay (dữ liệu cũ/hỏng — xem ghi chú ở `fromYear` trên).
@@ -189,9 +191,10 @@ export function PlanDockPhase({
           // một cách sửa: `phaseForYear` (project.ts) dùng chặng sớm nhất cho mọi năm nằm
           // trước nó, nên bản chiếu vẫn liền mạch, chỉ là quãng đầu đọc theo chặng này.
           <Guide className="mt-1 block text-2xs text-fg-muted">
-            Chặng đầu đang bắt đầu ở năm <Num tone="muted">{phase.startYear}</Num>, không phải
-            năm nay (<Num tone="muted">{currentYear}</Num>). Bản chiếu vẫn tính từ hôm nay —
-            những năm trước <Num tone="muted">{phase.startYear}</Num> đọc theo đúng chặng này.
+            {trn('Chặng đầu đang bắt đầu ở năm {year}, không phải năm nay ({now}). Bản chiếu vẫn tính từ hôm nay — những năm trước {year} đọc theo đúng chặng này.', {
+              year: <Num tone="muted">{phase.startYear}</Num>,
+              now: <Num tone="muted">{currentYear}</Num>,
+            })}
           </Guide>
         ))}
 
@@ -203,7 +206,7 @@ export function PlanDockPhase({
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div>
           <label htmlFor={`${uid}-tien`} className={DOCK_LABEL}>
-            Tiền tệ khai
+            {tr('Tiền tệ khai')}
           </label>
           {/* KHÔNG bóp chiều cao `<Select>` bằng className: `min-h-11` của primitive và
               một `min-h-8` chêm ngoài là hai class CÙNG hạng, và Tailwind quyết theo thứ
@@ -224,7 +227,7 @@ export function PlanDockPhase({
         </div>
         <div>
           <label htmlFor={`${uid}-nuoc`} className={DOCK_LABEL}>
-            Quốc gia
+            {tr('Quốc gia')}
           </label>
           <input
             id={`${uid}-nuoc`}
@@ -242,24 +245,24 @@ export function PlanDockPhase({
           tiền, `<Num>` cho phần trăm: hai primitive khác nhau vì `<Money>` đi qua chế độ
           riêng tư và định dạng theo loại tiền. */}
       <p className="mt-2 flex items-baseline justify-between gap-2 rounded-md bg-surface-sunken px-2 py-1.5 text-2xs text-fg-secondary">
-        <span className="shrink-0 text-fg-muted">Để dành mỗi năm</span>
+        <span className="shrink-0 text-fg-muted">{tr('Để dành mỗi năm')}</span>
         <span className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
           <Money amount={deDanh} currency={phase.currency} compact tone="bySign" />
-          {tyLe !== null && <Num tone="muted">{tyLe}% thu</Num>}
+          {tyLe !== null && <Num tone="muted">{tr('{pct}% thu', { pct: tyLe })}</Num>}
         </span>
       </p>
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <ActionButton onClick={onDuplicate} className="px-2 py-1 text-2xs">
           <Copy className="h-3 w-3" aria-hidden="true" />
-          Nhân đôi
+          {tr('Nhân đôi')}
         </ActionButton>
         {/* Chặng ĐẦU không xoá được: bản chiếu phải bắt đầu từ một chặng nào đó — cùng
             luật với hàng inline cũ. */}
         {!laChangDau && (
           <ActionButton variant="danger" onClick={onRemove} className="px-2 py-1 text-2xs">
             <Trash2 className="h-3 w-3" aria-hidden="true" />
-            Xoá
+            {tr('Xoá')}
           </ActionButton>
         )}
       </div>
@@ -298,8 +301,10 @@ export function PlanDockPhase({
    */
   function khoiTien(loai: 'income' | 'expense') {
     const laThu = loai === 'income'
-    const ten = laThu ? `Thu/năm (${sym})` : `Chi/năm (${sym})`
-    const aria = laThu ? `Thu mỗi năm của chặng ${phase.label}` : `Chi mỗi năm của chặng ${phase.label}`
+    const ten = laThu ? tr('Thu/năm ({sym})', { sym }) : tr('Chi/năm ({sym})', { sym })
+    const aria = laThu
+      ? tr('Thu mỗi năm của chặng {label}', { label: phase.label })
+      : tr('Chi mỗi năm của chặng {label}', { label: phase.label })
     const pct = laThu ? phase.incomePctOfPrev : phase.expensePctOfPrev
     const dangDungPct = pct != null
     const gid = `${uid}-${loai}`
@@ -329,14 +334,14 @@ export function PlanDockPhase({
         {prevPhase !== null && (
           <div role="group" aria-labelledby={gid} className="mb-1 flex gap-1">
             <SegButton active={!dangDungPct} onClick={() => ghiPct(null)}>
-              Gõ số
+              {tr('Gõ số')}
             </SegButton>
             <SegButton
               active={dangDungPct}
-              title={`Khai bằng phần trăm chặng "${prevPhase.label}"`}
+              title={tr('Khai bằng phần trăm chặng "{label}"', { label: prevPhase.label })}
               onClick={() => ghiPct(pct ?? 80)}
             >
-              % chặng trước
+              {tr('% chặng trước')}
             </SegButton>
           </div>
         )}
@@ -347,7 +352,7 @@ export function PlanDockPhase({
               <input
                 inputMode="decimal"
                 value={String(pct)}
-                aria-label={`${aria}, tính bằng phần trăm chặng trước`}
+                aria-label={tr('{label}, tính bằng phần trăm chặng trước', { label: aria })}
                 onChange={(e) => {
                   const n = Number(e.target.value)
                   if (e.target.value.trim() !== '' && Number.isFinite(n)) ghiPct(n)
@@ -359,13 +364,15 @@ export function PlanDockPhase({
               </span>
             </div>
             <p className="mt-0.5 truncate text-2xs text-fg-secondary">
-              ={' '}
-              <Money
-                amount={laThu ? phase.annualIncomeMinor : phase.annualExpenseMinor}
-                currency={phase.currency}
-                compact
-              />
-              /năm
+              {trn('= {amount}/năm', {
+                amount: (
+                  <Money
+                    amount={laThu ? phase.annualIncomeMinor : phase.annualExpenseMinor}
+                    currency={phase.currency}
+                    compact
+                  />
+                ),
+              })}
             </p>
           </>
         ) : (

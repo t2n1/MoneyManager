@@ -3,6 +3,7 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { CategoryMonthlyPoint } from './aggregate'
 import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
+import { tr } from '../../i18n'
 
 interface Props {
   points: CategoryMonthlyPoint[]
@@ -30,7 +31,7 @@ export function CategoryLineChart({ points, base, color, labelOf, title }: Props
               width={44}
             />
             <Tooltip
-              formatter={(v) => [formatMoney(Number(v), base), 'Số tiền']}
+              formatter={(v) => [formatMoney(Number(v), base), tr('Số tiền')]}
               labelFormatter={(l) => String(l)}
               contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS }}
               cursor={{ stroke: 'rgba(148,163,184,0.4)' }}

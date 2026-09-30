@@ -95,6 +95,7 @@ import {
   type TransactionPatch,
   type TxFilter,
 } from './repo'
+import { tr } from '../i18n'
 
 // Repo thật: mọi bảo mật nằm ở RLS phía Postgres.
 
@@ -108,7 +109,7 @@ async function currentUserId(): Promise<string> {
   const {
     data: { user },
   } = await getSupabase().auth.getUser()
-  if (!user) throw new Error('Chưa đăng nhập')
+  if (!user) throw new Error(tr('Chưa đăng nhập'))
   return user.id
 }
 
@@ -476,7 +477,7 @@ export const supabaseRepo: Repo = {
       .or(`account_id.eq.${id},to_account_id.eq.${id}`)
     if (tx.error) throw tx.error
     if ((tx.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.'))
 
     const rr = await sb
       .from('recurring_rules')
@@ -484,7 +485,7 @@ export const supabaseRepo: Repo = {
       .or(`account_id.eq.${id},to_account_id.eq.${id}`)
     if (rr.error) throw rr.error
     if ((rr.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.'))
 
     const sg = await sb
       .from('savings_goals')
@@ -492,7 +493,7 @@ export const supabaseRepo: Repo = {
       .eq('account_id', id)
     if (sg.error) throw sg.error
     if ((sg.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.')
+      throw new Error(tr('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.'))
 
     const card = await sb
       .from('accounts')
@@ -500,7 +501,7 @@ export const supabaseRepo: Repo = {
       .eq('payment_account_id', id)
     if (card.error) throw card.error
     if ((card.count ?? 0) > 0)
-      throw new Error('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.')
+      throw new Error(tr('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.'))
 
     const val = await sb
       .from('account_valuations')
@@ -508,7 +509,7 @@ export const supabaseRepo: Repo = {
       .eq('account_id', id)
     if (val.error) throw val.error
     if ((val.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.'))
 
     // stock_trades có `on delete cascade` ở DB (migration 0035) — không chặn ở đây thì
     // xoá tài khoản là XOÁ LUÔN sổ lệnh mà không ai hỏi, ngược hẳn với mọi bảng khác
@@ -519,7 +520,7 @@ export const supabaseRepo: Repo = {
       .eq('account_id', id)
     if (st.error) throw st.error
     if ((st.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.'))
 
     // fund_trades cũng có `on delete cascade` (migration 0045) — cùng lý do với khối
     // stock_trades ở trên: không chặn ở đây thì xoá tài khoản là xoá luôn sổ lệnh quỹ mà
@@ -530,7 +531,7 @@ export const supabaseRepo: Repo = {
       .eq('account_id', id)
     if (ft.error) throw ft.error
     if ((ft.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn sổ lệnh quỹ của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn sổ lệnh quỹ của tài khoản này.'))
 
     const { error } = await sb.from('accounts').delete().eq('id', id)
     if (error) throw error
@@ -1073,7 +1074,7 @@ export const supabaseRepo: Repo = {
       const loi = await docLoiTuContext(error)
       throw new Error(loi ?? error.message)
     }
-    if (!data?.ok) throw new Error(data?.loi ?? 'Không tra được.')
+    if (!data?.ok) throw new Error(data?.loi ?? tr('Không tra được.'))
     return data.ketQua as unknown
   },
 
@@ -1316,7 +1317,7 @@ export const supabaseRepo: Repo = {
       .in('category_id', ids)
     if (tx.error) throw tx.error
     if ((tx.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
 
     const rr = await sb
       .from('recurring_rules')
@@ -1324,7 +1325,7 @@ export const supabaseRepo: Repo = {
       .in('category_id', ids)
     if (rr.error) throw rr.error
     if ((rr.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
 
     const bg = await sb
       .from('budgets')
@@ -1332,7 +1333,7 @@ export const supabaseRepo: Repo = {
       .in('category_id', ids)
     if (bg.error) throw bg.error
     if ((bg.count ?? 0) > 0)
-      throw new Error('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.'))
 
     // Xóa cha → FK on delete cascade tự xóa con (đã kiểm tra con trống ở trên).
     const { error } = await sb.from('categories').delete().eq('id', id)
@@ -1948,7 +1949,7 @@ export const supabaseRepo: Repo = {
       .select()
       .single()
     // 23505 = trùng unique(user_id, name)
-    if (error) throw error?.code === '23505' ? new Error(`Nhóm "${name}" đã tồn tại`) : error
+    if (error) throw error?.code === '23505' ? new Error(tr('Nhóm "{name}" đã tồn tại', { name })) : error
     return data
   },
 
@@ -1959,7 +1960,7 @@ export const supabaseRepo: Repo = {
       .eq('id', id)
       .select()
       .single()
-    if (error) throw error?.code === '23505' ? new Error('Tên nhóm đã tồn tại') : error
+    if (error) throw error?.code === '23505' ? new Error(tr('Tên nhóm đã tồn tại')) : error
     return data
   },
 
@@ -1978,7 +1979,7 @@ export const supabaseRepo: Repo = {
       .select()
       .single()
     // 23505 = trùng unique(user_id, name)
-    if (error) throw error?.code === '23505' ? new Error(`Nhãn "${input.name.trim()}" đã tồn tại`) : error
+    if (error) throw error?.code === '23505' ? new Error(tr('Nhãn "{name}" đã tồn tại', { name: input.name.trim() })) : error
     return data
   },
 
@@ -1989,7 +1990,7 @@ export const supabaseRepo: Repo = {
       .eq('id', id)
       .select()
       .single()
-    if (error) throw error?.code === '23505' ? new Error('Tên nhãn đã tồn tại') : error
+    if (error) throw error?.code === '23505' ? new Error(tr('Tên nhãn đã tồn tại')) : error
     return data
   },
 
@@ -2185,7 +2186,7 @@ export const supabaseRepo: Repo = {
     const { data: trungHoa, error: loiDoc } = await sb
       .from('transactions')
       .select('account_id, occurred_on, amount')
-      .like('note', '給与 % · trung hoà dòng neo')
+      .like('note', '給与 % · trung hoà dòng neo') // i18n-ignore — mẫu LIKE khớp ghi chú đã lưu trong DB
     if (loiDoc) throw loiDoc
     let neo = 0
     for (const t of trungHoa ?? []) {
@@ -2258,7 +2259,7 @@ export const supabaseRepo: Repo = {
     const problems = validateBackupPayload(data)
     if (problems.length)
       throw new Error(
-        `File sao lưu có ${problems.length} vấn đề, chưa xoá gì cả:\n· ${problems.join('\n· ')}`,
+        tr('File sao lưu có {n} vấn đề, chưa xoá gì cả:\n· {list}', { n: problems.length, list: problems.join('\n· ') }),
       )
 
     // Chèn theo lô: 16.000 giao dịch trong MỘT request dễ vượt giới hạn kích thước body

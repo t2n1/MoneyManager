@@ -23,6 +23,7 @@ import {
   Tag as TagIcon,
   Tags,
 } from 'lucide-react'
+import { tr, trx } from '../../i18n'
 
 export interface SettingsNavItem {
   to: string
@@ -41,31 +42,31 @@ export interface SettingsNavItem {
 export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     to: '/settings',
-    label: 'Chung',
+    label: trx('nav', 'Chung'),
     Icon: SlidersHorizontal,
-    hint: 'Giao diện · Hồ sơ · Tỷ giá',
+    hint: tr('Giao diện · Hồ sơ · Tỷ giá'),
     index: true,
   },
-  { to: '/settings/accounts', label: 'Tài khoản', Icon: Landmark },
+  { to: '/settings/accounts', label: trx('list', 'Tài khoản'), Icon: Landmark },
   {
     to: '/settings/asset-groups',
-    label: 'Nhóm tài sản',
+    label: trx('list', 'Nhóm tài sản'),
     Icon: Layers,
-    hint: 'Cách cắt lát Tổng tài sản · tính vào tổng, ẩn',
+    hint: tr('Cách cắt lát Tổng tài sản · tính vào tổng, ẩn'),
   },
   {
     to: '/settings/categories',
-    label: 'Danh mục',
+    label: trx('list', 'Danh mục'),
     Icon: Tags,
-    hint: 'Cây cha/con · Phân loại chi tiêu',
+    hint: tr('Cây cha/con · Phân loại chi tiêu'),
   },
-  { to: '/settings/tags', label: 'Nhãn', Icon: TagIcon },
-  { to: '/settings/notifications', label: 'Thông báo', Icon: Bell },
+  { to: '/settings/tags', label: tr('Nhãn'), Icon: TagIcon },
+  { to: '/settings/notifications', label: tr('Thông báo'), Icon: Bell },
   {
     to: '/settings/data',
-    label: 'Dữ liệu & sao lưu',
+    label: tr('Dữ liệu & sao lưu'),
     Icon: Database,
-    hint: 'Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV',
+    hint: tr('Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV'),
   },
 ]
 
@@ -112,7 +113,7 @@ export function SettingsLayout() {
     // `sticky` mất tác dụng (phần tử đã cao bằng khối cuộn thì chẳng có gì để dính).
     <div className="flex w-full flex-col lg:flex-row lg:items-start">
       <nav
-        aria-label="Mục cài đặt"
+        aria-label={tr('Mục cài đặt')}
         // `sticky top-0` bám vào <main> (khối cuộn duy nhất của app, xem AppLayout), nên
         // menu đứng yên trong lúc trang bên phải cuộn dài.
         // Bề rộng theo rem: đây là danh sách CHỮ, cỡ chữ "Rất lớn" mà cột đứng yên thì

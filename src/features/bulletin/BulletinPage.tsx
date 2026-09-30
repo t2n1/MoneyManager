@@ -81,6 +81,7 @@ import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } fro
 import { KpiRow } from './KpiRow'
 import { HomNayPanel } from './HomNayPanel'
 import type { TransactionRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 /** Số dòng ở khối Giao dịch gần đây. */
 const RECENT = 6
@@ -217,7 +218,7 @@ export function BulletinPage() {
   // Kỳ tính của tỷ lệ giữ lại (MỤC 14) — "tới hôm nay" khi tháng đang xem chưa hết. Nguồn
   // là quy ước chung `periodDays` (lib/dates), cùng chỗ Báo cáo lấy.
   const rateScope = periodDays(getMonthRange(activeMonthKey, monthStartDay), todayISO).inProgress
-    ? 'tới hôm nay'
+    ? tr('tới hôm nay')
     : undefined
 
   // Tới ngày lương (§4.9). Luôn tính theo KỲ HIỆN TẠI, không theo tháng đang xem — nó
@@ -294,7 +295,7 @@ export function BulletinPage() {
     income: incomeKpi.value,
     expense: expenseKpi.value,
     priorExpense: expenseKpi.prev,
-    periodNoun: 'tháng này',
+    periodNoun: tr('tháng này'),
     // Cùng luật "chưa đặt" và cùng phạm vi so với thẻ ngân sách (`pickBudgetVerdict`).
     pace: headlinePaceOf(bulletinPace),
     savingsTargetShare: savingsShare,
@@ -416,7 +417,7 @@ export function BulletinPage() {
     [dailySpend.days, tagSpendRows, tags, tagGroups, accounts, base, rates, transferIds, excludeIds],
   )
 
-  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
+  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? tr('Chưa rõ')
 
   const {
     netWorth,
@@ -512,7 +513,7 @@ export function BulletinPage() {
   if (laLanDau) {
     return (
       <div className="flex flex-col gap-2.5 p-3 lg:p-4">
-        <PageHeader title="Bản tin" flush mobileOnly />
+        <PageHeader title={tr('Bản tin')} flush mobileOnly />
         <FirstRunPanel hasBirthYear={profile?.birth_year != null} />
       </div>
     )
@@ -525,7 +526,7 @@ export function BulletinPage() {
           Bốn nút bên phải là ĐƯỜNG VÀO MOBILE của bốn màn không có tab (§3 chốt bốn tab
           + "+"; xem NAV_ITEMS). Đặt ở Bản tin vì đây là màn mở đầu tiên — bỏ khỏi thanh
           tab mà không mở lối khác thì trên mobile bốn màn đó biến mất hẳn. */}
-      <PageHeader title="Bản tin" flush mobileOnly>
+      <PageHeader title={tr('Bản tin')} flush mobileOnly>
         <p aria-live="polite" className="ml-auto font-mono text-sm text-fg-muted">
           {formatMonthLabel(activeMonthKey)}
         </p>
@@ -545,16 +546,16 @@ export function BulletinPage() {
             phần trên, một phần dưới, đọc thành lỗi). Bọc lại thì cả bốn xuống cùng nhau.
             Đo được: 1× một dòng, 1,25× hai dòng, không tràn ngang ở cả hai. */}
         <span className="flex shrink-0 items-center gap-1">
-          <Link to="/invest" aria-label="Đầu tư" className={iconButtonClass('ghost')}>
+          <Link to="/invest" aria-label={tr('Đầu tư')} className={iconButtonClass('ghost')}>
             <LineChart className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/tuong-lai" aria-label="Tương lai" className={iconButtonClass('ghost')}>
+          <Link to="/tuong-lai" aria-label={tr('Tương lai')} className={iconButtonClass('ghost')}>
             <Milestone className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/reports" aria-label="Báo cáo" className={iconButtonClass('ghost')}>
+          <Link to="/reports" aria-label={tr('Báo cáo')} className={iconButtonClass('ghost')}>
             <ChartColumn className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/settings" aria-label="Cài đặt" className={iconButtonClass('ghost')}>
+          <Link to="/settings" aria-label={tr('Cài đặt')} className={iconButtonClass('ghost')}>
             <Settings className="h-5 w-5" strokeWidth={1.6} />
           </Link>
         </span>
@@ -586,10 +587,10 @@ export function BulletinPage() {
         >
           <span className="min-w-0 flex-1">
             {seriesFailed && monthFailed
-              ? 'Không tải được giao dịch tháng này và các tháng trước — thử tải lại.'
+              ? tr('Không tải được giao dịch tháng này và các tháng trước — thử tải lại.')
               : seriesFailed
-                ? 'Không tải được dữ liệu các tháng trước — thử tải lại.'
-                : 'Không tải được giao dịch tháng này — thử tải lại.'}
+                ? tr('Không tải được dữ liệu các tháng trước — thử tải lại.')
+                : tr('Không tải được giao dịch tháng này — thử tải lại.')}
           </span>
           <ActionButton
             onClick={() => {
@@ -597,7 +598,7 @@ export function BulletinPage() {
               if (monthFailed) void monthQ.refetch()
             }}
           >
-            Thử lại
+            {tr('Thử lại')}
           </ActionButton>
         </div>
       )}
@@ -626,7 +627,7 @@ export function BulletinPage() {
             />
           ) : headlinePending ? (
             <p className="text-sm text-fg-muted">
-              {headlineFailed ? 'Chưa tính được kết luận tháng.' : 'Đang tính kết luận tháng…'}
+              {headlineFailed ? tr('Chưa tính được kết luận tháng.') : tr('Đang tính kết luận tháng…')}
             </p>
           ) : (
             headline && (
@@ -689,20 +690,20 @@ export function BulletinPage() {
 
           <Card elevation="panel" padding="panel" as="section" className="min-w-0">
             <div className="flex items-baseline justify-between gap-2">
-              <SectionTitle>Giao dịch gần đây</SectionTitle>
+              <SectionTitle>{tr('Giao dịch gần đây')}</SectionTitle>
               <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
-                Mở Sổ →
+                {tr('Mở Sổ →')}
               </Link>
             </div>
             {!monthReady ? (
               <p className="mt-3 text-sm text-fg-muted">
-                {monthFailed ? 'Chưa tải được giao dịch tháng này.' : 'Đang tải…'}
+                {monthFailed ? tr('Chưa tải được giao dịch tháng này.') : tr('Đang tải…')}
               </p>
             ) : recent.length === 0 ? (
               <p className="mt-3 text-sm text-fg-muted">
-                Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
+                {tr('Chưa ghi giao dịch nào {month}.', { month: formatMonthLabel(activeMonthKey) })}{' '}
                 <Link to="/entry" className="font-medium text-fg-accent hover:underline">
-                  Ghi một khoản
+                  {tr('Ghi một khoản')}
                 </Link>
               </p>
             ) : (

@@ -73,17 +73,19 @@ import { useAxisProgress } from './useAxisProgress'
 import { TagBudgetsCard } from '../tags/TagBudgetsCard'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const SORT_KEY = 'budget.sort'
 const SORT_OPTIONS = [
-  ['pace', 'Nhịp'],
-  ['money', 'Tiền'],
-  ['manual', 'Cài đặt'],
+  ['pace', tr('Nhịp')],
+  ['money', tr('Tiền')],
+  ['manual', tr('Cài đặt')],
 ] as const satisfies readonly (readonly [BudgetSortMode, string])[]
 const SORT_HINT: Record<BudgetSortMode, string> = {
-  pace: 'Mục tiêu nhanh hơn nhịp tháng lên đầu (tháng đã qua thì bằng % đã dùng).',
-  money: 'Vượt nhiều tiền nhất lên đầu, rồi tới mục còn ít tiền để tiêu nhất.',
-  manual: 'Đúng thứ tự danh mục trong Cài đặt — đứng yên cả tháng cho dễ nhớ chỗ.',
+  pace: tr('Mục tiêu nhanh hơn nhịp tháng lên đầu (tháng đã qua thì bằng % đã dùng).'),
+  money: tr('Vượt nhiều tiền nhất lên đầu, rồi tới mục còn ít tiền để tiêu nhất.'),
+  manual: tr('Đúng thứ tự danh mục trong Cài đặt — đứng yên cả tháng cho dễ nhớ chỗ.'),
 }
 
 /**
@@ -167,7 +169,7 @@ function RestCell({
     return (
       <span className={box}>
         <Money amount={spent} currency={base} className={muted} />
-        <span className={`ml-1 ${label}`}>chưa trần</span>
+        <span className={`ml-1 ${label}`}>{tr('chưa trần')}</span>
       </span>
     )
   }
@@ -176,17 +178,17 @@ function RestCell({
   if (budgeted <= 0 && spent <= 0) {
     return (
       <span className={box}>
-        <span className={label}>trần </span>
+        <span className={label}>{tr('trần ')}</span>
         <Money amount={0} currency={base} className={muted} />
       </span>
     )
   }
   const rest = restOf(budgeted, spent)
-  if (rest === 0) return <span className={`${box} text-2xs text-fg-warn`}>vừa hết hạn mức</span>
+  if (rest === 0) return <span className={`${box} text-2xs text-fg-warn`}>{tr('vừa hết hạn mức')}</span>
   const tone = rest < 0 ? 'out' : status === 'warn' ? 'warn' : 'neutral'
   return (
     <span className={box}>
-      <span className={label}>{rest < 0 ? 'vượt ' : 'còn '}</span>
+      <span className={label}>{rest < 0 ? tr('vượt ') : tr('còn ')}</span>
       <Money amount={Math.abs(rest)} currency={base} tone={tone} />
     </span>
   )
@@ -261,7 +263,7 @@ function ProgressBar({
   className?: string
 }) {
   // Infinity (trần ¥0 mà đã chi) không in thành phần trăm được: câu đọc nói thẳng "vượt".
-  const pctText = Number.isFinite(ratio) ? `${Math.round(ratio * 100)}% hạn mức` : 'vượt trần ¥0'
+  const pctText = Number.isFinite(ratio) ? tr('{pct}% hạn mức', { pct: Math.round(ratio * 100) }) : tr('vượt trần ¥0')
   const pacePct = pace === null ? null : Math.round(pace * 100)
   return (
     // Bọc thêm một lớp KHÔNG cắt tràn: vạch cao hơn thanh và phải nhô ra hai đầu (xem
@@ -274,8 +276,8 @@ function ProgressBar({
         ratio={ratio}
         fillClassName={BAR_COLOR[status]}
         warn={status === 'warn'}
-        label="Hạn mức đã dùng"
-        valueText={pacePct === null ? pctText : `${pctText}, kỳ đã trôi ${pacePct}%`}
+        label={tr('Hạn mức đã dùng')}
+        valueText={pacePct === null ? pctText : tr('{used}, kỳ đã trôi {pct}%', { used: pctText, pct: pacePct })}
       />
       {pacePct !== null && (
         // CAO HƠN thanh (12px so với 8px) và nhô ra hai đầu, thay vì một vạch nằm gọn
@@ -288,7 +290,7 @@ function ProgressBar({
         // h-2), không đo theo chữ — phóng cỡ chữ mà vạch dày lên là mốc đổi hình.
         <span
           aria-hidden
-          title={`Đến hôm nay: ${pacePct}% kỳ đã trôi`}
+          title={tr('Đến hôm nay: {pct}% kỳ đã trôi', { pct: pacePct })}
           className="pointer-events-none absolute top-1/2 h-[12px] w-[1.5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-primary eink:h-5 eink:w-0.5"
           style={{ left: `${Math.min(pacePct, 100)}%` }}
         />
@@ -435,7 +437,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         .catch(() => {})
       return
     }
-    showToast(`Đã chuyển ${formatMoney(amount, base)} sang ${to.name}`, 'success')
+    showToast(tr('Đã chuyển {amount} sang {name}', { amount: formatMoney(amount, base), name: to.name }), 'success')
   }
 
   function changeSort(m: BudgetSortMode) {
@@ -500,7 +502,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       parentOf: (id) => catOf(id)?.parent_id ?? null,
     })
     if (plan.lines.length === 0) {
-      showToast('Chưa đủ lịch sử để đề xuất hạn mức nào.', 'info')
+      showToast(tr('Chưa đủ lịch sử để đề xuất hạn mức nào.'), 'info')
       return
     }
     // Nói con số MỚI cạnh con số CŨ: một mình "Tổng ¥432,000" không cho biết đây là tăng
@@ -509,15 +511,18 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     // "đang là ¥0" vẫn phải nói khi đã có dòng trần ¥0 — đó là một tổng thật.
     const head =
       totalCapOf(report) !== 'unset'
-        ? `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)} — đang là ${formatMoney(currentTotal, base)}.`
-        : `Tổng ngân sách sẽ thành ${formatMoney(plan.total, base)}.`
+        ? tr('Tổng ngân sách sẽ thành {total} — đang là {current}.', {
+            total: formatMoney(plan.total, base),
+            current: formatMoney(currentTotal, base),
+          })
+        : tr('Tổng ngân sách sẽ thành {total}.', { total: formatMoney(plan.total, base) })
     const ok = await confirmDialog({
-      title: `Đặt ${plan.lines.length} hạn mức từ 6 tháng qua?`,
+      title: tr('Đặt {n} hạn mức từ 6 tháng qua?', { n: plan.lines.length }),
       message:
         plan.overwrite > 0
-          ? `${head} Trong đó ${plan.overwrite} mục ĐANG CÓ hạn mức sẽ bị ghi đè.`
-          : `${head} Không mục nào đang có hạn mức bị đụng.`,
-      confirmLabel: 'Đặt hạn mức',
+          ? tr('{head} Trong đó {n} mục ĐANG CÓ hạn mức sẽ bị ghi đè.', { head, n: plan.overwrite })
+          : tr('{head} Không mục nào đang có hạn mức bị đụng.', { head }),
+      confirmLabel: tr('Đặt hạn mức'),
     })
     if (!ok) return
     try {
@@ -531,7 +536,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     } catch {
       return
     }
-    showToast(`Đã đặt ${plan.lines.length} hạn mức`, 'success')
+    showToast(tr('Đã đặt {n} hạn mức', { n: plan.lines.length }), 'success')
   }
 
   async function handleCopy() {
@@ -543,13 +548,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       return
     }
     showToast(
-      n > 0 ? `Đã chép ${n} hạn mức từ tháng trước` : 'Tháng trước không có hạn mức để chép',
+      n > 0 ? tr('Đã chép {n} hạn mức từ tháng trước', { n }) : tr('Tháng trước không có hạn mức để chép'),
       n > 0 ? 'success' : 'info',
     )
   }
 
   if (isLoading || !report) {
-    return <EmptyState>Đang tải…</EmptyState>
+    return <EmptyState>{tr('Đang tải…')}</EmptyState>
   }
 
   // "Chưa đặt" = không có dòng ngân sách; tổng trần ¥0 là trần thật (`totalCapOf`). Thanh
@@ -709,7 +714,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     axisShareNow: null,
     axisTargetShare: null,
     axisOk: true,
-    emptyHint: `chưa có lịch sử ${SUGGEST_MONTHS} tháng để gợi ý`,
+    emptyHint: tr('chưa có lịch sử {n} tháng để gợi ý', { n: SUGGEST_MONTHS }),
     onDrag: (v) => setDraft({ categoryId, amount: v }),
     onCommit: (v) => void commitLimit(categoryId, v),
     onDetail: () => openEdit(categoryId),
@@ -749,15 +754,17 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               {/* Khoản cố định đã trả xong: không còn gì để phanh, nên không nói "còn"
                   cũng không nói "vừa hết" — chỉ xác nhận là xong (`childState`). */}
               <span className="text-2xs text-fg-on-track">
-                <Money amount={m.spent} currency={base} className="!text-2xs !text-fg-on-track" /> · đã trả
+                {trn('{amount} · đã trả', {
+                  amount: <Money amount={m.spent} currency={base} className="!text-2xs !text-fg-on-track" />,
+                })}
               </span>
-              <Check className="h-4 w-4 shrink-0 text-money-in" aria-label="đã trả xong" />
+              <Check className="h-4 w-4 shrink-0 text-money-in" aria-label={tr('đã trả xong')} />
             </>
           ) : m ? (
             <>
               {m.carried > 0 && (
                 <span className="text-2xs text-money-in">
-                  dồn +<Money amount={m.carried} currency={base} tone="in" className="!text-2xs" />
+                  {trn('dồn +{amount}', { amount: <Money amount={m.carried} currency={base} tone="in" className="!text-2xs" /> })}
                 </span>
               )}
               {/* "đã chi / trần" lúc mở: ở điện thoại ẩn đi — hàng 375px không chứa nổi
@@ -777,7 +784,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               {/* Con chưa đặt mốc nhưng ĐÃ có chi — vẫn đứng dòng riêng để số chi không
                   mất; con chưa đặt mốc và chưa chi thì gộp vào dòng "chia" (groupBody). */}
               <Money amount={child.spent} currency={base} className="!text-2xs !text-fg-on-track" />
-              <span className="w-10 shrink-0 text-right text-2xs text-fg-on-track">mốc +</span>
+              <span className="w-10 shrink-0 text-right text-2xs text-fg-on-track">{tr('mốc +')}</span>
             </>
           )}
         </button>
@@ -831,15 +838,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 className="flex min-h-11 w-full items-center justify-between gap-2 text-left text-sm"
               >
                 <span className="min-w-0 truncate text-fg-on-track">
-                  {idle.length > 0 ? nameList(idle.map((k) => k.cat.name)) : 'Chia lại cho các mục con'}
+                  {idle.length > 0 ? nameList(idle.map((k) => k.cat.name)) : tr('Chia lại cho các mục con')}
                 </span>
                 <span className="shrink-0 text-2xs font-medium text-fg-on-track">
                   {unsplit > 0 ? (
-                    <>
-                      chia <Money amount={unsplit} currency={base} className="!text-2xs !text-fg-on-track" /> →
-                    </>
+                    trn('chia {amount} →', {
+                      amount: <Money amount={unsplit} currency={base} className="!text-2xs !text-fg-on-track" />,
+                    })
                   ) : (
-                    'mốc +'
+                    tr('mốc +')
                   )}
                 </span>
               </button>
@@ -869,7 +876,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     const spent = spentOf(item)
     const status = item.kind === 'leaf' ? item.line.status : item.status
     const meta =
-      item.kind === 'group' ? (item.capped ? 'trần nhóm' : `${item.children.length} mục con`) : null
+      item.kind === 'group' ? (item.capped ? tr('trần nhóm') : tr('{n} mục con', { n: item.children.length })) : null
     return (
       <li key={id} id={anchor} className={mark}>
         <div className="flex items-stretch gap-1">
@@ -882,7 +889,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             <button
               type="button"
               onClick={() => toggle(id)}
-              aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+              aria-label={isOpen ? tr('Thu gọn') : tr('Xem các mục con')}
               aria-expanded={isOpen}
               className="-ml-2 -mr-1 flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
             >
@@ -909,9 +916,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               {/* "đã chi / trần" lúc mở thanh: dòng phụ dưới tên, không chen ngang. */}
               {sliderOpen && (
                 <span className="block truncate text-2xs font-normal text-fg-muted">
-                  đã chi <Money amount={spent} currency={base} className="!text-2xs !text-fg-muted" />
-                  {' / '}
-                  <Money amount={budgeted} currency={base} className="!text-2xs !text-fg-muted" />
+                  {trn('đã chi {spent} / {cap}', {
+                    spent: <Money amount={spent} currency={base} className="!text-2xs !text-fg-muted" />,
+                    cap: <Money amount={budgeted} currency={base} className="!text-2xs !text-fg-muted" />,
+                  })}
                 </span>
               )}
             </span>
@@ -940,7 +948,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             <button
               type="button"
               onClick={() => toggle(c.id)}
-              aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+              aria-label={isOpen ? tr('Thu gọn') : tr('Xem các mục con')}
               aria-expanded={isOpen}
               // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp app đang
               // dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng giãn ra (cùng mẹo
@@ -970,7 +978,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     <div className="flex flex-col gap-3">
       {(report.hasMissingRate || pace.hasMissingRate) && (
         <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
-          Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
+          {tr('Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.')}
         </div>
       )}
 
@@ -992,13 +1000,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {/* Dòng tổng — kèm luôn phán quyết cuối tháng, xem BudgetVerdictLine */}
       <Card as="section">
         <div className="mb-1 flex items-baseline justify-between">
-          <SectionTitle>Tổng ngân sách</SectionTitle>
+          <SectionTitle>{tr('Tổng ngân sách')}</SectionTitle>
           <span className="flex gap-2 text-sm font-medium">
             {report.warnCount > 0 && (
-              <span className="text-fg-warn">{report.warnCount} sắp vượt</span>
+              <span className="text-fg-warn">{tr('{n} sắp vượt', { n: report.warnCount })}</span>
             )}
             {report.overCount > 0 && (
-              <span className="text-money-out">{report.overCount} danh mục vượt</span>
+              <span className="text-money-out">{tr('{n} danh mục vượt', { n: report.overCount })}</span>
             )}
           </span>
         </div>
@@ -1022,18 +1030,20 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               </span>
               <span className="text-sm text-fg-secondary">
                 {totalRemaining > 0
-                  ? 'còn lại'
+                  ? tr('còn lại')
                   : totalRemaining < 0
-                    ? 'đã vượt'
+                    ? tr('đã vượt')
                     : totalCap === 'zero'
                       ? // Trần ¥0 chưa chi: "vừa đủ" là sai nghĩa — chưa tiêu gì cả.
-                        'trần tháng này · chưa chi đồng nào'
-                      : 'vừa đủ'}
+                        tr('trần tháng này · chưa chi đồng nào')
+                      : tr('vừa đủ')}
               </span>
             </div>
             <p className="mt-1.5 text-sm text-fg-secondary">
-              Đã chi <b className="font-semibold text-fg-primary">{formatMoney(report.totalSpent, base)}</b>{' '}
-              / {formatMoney(report.totalBudgeted, base)}
+              {trn('Đã chi {spent} / {cap}', {
+                spent: <b className="font-semibold text-fg-primary">{formatMoney(report.totalSpent, base)}</b>,
+                cap: formatMoney(report.totalBudgeted, base),
+              })}
             </p>
             <ProgressBar
               ratio={budgetBarRatio(report.totalSpent, report.totalBudgeted)}
@@ -1045,41 +1055,46 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 thì không chia (chẳng còn ngày nào để tiêu). Không nhắc lại con số "còn
                 lại" nữa — nó đã là số lớn nhất ngay trên đầu thẻ. */}
             {totalRemaining > 0 && commitmentsPending && (
-              <p className="mt-1.5 text-sm text-fg-muted">Đang tính mức tiêu mỗi ngày…</p>
+              <p className="mt-1.5 text-sm text-fg-muted">{tr('Đang tính mức tiêu mỗi ngày…')}</p>
             )}
             {totalRemaining > 0 && totalAllowance && (
               <p className="mt-1.5 text-sm text-fg-secondary">
                 {/* E-ink + Gọn: bỏ vế giải thích "(kể cả hôm nay)", giữ phép nhân. */}
                 {visual ? (
                   <>
-                    {`${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`}
-                    <span className="eink-gon:hidden"> (kể cả hôm nay)</span>
+                    {tr('{amount}/ngày × {n} ngày', { amount: formatMoney(totalAllowance.perDay, base), n: totalAllowance.daysLeft })}
+                    <span className="eink-gon:hidden">{tr(' (kể cả hôm nay)')}</span>
                   </>
                 ) : (
-                  `Cho ${daysLeftLabel(totalAllowance.daysLeft)} — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`
+                  tr('Cho {days} — tiêu {amount}/ngày thì vừa đủ.', {
+                    days: daysLeftLabel(totalAllowance.daysLeft),
+                    amount: formatMoney(totalAllowance.perDay, base),
+                  })
                 )}
                 {/* B36.1 · Phải NÓI RA phần đã trừ, không âm thầm hạ số: người dùng thấy
                     con số tụt so với hôm qua và tưởng app tính sai. Ở cả hai chế độ mật độ
                     vì nó là số liệu, không phải lời giải thích. */}
                 {committedRemaining > 0 && (
                   <span className="ml-1.5 text-fg-warn">
-                    — đã trừ {formatMoney(committedRemaining, base)} cam kết chưa ra
+                    {tr('— đã trừ {amount} cam kết chưa ra', { amount: formatMoney(committedRemaining, base) })}
                   </span>
                 )}
                 {/* "ngày 15/31" của 11a. Số ngày CÒN LẠI một mình không nói được mình
                     đang ở đâu trong tháng, mà đó là mẫu số của mọi câu "nhanh/chậm hơn
                     nhịp" phía dưới. */}
                 <span className="ml-1.5 tabular-nums text-fg-muted">
-                  · ngày {pace.paceDaysElapsed}/{pace.paceDaysInMonth}
+                  {tr('· ngày {day}/{total}', { day: pace.paceDaysElapsed, total: pace.paceDaysInMonth })}
                 </span>
               </p>
             )}
             {/* B36.2 · Câu RIÊNG, không phải dòng biến mất. */}
             {thieuTruocCuoiThang && (
               <p className="mt-1.5 text-sm font-medium text-money-out">
-                Còn {formatMoney(totalRemaining, base)} nhưng{' '}
-                {formatMoney(committedRemaining, base)} đã cam kết — thiếu{' '}
-                {formatMoney(-spendable, base)} trước cuối tháng.
+                {tr('Còn {left} nhưng {committed} đã cam kết — thiếu {short} trước cuối tháng.', {
+                  left: formatMoney(totalRemaining, base),
+                  committed: formatMoney(committedRemaining, base),
+                  short: formatMoney(-spendable, base),
+                })}
               </p>
             )}
           </>
@@ -1126,14 +1141,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             onClick={handleCopy}
             className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
           >
-            Chép hạn mức tháng trước
+            {tr('Chép hạn mức tháng trước')}
           </button>
           <button
             type="button"
             onClick={handleAutoBudget}
             className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
           >
-            Đặt từ 6 tháng qua
+            {tr('Đặt từ 6 tháng qua')}
           </button>
         </div>
       </Card>
@@ -1161,27 +1176,29 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           nằm trong rebalance.ts. */}
       {deNghi && (
         <Card as="section">
-          <SectionTitle>Cân lại trần</SectionTitle>
+          <SectionTitle>{tr('Cân lại trần')}</SectionTitle>
           {deNghi.from ? (
             <>
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
-                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />. Lấy{' '}
-                <Money amount={deNghi.amount} currency={base} /> từ{' '}
-                <strong className="font-semibold">{deNghi.from.name}</strong> — mục này, kể
-                cả khoản còn phải trả, vẫn dư <Money amount={deNghi.from.surplus} currency={base} />.
+                {trn('{to} với đà này, tính cả khoản còn phải trả, sẽ vượt {deficit}. Lấy {amount} từ {from} — mục này, kể cả khoản còn phải trả, vẫn dư {surplus}.', {
+                  to: <strong className="font-semibold">{deNghi.to.name}</strong>,
+                  deficit: <Money amount={deNghi.to.deficit} currency={base} />,
+                  amount: <Money amount={deNghi.amount} currency={base} />,
+                  from: <strong className="font-semibold">{deNghi.from.name}</strong>,
+                  surplus: <Money amount={deNghi.from.surplus} currency={base} />,
+                })}
               </p>
               <Guide className="mt-1 text-sm text-fg-muted">
-                Tổng ngân sách tháng không đổi: trừ bên này bao nhiêu, cộng bên kia bấy
-                nhiêu. Nếu {deNghi.from.name} đang bật dồn thì phần dồn sang tháng sau cũng
-                giảm theo.
+                {tr('Tổng ngân sách tháng không đổi: trừ bên này bao nhiêu, cộng bên kia bấy nhiêu. Nếu {name} đang bật dồn thì phần dồn sang tháng sau cũng giảm theo.', {
+                  name: deNghi.from.name,
+                })}
               </Guide>
               <div className="mt-3 flex gap-2">
                 <ActionButton variant="primary" onClick={chuyenTran} disabled={upsert.isPending}>
-                  Đồng ý
+                  {tr('Đồng ý')}
                 </ActionButton>
                 <ActionButton onClick={deYen}>
-                  Để yên
+                  {tr('Để yên')}
                 </ActionButton>
               </div>
             </>
@@ -1191,18 +1208,20 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   trước đây không bao giờ nói. Im ở đây là để người dùng tự phát hiện vào
                   ngày cuối tháng. */}
               <p className="mt-1 text-sm text-fg">
-                <strong className="font-semibold">{deNghi.to.name}</strong> với đà này, tính cả
-                khoản còn phải trả, sẽ vượt <Money amount={deNghi.to.deficit} currency={base} />, và{' '}
-                <strong className="font-semibold">không mục nào còn dư để lấy</strong> —
-                tổng tháng này sẽ vượt.
+                {trn('{to} với đà này, tính cả khoản còn phải trả, sẽ vượt {deficit}, và {none} — tổng tháng này sẽ vượt.', {
+                  to: <strong className="font-semibold">{deNghi.to.name}</strong>,
+                  deficit: <Money amount={deNghi.to.deficit} currency={base} />,
+                  none: <strong className="font-semibold">{tr('không mục nào còn dư để lấy')}</strong>,
+                })}
               </p>
               <Guide className="mt-1 text-sm text-fg-muted">
-                Cân qua lại không cứu được nữa. Chỉ còn hai đường: tiêu chậm lại ở{' '}
-                {deNghi.to.name}, hoặc chấp nhận tháng này vượt và nâng trần cho đúng sự thật.
+                {tr('Cân qua lại không cứu được nữa. Chỉ còn hai đường: tiêu chậm lại ở {name}, hoặc chấp nhận tháng này vượt và nâng trần cho đúng sự thật.', {
+                  name: deNghi.to.name,
+                })}
               </Guide>
               <div className="mt-3">
                 <ActionButton onClick={deYen}>
-                  Đã hiểu
+                  {tr('Đã hiểu')}
                 </ActionButton>
               </div>
             </>
@@ -1213,7 +1232,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {pace.isCurrentMonth && commitments.ready && commitments.items.length > 0 && (
         <Card as="section">
           <div className="mb-1 flex items-baseline justify-between gap-2">
-            <SectionTitle>Còn phải trả</SectionTitle>
+            <SectionTitle>{tr('Còn phải trả')}</SectionTitle>
             <Money
               amount={commitments.total}
               currency={base}
@@ -1222,8 +1241,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             />
           </div>
           <Guide className="mb-2 text-sm text-fg-muted">
-            Cam kết chưa sinh giao dịch trong tháng này. Đã ra rồi thì không hiện — nó nằm
-            trong số đã chi ở trên.
+            {tr('Cam kết chưa sinh giao dịch trong tháng này. Đã ra rồi thì không hiện — nó nằm trong số đã chi ở trên.')}
           </Guide>
 
           <ul className="divide-y divide-border-subtle">
@@ -1244,27 +1262,29 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       {quaHan && (
                         <TriangleAlert
                           className="h-3.5 w-3.5 shrink-0 text-fg-warn"
-                          aria-label="quá hạn chưa ghi"
+                          aria-label={tr('quá hạn chưa ghi')}
                         />
                       )}
                       <span className="min-w-0 truncate text-fg-primary">{it.title}</span>
                     </span>
                     <span className="shrink-0 text-fg-primary">
                       {it.unknownAmount ? (
-                        <span className="text-sm text-fg-muted">chưa biết</span>
+                        <span className="text-sm text-fg-muted">{tr('chưa biết')}</span>
                       ) : (
                         <Money amount={it.amount} currency={base} />
                       )}
                     </span>
                   </div>
                   <p className={`text-2xs ${quaHan ? 'text-fg-warn' : 'text-fg-muted'}`}>
-                    {it.kind === 'recurring' ? 'định kỳ' : 'sắp chi'}
+                    {it.kind === 'recurring' ? tr('định kỳ') : tr('sắp chi')}
                     {it.times > 1 && ` ×${it.times}`}
                     {' · '}
                     {quaHan
-                      ? `${it.duePrecision === 'month' ? 'hạn' : 'tới hạn'} ${commitmentDueLabel(it)} — quá hạn ${soNgay} ngày, chưa ghi`
+                      ? it.duePrecision === 'month'
+                        ? tr('hạn {date} — quá hạn {n} ngày, chưa ghi', { date: commitmentDueLabel(it), n: soNgay })
+                        : tr('tới hạn {date} — quá hạn {n} ngày, chưa ghi', { date: commitmentDueLabel(it), n: soNgay })
                       : commitmentDueLabel(it)}
-                    {c ? ` → ${c.name}` : ' · chưa gắn danh mục'}
+                    {c ? ` → ${c.name}` : tr(' · chưa gắn danh mục')}
                   </p>
                 </li>
               )
@@ -1285,11 +1305,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     >
                       <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
                       <span className="min-w-0 flex-1">
-                        {catOf(g.categoryId)?.name ?? 'Danh mục'}: đã chi{' '}
-                        {formatMoney(daChi, base)}, còn {formatMoney(g.budgeted, base)} trong
-                        trần — mà còn {formatMoney(g.committed, base)} phải trả.{' '}
+                        {tr('{name}: đã chi {spent}, còn {left} trong trần — mà còn {committed} phải trả.', {
+                          name: catOf(g.categoryId)?.name ?? tr('Danh mục'),
+                          spent: formatMoney(daChi, base),
+                          left: formatMoney(g.budgeted, base),
+                          committed: formatMoney(g.committed, base),
+                        })}{' '}
                         <span className="underline">
-                          Nâng thêm {formatMoney(g.short, base)}
+                          {tr('Nâng thêm {amount}', { amount: formatMoney(g.short, base) })}
                         </span>
                       </span>
                     </button>
@@ -1310,7 +1333,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               sách đang chệch, 3/20 thì không. */}
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <SectionTitle>
-              Hạn mức từng mục
+              {tr('Hạn mức từng mục')}
               {attention.length > 0 && (
                 <>
                   {' · '}
@@ -1321,7 +1344,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     href={firstAttentionId ? `#hanmuc-${firstAttentionId}` : undefined}
                     className="font-normal tabular-nums underline"
                   >
-                    {attention.length} / {items.length} mục cần để ý
+                    {tr('{n} / {total} mục cần để ý', { n: attention.length, total: items.length })}
                   </a>
                 </>
               )}
@@ -1335,7 +1358,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 items={SORT_OPTIONS.map(([value, label]) => ({ value, label }))}
                 value={sortMode}
                 onChange={changeSort}
-                label="Sắp xếp hạn mức"
+                label={tr('Sắp xếp hạn mức')}
                 size="sm"
                 stretch={false}
               />
@@ -1343,15 +1366,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </div>
           {attention.length > 0 && (
             <Guide className="mb-2 text-sm text-fg-muted">
-              "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng — có vạch màu ở
-              đầu dòng. Khoản cố định đã trả xong (tiền nhà, bảo hiểm…) không tính, vì không
-              còn gì để phanh.
+              {tr('"Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng — có vạch màu ở đầu dòng. Khoản cố định đã trả xong (tiền nhà, bảo hiểm…) không tính, vì không còn gì để phanh.')}
             </Guide>
           )}
           {items.length > 1 && (
             <Guide className="mb-2 text-2xs text-fg-muted">
-              {SORT_HINT[sortMode]} Bấm một dòng để kéo hạn mức; "Sửa chi tiết" để gõ số,
-              bật dồn hay xoá.
+              {SORT_HINT[sortMode]} {tr('Bấm một dòng để kéo hạn mức; "Sửa chi tiết" để gõ số, bật dồn hay xoá.')}
             </Guide>
           )}
           <ul className="divide-y divide-border-subtle">
@@ -1368,10 +1388,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     {chevron(quietOpen)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
-                    {quiet.length} mục chưa chi gì
+                    {tr('{n} mục chưa chi gì', { n: quiet.length })}
                   </span>
                   <span className="w-28 shrink-0 text-right text-sm">
-                    <span className="text-2xs text-fg-muted">còn </span>
+                    <span className="text-2xs text-fg-muted">{tr('còn ')}</span>
                     <Money amount={quietBudgeted} currency={base} tone="muted" />
                   </span>
                 </button>
@@ -1414,16 +1434,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {unbudgeted.length > 0 && (
         <Card as="section">
           <SectionTitle className="mb-1">
-            Chưa đặt hạn mức
+            {tr('Chưa đặt hạn mức')}
             {invited.length > 0 && (
-              <span className="font-normal tabular-nums"> · {invited.length} danh mục</span>
+              <span className="font-normal tabular-nums">{tr(' · {n} danh mục', { n: invited.length })}</span>
             )}
           </SectionTitle>
           <Guide className="mb-2 text-sm text-fg-muted">
-            Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
-            trần nhóm là tổng các con. Con số trên chip là trung bình {SUGGEST_MONTHS} tháng
-            đã ghi. Danh mục chưa có khoản chi nào được tính thì gấp xuống dòng cuối, vì một
-            cái trần ở đó chưa nói được gì.
+            {tr('Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó trần nhóm là tổng các con. Con số trên chip là trung bình {n} tháng đã ghi. Danh mục chưa có khoản chi nào được tính thì gấp xuống dòng cuối, vì một cái trần ở đó chưa nói được gì.', {
+              n: SUGGEST_MONTHS,
+            })}
           </Guide>
           {invited.length > 0 && (
             <ul className="flex flex-col gap-2">{invited.map(unbudgetedRow)}</ul>
@@ -1443,7 +1462,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               <span className="flex w-6 shrink-0 items-center justify-center">
                 {chevron(dormantOpen)}
               </span>
-              {dormant.length} danh mục chưa phát sinh chi
+              {tr('{n} danh mục chưa phát sinh chi', { n: dormant.length })}
             </button>
           )}
           {dormantOpen && dormant.length > 0 && (

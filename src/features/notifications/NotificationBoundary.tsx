@@ -15,6 +15,7 @@ export class NotificationBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // i18n-ignore — nhật ký cho dev, không hiện lên màn
     console.error('Thông báo lỗi, đã ẩn chuông:', error, info.componentStack)
   }
 

@@ -1,13 +1,14 @@
 // Helper thuần dùng chung cho các view của Sổ Giao dịch (Daily/Calendar/Monthly/Summary).
 // Mọi số tiền quy đổi về base qua convertToBase; thiếu tỷ giá → trả null để caller fallback.
 
+import { tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import { expenseSign } from '../reports/aggregate'
 
-export const WEEKDAYS = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
-export const WEEKDAYS_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+export const WEEKDAYS = [tr('Chủ nhật'), tr('Thứ hai'), tr('Thứ ba'), tr('Thứ tư'), tr('Thứ năm'), tr('Thứ sáu'), tr('Thứ bảy')]
+export const WEEKDAYS_SHORT = [tr('CN'), tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7')]
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
 

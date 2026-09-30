@@ -3,6 +3,7 @@
 // khác danh sách tài khoản truyền vào.
 import type { AccountRow } from '../../types/database.types'
 import { SectionTitle } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   accounts: AccountRow[]
@@ -20,7 +21,7 @@ export function InvestTradeAccountPicker({ accounts, onPick, onClose }: Props) {
         className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <SectionTitle role="block" className="mb-3">Ghi lệnh vào tài khoản nào?</SectionTitle>
+        <SectionTitle role="block" className="mb-3">{tr('Ghi lệnh vào tài khoản nào?')}</SectionTitle>
         <ul className="flex flex-col gap-2">
           {accounts.map((a) => (
             <li key={a.id}>

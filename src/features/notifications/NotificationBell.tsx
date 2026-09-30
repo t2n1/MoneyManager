@@ -4,6 +4,7 @@ import { Bell } from 'lucide-react'
 import { useNotifications } from './useNotifications'
 import type { AppNotification } from './types'
 import { EmptyState } from '../../components/ui'
+import { tr } from '../../i18n'
 
 /**
  * Tham số mở tấm trượt từ bên ngoài. Push gộp nhiều việc không trỏ được vào một
@@ -94,7 +95,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} việc cần làm` : 'Thông báo'}
+        aria-label={unreadCount > 0 ? tr('Thông báo, {n} việc cần làm', { n: unreadCount }) : tr('Thông báo')}
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border-panel bg-surface px-3 shadow-sm transition active:scale-95 dark:shadow-none ${className}`}
@@ -114,7 +115,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 lg:items-start lg:pt-20 animate-overlay-in">
           <button
             type="button"
-            aria-label="Đóng thông báo"
+            aria-label={tr('Đóng thông báo')}
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default"
           />
@@ -124,14 +125,14 @@ export function NotificationBell({ className = '' }: { className?: string }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Thông báo"
+            aria-label={tr('Thông báo')}
             className="relative w-full max-w-md rounded-t-2xl bg-gray-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:rounded-2xl lg:pb-3 dark:bg-gray-900 animate-sheet-in lg:animate-sheet-pop"
           >
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
             <Suspense
               fallback={
                 <EmptyState compact>
-                  Đang tải…
+                  {tr('Đang tải…')}
                 </EmptyState>
               }
             >

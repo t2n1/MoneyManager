@@ -8,6 +8,7 @@
 // docs/superpowers/specs/2026-09-03-phuong-phap-phan-bo-design.md
 
 import type { NeedLevel, ProfileRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 export type BudgetMethodId = '50-30-20' | '80-20' | '70-20-10' | 'jars' | 'kakeibo' | 'custom'
 
@@ -46,9 +47,9 @@ export interface BudgetMethod {
   buckets: readonly MethodBucket[]
 }
 
-const savings = (hint = 'phần còn lại sau khi tiêu'): MethodBucket => ({
+const savings = (hint = tr('phần còn lại sau khi tiêu')): MethodBucket => ({
   key: 'savings',
-  label: 'Để dành',
+  label: tr('Để dành'),
   hint,
   bps: 2000,
   direction: 'floor',
@@ -67,73 +68,73 @@ export const BUDGET_METHODS: readonly BudgetMethod[] = [
   {
     id: '50-30-20',
     name: '50/30/20',
-    blurb: 'Nửa thu nhập cho thứ bắt buộc, 30% cho sở thích, giữ lại 20%. Điểm khởi đầu quen thuộc nhất.',
+    blurb: tr('Nửa thu nhập cho thứ bắt buộc, 30% cho sở thích, giữ lại 20%. Điểm khởi đầu quen thuộc nhất.'),
     buckets: [
-      needs('essential', 'Thiết yếu', 'tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống', 5000, ['essential', 'buffer']),
-      needs('flexible', 'Linh hoạt', 'ăn ngoài, mua sắm, giải trí — cắt được khi cần', 3000, ['flexible', 'education', 'giving']),
+      needs('essential', tr('Thiết yếu'), tr('tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống'), 5000, ['essential', 'buffer']),
+      needs('flexible', tr('Linh hoạt'), tr('ăn ngoài, mua sắm, giải trí — cắt được khi cần'), 3000, ['flexible', 'education', 'giving']),
       savings(),
     ],
   },
   {
     id: '80-20',
-    name: '80/20 — Trả cho mình trước',
-    blurb: 'Giữ 20% trước, 80% còn lại tiêu sao cũng được — không phải phân loại gì thêm.',
+    name: tr('80/20 — Trả cho mình trước'),
+    blurb: tr('Giữ 20% trước, 80% còn lại tiêu sao cũng được — không phải phân loại gì thêm.'),
     buckets: [
       {
         key: 'allSpend',
-        label: 'Chi tiêu',
-        hint: 'mọi khoản chi — miễn là giữ được phần để dành',
+        label: tr('Chi tiêu'),
+        hint: tr('mọi khoản chi — miễn là giữ được phần để dành'),
         bps: 8000,
         direction: 'cap',
         source: { kind: 'allExpense' },
       },
-      savings('trả cho mình trước: mốc phải giữ mỗi tháng'),
+      savings(tr('trả cho mình trước: mốc phải giữ mỗi tháng')),
     ],
   },
   {
     id: '70-20-10',
     name: '70/20/10',
-    blurb: 'Sinh hoạt 70%, để dành 20%, cho đi 10% — dành cho người muốn tách riêng phần biếu tặng.',
+    blurb: tr('Sinh hoạt 70%, để dành 20%, cho đi 10% — dành cho người muốn tách riêng phần biếu tặng.'),
     buckets: [
-      needs('living', 'Sinh hoạt', 'toàn bộ chi tiêu cho mình — nhà cửa, ăn uống, sở thích', 7000, ['essential', 'flexible', 'education', 'buffer']),
-      needs('giving', 'Cho đi', 'quà, biếu tặng, hỗ trợ gia đình', 1000, ['giving']),
+      needs('living', tr('Sinh hoạt'), tr('toàn bộ chi tiêu cho mình — nhà cửa, ăn uống, sở thích'), 7000, ['essential', 'flexible', 'education', 'buffer']),
+      needs('giving', tr('Cho đi'), tr('quà, biếu tặng, hỗ trợ gia đình'), 1000, ['giving']),
       savings(),
     ],
   },
   {
     id: 'jars',
-    name: '6 cái lọ (JARS)',
-    blurb: 'Chia thu nhập vào 6 hũ; hũ Giáo dục và Cho đi ép tiêu có chủ đích thay vì gộp hết vào "linh hoạt".',
+    name: tr('6 cái lọ (JARS)'),
+    blurb: tr('Chia thu nhập vào 6 hũ; hũ Giáo dục và Cho đi ép tiêu có chủ đích thay vì gộp hết vào "linh hoạt".'),
     buckets: [
-      needs('essential', 'Thiết yếu', 'hũ nhu cầu thiết yếu — nhà, ăn ở, đi lại', 5500, ['essential', 'buffer']),
-      needs('flexible', 'Hưởng thụ', 'hũ chơi — tiêu cho vui, không áy náy', 1000, ['flexible']),
-      needs('education', 'Giáo dục', 'hũ học — sách, khóa học, phát triển bản thân', 1000, ['education']),
-      needs('giving', 'Cho đi', 'hũ cho đi — quà, từ thiện, hỗ trợ gia đình', 500, ['giving']),
-      savings('gồm hai hũ Đầu tư và Tiết kiệm dài hạn — app tính chung vì để dành = thu − chi'),
+      needs('essential', tr('Thiết yếu'), tr('hũ nhu cầu thiết yếu — nhà, ăn ở, đi lại'), 5500, ['essential', 'buffer']),
+      needs('flexible', tr('Hưởng thụ'), tr('hũ chơi — tiêu cho vui, không áy náy'), 1000, ['flexible']),
+      needs('education', tr('Giáo dục'), tr('hũ học — sách, khóa học, phát triển bản thân'), 1000, ['education']),
+      needs('giving', tr('Cho đi'), tr('hũ cho đi — quà, từ thiện, hỗ trợ gia đình'), 500, ['giving']),
+      savings(tr('gồm hai hũ Đầu tư và Tiết kiệm dài hạn — app tính chung vì để dành = thu − chi')),
     ],
   },
   {
     id: 'kakeibo',
     name: 'Kakeibo',
-    blurb: 'Sổ chi tiêu kiểu Nhật: đặt mục tiêu để dành trước, rồi soi bốn nhóm chi — sinh tồn, hưởng thụ, văn hóa, dự phòng.',
+    blurb: tr('Sổ chi tiêu kiểu Nhật: đặt mục tiêu để dành trước, rồi soi bốn nhóm chi — sinh tồn, hưởng thụ, văn hóa, dự phòng.'),
     buckets: [
-      needs('essential', 'Sinh tồn', '生存費 — thứ không tiêu không sống được', 5000, ['essential']),
-      needs('flexible', 'Hưởng thụ', '浪費 — muốn chứ không cần, gồm cả quà cáp', 2000, ['flexible', 'giving']),
-      needs('education', 'Văn hóa', '文化費 — sách, học, bảo tàng, nuôi cái đầu', 500, ['education']),
-      needs('buffer', 'Dự phòng', '予備費 — bất ngờ: ốm đau, hỏng hóc, hiếu hỉ', 500, ['buffer']),
+      needs('essential', tr('Sinh tồn'), tr('生存費 — thứ không tiêu không sống được'), 5000, ['essential']),
+      needs('flexible', tr('Hưởng thụ'), tr('浪費 — muốn chứ không cần, gồm cả quà cáp'), 2000, ['flexible', 'giving']),
+      needs('education', tr('Văn hóa'), tr('文化費 — sách, học, bảo tàng, nuôi cái đầu'), 500, ['education']),
+      needs('buffer', tr('Dự phòng'), tr('予備費 — bất ngờ: ốm đau, hỏng hóc, hiếu hỉ'), 500, ['buffer']),
       savings(),
     ],
   },
   {
     id: 'custom',
-    name: 'Tự đặt',
-    blurb: 'Hiện đủ 6 khoản, tự gõ phần trăm theo ý mình.',
+    name: tr('Tự đặt'),
+    blurb: tr('Hiện đủ 6 khoản, tự gõ phần trăm theo ý mình.'),
     buckets: [
-      needs('essential', 'Thiết yếu', 'tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống', 5000, ['essential']),
-      needs('flexible', 'Hưởng thụ', 'ăn ngoài, mua sắm, giải trí', 1500, ['flexible']),
-      needs('education', 'Giáo dục', 'sách, khóa học, phát triển bản thân', 500, ['education']),
-      needs('giving', 'Cho đi', 'quà, từ thiện, hỗ trợ gia đình', 500, ['giving']),
-      needs('buffer', 'Dự phòng', 'bất ngờ: ốm đau, hỏng hóc, hiếu hỉ', 500, ['buffer']),
+      needs('essential', tr('Thiết yếu'), tr('tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống'), 5000, ['essential']),
+      needs('flexible', tr('Hưởng thụ'), tr('ăn ngoài, mua sắm, giải trí'), 1500, ['flexible']),
+      needs('education', tr('Giáo dục'), tr('sách, khóa học, phát triển bản thân'), 500, ['education']),
+      needs('giving', tr('Cho đi'), tr('quà, từ thiện, hỗ trợ gia đình'), 500, ['giving']),
+      needs('buffer', tr('Dự phòng'), tr('bất ngờ: ốm đau, hỏng hóc, hiếu hỉ'), 500, ['buffer']),
       savings(),
     ],
   },

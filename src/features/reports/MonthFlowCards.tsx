@@ -16,6 +16,8 @@ import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { dayMonthLabel, daysLeftLabel, type PeriodDays } from '../../lib/dates'
 import type { KeptDestinations, OutflowTier, RemainingPlan, SpendShape } from './monthReport'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 function PanelTitle({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   return (
@@ -49,7 +51,7 @@ export function OutflowTiersCard({
 }) {
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <PanelTitle meta="% thu nhập">Tiền vào ra theo ba đường</PanelTitle>
+      <PanelTitle meta={tr('% thu nhập')}>{tr('Tiền vào ra theo ba đường')}</PanelTitle>
 
       {/* MỘT thanh ba khúc, không ba thanh riêng: ba khúc trên một trục nói ngay "cộng lại
           bằng thu", còn ba thanh rời thì mỗi thanh có mẫu số riêng và không cộng được. */}
@@ -72,7 +74,7 @@ export function OutflowTiersCard({
 
       <dl className="flex flex-col">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-border-subtle pb-2">
-          <dt className="text-sm text-fg-secondary">Thu</dt>
+          <dt className="text-sm text-fg-secondary">{tr('Thu')}</dt>
           <dd>
             <Money amount={income} currency={base} tone="in" approx={approx} className="text-sm font-semibold" />
           </dd>
@@ -103,9 +105,9 @@ export function OutflowTiersCard({
       </dl>
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Khoản chuyển tài sản (gửi về VN, điều chỉnh số dư) là <b>tầng riêng</b>, không nằm
-        trong chi tiêu và cũng không tính là phần để lại ở Nhật. Ba tầng cộng lại đúng bằng
-        thu của kỳ.
+        {trn('Khoản chuyển tài sản (gửi về VN, điều chỉnh số dư) là {own}, không nằm trong chi tiêu và cũng không tính là phần để lại ở Nhật. Ba tầng cộng lại đúng bằng thu của kỳ.', {
+          own: <b>{tr('tầng riêng')}</b>,
+        })}
       </Guide>
     </Card>
   )
@@ -139,25 +141,25 @@ export function SameDaysCard({
 
   const rows: { label: string; before: string; now: string; delta: number | null }[] = [
     {
-      label: 'Chi tiêu',
+      label: tr('Chi tiêu'),
       before: money(prior.total),
       now: money(current.total),
       delta: pct(current.total, prior.total),
     },
     {
-      label: 'Biến đổi',
+      label: tr('Biến đổi'),
       before: money(prior.variable),
       now: money(current.variable),
       delta: pct(current.variable, prior.variable),
     },
     {
-      label: 'Số lần chi',
+      label: tr('Số lần chi'),
       before: String(prior.count),
       now: String(current.count),
       delta: pct(current.count, prior.count),
     },
     {
-      label: 'Trung vị mỗi lần',
+      label: tr('Trung vị mỗi lần'),
       before: prior.median === null ? '—' : money(prior.median),
       now: current.median === null ? '—' : money(current.median),
       delta:
@@ -167,11 +169,11 @@ export function SameDaysCard({
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <PanelTitle meta={`${days} ngày đầu kỳ`}>So trực tiếp — cùng số ngày</PanelTitle>
+      <PanelTitle meta={tr('{n} ngày đầu kỳ', { n: days })}>{tr('So trực tiếp — cùng số ngày')}</PanelTitle>
 
       <div
         role="table"
-        aria-label={`So ${days} ngày đầu ${currentLabel} với ${days} ngày đầu ${priorLabel}`}
+        aria-label={tr('So {n} ngày đầu {current} với {n} ngày đầu {prior}', { n: days, current: currentLabel, prior: priorLabel })}
       >
         <div
           role="row"
@@ -213,8 +215,11 @@ export function SameDaysCard({
       {/* Câu này KHÔNG đi qua <Guide>: nó là lý do cả bảng tồn tại. Ở chế độ Gọn mà mất nó
           thì người đọc thấy hai cột số và tự giả định cột trước là CẢ tháng. */}
       <p className="mt-2.5 text-2xs text-fg-secondary">
-        Cả {priorLabel} chi <b>{money(priorFull)}</b> — con số đó chỉ để làm ngữ cảnh. Mọi Δ ở
-        trên so trên đúng {days} ngày của cả hai kỳ.
+        {trn('Cả {prior} chi {amount} — con số đó chỉ để làm ngữ cảnh. Mọi Δ ở trên so trên đúng {n} ngày của cả hai kỳ.', {
+          prior: priorLabel,
+          amount: <b>{money(priorFull)}</b>,
+          n: days,
+        })}
       </p>
     </Card>
   )
@@ -242,7 +247,7 @@ export function KeptWhereCard({
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <PanelTitle meta="số dư đổi trong kỳ">Phần không tiêu đã đi đâu</PanelTitle>
+      <PanelTitle meta={tr('số dư đổi trong kỳ')}>{tr('Phần không tiêu đã đi đâu')}</PanelTitle>
 
       <ul className="flex flex-col">
         {data.rows.map((r) => (
@@ -255,7 +260,7 @@ export function KeptWhereCard({
                 {nameOf(r.accountId)}
               </span>
               {!r.includeInTotals && (
-                <span className="shrink-0 text-2xs text-fg-muted">ngoài tổng</span>
+                <span className="shrink-0 text-2xs text-fg-muted">{tr('ngoài tổng')}</span>
               )}
             </span>
             {/* ĐƠN VỊ GỐC, không quy đổi: "+₫4,590,000" nói đúng cái đã xảy ra. Quy đổi chỉ
@@ -280,21 +285,20 @@ export function KeptWhereCard({
       {/* E-ink + Gọn: bỏ câu diễn giải — cột % của bảng ngay trên đã nói. */}
       {liquidShare && (
         <p className="mt-2.5 text-2xs text-fg-secondary eink-gon:hidden">
-          Phần lớn nhất nằm ở <b>{liquidShare.name}</b> ({liquidShare.pct}% phần tăng).
+          {trn('Phần lớn nhất nằm ở {name} ({pct}% phần tăng).', {
+            name: <b>{liquidShare.name}</b>,
+            pct: liquidShare.pct,
+          })}
         </p>
       )}
       <Guide className="mt-1.5 text-2xs text-fg-muted">
-        Cộng từ biến động số dư từng tài khoản trong kỳ, không phải từ thu − chi — nên nó
-        cho biết tiền đang NẰM ĐÂU, kể cả khi nó chỉ chuyển giữa hai tài khoản của bạn. Cùng
-        rổ giao dịch với khối 01: bút toán điều chỉnh số dư và dòng tiền nợ/cho vay không
-        tính, nên tổng ròng các dòng đúng bằng phần để lại ở trên. Phần trăm tính trên tổng
-        các tài khoản TĂNG có tính-vào-tổng; dòng giảm và dòng ngoài tổng không có phần trăm.
+        {tr('Cộng từ biến động số dư từng tài khoản trong kỳ, không phải từ thu − chi — nên nó cho biết tiền đang NẰM ĐÂU, kể cả khi nó chỉ chuyển giữa hai tài khoản của bạn. Cùng rổ giao dịch với khối 01: bút toán điều chỉnh số dư và dòng tiền nợ/cho vay không tính, nên tổng ròng các dòng đúng bằng phần để lại ở trên. Phần trăm tính trên tổng các tài khoản TĂNG có tính-vào-tổng; dòng giảm và dòng ngoài tổng không có phần trăm.')}
       </Guide>
       {/* Cảnh báo thiếu tỷ giá đứng NGOÀI <Guide>: Guide ẩn ở chế độ Gọn (mặc định), mà
           "số này chưa đủ" là dữ liệu chứ không phải chữ dạy — CLAUDE.md, mục thiếu tỷ giá. */}
       {data.hasMissingRate && (
         <p className="mt-1.5 text-2xs text-state-warn-fg">
-          Một phần chưa quy đổi được (đang chờ tỷ giá) nên các dòng trên còn thiếu.
+          {tr('Một phần chưa quy đổi được (đang chờ tỷ giá) nên các dòng trên còn thiếu.')}
         </p>
       )}
     </Card>
@@ -318,19 +322,22 @@ export function RemainingCard({
   base: CurrencyCode
 }) {
   const rows = [
-    { label: 'Đã cam kết · định kỳ chưa trừ', value: plan.committed, tone: 'out' as const },
+    { label: tr('Đã cam kết · định kỳ chưa trừ'), value: plan.committed, tone: 'out' as const },
     {
       // `plan.daysLeft` là số ngày SAU hôm nay — chi hôm nay đã nằm trong "đã tiêu", nên
       // phép nhân chỉ chiếu cho những ngày sau. Nói rõ điều đó thay vì in một số ngày
       // khác với tiêu đề ("còn 8 ngày, kể cả hôm nay") mà không giải thích.
-      label: `Nhịp dự kiến · ${formatMoney(plan.dailyPace, base)} × ${plan.daysLeft} ngày sau hôm nay`,
+      label: tr('Nhịp dự kiến · {pace} × {n} ngày sau hôm nay', {
+        pace: formatMoney(plan.dailyPace, base),
+        n: plan.daysLeft,
+      }),
       value: plan.expected,
       tone: 'out' as const,
     },
   ]
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <PanelTitle meta={`hết kỳ ${dayMonthLabel(plan.lastISO)}`}>
+      <PanelTitle meta={tr('hết kỳ {date}', { date: dayMonthLabel(plan.lastISO) })}>
         {capitalize(daysLeftLabel(ky.left))}
       </PanelTitle>
 
@@ -345,7 +352,7 @@ export function RemainingCard({
           </li>
         ))}
         <li className="flex flex-wrap items-baseline justify-between gap-x-2 pt-2">
-          <span className="text-sm font-semibold text-fg-primary">Còn tự do</span>
+          <span className="text-sm font-semibold text-fg-primary">{tr('Còn tự do')}</span>
           <Money
             amount={plan.free}
             currency={base}
@@ -356,9 +363,7 @@ export function RemainingCard({
       </ul>
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Nhịp dự kiến suy từ dự báo cuối tháng ở đầu trang — cùng một con số, không phải một
-        mô hình thứ hai. Con số “còn tự do” là thu đã nhận trừ chi đã tiêu, trừ cam kết và
-        trừ nhịp dự kiến — âm nghĩa là theo nhịp này kỳ sẽ hụt.
+        {tr('Nhịp dự kiến suy từ dự báo cuối tháng ở đầu trang — cùng một con số, không phải một mô hình thứ hai. Con số “còn tự do” là thu đã nhận trừ chi đã tiêu, trừ cam kết và trừ nhịp dự kiến — âm nghĩa là theo nhịp này kỳ sẽ hụt.')}
       </Guide>
     </Card>
   )
@@ -387,7 +392,7 @@ export function MoreCountList({ items }: { items: readonly MoreItem[] }) {
   return (
     <Card as="section" elevation="panel" padding="none">
       <SectionTitle as="h3" className="border-b border-border-panel px-4 py-3">
-        Mở thêm
+        {tr('Mở thêm')}
       </SectionTitle>
       <ul>
         {items.map((m) => (

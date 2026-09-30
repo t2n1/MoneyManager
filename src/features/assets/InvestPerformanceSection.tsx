@@ -20,6 +20,8 @@ import { CHART_TEXT_3XS } from '../../lib/chartText'
 import { dayMonthLabel, toISODate } from '../../lib/dates'
 import { investPerformance, rangeFrom, type ChartRange } from './investChartData'
 import type { InvestChartData } from './useInvestChartData'
+import { tr, decimalSep, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 // Cùng cặp màu với khu "vốn bỏ vào so với giá trị" ở tab Tài sản — một câu chuyện, một
 // bảng màu. Xanh lá là THỨ CỦA MÌNH, xanh dương là mốc để so.
@@ -27,12 +29,12 @@ const MAU_NAV = 'var(--color-green-600)'
 const MAU_INDEX = 'var(--color-sky-500)'
 
 const KHOANG: readonly SegmentedItem<ChartRange>[] = [
-  { value: '3M', label: '3T' },
-  { value: '6M', label: '6T' },
-  { value: '1Y', label: '1N' },
-  { value: '3Y', label: '3N' },
-  { value: '5Y', label: '5N' },
-  { value: 'all', label: 'Tất cả' },
+  { value: '3M', label: tr('3T') },
+  { value: '6M', label: tr('6T') },
+  { value: '1Y', label: tr('1N') },
+  { value: '3Y', label: tr('3N') },
+  { value: '5Y', label: tr('5N') },
+  { value: 'all', label: tr('Tất cả') },
 ]
 
 interface Props {
@@ -77,11 +79,11 @@ export function InvestPerformanceSection({
   if (marketValue === null) {
     return (
       <Card as="section">
-        <SectionTitle>Hiệu quả</SectionTitle>
+        <SectionTitle>{tr('Hiệu quả')}</SectionTitle>
         <p className="mt-1 text-sm text-fg-muted">
           {cashNegative
-            ? 'Chưa vẽ được — sổ lệnh đang mua nhiều hơn tiền đã nạp, nên mọi con số phía sau sẽ sai.'
-            : 'Chưa vẽ được — chưa có giá cho mã nào đang giữ.'}
+            ? tr('Chưa vẽ được — sổ lệnh đang mua nhiều hơn tiền đã nạp, nên mọi con số phía sau sẽ sai.')
+            : tr('Chưa vẽ được — chưa có giá cho mã nào đang giữ.')}
         </p>
       </Card>
     )
@@ -93,7 +95,7 @@ export function InvestPerformanceSection({
   return (
     <Card as="section">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
-        <SectionTitle>Hiệu quả</SectionTitle>
+        <SectionTitle>{tr('Hiệu quả')}</SectionTitle>
         {/* Ba lớp, mỗi lớp chữa một thứ đã ĐO ĐƯỢC trong app ở 375px:
             · `w-full` → dải chip xuống hàng riêng trên điện thoại;
             · `overflow-x-auto` → nội dung rộng cuộn TRONG hộp của nó, không bao giờ đẩy
@@ -108,7 +110,7 @@ export function InvestPerformanceSection({
             items={KHOANG}
             value={range}
             onChange={setRange}
-            label="Khoảng thời gian"
+            label={tr('Khoảng thời gian')}
             size="sm"
             stretch={false}
           />
@@ -118,11 +120,11 @@ export function InvestPerformanceSection({
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
         {/* Đang tải thì cả năm ô nói "Đang tính", không in số tạm: một nguồn về muộn (sổ
             nạp/rút) từng làm ô Tổng lợi nhuận hiện +2.559,7% rồi mới về +56,6%. */}
-        <SoLoi nhan="Tổng lợi nhuận" pct={loi.total} dangTai={dangTai} />
-        <SoLoi nhan="1 tuần" pct={loi.week} dangTai={dangTai} />
-        <SoLoi nhan="Từ đầu năm" pct={loi.ytd} dangTai={dangTai} />
-        <SoLoi nhan="1 năm" pct={loi.year} dangTai={dangTai} />
-        <SoLoi nhan="Lãi kép/năm" pct={loi.cagr} dangTai={dangTai} />
+        <SoLoi nhan={tr('Tổng lợi nhuận')} pct={loi.total} dangTai={dangTai} />
+        <SoLoi nhan={tr('1 tuần')} pct={loi.week} dangTai={dangTai} />
+        <SoLoi nhan={tr('Từ đầu năm')} pct={loi.ytd} dangTai={dangTai} />
+        <SoLoi nhan={tr('1 năm')} pct={loi.year} dangTai={dangTai} />
+        <SoLoi nhan={tr('Lãi kép/năm')} pct={loi.cagr} dangTai={dangTai} />
       </dl>
 
       {rows.length < 2 ? (
@@ -132,10 +134,10 @@ export function InvestPerformanceSection({
       ) : (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <ChuGiai mau={MAU_NAV} nhan="Danh mục" pct={rows.at(-1)!.nav} />
+            <ChuGiai mau={MAU_NAV} nhan={trx('portfolio', 'Danh mục')} pct={rows.at(-1)!.nav} />
             <ChuGiai mau={MAU_INDEX} nhan="VN-Index" pct={rows.at(-1)!.index} />
             <span className="text-2xs text-fg-muted">
-              từ {dayMonthLabel(rows[0].date)} · <Num>{rows.length}</Num> phiên
+              {trn('từ {date} · {n} phiên', { date: dayMonthLabel(rows[0].date), n: <Num>{rows.length}</Num> })}
             </span>
           </div>
 
@@ -155,7 +157,7 @@ export function InvestPerformanceSection({
                   axisLine={false}
                   tickLine={false}
                   width={44}
-                  tickFormatter={(v: number) => `${Math.round(v)}%`.replace('.', ',')}
+                  tickFormatter={(v: number) => `${Math.round(v)}%`.replace('.', decimalSep())}
                 />
                 {/* Vạch 0% là mốc mà cả hai đường xuất phát — không có nó thì "đang lãi
                     hay đang lỗ" phải đọc bằng cách dò trục. */}
@@ -163,9 +165,9 @@ export function InvestPerformanceSection({
                 <Tooltip
                   formatter={(v, name) => [
                     v == null ? '—' : signedPct(pct1(Number(v) / 100)),
-                    name === 'nav' ? 'Danh mục' : 'VN-Index',
+                    name === 'nav' ? trx('portfolio', 'Danh mục') : 'VN-Index',
                   ]}
-                  labelFormatter={(l) => (typeof l === 'string' ? `Phiên ${dayMonthLabel(l)}` : '')}
+                  labelFormatter={(l) => (typeof l === 'string' ? tr('Phiên {date}', { date: dayMonthLabel(l) }) : '')}
                 />
                 <Line
                   type="monotone"
@@ -197,33 +199,37 @@ export function InvestPerformanceSection({
           đoạn đầu của đường xanh lá cộng hai con số tính trên trọn chuỗi. */}
       {data.missingPrices.length > 0 && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          {data.missingPrices.join(', ')} chưa có giá ở những phiên đầu — đoạn đó tạm tính
-          theo giá vốn, tức đường xanh lá đi ngang trong khi giá thật có thể đã chạy. Tổng
-          lợi nhuận và Lãi kép/năm tính cả đoạn ấy.
+          {tr(
+            '{symbols} chưa có giá ở những phiên đầu — đoạn đó tạm tính theo giá vốn, tức đường xanh lá đi ngang trong khi giá thật có thể đã chạy. Tổng lợi nhuận và Lãi kép/năm tính cả đoạn ấy.',
+            { symbols: data.missingPrices.join(', ') },
+          )}
         </p>
       )}
 
       {chiSoTrong && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          Chưa có dữ liệu VN-Index cho khoảng này — app tự tải mỗi chiều sau khi sàn đóng cửa.
+          {tr('Chưa có dữ liệu VN-Index cho khoảng này — app tự tải mỗi chiều sau khi sàn đóng cửa.')}
         </p>
       )}
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          Cả hai đường cùng bắt đầu từ <b>0%</b> ở phiên đầu của khoảng đang chọn, nên khoảng
-          cách giữa chúng đọc thẳng ra được: đường xanh lá ở trên nghĩa là danh mục đi hơn thị
-          trường chung trong đúng khoảng đó.
+          {trn(
+            'Cả hai đường cùng bắt đầu từ {zero} ở phiên đầu của khoảng đang chọn, nên khoảng cách giữa chúng đọc thẳng ra được: đường xanh lá ở trên nghĩa là danh mục đi hơn thị trường chung trong đúng khoảng đó.',
+            { zero: <b>0%</b> },
+          )}
         </p>
         <p>
-          Đường danh mục đã <b>bóc tiền nạp và rút</b> ra. Nạp thêm 50 triệu không làm đường
-          này nhích lên một milimét — nó chỉ đo một đồng để trong danh mục thì thành mấy. Cổ
-          tức tiền và phí lưu ký thì <b>vẫn tính</b>, vì đó là lãi lỗ thật.
+          {trn(
+            'Đường danh mục đã {a} ra. Nạp thêm 50 triệu không làm đường này nhích lên một milimét — nó chỉ đo một đồng để trong danh mục thì thành mấy. Cổ tức tiền và phí lưu ký thì {b}, vì đó là lãi lỗ thật.',
+            { a: <b>{tr('bóc tiền nạp và rút')}</b>, b: <b>{tr('vẫn tính')}</b> },
+          )}
         </p>
         <p>
-          Quá khứ được dựng lại từ sổ lệnh cộng giá đóng cửa từng phiên, nên nó chỉ đúng bằng
-          sổ lệnh. Nếu một mã từng <b>chia tách hay trả cổ phiếu thưởng</b> mà sổ lệnh chưa ghi
-          (ghi bằng lệnh loại "điều chỉnh"), đoạn trước lần chia đó sẽ thấp hơn thực tế.
+          {trn(
+            'Quá khứ được dựng lại từ sổ lệnh cộng giá đóng cửa từng phiên, nên nó chỉ đúng bằng sổ lệnh. Nếu một mã từng {b} mà sổ lệnh chưa ghi (ghi bằng lệnh loại "điều chỉnh"), đoạn trước lần chia đó sẽ thấp hơn thực tế.',
+            { b: <b>{tr('chia tách hay trả cổ phiếu thưởng')}</b> },
+          )}
         </p>
       </ExplainBox>
     </Card>
@@ -247,12 +253,12 @@ function lyDoChuaVe({
   hasTrades: boolean
   noPrices: boolean
 }): string {
-  if (dangTai) return 'Đang tính…'
+  if (dangTai) return tr('Đang tính…')
   if (!hasTrades)
-    return 'Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.'
+    return tr('Chưa có lệnh nào. Ghi lệnh mua đầu tiên thì biểu đồ sẽ dựng lại cả quá khứ.')
   if (noPrices)
-    return 'Chưa có lịch sử giá cho mã nào trong sổ lệnh — app tự tải mỗi chiều sau khi sàn đóng cửa.'
-  return 'Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.'
+    return tr('Chưa có lịch sử giá cho mã nào trong sổ lệnh — app tự tải mỗi chiều sau khi sàn đóng cửa.')
+  return tr('Khoảng đang chọn chưa có đủ hai phiên — chọn khoảng rộng hơn.')
 }
 
 function SoLoi({ nhan, pct, dangTai }: { nhan: string; pct: number | null; dangTai: boolean }) {
@@ -262,7 +268,7 @@ function SoLoi({ nhan, pct, dangTai }: { nhan: string; pct: number | null; dangT
       <dt className="text-2xs text-fg-muted">{nhan}</dt>
       <dd className="text-sm font-semibold">
         {dangTai ? (
-          <span className="font-normal text-fg-muted">Đang tính…</span>
+          <span className="font-normal text-fg-muted">{tr('Đang tính…')}</span>
         ) : (
           <Num tone={tone}>{signedPct(pct == null ? null : pct1(pct / 100))}</Num>
         )}

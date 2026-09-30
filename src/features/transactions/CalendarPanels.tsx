@@ -15,6 +15,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
+import { tr } from '../../i18n'
 import { Guide } from '../../components/Guide'
 import { Card, Collapse, Money, SectionTitle } from '../../components/ui'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
@@ -106,7 +107,7 @@ export function SpendableBlock({
 
   return (
     <Card elevation="panel" padding="panel" as="section" className={className}>
-      <SectionTitle role="micro">Còn được tiêu</SectionTitle>
+      <SectionTitle role="micro">{tr('Còn được tiêu')}</SectionTitle>
 
       {info.cap === 'unset' ? (
         <>
@@ -117,19 +118,19 @@ export function SpendableBlock({
               tone="out"
               className="text-kpi font-medium tracking-number"
             />
-            <span className="text-sm text-fg-secondary">đã chi tháng này</span>
+            <span className="text-sm text-fg-secondary">{tr('đã chi tháng này')}</span>
           </p>
           <Link
             to="/budget"
             className="mt-2 inline-block text-2xs font-medium text-fg-accent hover:underline"
           >
-            Đặt hạn mức tháng để biết mỗi ngày còn tiêu được bao nhiêu →
+            {tr('Đặt hạn mức tháng để biết mỗi ngày còn tiêu được bao nhiêu →')}
           </Link>
         </>
       ) : (
         <>
           {info.pending ? (
-            <p className="mt-1.5 text-sm text-fg-muted">Đang tính…</p>
+            <p className="mt-1.5 text-sm text-fg-muted">{tr('Đang tính…')}</p>
           ) : allowance ? (
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
               <Money
@@ -138,7 +139,7 @@ export function SpendableBlock({
                 className="text-kpi font-medium tracking-number"
               />
               <span className="text-sm text-fg-muted">
-                /ngày · {daysLeftLabel(allowance.daysLeft)}
+                {tr('/ngày · {days}', { days: daysLeftLabel(allowance.daysLeft) })}
               </span>
             </p>
           ) : info.cap === 'zero' && info.spent <= 0 ? (
@@ -146,9 +147,9 @@ export function SpendableBlock({
             // lại trong trần" đọc như vừa tiêu hết — cùng chữ với ô "trần ¥0" ở trang Ngân
             // sách. Chi rồi thì rơi xuống nhánh dưới và thành "đã vượt trần".
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-              <span className="text-sm text-fg-muted">Trần</span>
+              <span className="text-sm text-fg-muted">{tr('Trần')}</span>
               <Money amount={0} currency={base} className="text-kpi font-medium tracking-number" />
-              <span className="text-sm text-fg-muted">· chưa chi đồng nào</span>
+              <span className="text-sm text-fg-muted">{tr('· chưa chi đồng nào')}</span>
             </p>
           ) : (
             <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
@@ -159,7 +160,7 @@ export function SpendableBlock({
                 className="text-kpi font-medium tracking-number"
               />
               <span className="text-sm text-fg-muted">
-                {info.spent > info.budgeted ? 'đã vượt trần' : 'còn lại trong trần'}
+                {info.spent > info.budgeted ? tr('đã vượt trần') : tr('còn lại trong trần')}
               </span>
             </p>
           )}
@@ -168,7 +169,11 @@ export function SpendableBlock({
             <div
               className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-sunken"
               role="img"
-              aria-label={`Đã chi ${Math.round(segments.spent * 100)}%, đã cam kết ${Math.round(segments.committed * 100)}%, còn tự do ${Math.round(segments.free * 100)}% của hạn mức tháng`}
+              aria-label={tr('Đã chi {spent}%, đã cam kết {committed}%, còn tự do {free}% của hạn mức tháng', {
+                spent: Math.round(segments.spent * 100),
+                committed: Math.round(segments.committed * 100),
+                free: Math.round(segments.free * 100),
+              })}
             >
               <span className={SEG.spent} style={{ width: `${segments.spent * 100}%` }} />
               <span className={SEG.committed} style={{ width: `${segments.committed * 100}%` }} />
@@ -184,19 +189,19 @@ export function SpendableBlock({
                   một lỗi tính. */}
               <SegLegend
                 className={SEG.spent}
-                label="đã chi trong trần"
+                label={tr('đã chi trong trần')}
                 amount={info.spent}
                 base={base}
               />
               <SegLegend
                 className={SEG.committed}
-                label="đã cam kết"
+                label={tr('đã cam kết')}
                 amount={info.committed}
                 base={base}
               />
               <SegLegend
                 className={SEG.free}
-                label="tự do"
+                label={tr('tự do')}
                 amount={segments ? Math.max(0, segments.freeAmount) : 0}
                 base={base}
               />
@@ -207,16 +212,16 @@ export function SpendableBlock({
               ¥18.600 đã hứa" là tin quan trọng nhất của tháng. */}
           {info.short !== null && (
             <p className="mt-2 text-sm font-medium text-money-out">
-              Đã hứa hết phần còn lại — thiếu {formatMoney(info.short, base)} trước cuối tháng.
+              {tr('Đã hứa hết phần còn lại — thiếu {amount} trước cuối tháng.', { amount: formatMoney(info.short, base) })}
             </p>
           )}
 
           <p className={PANEL_FOOT_WRAP}>
-            <span className="text-fg-muted">Hạn mức tháng</span>
+            <span className="text-fg-muted">{tr('Hạn mức tháng')}</span>
             <Money amount={info.budgeted} currency={base} className="font-medium" />
             {info.pace !== null && (
               <>
-                <span className="text-fg-muted">· nhịp 7 ngày qua</span>
+                <span className="text-fg-muted">{tr('· nhịp 7 ngày qua')}</span>
                 {/* Tông cảnh báo CHỈ khi đang tiêu nhanh hơn mức cho phép — đó là cả lý do
                     con số này đứng cạnh mức kia. Lúc nào cũng vàng thì nó không nói gì. */}
                 <Money
@@ -227,7 +232,7 @@ export function SpendableBlock({
                   }
                   className="font-medium"
                 />
-                <span className="text-fg-muted">/ngày</span>
+                <span className="text-fg-muted">{tr('/ngày')}</span>
               </>
             )}
           </p>
@@ -236,7 +241,7 @@ export function SpendableBlock({
 
       {info.hasMissingRate && (
         <p className="mt-1.5 text-2xs text-fg-muted">
-          Thiếu tỷ giá cho vài khoản ngoại tệ nên các số ở đây đang tính thiếu.
+          {tr('Thiếu tỷ giá cho vài khoản ngoại tệ nên các số ở đây đang tính thiếu.')}
         </p>
       )}
     </Card>
@@ -299,7 +304,7 @@ export function SelectedDayBlock({
       <div className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-3.5">
         <SectionTitle role="micro">
           {formatDayHeader(dateISO)}
-          {isToday && ' · hôm nay'}
+          {isToday && tr(' · hôm nay')}
         </SectionTitle>
         <span className="shrink-0 text-sm">
           {income !== null && income > 0 && (
@@ -321,7 +326,7 @@ export function SelectedDayBlock({
 
       {txs.length === 0 ? (
         <p className="border-t border-border-subtle px-4 py-5 text-center text-sm text-fg-muted">
-          Không có giao dịch ngày này
+          {tr('Không có giao dịch ngày này')}
         </p>
       ) : (
         <div className="divide-y divide-border-subtle border-t border-border-subtle">
@@ -349,7 +354,7 @@ export function SelectedDayBlock({
         className="flex items-center justify-center gap-1.5 border-t border-border-subtle py-2.5 text-sm font-medium text-fg-accent hover:underline"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden />
-        Thêm giao dịch
+        {tr('Thêm giao dịch')}
       </Link>
     </Card>
   )
@@ -371,12 +376,12 @@ export function TagSpendBlock({
   return (
     <Card elevation="panel" padding="panel" as="section" className={className}>
       <div className="mb-2.5 flex items-baseline justify-between gap-2">
-        <SectionTitle role="micro">Chi theo nhãn · {monthLabel.toLowerCase()}</SectionTitle>
+        <SectionTitle role="micro">{tr('Chi theo nhãn · {month}', { month: monthLabel.toLowerCase() })}</SectionTitle>
         <Link
           to="/settings/tags"
           className="shrink-0 text-2xs font-medium text-fg-accent hover:underline"
         >
-          Đổi trần
+          {tr('Đổi trần')}
         </Link>
       </div>
 
@@ -384,13 +389,12 @@ export function TagSpendBlock({
 
       {report.hasMissingRate && (
         <p className="mt-2 text-2xs text-fg-muted">
-          Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.
+          {tr('Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.')}
         </p>
       )}
 
       <Guide className="mt-2.5 border-t border-border-subtle pt-2 text-2xs text-fg-muted">
-        Một khoản mang nhiều nhãn được tính đủ cho từng nhãn, nên các dòng ở đây cộng lại
-        có thể lớn hơn tổng chi.
+        {tr('Một khoản mang nhiều nhãn được tính đủ cho từng nhãn, nên các dòng ở đây cộng lại có thể lớn hơn tổng chi.')}
       </Guide>
     </Card>
   )
@@ -434,7 +438,7 @@ export function UpcomingBlock({
         title: d.title,
         amount: d.amount,
         unknownAmount: false,
-        chip: 'tới hạn',
+        chip: tr('tới hạn'),
         tone: 'bad',
       }),
     ),
@@ -452,20 +456,18 @@ export function UpcomingBlock({
     <>
       {committed > 0 && (
         <p className={PANEL_FOOT}>
-          <span className="text-fg-muted">Cam kết còn lại</span>
+          <span className="text-fg-muted">{tr('Cam kết còn lại')}</span>
           <Money amount={committed} currency={base} className="font-medium" />
         </p>
       )}
       {cardTotal > 0 && (
         <p className={committed > 0 ? FOOT_NEXT : PANEL_FOOT}>
-          <span className="text-fg-muted">Thẻ tới hạn</span>
+          <span className="text-fg-muted">{tr('Thẻ tới hạn')}</span>
           <Money amount={cardTotal} currency={base} className="font-medium" />
         </p>
       )}
       <Guide className="mt-1.5 text-2xs text-fg-muted">
-        Tiền rút thẻ đứng thành dòng riêng vì nó không phải một khoản tiêu mới: mỗi lần quẹt
-        đã được tính là một khoản chi từ lúc nó xảy ra, còn ngày rút chỉ là tiền chuyển từ
-        thẻ sang ngân hàng.
+        {tr('Tiền rút thẻ đứng thành dòng riêng vì nó không phải một khoản tiêu mới: mỗi lần quẹt đã được tính là một khoản chi từ lúc nó xảy ra, còn ngày rút chỉ là tiền chuyển từ thẻ sang ngân hàng.')}
       </Guide>
     </>
   )
@@ -485,7 +487,7 @@ export function UpcomingBlock({
           >
             <CalendarClock className="h-4 w-4 shrink-0 text-fg-warn" aria-hidden />
             <span className="flex-1 text-sm text-fg-primary">
-              Sắp tới trong tháng · {rows.length} khoản
+              {tr('Sắp tới trong tháng · {n} khoản', { n: rows.length })}
             </span>
             <Money
               amount={outgoing}
@@ -514,7 +516,7 @@ export function UpcomingBlock({
         as="section"
         className={`hidden lg:block ${className}`.trim()}
       >
-        <SectionTitle role="micro">Sắp tới trong tháng</SectionTitle>
+        <SectionTitle role="micro">{tr('Sắp tới trong tháng')}</SectionTitle>
         <div className="mt-2.5">{list}</div>
         {foot}
       </Card>
@@ -543,12 +545,12 @@ const row = (c: Commitment, when: 'overdue' | 'upcoming'): Row => ({
   unknownAmount: c.unknownAmount,
   chip:
     when === 'overdue'
-      ? 'quá hạn'
+      ? tr('quá hạn')
       : c.duePrecision === 'month'
-        ? 'trong tháng'
+        ? tr('trong tháng')
         : c.kind === 'recurring'
-          ? 'định kỳ'
-          : 'sắp chi',
+          ? tr('định kỳ')
+          : tr('sắp chi'),
   tone: when === 'overdue' ? 'warn' : 'info',
 })
 
@@ -560,10 +562,10 @@ function RowList({ rows, base }: { rows: Row[]; base: CurrencyCode }) {
           {r.monthOnly ? (
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted"
-              title={`Trong tháng ${Number(r.dayISO.slice(5, 7))}, chưa chốt ngày`}
-              aria-label={`trong tháng ${Number(r.dayISO.slice(5, 7))}`}
+              title={tr('Trong tháng {m}, chưa chốt ngày', { m: Number(r.dayISO.slice(5, 7)) })}
+              aria-label={tr('trong tháng {m}', { m: Number(r.dayISO.slice(5, 7)) })}
             >
-              T{Number(r.dayISO.slice(5, 7))}
+              {tr('T{m}', { m: Number(r.dayISO.slice(5, 7)) })}
             </span>
           ) : (
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted">
@@ -575,7 +577,7 @@ function RowList({ rows, base }: { rows: Row[]; base: CurrencyCode }) {
           </span>
           <span className={`${CHIP_BASE} ${STATUS_CHIP[r.tone]}`}>{r.chip}</span>
           {r.unknownAmount ? (
-            <span className="shrink-0 text-2xs text-fg-muted">chưa biết</span>
+            <span className="shrink-0 text-2xs text-fg-muted">{tr('chưa biết')}</span>
           ) : (
             <Money
               amount={r.amount}

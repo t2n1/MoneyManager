@@ -30,6 +30,8 @@ import { sourceLabelFor, type ParsedStatement } from './statementLine'
 import { overviewRows } from './statementOverview'
 import { emptyResult, reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
 import { prefillFromLine, reviewRows, type ReviewRow } from './statementReviewRows'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /**
  * Không có mốc trên, giống `useCardStatements`: một lô 13 file trải 13 kỳ, và cửa sổ
@@ -57,7 +59,7 @@ const LOP_HANG: Record<PairRow['kind'], string> = {
  * Một bên của cặp không có gì để đối chiếu. Nói thẳng thay vì để ô trống: ô trống trong
  * một lưới hai cột đọc ra như lỗi render, không ra như "sổ không ghi khoản này".
  */
-const KHONG_CO_DONG = <span className="italic text-fg-muted">không có dòng nào</span>
+const KHONG_CO_DONG = <span className="italic text-fg-muted">{tr('không có dòng nào')}</span>
 
 /**
  * Khoá render một hàng. Hàng lệch / đã bỏ qua đã có khoá riêng (`ReviewRow.key`, đã tính
@@ -244,7 +246,7 @@ export function StatementReconcilePage() {
     // chỉ rời isPending SAU khi cache mới về, nên `daBoQua` đọc lại đã tươi trước khi nút
     // Bỏ qua/Xem lại bật lại (xem comment tại onSettled trong queries.ts).
     upsert.mutate([billAfterDismiss(kyChon, card.id, next, hang)], {
-      onError: (err) => showToast(`Không ghi được: ${(err as Error).message}`, 'error'),
+      onError: (err) => showToast(tr('Không ghi được: {error}', { error: (err as Error).message }), 'error'),
     })
   }
 
@@ -267,8 +269,8 @@ export function StatementReconcilePage() {
   function luu() {
     if (!card) return
     upsert.mutate(billRowsFor(card.id, merged, { existing: cardBills, results }), {
-      onSuccess: () => showToast(`Đã lưu ${merged.length} kỳ`, 'success'),
-      onError: (err) => showToast(`Không lưu được: ${(err as Error).message}`, 'error'),
+      onSuccess: () => showToast(tr('Đã lưu {n} kỳ', { n: merged.length }), 'success'),
+      onError: (err) => showToast(tr('Không lưu được: {error}', { error: (err as Error).message }), 'error'),
     })
   }
 
@@ -284,7 +286,7 @@ export function StatementReconcilePage() {
       const h = r.row
       if (h.kind === 'ledger') {
         const tone: MoneyTone = r.kind === 'dismissed' ? 'muted' : h.amount < 0 ? 'in' : 'out'
-        return ben(h.tx.occurred_on, h.tx.note || 'không ghi chú', h.amount, currency, tone)
+        return ben(h.tx.occurred_on, h.tx.note || tr('không ghi chú'), h.amount, currency, tone)
       }
       // Cụm nạp ví là chuyện của phía thẻ: ví có số dư nên sổ KHÔNG chắc thiếu gì. In
       // "không có dòng nào" ở đây là vu cho quyển sổ một lỗi nó chưa chắc có.
@@ -297,7 +299,7 @@ export function StatementReconcilePage() {
     // dòng con không nói được gì khi hai bên khác độ mịn.
     return ben(
       p.ledger[0].occurred_on,
-      p.ledger.map((t) => t.note || 'không ghi chú').join(' + '),
+      p.ledger.map((t) => t.note || tr('không ghi chú')).join(' + '),
       p.amount,
       currency,
       'muted',
@@ -315,8 +317,11 @@ export function StatementReconcilePage() {
       if (h.kind === 'topups') {
         return (
           <>
-            Nạp ví chưa ghép được — <Num tone="muted">{h.count}</Num> lần{' '}
-            <Money amount={Math.abs(h.amount)} currency={currency} tone={tone} />
+            {trn('Nạp ví chưa ghép được — {count} lần {amount}', {
+              count: <Num tone="muted">{h.count}</Num>,
+              n: h.count,
+              amount: <Money amount={Math.abs(h.amount)} currency={currency} tone={tone} />,
+            })}
           </>
         )
       }
@@ -352,7 +357,7 @@ export function StatementReconcilePage() {
     if (r.kind === 'dismissed') {
       return (
         <ActionButton disabled={khoaDau} onClick={() => ghiDau([khoaCua(h)], false)}>
-          Xem lại
+          {tr('Xem lại')}
         </ActionButton>
       )
     }
@@ -360,7 +365,7 @@ export function StatementReconcilePage() {
       <>
         {/* Không dán nhãn thì một dòng điều chỉnh bị nhà thẻ GỘP đọc y hệt một khoản quên
             ghi — và người dùng bấm "Thêm vào sổ" thật. */}
-        {h.kind !== 'topups' && h.refund && <StatusChip tone="info">hoàn tiền</StatusChip>}
+        {h.kind !== 'topups' && h.refund && <StatusChip tone="info">{tr('hoàn tiền')}</StatusChip>}
         {/* Hàng hoàn-tiền dựng lại từ `refundDiffs` không giữ id giao dịch gốc (Task 1),
             nên không mở được màn sửa — không có id thì không có nút. */}
         {h.kind === 'ledger' && h.tx.id !== '' && (
@@ -371,7 +376,7 @@ export function StatementReconcilePage() {
               if (t) setEditing(t)
             }}
           >
-            Sửa
+            {tr('Sửa')}
           </ActionButton>
         )}
         {h.kind === 'statement' && (
@@ -379,12 +384,12 @@ export function StatementReconcilePage() {
             disabled={dangLamMoi}
             onClick={() => setAdding(prefillFromLine(h.line, cardId))}
           >
-            Thêm vào sổ
+            {tr('Thêm vào sổ')}
           </ActionButton>
         )}
         {/* Cụm nạp ví chỉ có nút này (spec §4.4): không sửa được một cụm. */}
         <ActionButton disabled={khoaDau} onClick={() => ghiDau([khoaCua(h)], true)}>
-          Bỏ qua
+          {tr('Bỏ qua')}
         </ActionButton>
       </>
     )
@@ -393,9 +398,9 @@ export function StatementReconcilePage() {
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <PageHeader
-        title="Đối chiếu sao kê"
+        title={tr('Đối chiếu sao kê')}
         back={`/assets/account/${accountId}`}
-        subtitle={card ? `${card.name} · chỉ lưu tổng hoá đơn, không đụng giao dịch nào` : undefined}
+        subtitle={card ? tr('{name} · chỉ lưu tổng hoá đơn, không đụng giao dịch nào', { name: card.name }) : undefined}
       />
 
       {/* Danh sách tài khoản chưa về thì `card` là null — mà null ở đây KHÔNG có nghĩa
@@ -403,11 +408,11 @@ export function StatementReconcilePage() {
           và như vậy câu "Thẻ chưa có đủ ngày chốt…" sẽ hiện rồi ô chọn file bị khoá cho
           một cái thẻ hoàn toàn hợp lệ. Đang tải thì nói đang tải, không phán gì về thẻ. */}
       {dangTaiTaiKhoan ? (
-        <EmptyState compact>Đang tải…</EmptyState>
+        <EmptyState compact>{tr('Đang tải…')}</EmptyState>
       ) : !account ? (
         // Đã tải xong danh sách tài khoản mà không thấy id này — khác hẳn "đang tải": không
         // có tài khoản thì không có gì để dựng (không ô chọn file, không bảng), nói thẳng.
-        <EmptyState compact>Không tìm thấy tài khoản này.</EmptyState>
+        <EmptyState compact>{tr('Không tìm thấy tài khoản này.')}</EmptyState>
       ) : (
         <>
           {/* `multiple` là BẮT BUỘC: hai luật "giải thích được" của phép đối chiếu cần
@@ -418,7 +423,7 @@ export function StatementReconcilePage() {
           >
             <FileUp className="h-5 w-5 text-fg-muted" />
             <span className="flex-1 text-sm text-fg-primary">
-              Chọn file CSV (chọn cả lô, nhiều kỳ một lần)
+              {tr('Chọn file CSV (chọn cả lô, nhiều kỳ một lần)')}
             </span>
             <input
               type="file"
@@ -439,30 +444,34 @@ export function StatementReconcilePage() {
 
           {!coNgay && (
             <p className="text-sm text-fg-muted">
-              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên chưa dựng được kỳ.
+              {tr('Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên chưa dựng được kỳ.')}
               {/* E-ink + Gọn: giữ trạng thái, bỏ lời khuyên. */}
-              <span className="eink-gon:hidden"> Sửa tài khoản rồi quay lại đây.</span>
+              <span className="eink-gon:hidden">{tr(' Sửa tài khoản rồi quay lại đây.')}</span>
             </p>
           )}
 
           {unreadable.length > 0 && (
             <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-              Không đọc được: {unreadable.join(', ')}. File phải là sao kê PayPay hoặc Rakuten
-              e-NAVI tải từ app/web nhà thẻ, và thẻ phải khai đủ ngày chốt + ngày đến hạn.
+              {tr(
+                'Không đọc được: {files}. File phải là sao kê PayPay hoặc Rakuten e-NAVI tải từ app/web nhà thẻ, và thẻ phải khai đủ ngày chốt + ngày đến hạn.',
+                { files: unreadable.join(', ') },
+              )}
             </p>
           )}
 
           {lechNgay && (
             <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-              Ngày chốt / ngày trả khai trong app không khớp file — mọi kỳ sẽ xếp nhầm chỗ. Sửa
-              tài khoản rồi nạp lại; chưa sửa thì không lưu được.
+              {tr(
+                'Ngày chốt / ngày trả khai trong app không khớp file — mọi kỳ sẽ xếp nhầm chỗ. Sửa tài khoản rồi nạp lại; chưa sửa thì không lưu được.',
+              )}
             </p>
           )}
 
           {loiDocSo && (
             <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-              Không đọc được sổ giao dịch nên chưa đối chiếu được. Thử tải lại trang; chưa đọc
-              được sổ thì không lưu được hoá đơn.
+              {tr(
+                'Không đọc được sổ giao dịch nên chưa đối chiếu được. Thử tải lại trang; chưa đọc được sổ thì không lưu được hoá đơn.',
+              )}
             </p>
           )}
 
@@ -470,20 +479,20 @@ export function StatementReconcilePage() {
               nên không có thẻ thì không có loại tiền để in — đoán một loại là in số sai. */}
           {card && (
             <Card as="section" padding="none">
-              <SectionTitle className="px-3 pt-3">Các kỳ</SectionTitle>
+              <SectionTitle className="px-3 pt-3">{tr('Các kỳ')}</SectionTitle>
               {rows.length === 0 ? (
-                <EmptyState compact>Chưa có hoá đơn nào. Chọn file sao kê để bắt đầu.</EmptyState>
+                <EmptyState compact>{tr('Chưa có hoá đơn nào. Chọn file sao kê để bắt đầu.')}</EmptyState>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-sm tabular-nums">
                     <thead>
                       <tr className="text-fg-muted">
-                        <th className="py-1 pl-3 pr-2 text-left font-medium">Kỳ</th>
-                        <th className="hidden py-1 px-2 font-medium sm:table-cell">Bị rút</th>
-                        <th className="py-1 px-2 font-medium">Hoá đơn</th>
-                        <th className="hidden py-1 px-2 font-medium sm:table-cell">Sổ</th>
-                        <th className="py-1 px-2 font-medium">Lệch</th>
-                        <th className="py-1 pl-2 pr-3 text-left font-medium">Tình trạng</th>
+                        <th className="py-1 pl-3 pr-2 text-left font-medium">{tr('Kỳ')}</th>
+                        <th className="hidden py-1 px-2 font-medium sm:table-cell">{tr('Bị rút')}</th>
+                        <th className="py-1 px-2 font-medium">{tr('Hoá đơn')}</th>
+                        <th className="hidden py-1 px-2 font-medium sm:table-cell">{tr('Sổ')}</th>
+                        <th className="py-1 px-2 font-medium">{tr('Lệch')}</th>
+                        <th className="py-1 pl-2 pr-3 text-left font-medium">{tr('Tình trạng')}</th>
                       </tr>
                     </thead>
                     <tbody className="text-fg-secondary">
@@ -568,9 +577,9 @@ export function StatementReconcilePage() {
                                 tệ hơn, lúc đọc sổ hỏng — là nói dối. Nói ra trạng thái
                                 thật, chip chỉ hiện khi đã ghép xong. */}
                             {r.loaded && loiDocSo ? (
-                              <span className="text-state-warn-fg">Không đọc được sổ</span>
+                              <span className="text-state-warn-fg">{tr('Không đọc được sổ')}</span>
                             ) : r.loaded && dangDocSo ? (
-                              <span className="text-fg-muted">Đang đọc sổ…</span>
+                              <span className="text-fg-muted">{tr('Đang đọc sổ…')}</span>
                             ) : (
                               <>
                                 {/* Thứ tự có ý: lô vừa nạp còn hàng MỞ thì "cần xem" thắng,
@@ -578,19 +587,19 @@ export function StatementReconcilePage() {
                                     cũ, dòng mới xuất hiện thì kỳ lại cần xem. */}
                                 {r.status === 'review' ? (
                                   <StatusChip tone="warn">
-                                    <Num tone="warn">{r.loaded!.reviewCount}</Num> cần xem
+                                    {trn('{count} cần xem', { count: <Num tone="warn">{r.loaded!.reviewCount}</Num> })}
                                   </StatusChip>
                                 ) : r.reviewed ? (
-                                  <StatusChip tone="good">Đã đối chiếu</StatusChip>
+                                  <StatusChip tone="good">{tr('Đã đối chiếu')}</StatusChip>
                                 ) : (
                                   <>
                                     {r.status === 'saved-only' && (
                                       <span className="text-fg-muted">
-                                        Đã lưu, chưa nạp file lần này
+                                        {tr('Đã lưu, chưa nạp file lần này')}
                                       </span>
                                     )}
                                     {r.status === 'ok' && (
-                                      <StatusChip tone="good">Khớp hết</StatusChip>
+                                      <StatusChip tone="good">{tr('Khớp hết')}</StatusChip>
                                     )}
                                   </>
                                 )}
@@ -613,27 +622,31 @@ export function StatementReconcilePage() {
             <Card as="section" padding="lg">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <SectionTitle>
-                  Quẹt {dayMonthLabel(kyChon.range.start)} – {dayMonthLabel(kyChon.range.closeISO)} ·
-                  bị rút {dayMonthLabel(kyChon.range.dueISO)}
+                  {tr('Quẹt {from} – {to} · bị rút {due}', {
+                    from: dayMonthLabel(kyChon.range.start),
+                    to: dayMonthLabel(kyChon.range.closeISO),
+                    due: dayMonthLabel(kyChon.range.dueISO),
+                  })}
                 </SectionTitle>
                 {/* Đây là đổi CÁCH XEM cùng một dữ liệu, không phải lọc một tập con — nên
                     SegmentedControl chứ không FilterChip (design-system §"Ba họ"). */}
                 <SegmentedControl<CheDo>
-                  label="Hiện dòng nào"
+                  label={tr('Hiện dòng nào')}
                   size="sm"
                   stretch={false}
                   items={[
-                    { value: 'lech', label: 'Chỉ dòng lệch' },
+                    { value: 'lech', label: tr('Chỉ dòng lệch') },
                     {
                       value: 'tatca',
                       // Đang đọc sổ / đọc hỏng thì `ketQua` là `emptyResult()` (xem comment
                       // ô Tình trạng) — đếm lúc đó là "0 cặp" giả, bỏ số đi cho tới khi có.
                       label: chuaGhepDuoc ? (
-                        'Tất cả'
+                        tr('Tất cả')
                       ) : (
-                        <>
-                          Tất cả <Num tone="muted">{ketQua.pairs.length + hang.length}</Num> cặp
-                        </>
+                        trn('Tất cả {count} cặp', {
+                          count: <Num tone="muted">{ketQua.pairs.length + hang.length}</Num>,
+                          n: ketQua.pairs.length + hang.length,
+                        })
                       ),
                     },
                   ]}
@@ -647,7 +660,7 @@ export function StatementReconcilePage() {
                   mà chip trạng thái ở bảng trên đã từ chối nói (xem comment ô Tình trạng).
                   Giữ đầu khối để bộ gạt không nhảy chỗ, phần còn lại im cho tới khi có số. */}
               {dangDocSo ? (
-                <p className="mt-2 text-sm text-fg-muted">Đang đọc sổ…</p>
+                <p className="mt-2 text-sm text-fg-muted">{tr('Đang đọc sổ…')}</p>
               ) : (
                 <>
                   {/* Thanh tỷ lệ dòng thẻ đã yên. Câu hỏi đầu tiên của một kỳ là "còn bao
@@ -657,26 +670,33 @@ export function StatementReconcilePage() {
                   </div>
                   <p className="mt-1 flex flex-wrap justify-between gap-2 text-2xs text-fg-muted">
                     <span>
-                      Hoá đơn <Money amount={kyChon.total} currency={card.currency} tone="muted" />
+                      {trn('Hoá đơn {amount}', {
+                        amount: <Money amount={kyChon.total} currency={card.currency} tone="muted" />,
+                      })}
                     </span>
                     <span>
-                      Khớp <Num tone="muted">{khopDong}</Num> · giải thích{' '}
-                      <Num tone="muted">{giaiThichDong}</Num> /{' '}
-                      <Num tone="muted">{kyChon.lines.length}</Num> dòng
+                      {trn('Khớp {matched} · giải thích {explained} / {count} dòng', {
+                        matched: <Num tone="muted">{khopDong}</Num>,
+                        explained: <Num tone="muted">{giaiThichDong}</Num>,
+                        count: <Num tone="muted">{kyChon.lines.length}</Num>,
+                        n: kyChon.lines.length,
+                      })}
                     </span>
                     <span>
-                      Sổ <Money amount={ketQua.ledgerTotal} currency={card.currency} tone="muted" />
+                      {trn('Sổ {amount}', {
+                        amount: <Money amount={ketQua.ledgerTotal} currency={card.currency} tone="muted" />,
+                      })}
                     </span>
                   </p>
 
                   {hangGhep.length === 0 ? (
-                    <p className="mt-2 text-sm text-fg-muted">Kỳ này khớp hết.</p>
+                    <p className="mt-2 text-sm text-fg-muted">{tr('Kỳ này khớp hết.')}</p>
                   ) : (
                     <>
                       {/* Kỳ đã xử lý xong nhưng không rỗng: không nói gì thì bảng bên dưới
                           toàn dòng mờ, đọc ra như thẻ kỳ chưa nạp được file. */}
                       {hangMo.length === 0 && (
-                        <p className="mt-2 text-sm text-fg-muted">Kỳ này không còn gì cần xem.</p>
+                        <p className="mt-2 text-sm text-fg-muted">{tr('Kỳ này không còn gì cần xem.')}</p>
                       )}
                       {/* Một bảng ghép đôi duy nhất: sổ | chiều | thẻ | nút. Dưới sm lưới
                           rơi về một cột (bên sổ trên, bên thẻ dưới, nút cuối) và cột mũi
@@ -704,7 +724,7 @@ export function StatementReconcilePage() {
                             disabled={khoaDau}
                             onClick={() => ghiDau(hangMo.map(khoaCua), true)}
                           >
-                            Bỏ qua hết phần còn lại kỳ này
+                            {tr('Bỏ qua hết phần còn lại kỳ này')}
                           </ActionButton>
                         </div>
                       )}
@@ -719,10 +739,10 @@ export function StatementReconcilePage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {soLanSua > 0 && (
               <p className="mr-auto text-2xs text-fg-muted">
-                Đã sửa <Num tone="muted">{soLanSua}</Num> dòng.
+                {trn('Đã sửa {count} dòng.', { count: <Num tone="muted">{soLanSua}</Num>, n: soLanSua })}
                 <span className="eink-gon:hidden">
                   {' '}
-                  Số dư thẻ đổi theo — nhớ Chỉnh số nợ trên trang thẻ.
+                  {tr('Số dư thẻ đổi theo — nhớ Chỉnh số nợ trên trang thẻ.')}
                 </span>
               </p>
             )}
@@ -732,8 +752,9 @@ export function StatementReconcilePage() {
                 onClick={luu}
                 disabled={lechNgay || upsert.isPending || chuaGhepDuoc}
               >
-                {upsert.isPending ? 'Đang lưu…' : 'Lưu'} <Num tone="onAccent">{merged.length}</Num>{' '}
-                kỳ
+                {upsert.isPending
+                  ? trn('Đang lưu… {count} kỳ', { count: <Num tone="onAccent">{merged.length}</Num>, n: merged.length })
+                  : trn('Lưu {count} kỳ', { count: <Num tone="onAccent">{merged.length}</Num>, n: merged.length })}
               </ActionButton>
             )}
           </div>

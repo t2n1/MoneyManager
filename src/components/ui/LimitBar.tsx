@@ -13,6 +13,7 @@
 // `data-limit-*` bên dưới — không có nhánh theo giao diện nào trong file này.
 import type { ReactNode } from 'react'
 import { limitBarParts, splitGrow } from './limitBarParts'
+import { tr } from '../../i18n'
 
 export type LimitBarSize = 'xs' | 'sm' | 'md'
 
@@ -63,7 +64,7 @@ export function LimitBar({
         // meter không cho valuenow vượt max; vượt trần là trạng thái thật, nên nới max.
         'aria-valuemax': Math.max(100, pct),
         'aria-valuenow': pct,
-        'aria-valuetext': valueText ?? (Number.isFinite(ratio) ? `${pct}% hạn mức` : 'vượt trần 0'),
+        'aria-valuetext': valueText ?? (Number.isFinite(ratio) ? tr('{pct}% hạn mức', { pct }) : tr('vượt trần 0')),
       }
     : { 'aria-hidden': true }
   return (

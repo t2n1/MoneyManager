@@ -11,6 +11,7 @@
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { toISODate } from '../../lib/dates'
 import { formatMoneyReal } from '../../lib/money'
+import { tr } from '../../i18n'
 
 export interface KetQuaTra {
   thapMinor: number
@@ -67,7 +68,7 @@ const TRAN_MAJOR = Number.MAX_SAFE_INTEGER / 100
 
 export function docKetQua(tho: unknown, tienChang: CurrencyCode): KetQuaTra | LoiTra {
   if (typeof tho !== 'object' || tho === null) {
-    return { loi: 'doc-khong-ra', noiDung: 'Kết quả không phải một đối tượng.' }
+    return { loi: 'doc-khong-ra', noiDung: tr('Kết quả không phải một đối tượng.') }
   }
   const o = tho as Record<string, unknown>
 
@@ -75,37 +76,37 @@ export function docKetQua(tho: unknown, tienChang: CurrencyCode): KetQuaTra | Lo
   if (o.khong_biet === true) {
     return {
       loi: 'khong-tim-duoc',
-      noiDung: laChuoiCo(o.dien_giai) ? o.dien_giai : 'Không tìm được nguồn đáng tin.',
+      noiDung: laChuoiCo(o.dien_giai) ? o.dien_giai : tr('Không tìm được nguồn đáng tin.'),
     }
   }
 
   if (!laSoDuong(o.thap) || !laSoDuong(o.giua) || !laSoDuong(o.cao)) {
-    return { loi: 'doc-khong-ra', noiDung: 'Thiếu hoặc sai một trong ba mức thấp/giữa/cao.' }
+    return { loi: 'doc-khong-ra', noiDung: tr('Thiếu hoặc sai một trong ba mức thấp/giữa/cao.') }
   }
   if (o.thap > TRAN_MAJOR || o.giua > TRAN_MAJOR || o.cao > TRAN_MAJOR) {
-    return { loi: 'doc-khong-ra', noiDung: 'Có mức lớn đến mức không còn là một số tiền thật.' }
+    return { loi: 'doc-khong-ra', noiDung: tr('Có mức lớn đến mức không còn là một số tiền thật.') }
   }
   if (!(o.thap <= o.giua && o.giua <= o.cao)) {
-    return { loi: 'doc-khong-ra', noiDung: 'Ba mức không tăng dần: thấp ≤ giữa ≤ cao.' }
+    return { loi: 'doc-khong-ra', noiDung: tr('Ba mức không tăng dần: thấp ≤ giữa ≤ cao.') }
   }
   if (!laChuoiCo(o.tien)) {
-    return { loi: 'doc-khong-ra', noiDung: 'Thiếu đồng tiền.' }
+    return { loi: 'doc-khong-ra', noiDung: tr('Thiếu đồng tiền.') }
   }
   if (o.tien !== tienChang) {
     return {
       loi: 'sai-tien',
-      noiDung: `Trả lời bằng ${o.tien} trong khi chặng này dùng ${tienChang}.`,
+      noiDung: tr('Trả lời bằng {got} trong khi chặng này dùng {want}.', { got: o.tien, want: tienChang }),
     }
   }
 
   // Không có nguồn thì không có số. UI dựa vào đây để KHÔNG hiện nút "Lấy".
   const nguon = o.nguon
   if (typeof nguon !== 'object' || nguon === null) {
-    return { loi: 'khong-nguon', noiDung: 'Không kèm nguồn nào.' }
+    return { loi: 'khong-nguon', noiDung: tr('Không kèm nguồn nào.') }
   }
   const n = nguon as Record<string, unknown>
   if (!laChuoiCo(n.ten) || !laChuoiCo(n.url)) {
-    return { loi: 'khong-nguon', noiDung: 'Nguồn thiếu tên hoặc link.' }
+    return { loi: 'khong-nguon', noiDung: tr('Nguồn thiếu tên hoặc link.') }
   }
 
   return {
@@ -136,7 +137,14 @@ export function ghiChuTu(k: KetQuaTra, mucDaChon: number, ngayTra: Date): string
   const nam = k.nguon.nam === null ? '' : ` ${k.nguon.nam}`
   const canhBao = k.canhBao.length > 0 ? ` — ${k.canhBao.join(' ')}` : ''
   return (
-    `Tra hộ ngày ${toISODate(ngayTra)}: ${formatMoneyReal(mucDaChon, k.tien)}. ` +
-    `Nguồn: ${k.nguon.ten}${nam} (${k.nguon.url}). ${k.dienGiai}${canhBao}`
+    tr('Tra hộ ngày {date}: {amount}. Nguồn: {source}{year} ({url}). {explain}{warn}', {
+      date: toISODate(ngayTra),
+      amount: formatMoneyReal(mucDaChon, k.tien),
+      source: k.nguon.ten,
+      year: nam,
+      url: k.nguon.url,
+      explain: k.dienGiai,
+      warn: canhBao,
+    })
   )
 }

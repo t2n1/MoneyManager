@@ -22,6 +22,7 @@
 // một luật khác, luật này sẽ TỰ ĐỘNG bật lên qua push — lúc đó phải chặn bằng danh sách
 // loại được đẩy, đừng để nó lặng lẽ đi ra.
 import { detectChangePoints } from '../../reports/trends'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /**
@@ -111,10 +112,15 @@ export function levelShiftRule(input: NotificationInput): AppNotification[] {
   const tran = input.budgetReport?.totalBudgeted
   const vuotTran = tran != null && tran > 0 && cp.after > tran
   const detail = vuotTran
-    ? `Mức mới ${input.formatMoney(Math.round(cp.after), input.base)}/tháng, cao hơn tổng hạn mức ` +
-      `${input.formatMoney(tran, input.base)}. Hạn mức đang đặt theo nếp cũ.`
-    : `Trung bình ${soThang} tháng gần đây ${input.formatMoney(Math.round(cp.after), input.base)}/tháng, ` +
-      `trước đó ${input.formatMoney(Math.round(cp.before), input.base)}.`
+    ? tr('Mức mới {amount}/tháng, cao hơn tổng hạn mức {budget}. Hạn mức đang đặt theo nếp cũ.', {
+        amount: input.formatMoney(Math.round(cp.after), input.base),
+        budget: input.formatMoney(tran, input.base),
+      })
+    : tr('Trung bình {n} tháng gần đây {amount}/tháng, trước đó {before}.', {
+        n: soThang,
+        amount: input.formatMoney(Math.round(cp.after), input.base),
+        before: input.formatMoney(Math.round(cp.before), input.base),
+      })
 
   return [
     {
@@ -124,7 +130,9 @@ export function levelShiftRule(input: NotificationInput): AppNotification[] {
       // Không bao giờ 'high': không có hạn chót nào, và một việc "ngồi xuống rồi sửa
       // ngân sách" mà xếp ngang với "mai bị trừ tiền thẻ" là làm hỏng cả thang mức độ.
       severity: 'medium',
-      title: `Mức chi đổi hẳn từ ${thangGay} — ${len ? 'tăng' : 'giảm'} ${Math.abs(doi)}%`,
+      title: len
+        ? tr('Mức chi đổi hẳn từ {month} — tăng {pct}%', { month: thangGay, pct: Math.abs(doi) })
+        : tr('Mức chi đổi hẳn từ {month} — giảm {pct}%', { month: thangGay, pct: Math.abs(doi) }),
       detail,
       to: '/budget',
     },

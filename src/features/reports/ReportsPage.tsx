@@ -15,6 +15,7 @@ import { useMonthKey } from '../../hooks/useMonthKey'
 import { addMonths, formatMonthLabel, getMonthRange } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from './aggregate'
+import { tr } from '../../i18n'
 
 // Sức khỏe là 532 dòng tính toán mà 3 tab kia không cần — lazy để mở tab Biểu đồ (mặc
 // định) không phải tải nó.
@@ -50,10 +51,10 @@ type ReportView = 'month' | 'long' | 'health' | 'decide'
  * và đều trả lời "đã xảy ra gì", nên khối "làm gì thì đổi được gì" cắt ngang cả ba.
  */
 const VIEW_TABS: readonly SegmentedItem<ReportView>[] = [
-  { value: 'month', label: 'Tháng' },
-  { value: 'long', label: 'Dài hạn' },
-  { value: 'health', label: 'Sức khỏe' },
-  { value: 'decide', label: 'Quyết định' },
+  { value: 'month', label: tr('Tháng') },
+  { value: 'long', label: tr('Dài hạn') },
+  { value: 'health', label: tr('Sức khỏe') },
+  { value: 'decide', label: tr('Quyết định') },
 ]
 
 const isView = (v: string | null): v is ReportView => VIEW_TABS.some((t) => t.value === v)
@@ -183,17 +184,16 @@ export function ReportsPage() {
           Báo cáo là trang duy nhất từng mở thẳng bằng dải tab, phá nhịp và người
           dùng máy đọc màn hình không nghe được tên trang. Bản in có h1 riêng bên
           dưới (kèm kỳ đang xem) nên bản màn hình ẩn khi in. */}
-      <PageHeader title="Báo cáo" flush className="print:hidden" />
+      <PageHeader title={tr('Báo cáo')} flush className="print:hidden" />
       {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
       <p className="hidden text-center text-xl font-bold text-gray-900 print:block">
-        Báo cáo{' '}
         {view === 'month'
-          ? formatMonthLabel(activeMonthKey)
+          ? tr('Báo cáo {period}', { period: formatMonthLabel(activeMonthKey) })
           : view === 'long'
-            ? 'dài hạn'
+            ? tr('Báo cáo dài hạn')
             : view === 'decide'
-              ? 'quyết định'
-              : 'sức khỏe'}
+              ? tr('Báo cáo quyết định')
+              : tr('Báo cáo sức khỏe')}
       </p>
 
       {/* Cảnh báo THIẾU tỷ giá ở lại đầu trang, không xuống chân trang cùng dòng tuổi dữ
@@ -215,7 +215,7 @@ export function ReportsPage() {
         items={VIEW_TABS}
         value={view}
         onChange={setView}
-        label="Nội dung báo cáo"
+        label={tr('Nội dung báo cáo')}
         stretch="lg"
         className="print:hidden"
       />
@@ -225,13 +225,13 @@ export function ReportsPage() {
           nó vì nó là khoảng thời gian thứ ba trên một màn đã có hai. */}
       {view === 'month' && (
         <div className="flex items-center justify-between print:hidden lg:hidden">
-          <IconButton onClick={() => stepMonth(-1)} aria-label="Kỳ trước">
+          <IconButton onClick={() => stepMonth(-1)} aria-label={tr('Kỳ trước')}>
             <ChevronLeft className="h-5 w-5" strokeWidth={1.6} />
           </IconButton>
           <p aria-live="polite" className="text-lg font-bold text-fg-primary">
             {formatMonthLabel(activeMonthKey)}
           </p>
-          <IconButton onClick={() => stepMonth(1)} aria-label="Kỳ sau">
+          <IconButton onClick={() => stepMonth(1)} aria-label={tr('Kỳ sau')}>
             <ChevronRight className="h-5 w-5" strokeWidth={1.6} />
           </IconButton>
         </div>
@@ -250,7 +250,7 @@ export function ReportsPage() {
           active={activeMonthKey}
           onPick={setMonthKey}
           base={base}
-          label="Chọn tháng xem báo cáo — số dưới mỗi tháng là tổng chi"
+          label={tr('Chọn tháng xem báo cáo — số dưới mỗi tháng là tổng chi')}
         />
       )}
 
@@ -266,19 +266,19 @@ export function ReportsPage() {
           Dải điều hướng "‹ Năm 2026 ›" cũng đi cùng: nó là khoảng thời gian thứ ba trên
           một màn đã có hai. */}
       {view === 'long' && (
-        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
+        <Suspense fallback={<EmptyState>{tr('Đang tính…')}</EmptyState>}>
           <LongView />
         </Suspense>
       )}
 
       {view === 'decide' && (
-        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
+        <Suspense fallback={<EmptyState>{tr('Đang tính…')}</EmptyState>}>
           <DecideView />
         </Suspense>
       )}
 
       {view === 'health' && (
-        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
+        <Suspense fallback={<EmptyState>{tr('Đang tính…')}</EmptyState>}>
           <HealthView />
         </Suspense>
       )}

@@ -25,10 +25,11 @@ import { toISODate } from '../../lib/dates'
 // bản chép tay ở đây sẽ lệch nhau đúng lúc không ai nhìn. Bản có test là bản kia.
 import { firstOfMonth } from '../transactions/plannedFromEntry'
 import type { DuePrecision, PlannedExpenseRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 const PRECISION: readonly (readonly [DuePrecision, string, string])[] = [
-  ['day', 'Đúng ngày', 'Biết chắc ngày nào — vd hạn đóng phí 20/8'],
-  ['month', 'Khoảng tháng', 'Mới biết tháng, chưa chốt ngày — vd sửa nhà tháng 10'],
+  ['day', tr('Đúng ngày'), tr('Biết chắc ngày nào — vd hạn đóng phí 20/8')],
+  ['month', tr('Khoảng tháng'), tr('Mới biết tháng, chưa chốt ngày — vd sửa nhà tháng 10')],
 ]
 
 interface Props {
@@ -94,7 +95,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
       else await create.mutateAsync(input)
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+      setError(e instanceof Error ? e.message : tr('Lưu thất bại, thử lại.'))
       setSaving(false)
     }
   }
@@ -103,19 +104,19 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
     if (!planned) return
     if (
       !(await confirmDialog({
-        title: `Xóa "${planned.title}"?`,
-        message: 'Chỉ xóa khỏi danh sách sắp chi. Giao dịch đã ghi (nếu có) vẫn giữ nguyên.',
+        title: tr('Xóa "{name}"?', { name: planned.title }),
+        message: tr('Chỉ xóa khỏi danh sách sắp chi. Giao dịch đã ghi (nếu có) vẫn giữ nguyên.'),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
     try {
       await remove.mutateAsync(planned.id)
-      showToast('Đã xóa khoản sắp chi')
+      showToast(tr('Đã xóa khoản sắp chi'))
       onClose()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
@@ -129,24 +130,24 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-3">
-          {planned ? 'Sửa khoản sắp chi' : 'Thêm khoản sắp chi'}
+          {planned ? tr('Sửa khoản sắp chi') : tr('Thêm khoản sắp chi')}
         </SectionTitle>
 
         <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-title">
-          Chi cái gì
+          {tr('Chi cái gì')}
         </label>
         <input
           id="planned-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ví dụ: đóng phí vệ sinh"
+          placeholder={tr('Ví dụ: đóng phí vệ sinh')}
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
         />
 
         {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
             duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
+          {tr('Ước tính')} <span className="text-fg-muted">{tr('(để trống nếu chưa biết)')}</span>
         </span>
         <div className="mb-3 flex gap-2">
           <MoneyField
@@ -154,13 +155,13 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             onChange={setAmount}
             currency={currency}
             autoOpen={false}
-            ariaLabel="Số tiền ước tính"
+            ariaLabel={tr('Số tiền ước tính')}
             className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
           />
           <Select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-            aria-label="Loại tiền" wrapClassName="w-24 shrink-0">
+            aria-label={tr('Loại tiền')} wrapClassName="w-24 shrink-0">
             {Object.keys(CURRENCIES).map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -170,10 +171,10 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         </div>
 
         {/* Nhãn cho một HÀNG NÚT → <span> + role="group" mang tên. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Chắc tới đâu</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Chắc tới đâu')}</span>
         <div
           role="group"
-          aria-label="Chắc tới đâu"
+          aria-label={tr('Chắc tới đâu')}
           className="mb-1 flex overflow-hidden rounded-lg border border-border-strong"
         >
           {PRECISION.map(([value, label, title2]) => (
@@ -195,12 +196,12 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         </div>
         <p className="mb-3 text-sm text-fg-muted">
           {precision === 'day'
-            ? 'Danh sách hiện đúng ngày này.'
-            : 'Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.'}
+            ? tr('Danh sách hiện đúng ngày này.')
+            : tr('Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.')}
         </p>
 
         <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-due">
-          {precision === 'day' ? 'Ngày đến hạn' : 'Tháng dự kiến'}
+          {precision === 'day' ? tr('Ngày đến hạn') : tr('Tháng dự kiến')}
         </label>
         <input
           id="planned-due"
@@ -219,12 +220,12 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             onChange={(e) => setRemind(e.target.checked)}
             className="h-4 w-4 accent-green-700"
           />
-          Nhắc tôi
+          {tr('Nhắc tôi')}
         </label>
         {remind ? (
           <div className="mb-3 flex items-center gap-2">
             <label className="text-sm text-fg-muted" htmlFor="planned-remind">
-              Nhắc trước
+              {tr('Nhắc trước')}
             </label>
             <input
               id="planned-remind"
@@ -233,22 +234,22 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
               onChange={(e) => setRemindDays(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
               className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base sm:text-sm"
             />
-            <span className="text-sm text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
+            <span className="text-sm text-fg-muted">{tr('ngày (0 = đúng ngày đến hạn)')}</span>
           </div>
         ) : (
           <Guide className="mb-3 text-sm text-fg-muted">
-            Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
+            {tr('Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.')}
           </Guide>
         )}
 
         <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-cat">
-          Danh mục <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Danh mục')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </label>
         <Select
           id="planned-cat"
           value={categoryId ?? ''}
           onChange={(e) => setCategoryId(e.target.value || null)} wrapClassName="mb-3 w-full">
-          <option value="">— Chưa chọn —</option>
+          <option value="">{tr('— Chưa chọn —')}</option>
           {expenseCats.map((c) => (
             <option key={c.id} value={c.id}>
               {c.icon} {c.name}
@@ -257,7 +258,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         </Select>
 
         <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-note">
-          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Ghi chú')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </label>
         <input
           id="planned-note"
@@ -277,14 +278,14 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         <div className="flex gap-2">
           {planned && (
             <ActionButton variant="danger" onClick={handleDelete}>
-              Xóa
+              {tr('Xóa')}
             </ActionButton>
           )}
           <ActionButton onClick={onClose} className="ml-auto">
-            Hủy
+            {tr('Hủy')}
           </ActionButton>
           <ActionButton variant="primary" onClick={handleSave} disabled={!canSave}>
-            Lưu
+            {tr('Lưu')}
           </ActionButton>
         </div>
       </div>

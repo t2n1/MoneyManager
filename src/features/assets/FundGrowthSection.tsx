@@ -15,6 +15,8 @@ import { Card, SectionTitle } from '../../components/ui'
 import { useFundPriceHistory } from '../../hooks/queries'
 import type { FundTradeRow } from '../../types/database.types'
 import { FundGrowthChart } from './FundGrowthChart'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** Quỹ đang giữ — cùng tập với thẻ "Quỹ chạy vs tiền vào". */
@@ -68,7 +70,7 @@ export function FundGrowthSection({ positions, trades, fundName }: Props) {
 
   return (
     <Card as="section">
-      <SectionTitle>Khoảng cách mở ra ở đâu</SectionTitle>
+      <SectionTitle>{tr('Khoảng cách mở ra ở đâu')}</SectionTitle>
       <ul className="mt-1 divide-y divide-border-subtle">
         {veDuoc.map((q) => (
           <li key={q.cd} className="py-2">
@@ -78,21 +80,24 @@ export function FundGrowthSection({ positions, trades, fundName }: Props) {
         ))}
       </ul>
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          Ba đường là <b>% tích luỹ</b> kể từ ngày bạn mua quỹ đó lần đầu — KHÁC đơn vị với
-          ba con số ở thẻ trên (kia là %/năm). Nên mép phải ở đây không bằng ba con số đó, và
-          đó không phải lỗi: một quãng ngắn năm hoá lên sẽ thành con số vô nghĩa.
+          {trn(
+            'Ba đường là {b} kể từ ngày bạn mua quỹ đó lần đầu — KHÁC đơn vị với ba con số ở thẻ trên (kia là %/năm). Nên mép phải ở đây không bằng ba con số đó, và đó không phải lỗi: một quãng ngắn năm hoá lên sẽ thành con số vô nghĩa.',
+            { b: <b>{tr('% tích luỹ')}</b> },
+          )}
         </p>
         <p>
-          <b>Quỹ tự chạy</b> là 基準価額, tức mỗi yên để trong quỹ từ đầu thì thành mấy.
-          <b> Tiền của bạn</b> là mỗi yên bạn thật sự đã bỏ vào thành mấy — đã cộng cả tiền
-          đã bán thu về, nên bán bớt không làm tỷ lệ phụt lên vô nghĩa.
+          {trn(
+            '{a} là 基準価額, tức mỗi yên để trong quỹ từ đầu thì thành mấy.{b} là mỗi yên bạn thật sự đã bỏ vào thành mấy — đã cộng cả tiền đã bán thu về, nên bán bớt không làm tỷ lệ phụt lên vô nghĩa.',
+            { a: <b>{tr('Quỹ tự chạy')}</b>, b: <b> {tr('Tiền của bạn')}</b> },
+          )}
         </p>
         <p>
-          Hai đường tách nhau ở đâu thì <b>ở đó</b> thời điểm vào (hay ra) tiền đã lấy đi
-          hoặc cho thêm. Đường <b>máy mua đều</b> là mốc: cùng tổng tiền, rải đều qua đúng
-          những ngày bạn đã mua, và không bao giờ bán.
+          {trn(
+            'Hai đường tách nhau ở đâu thì {a} thời điểm vào (hay ra) tiền đã lấy đi hoặc cho thêm. Đường {b} là mốc: cùng tổng tiền, rải đều qua đúng những ngày bạn đã mua, và không bao giờ bán.',
+            { a: <b>{tr('ở đó')}</b>, b: <b>{tr('máy mua đều')}</b> },
+          )}
         </p>
       </ExplainBox>
     </Card>

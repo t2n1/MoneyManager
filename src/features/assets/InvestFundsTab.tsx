@@ -26,6 +26,8 @@ import { TEN_TK_HUU } from '../phieu-luong/nhap'
 import { useFundInvestData } from './useFundInvestData'
 import { KIND_CLASS, KIND_LABEL, ngay, pct, share } from './investFormat'
 import type { FundTradeRow } from '../../types/database.types'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const JPY = 'JPY' as const
 
@@ -75,19 +77,25 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
   const sheetAccount = sheet ? accounts.find((a) => a.id === sheet.accountId) : undefined
 
   if (isLoading) {
-    return <EmptyState>Đang tải…</EmptyState>
+    return <EmptyState>{tr('Đang tải…')}</EmptyState>
   }
 
   if (accounts.length === 0) {
     return (
       <Card as="section">
         <p className="text-sm text-fg-muted">
-          Chưa có tài khoản quỹ đầu tư Nhật nào. Tạo một tài khoản loại <b>Đầu tư</b> với
-          loại tiền <b>JPY</b> ở{' '}
-          <Link to="/settings/accounts" className="font-medium text-fg-accent">
-            Cài đặt → Tài khoản
-          </Link>
-          , rồi ghi lệnh mua bán để app tự lấy 基準価額 mỗi ngày và tính lời/lỗ.
+          {trn(
+            'Chưa có tài khoản quỹ đầu tư Nhật nào. Tạo một tài khoản loại {type} với loại tiền {cur} ở {link}, rồi ghi lệnh mua bán để app tự lấy 基準価額 mỗi ngày và tính lời/lỗ.',
+            {
+              type: <b>{tr('Đầu tư')}</b>,
+              cur: <b>JPY</b>,
+              link: (
+                <Link to="/settings/accounts" className="font-medium text-fg-accent">
+                  {tr('Cài đặt → Tài khoản')}
+                </Link>
+              ),
+            },
+          )}
         </p>
       </Card>
     )
@@ -98,14 +106,14 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
       <div className="flex items-center justify-between gap-2">
         <InvestAccountChips accounts={fundAccounts} activeId={activeId} onPick={onPickAccount} />
         <ActionButton variant="primary" onClick={startTrade} className="ml-auto">
-          <Plus className="h-4 w-4" /> Ghi lệnh
+          <Plus className="h-4 w-4" /> {tr('Ghi lệnh')}
         </ActionButton>
       </div>
 
       {/* Tổng danh mục */}
       <Card as="section">
         <div className="flex items-baseline justify-between gap-2">
-          <SectionTitle>Giá trị danh mục</SectionTitle>
+          <SectionTitle>{tr('Giá trị danh mục')}</SectionTitle>
           {session && <span className="text-2xs text-fg-muted">基準価額 {ngay(session)}</span>}
         </div>
         {/* `total`, không `p.marketValue`: tổng gồm cả số dư tài khoản không có sổ lệnh
@@ -113,14 +121,14 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             Tài sản, nơi cùng số tiền ấy đã được đếm là đầu tư. */}
         {total.value === null ? (
           <p className="mt-1 text-sm text-fg-muted">
-            Chưa tính được — chưa có 基準価額 cho quỹ nào đang giữ.
+            {tr('Chưa tính được — chưa có 基準価額 cho quỹ nào đang giữ.')}
           </p>
         ) : (
           <p className="mt-1 flex items-baseline gap-1">
             <Money amount={total.value} currency={JPY} className="text-kpi font-medium tracking-number" />
             {p.missingNavs.length > 0 && (
               <EstimateMark
-                reason={`${p.missingNavs.map(fundName).join(', ')} chưa có giá, đang tạm tính theo giá vốn.`}
+                reason={tr('{funds} chưa có giá, đang tạm tính theo giá vốn.', { funds: p.missingNavs.map(fundName).join(', ') })}
               />
             )}
           </p>
@@ -131,23 +139,23 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             thấy đúng phần số dư biến thành một khoản lời không có thật. */}
         {total.balanceTotal > 0 && total.value !== null && (
           <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
-            <span>Gồm</span>
+            <span>{tr('Gồm')}</span>
             <Money amount={p.fundValue} currency={JPY} className="text-2xs" />
-            <span>quỹ theo 基準価額 ·</span>
+            <span>{tr('quỹ theo 基準価額 ·')}</span>
             <Money amount={total.balanceTotal} currency={JPY} className="text-2xs" />
-            <span>tính theo số dư</span>
+            <span>{tr('tính theo số dư')}</span>
           </p>
         )}
 
         <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border-subtle pt-3 text-sm">
           <div>
-            <dt className="text-fg-muted">Giá vốn</dt>
+            <dt className="text-fg-muted">{tr('Giá vốn')}</dt>
             <dd>
               <Money amount={p.fundCost} currency={JPY} className="font-semibold" />
             </dd>
           </div>
           <div>
-            <dt className="text-fg-muted">Lời/lỗ chưa bán</dt>
+            <dt className="text-fg-muted">{tr('Lời/lỗ chưa bán')}</dt>
             <dd className="flex items-baseline gap-1">
               <Money
                 amount={Math.abs(p.unrealizedPnl)}
@@ -165,7 +173,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             <div>
               {/* Đã bán rồi thì tiền đã về 楽天銀行 — con số này KHÔNG nằm trong giá trị
                   danh mục ở trên, nên để riêng chứ không cộng vào lời/lỗ chưa bán. */}
-              <dt className="text-fg-muted">Lời/lỗ đã bán</dt>
+              <dt className="text-fg-muted">{tr('Lời/lỗ đã bán')}</dt>
               <dd>
                 <Money
                   amount={Math.abs(p.realizedPnl)}
@@ -180,31 +188,31 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
         </dl>
 
         <Guide className="mt-2 text-2xs text-fg-muted">
-          Không có dòng “tiền chưa mua”: Rakuten tự quét sạch tiền dư về 楽天銀行, tài khoản
-          quỹ không giữ tiền nhàn rỗi.
+          {tr('Không có dòng “tiền chưa mua”: Rakuten tự quét sạch tiền dư về 楽天銀行, tài khoản quỹ không giữ tiền nhàn rỗi.')}
         </Guide>
 
         {p.oversold.length > 0 && (
           <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-            {p.oversold.map(fundName).join(', ')}: sổ lệnh ghi bán nhiều 口数 hơn số đang
-            giữ. Thường là quỹ đã ĐỔI TÊN và nửa lịch sử đang ghép vào một mã khác — xem
-            docs/quy-nhat.md.
+            {tr(
+              '{funds}: sổ lệnh ghi bán nhiều 口数 hơn số đang giữ. Thường là quỹ đã ĐỔI TÊN và nửa lịch sử đang ghép vào một mã khác — xem docs/quy-nhat.md.',
+              { funds: p.oversold.map(fundName).join(', ') },
+            )}
           </p>
         )}
         {staleHeld.length > 0 && (
           <p className="mt-2 text-2xs text-fg-muted">
-            {staleHeld.map(fundName).join(', ')} đang dùng 基準価額 của phiên trước.
+            {tr('{funds} đang dùng 基準価額 của phiên trước.', { funds: staleHeld.map(fundName).join(', ') })}
           </p>
         )}
       </Card>
 
       {/* Từng quỹ */}
       <Card as="section">
-        <SectionTitle>Đang giữ ({p.positions.length} quỹ)</SectionTitle>
+        <SectionTitle>{tr('Đang giữ ({n} quỹ)', { n: p.positions.length })}</SectionTitle>
         {p.positions.length === 0 ? (
           <p className="mt-2 text-sm text-fg-muted">
-            Chưa giữ quỹ nào.
-            <Guide as="span"> Ghi lệnh mua để app tự lấy 基準価額 và tính lời/lỗ.</Guide>
+            {tr('Chưa giữ quỹ nào.')}
+            <Guide as="span"> {tr('Ghi lệnh mua để app tự lấy 基準価額 và tính lời/lỗ.')}</Guide>
           </p>
         ) : (
           <>
@@ -212,8 +220,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
               trên danh sách đầu tiên dùng nó (cả "/1万口" ở mỗi dòng).
               E-ink + Gọn: bỏ định nghĩa. */}
           <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
-            口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Giá quỹ tính trên 1万口
-            (10.000 đơn vị).
+            {tr('口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Giá quỹ tính trên 1万口 (10.000 đơn vị).')}
           </p>
           <ul className="mt-1 divide-y divide-border-subtle">
             {p.positions.map((pos) => (
@@ -260,13 +267,13 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                   </div>
                   <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
                     <span>{pos.units.toLocaleString('vi-VN')} 口</span>
-                    <span>· vốn</span>
+                    <span>{tr('· vốn')}</span>
                     <Money amount={pos.avgNav} currency={JPY} className="text-2xs" />
                     {pos.nav === null ? (
-                      <span>· chưa có giá</span>
+                      <span>{tr('· chưa có giá')}</span>
                     ) : (
                       <>
-                        <span>· nay</span>
+                        <span>{tr('· nay')}</span>
                         <Money amount={pos.nav} currency={JPY} className="text-2xs" />
                       </>
                     )}
@@ -308,7 +315,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
           hai đơn vị đứng cùng một danh sách thì lệch nhau đúng 10.000 lần. */}
       {balanceAccounts.length > 0 && (
         <Card as="section">
-          <SectionTitle>Tính theo số dư ({balanceAccounts.length})</SectionTitle>
+          <SectionTitle>{tr('Tính theo số dư ({n})', { n: balanceAccounts.length })}</SectionTitle>
           <ul className="mt-1 divide-y divide-border-subtle">
             {balanceAccounts.map((b) => (
               <li key={b.accountId} className="py-2">
@@ -337,10 +344,12 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                     cách người đọc kiểm được: nhập thiếu phiếu, hoặc đặt chặng khác. */}
                 {b.projection && (
                   <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
-                    <span>Đóng</span>
+                    <span>{tr('Đóng')}</span>
                     <Money amount={b.contribution.minorPerMonth} currency={JPY} className="text-2xs" />
-                    <span>/tháng · tới {b.projection.toYear} (chặng {b.projection.phaseLabel})</span>
-                    <span className="text-fg-muted">ít nhất</span>
+                    <span>
+                      {tr('/tháng · tới {year} (chặng {phase})', { year: b.projection.toYear, phase: b.projection.phaseLabel })}
+                    </span>
+                    <span className="text-fg-muted">{tr('ít nhất')}</span>
                     <Money amount={b.projection.minor} currency={JPY} className="text-2xs font-semibold" />
                   </p>
                 )}
@@ -348,10 +357,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             ))}
           </ul>
           <Guide className="mt-2 text-2xs text-fg-muted">
-            Không có 基準価額 nên không có giá vốn hay lời/lỗ — số dư tài khoản chính là giá
-            trị. Ghi một lệnh quỹ vào tài khoản nào thì tài khoản đó tự chuyển lên khu trên.
-            Con số “ít nhất” chỉ cộng tiền đóng, KHÔNG cộng lãi: 予定利率 của 基金 nằm trên
-            giấy 残高通知 gửi hằng năm, sổ không có nó nên app không đoán.
+            {tr('Không có 基準価額 nên không có giá vốn hay lời/lỗ — số dư tài khoản chính là giá trị. Ghi một lệnh quỹ vào tài khoản nào thì tài khoản đó tự chuyển lên khu trên. Con số “ít nhất” chỉ cộng tiền đóng, KHÔNG cộng lãi: 予定利率 của 基金 nằm trên giấy 残高通知 gửi hằng năm, sổ không có nó nên app không đoán.')}
           </Guide>
         </Card>
       )}
@@ -360,7 +366,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
       <Card as="section">
         <div className="flex items-baseline justify-between gap-2">
           <SectionTitle>
-            Sổ lệnh{fundFilter ? ` · ${fundName(fundFilter)}` : ''} ({shownTrades.length})
+            {tr('Sổ lệnh')}{fundFilter ? ` · ${fundName(fundFilter)}` : ''} ({shownTrades.length})
           </SectionTitle>
           {fundFilter && (
             <button
@@ -368,13 +374,13 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
               onClick={() => setFundFilter(null)}
               className="text-2xs font-medium text-fg-accent"
             >
-              Xem hết
+              {tr('Xem hết')}
             </button>
           )}
         </div>
 
         {shownTrades.length === 0 ? (
-          <p className="mt-2 text-sm text-fg-muted">Chưa có lệnh nào.</p>
+          <p className="mt-2 text-sm text-fg-muted">{tr('Chưa có lệnh nào.')}</p>
         ) : (
           <ul className="mt-1 divide-y divide-border-subtle">
             {shownTrades.map((t) => (

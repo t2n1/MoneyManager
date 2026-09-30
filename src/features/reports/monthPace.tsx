@@ -16,6 +16,8 @@ import { SpendVsBudgetCard } from './SpendVsBudgetCard'
 import { Card, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 import type { MonthPace } from './useMonthPace'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /**
  * Khối "đang đi nhanh hay chậm" — đặt ngay dưới dòng Tổng ngân sách vì nó trả lời
@@ -45,7 +47,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
         base={base}
         scopeNote={
           scoped
-            ? `Chỉ tính ${budgetedCount} mục đã đặt hạn mức — khoản của mục chưa đặt không vẽ ở đây.`
+            ? tr('Chỉ tính {n} mục đã đặt hạn mức — khoản của mục chưa đặt không vẽ ở đây.', { n: budgetedCount })
             : undefined
         }
       />
@@ -56,28 +58,31 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               hai số lệch ¥47,054 (¥239,245 so với ¥192,191) mà trước đây không có chữ nào
               nói vì sao, nên đọc thành "thẻ này tự mâu thuẫn". */}
           <p className="text-sm text-fg-muted">
-            {scoped ? 'Cả tháng đã chi ' : 'Đã chi '}
             {/* "tới hôm nay" chứ không "sau 23/30 ngày": cặp số đó là mẫu số của DỰ BÁO
                 (đã bỏ ngày đi vắng), không phải lịch — in ra thì nó cãi với nhãn kỳ "đã
                 qua 22 ngày · còn 8 ngày (kể cả hôm nay)" ở đầu trang (lib/dates periodDays). */}
-            {formatMoney(forecast.spentSoFar, base)} tính tới hôm nay
-            {scoped ? ' — gồm cả mục chưa đặt hạn mức.' : '.'}
+            {scoped
+              ? tr('Cả tháng đã chi {amount} tính tới hôm nay — gồm cả mục chưa đặt hạn mức.', {
+                  amount: formatMoney(forecast.spentSoFar, base),
+                })
+              : tr('Đã chi {amount} tính tới hôm nay.', { amount: formatMoney(forecast.spentSoFar, base) })}
           </p>
           {/* Nói KHOẢNG chứ không một con số: cùng một mức chi trung bình, người tiêu đều
               mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}
           {forecast.hasRange && (
             <p className="mt-1 text-sm text-fg-secondary">
               {visual ? (
-                <>
-                  Cuối tháng ≈ <b>{formatMoney(forecast.projected, base)}</b> (
-                  {formatMoney(forecast.low, base)}–{formatMoney(forecast.high, base)})
-                </>
+                trn('Cuối tháng ≈ {projected} ({low}–{high})', {
+                  projected: <b>{formatMoney(forecast.projected, base)}</b>,
+                  low: formatMoney(forecast.low, base),
+                  high: formatMoney(forecast.high, base),
+                })
               ) : (
-                <>
-                  Cuối tháng ước chừng <b>{formatMoney(forecast.low, base)}</b> –{' '}
-                  <b>{formatMoney(forecast.high, base)}</b>, sát nhất là{' '}
-                  {formatMoney(forecast.projected, base)}.
-                </>
+                trn('Cuối tháng ước chừng {low} – {high}, sát nhất là {projected}.', {
+                  low: <b>{formatMoney(forecast.low, base)}</b>,
+                  high: <b>{formatMoney(forecast.high, base)}</b>,
+                  projected: formatMoney(forecast.projected, base),
+                })
               )}
             </p>
           )}
@@ -108,7 +113,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   if (verdict.kind === 'unset') {
     return (
       <Guide className="mt-2 text-sm text-fg-muted">
-        Đặt ngân sách tháng để so sánh với dự báo.
+        {tr('Đặt ngân sách tháng để so sánh với dự báo.')}
       </Guide>
     )
   }
@@ -118,15 +123,16 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
     return (
       <p className="mt-2 rounded-lg bg-state-bad-bg px-2 py-1.5 text-sm text-money-out">
         {visual ? (
-          <>
-            Với đà này sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
-            <b>{formatMoney(verdict.overBy, base)}</b>
-          </>
+          trn('Với đà này sẽ vượt trần {cap} khoảng {over}', {
+            cap: formatMoney(totalBudgeted, base),
+            over: <b>{formatMoney(verdict.overBy, base)}</b>,
+          })
         ) : (
-          <>
-            Riêng {budgetedCount} mục đã đặt hạn mức: với đà này sẽ vượt tổng hạn mức
-            ({formatMoney(totalBudgeted, base)}) khoảng {formatMoney(verdict.overBy, base)}.
-          </>
+          tr('Riêng {n} mục đã đặt hạn mức: với đà này sẽ vượt tổng hạn mức ({cap}) khoảng {over}.', {
+            n: budgetedCount,
+            cap: formatMoney(totalBudgeted, base),
+            over: formatMoney(verdict.overBy, base),
+          })
         )}
       </p>
     )
@@ -135,12 +141,12 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
     return (
       <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-sm">
         {visual ? (
-          <>Với đà này có thể vượt trần {formatMoney(totalBudgeted, base)}</>
+          tr('Với đà này có thể vượt trần {cap}', { cap: formatMoney(totalBudgeted, base) })
         ) : (
-          <>
-            Riêng {budgetedCount} mục đã đặt hạn mức: có thể vượt tổng hạn mức
-            ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày cuối tháng chi thế nào.
-          </>
+          tr('Riêng {n} mục đã đặt hạn mức: có thể vượt tổng hạn mức ({cap}) — còn tuỳ mấy ngày cuối tháng chi thế nào.', {
+            n: budgetedCount,
+            cap: formatMoney(totalBudgeted, base),
+          })
         )}
       </p>
     )
@@ -148,12 +154,12 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   return (
     <p className="mt-2 rounded-lg bg-accent-muted-bg px-2 py-1.5 text-sm text-fg-accent">
       {visual ? (
-        <>Với đà này vẫn trong trần {formatMoney(totalBudgeted, base)}</>
+        tr('Với đà này vẫn trong trần {cap}', { cap: formatMoney(totalBudgeted, base) })
       ) : (
-        <>
-          Riêng {budgetedCount} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức
-          ({formatMoney(totalBudgeted, base)}).
-        </>
+        tr('Riêng {n} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức ({cap}).', {
+          n: budgetedCount,
+          cap: formatMoney(totalBudgeted, base),
+        })
       )}
     </p>
   )
@@ -175,7 +181,7 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
       {hasCashflow && (
         <Card as="section">
           <SectionTitle className="mb-2">
-            Dòng tiền tích lũy trong tháng
+            {tr('Dòng tiền tích lũy trong tháng')}
           </SectionTitle>
           <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">

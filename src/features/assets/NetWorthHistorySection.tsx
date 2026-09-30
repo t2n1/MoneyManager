@@ -20,6 +20,7 @@ import { monthLabel } from './assetsRange'
 import type { MoneyView } from './moneyView'
 import type { NetWorthSeries } from './netWorthSeries'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
+import { tr } from '../../i18n'
 
 interface Props {
   /** Tài sản ròng hiện tại (base minor); null = chưa tin cậy (thiếu tỷ giá) → không ghi. */
@@ -59,9 +60,9 @@ export function NetWorthHistorySection({
   if (series.points.length < 2 && (isLoading || isError)) {
     return (
       <Card as="section" elevation="panel" padding="lg">
-        <SectionTitle>Tài sản ròng</SectionTitle>
+        <SectionTitle>{tr('Tài sản ròng')}</SectionTitle>
         <p className="mt-2 text-center text-sm text-fg-muted">
-          {isLoading ? 'Đang tải…' : 'Chưa tải được lịch sử tài sản ròng — thử tải lại trang.'}
+          {isLoading ? tr('Đang tải…') : tr('Chưa tải được lịch sử tài sản ròng — thử tải lại trang.')}
         </p>
       </Card>
     )
@@ -70,11 +71,11 @@ export function NetWorthHistorySection({
   if (series.points.length < 2) {
     return (
       <Card as="section" elevation="panel" padding="lg">
-        <SectionTitle>Tài sản ròng</SectionTitle>
+        <SectionTitle>{tr('Tài sản ròng')}</SectionTitle>
         <p className="mt-2 text-center text-sm text-fg-muted">
           {snapshots.length >= 2
-            ? `Khoảng ${rangeNoun} chưa có đủ hai mốc — chọn khoảng rộng hơn.`
-            : 'Mở app đều đặn để app ghi lại tài sản ròng — biểu đồ xu hướng sẽ hiện sau vài mốc.'}
+            ? tr('Khoảng {range} chưa có đủ hai mốc — chọn khoảng rộng hơn.', { range: rangeNoun })
+            : tr('Mở app đều đặn để app ghi lại tài sản ròng — biểu đồ xu hướng sẽ hiện sau vài mốc.')}
         </p>
       </Card>
     )
@@ -87,21 +88,27 @@ export function NetWorthHistorySection({
   return (
     <Card as="section" elevation="panel" padding="lg">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <SectionTitle>Tài sản ròng</SectionTitle>
+        <SectionTitle>{tr('Tài sản ròng')}</SectionTitle>
         {/* Khối TỰ KHAI mốc đầu và số mốc của mình, không lấy số tháng từ dải chọn: ảnh
             chụp ghi mỗi lần MỞ APP, nên số mốc không bằng số tháng và mốc đầu của chuỗi
             không nhất thiết là mốc đầu của cửa sổ. In "23 tháng" cạnh một chuỗi 6 mốc là
             mời người đọc tưởng mình đang xem 23 điểm dữ liệu. */}
         <span className="text-2xs text-fg-muted">
-          {rangeNoun} · {series.points.length} mốc từ {monthLabel(series.points[0].dateISO)} ·
-          ảnh chụp mỗi lần mở app, không phải mỗi tháng
+          {tr('{range} · {n} mốc từ {month} · ảnh chụp mỗi lần mở app, không phải mỗi tháng', {
+            range: rangeNoun,
+            n: series.points.length,
+            month: monthLabel(series.points[0].dateISO),
+          })}
         </span>
         {/* Loại mốc trong IM LẶNG là đúng cái "lỗ đen" mà bản vẽ 2b đặt tên: người dùng
             thấy trục đẹp hơn mà không biết vì sao ba ngày biến mất. */}
         {boMoc > 0 && (
           <StatusChip tone="warn">
-            {boMoc} mốc {monthLabel(series.dropped[0].fromISO)}
-            {series.dropped.length > 1 && '…'} nghi sai quy đổi — đã loại khỏi trục
+            {tr('{n} mốc {month}{more} nghi sai quy đổi — đã loại khỏi trục', {
+              n: boMoc,
+              month: monthLabel(series.dropped[0].fromISO),
+              more: series.dropped.length > 1 ? '…' : '',
+            })}
           </StatusChip>
         )}
         {series.delta != null && (
@@ -133,7 +140,7 @@ export function NetWorthHistorySection({
                 return formatCompact(t.amount, t.currency)
               }}
             />
-            <Tooltip formatter={(v) => view.fmt(Number(v))} labelFormatter={(l) => `Ngày ${l}`} />
+            <Tooltip formatter={(v) => view.fmt(Number(v))} labelFormatter={(l) => tr('Ngày {date}', { date: String(l) })} />
             <Line
               type="monotone"
               dataKey="value"

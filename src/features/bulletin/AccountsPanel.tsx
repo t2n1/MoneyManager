@@ -17,6 +17,8 @@ import type { AssetGroup } from '../assets/aggregate'
 import { rebalancePlan } from '../assets/rebalance'
 import { useAssetGroupSettings } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/money'
+import { numLocale, tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Trần dòng — Bản tin là chỗ liếc; ai có 20 tài khoản thì mở tab Tài sản. */
 const MAX_ROWS = 7
@@ -77,9 +79,9 @@ export function AccountsPanel({
   return (
     <Card elevation="panel" padding="panel" as="section" className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
-        <SectionTitle>Tài khoản</SectionTitle>
+        <SectionTitle>{trx('list', 'Tài khoản')}</SectionTitle>
         <Link to="/assets" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
-          Xem tất cả →
+          {tr('Xem tất cả →')}
         </Link>
       </div>
 
@@ -88,30 +90,38 @@ export function AccountsPanel({
           <span className="font-mono text-kpi font-medium tracking-number">
             <Money amount={netWorth} currency={base} tone="neutral" />
           </span>
-          <span className="text-2xs text-fg-muted">tài sản ròng · sau nợ và cho vay</span>
+          <span className="text-2xs text-fg-muted">{tr('tài sản ròng · sau nợ và cho vay')}</span>
         </p>
       )}
 
       {lech !== null && (
         <p className="mt-1.5 text-sm text-fg-primary">
-          Cơ cấu lệch mục tiêu: «{lech.name}» đang{' '}
-          <Num tone="out">{lech.actualPct.toFixed(1).replace('.', ',')}%</Num> so mục tiêu{' '}
-          <Num tone="muted">{lech.targetPct.toFixed(0)}%</Num> —{' '}
-          <Link to="/assets" className="font-medium text-fg-accent hover:underline">
-            xem cách cân lại
-          </Link>
+          {trn('Cơ cấu lệch mục tiêu: «{name}» đang {actual} so mục tiêu {target} — {link}', {
+            name: lech.name,
+            actual: (
+              <Num tone="out">
+                {lech.actualPct.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+              </Num>
+            ),
+            target: <Num tone="muted">{lech.targetPct.toFixed(0)}%</Num>,
+            link: (
+              <Link to="/assets" className="font-medium text-fg-accent hover:underline">
+                {tr('xem cách cân lại')}
+              </Link>
+            ),
+          })}
         </p>
       )}
 
       {failed ? (
-        <p className="mt-3 text-sm text-fg-muted">Chưa tải được danh sách tài khoản.</p>
+        <p className="mt-3 text-sm text-fg-muted">{tr('Chưa tải được danh sách tài khoản.')}</p>
       ) : pending ? (
-        <p className="mt-3 text-sm text-fg-muted">Đang tải…</p>
+        <p className="mt-3 text-sm text-fg-muted">{tr('Đang tải…')}</p>
       ) : shown.length === 0 ? (
         <p className="mt-3 text-sm text-fg-muted">
-          Chưa có tài khoản nào.{' '}
+          {tr('Chưa có tài khoản nào.')}{' '}
           <Link to="/settings/accounts" className="font-medium text-fg-accent hover:underline">
-            Thêm tài khoản
+            {tr('Thêm tài khoản')}
           </Link>
         </p>
       ) : (
@@ -127,7 +137,7 @@ export function AccountsPanel({
                   {a.name}
                 </span>
                 {staleIds.has(a.id) && (
-                  <StatusDot tone="warn" label="Chưa đối chiếu quá 30 ngày" />
+                  <StatusDot tone="warn" label={tr('Chưa đối chiếu quá 30 ngày')} />
                 )}
                 <Money
                   amount={a.value}
@@ -143,7 +153,7 @@ export function AccountsPanel({
 
       {accounts.length > MAX_ROWS && (
         <p className="mt-2 text-2xs text-fg-muted">
-          và {accounts.length - MAX_ROWS} tài khoản nữa
+          {tr('và {n} tài khoản nữa', { n: accounts.length - MAX_ROWS })}
         </p>
       )}
     </Card>

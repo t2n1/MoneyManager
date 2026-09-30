@@ -310,7 +310,7 @@ describe('hang chip vua MOT dong o 375px', () => {
   it('khong con nhan "Dang" hien tren mat, nhung radiogroup van co ten', () => {
     // Nhan do an ~40px (chu + gap) va chinh 40px do day chip cuoi xuong dong hai.
     expect(tabs).not.toMatch(/>Dạng</)
-    expect(tabs).toMatch(/aria-label="Dạng giao dịch"/)
+    expect(tabs).toMatch(/aria-label=\{tr\('Dạng giao dịch'\)\}/)
   })
 
   it('van giu flex-wrap: co chu 1.25 va man 320px thi PHAI xuong dong', () => {
@@ -321,7 +321,7 @@ describe('hang chip vua MOT dong o 375px', () => {
 
   it('nhan `repay` la "Tra no", khong phai "Toi tra no"', () => {
     const shape = read('features/transactions/entryShape.ts')
-    expect(shape).toMatch(/kind: 'repay'[\s\S]{0,60}label: 'Trả nợ'/)
+    expect(shape).toMatch(/kind: 'repay'[\s\S]{0,60}label: tr\('Trả nợ'\)/)
   })
 })
 
@@ -330,7 +330,7 @@ describe('dong "Con thieu" khong chiem cho cua mat', () => {
     // Nut Luu da mo va o con trong nam ngay tren man, nen "Con thieu: so tien." khong
     // noi them gi cho MAT. Nhung "nut mo" khong tu giai thich duoc voi trinh doc man
     // hinh, nen cau o lai trong DOM chu khong bi bo han.
-    expect(form).toMatch(/const shortMissing = missing\?\.startsWith\('Còn thiếu: '\) \?\? false/)
+    expect(form).toMatch(/const shortMissing = missing\?\.startsWith\(tr\('Còn thiếu: '\)\) \?\? false/)
     expect(form).toMatch(/shortMissing \? 'sr-only' :/)
   })
 })
@@ -359,7 +359,7 @@ describe('dang "Khach no cong" khong dung toi vi nao', () => {
     // srcCurrency = vi dang chon ?? 'JPY'. Dang nay khong co vi, nen doc no la nguoi an
     // tien VND nhan mot khoan no ghi bang JPY ma khong ai noi gi.
     expect(form).toMatch(/const debtCurrency = debtOnly \? owedCurrency : srcCurrency/)
-    expect(form).toMatch(/aria-label="Loại tiền của khoản nợ"/)
+    expect(form).toMatch(/aria-label=\{tr\('Loại tiền của khoản nợ'\)\}/)
     // Payload gui di phai mang loai tien cua KHOAN NO, khong phai cua vi.
     expect(form).toMatch(/srcCurrency: debtCurrency,/)
   })

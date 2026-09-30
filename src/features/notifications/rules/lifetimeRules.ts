@@ -7,6 +7,7 @@ import { phaseForYear, projectLifetime, type YearRow } from '../../lifetime/proj
 // dùng CÙNG một hàm. reports/aggregate.ts thuần (không React, không localStorage) nên
 // import này không phá purity.test.ts.
 import { expenseSign } from '../../reports/aggregate'
+import { tr } from '../../../i18n'
 import { RECENT_TXS_DAYS } from '../types'
 import type { AppNotification, NotificationInput } from '../types'
 
@@ -120,12 +121,12 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   function consequenceOf(actualRows: YearRow[]): string {
     const planNeg = firstNegativeYear(planRows(), 'low')
     const actualNeg = firstNegativeYear(actualRows, 'low')
-    if (actualNeg === null && planNeg !== null) return `Mốc âm ${planNeg} biến mất.`
+    if (actualNeg === null && planNeg !== null) return tr('Mốc âm {year} biến mất.', { year: planNeg })
     // Kèm phạm vi: bản chiếu dừng ở endAge, "không năm nào âm" chỉ đúng tới đó.
-    if (actualNeg === null) return `Bản chiếu vẫn không năm nào âm tới tuổi ${endAge}.`
-    if (planNeg === null) return `Với mức này, tài sản có thể âm từ ${actualNeg}.`
-    if (actualNeg !== planNeg) return `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
-    return `Mốc âm vẫn ở ${actualNeg}.`
+    if (actualNeg === null) return tr('Bản chiếu vẫn không năm nào âm tới tuổi {age}.', { age: endAge })
+    if (planNeg === null) return tr('Với mức này, tài sản có thể âm từ {year}.', { year: actualNeg })
+    if (actualNeg !== planNeg) return tr('Mốc âm dịch từ {from} sang {to}.', { from: planNeg, to: actualNeg })
+    return tr('Mốc âm vẫn ở {year}.', { year: actualNeg })
   }
 
   const out: AppNotification[] = []
@@ -158,20 +159,24 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
         phases: lt.phases.map((p) => (p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)),
       })
       const pct = Math.abs(Math.round(drift * 100))
-      const direction = drift > 0 ? 'cao hơn' : 'thấp hơn'
       out.push({
         // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
         key: 'lifetime-drift:current',
         kind: 'action',
         type: 'lifetime-drift',
         severity: 'low',
-        title: `Chi thực tế ${direction} kế hoạch ${pct}%`,
+        title:
+          drift > 0
+            ? tr('Chi thực tế cao hơn kế hoạch {pct}%', { pct })
+            : tr('Chi thực tế thấp hơn kế hoạch {pct}%', { pct }),
         // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
         // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
         // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
-        detail:
-          `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
-          consequenceOf(actualRows),
+        detail: tr('Quy năm {amount} theo {n} ngày gần đây. {consequence}', {
+          amount: input.formatMoney(actualAnnual, phase.currency),
+          n: days,
+          consequence: consequenceOf(actualRows),
+        }),
         to: '/assets?view=future',
       })
     }
@@ -194,7 +199,10 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
       const drift = (actualAnnual - planned) / planned
       if (Math.abs(drift) >= DRIFT_THRESHOLD) {
         const pct = Math.abs(Math.round(drift * 100))
-        title = `Thu thực tế ${drift > 0 ? 'cao hơn' : 'thấp hơn'} kế hoạch ${pct}%`
+        title =
+          drift > 0
+            ? tr('Thu thực tế cao hơn kế hoạch {pct}%', { pct })
+            : tr('Thu thực tế thấp hơn kế hoạch {pct}%', { pct })
       }
     } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
       // Kế hoạch để thu ≤ 0 mà sổ có thu thật — đúng ca "kịch bản đầu tiên chép thu = 0
@@ -202,7 +210,7 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
       // một bề mặt nào lên tiếng. Ngưỡng đáng nói mượn theo chi kế hoạch (15% của chi):
       // kế hoạch thu 0 thì không có mẫu số riêng để đo phần trăm lệch, còn vài khoản
       // bán đồ cũ lặt vặt thì không phải "thu nhập bị bỏ quên".
-      title = 'Sổ có thu nhập, kế hoạch đang để thu 0'
+      title = tr('Sổ có thu nhập, kế hoạch đang để thu 0')
     }
     if (title !== null) {
       const actualRows = projectLifetime({
@@ -215,9 +223,11 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
         type: 'lifetime-drift',
         severity: 'low',
         title,
-        detail:
-          `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
-          consequenceOf(actualRows),
+        detail: tr('Quy năm {amount} theo {n} ngày gần đây. {consequence}', {
+          amount: input.formatMoney(actualAnnual, phase.currency),
+          n: days,
+          consequence: consequenceOf(actualRows),
+        }),
         to: '/assets?view=future',
       })
     }

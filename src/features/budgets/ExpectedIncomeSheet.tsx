@@ -5,6 +5,7 @@ import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { Guide } from '../../components/Guide'
 import { ActionButton, SectionTitle } from '../../components/ui'
 import { formatMoney } from '../../lib/money'
+import { tr } from '../../i18n'
 
 interface Props {
   monthKey: string
@@ -65,46 +66,45 @@ export function ExpectedIncomeSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Thu dự kiến {monthLabel}</SectionTitle>
+          <SectionTitle role="block">{tr('Thu dự kiến {month}', { month: monthLabel })}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
         <Guide className="mb-2 text-sm text-fg-muted">
-          Cả kế hoạch chia từ con số này. Tháng có thưởng thì khai tay — số trung bình
-          của mấy tháng trước không biết trước được khoản thưởng.
+          {tr('Cả kế hoạch chia từ con số này. Tháng có thưởng thì khai tay — số trung bình của mấy tháng trước không biết trước được khoản thưởng.')}
         </Guide>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Số dự kiến ({base})
+          {tr('Số dự kiến ({currency})', { currency: base })}
         </span>
         <MoneyField
           value={amount}
           onChange={setAmount}
           currency={base}
-          ariaLabel="Thu dự kiến của tháng"
+          ariaLabel={tr('Thu dự kiến của tháng')}
           onEnter={handleSave}
           className={MONEY_FIELD_CLASS}
         />
 
         {baseline !== null && (
           <ActionButton onClick={() => setAmount(baseline)} className="mt-2">
-            Dùng {formatMoney(baseline, base)} (trung bình 3 tháng)
+            {tr('Dùng {amount} (trung bình 3 tháng)', { amount: formatMoney(baseline, base) })}
           </ActionButton>
         )}
 
         <div className="mt-4 flex gap-2">
           {declared !== null && (
-            <ActionButton onClick={handleReset}>Bỏ số khai</ActionButton>
+            <ActionButton onClick={handleReset}>{tr('Bỏ số khai')}</ActionButton>
           )}
           <ActionButton variant="primary" onClick={handleSave} className="flex-1">
-            Lưu
+            {tr('Lưu')}
           </ActionButton>
         </div>
       </div>

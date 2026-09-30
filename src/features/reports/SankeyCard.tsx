@@ -26,6 +26,8 @@ import {
   type SankeyNode,
   type SankeyTone,
 } from './sankey'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Màu thân nút. Trùng đúng bảng của OutflowTiersCard để hai hình cạnh nhau không lệch. */
 const NODE_FILL: Record<SankeyTone, string> = {
@@ -83,16 +85,16 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
     return (
       <Card as="section" elevation="panel" padding="panel">
         <SectionTitle as="h3" className="mb-1">
-          Đường đi của tiền
+          {tr('Đường đi của tiền')}
         </SectionTitle>
         {/* KHÔNG bọc <Guide>: đây là lý do thẻ đang trống, chế độ Gọn vẫn phải thấy. Và
             gộp MỘT đoạn thay vì hai — câu chỉ đường là thứ cần bấm theo, để nó xuống cỡ
             chữ phụ thì đúng cái người ta cần lại mờ nhất. */}
         <p className="text-sm text-fg-secondary">
-          Chưa vẽ được: lần đối chiếu gần nhất nói sổ <b>ghi thừa</b> nhiều hơn cả phần chi
-          đã ghi trong kỳ, nên tổng chi của kỳ về 0 — số liệu đang tự mâu thuẫn, không phải
-          kỳ này không tiêu gì. Mở <b>Tài sản → Điều chỉnh số dư</b> xem lại lần gần nhất:
-          thường là một tài khoản đặt sai loại tiền, hoặc một số dư gõ thiếu/thừa chữ số.
+          {trn('Chưa vẽ được: lần đối chiếu gần nhất nói sổ {over} nhiều hơn cả phần chi đã ghi trong kỳ, nên tổng chi của kỳ về 0 — số liệu đang tự mâu thuẫn, không phải kỳ này không tiêu gì. Mở {path} xem lại lần gần nhất: thường là một tài khoản đặt sai loại tiền, hoặc một số dư gõ thiếu/thừa chữ số.', {
+            over: <b>{tr('ghi thừa')}</b>,
+            path: <b>{tr('Tài sản → Điều chỉnh số dư')}</b>,
+          })}
         </p>
       </Card>
     )
@@ -111,9 +113,9 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
     <Card as="section" elevation="panel" padding="panel">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <SectionTitle as="h3" id={titleId} className="min-w-0">
-          Đường đi của tiền
+          {tr('Đường đi của tiền')}
         </SectionTitle>
-        <span className="shrink-0 text-2xs text-fg-muted">% trên tiền vào</span>
+        <span className="shrink-0 text-2xs text-fg-muted">{tr('% trên tiền vào')}</span>
       </div>
 
       {/* Hình rộng hơn màn điện thoại là chuyện đã biết trước, không phải lỗi bố cục:
@@ -152,32 +154,29 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
       </div>
 
       <p className="mt-1 text-sm text-fg-secondary">
-        Tiền vào <b>{money(total)}</b>
-        {hasDeficit ? (
-          <>
-            {' — trong đó '}
-            <b className="text-fg-warn">{money(nodeValue(nodes, 'in:deficit'))}</b> lấy từ số dư
-            sẵn có
-            {/* E-ink + Gọn: bỏ vế "vì sao" — con số ngay trước đã nói. */}
-            <span className="eink-gon:hidden">, vì kỳ này chi nhiều hơn thu</span>.
-          </>
-        ) : (
-          <>
-            {', giữ lại '}
-            <b className="text-money-in">
-              <Num>{pctOf(nodes, 'tier:kept')}</Num>%
-            </b>
-            .
-          </>
-        )}
+        {hasDeficit
+          ? trn('Tiền vào {total} — trong đó {deficit} lấy từ số dư sẵn có{why}.', {
+              total: <b>{money(total)}</b>,
+              deficit: <b className="text-fg-warn">{money(nodeValue(nodes, 'in:deficit'))}</b>,
+              // E-ink + Gọn: bỏ vế "vì sao" — con số ngay trước đã nói.
+              why: <span className="eink-gon:hidden">{tr(', vì kỳ này chi nhiều hơn thu')}</span>,
+            })
+          : trn('Tiền vào {total}, giữ lại {pct}.', {
+              total: <b>{money(total)}</b>,
+              pct: (
+                <b className="text-money-in">
+                  <Num>{pctOf(nodes, 'tier:kept')}</Num>%
+                </b>
+              ),
+            })}
       </p>
 
       <Guide className="mt-1.5 text-2xs text-fg-muted">
-        Đọc từ trái sang: tiền vào từ đâu → chia làm ba đường → khúc “Chi tiêu” vỡ ra theo{' '}
-        <b>nhóm danh mục</b> → mỗi nhóm vỡ tiếp ra <b>danh mục con</b>. Mọi phần trăm đều lấy{' '}
-        <b>tiền vào</b> làm mẫu số, nên các con số trên cùng một hình cộng trừ được với nhau.
-        Trỏ vào một nút để làm nổi đường của riêng nó. Mỗi cột chỉ hiện vài mục lớn nhất, phần
-        còn lại gộp thành “Khác”; nhóm không có danh mục con thì đi thẳng qua cột cuối.
+        {trn('Đọc từ trái sang: tiền vào từ đâu → chia làm ba đường → khúc “Chi tiêu” vỡ ra theo {groups} → mỗi nhóm vỡ tiếp ra {subs}. Mọi phần trăm đều lấy {moneyIn} làm mẫu số, nên các con số trên cùng một hình cộng trừ được với nhau. Trỏ vào một nút để làm nổi đường của riêng nó. Mỗi cột chỉ hiện vài mục lớn nhất, phần còn lại gộp thành “Khác”; nhóm không có danh mục con thì đi thẳng qua cột cuối.', {
+          groups: <b>{tr('nhóm danh mục')}</b>,
+          subs: <b>{tr('danh mục con')}</b>,
+          moneyIn: <b>{tr('tiền vào')}</b>,
+        })}
       </Guide>
     </Card>
   )

@@ -70,13 +70,15 @@ import { SplitGroupSheet } from './SplitGroupSheet'
 import { useLastYearSpend } from './useLastYearSpend'
 import { useSyncedBudget } from './useSyncedBudget'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Chế độ xem panel hạn mức. Sở thích XEM nên ở máy (localStorage), không vào hồ sơ. */
 type LimitViewMode = 'list' | 'table'
 const VIEW_KEY = 'budget.planView'
 const VIEW_OPTIONS = [
-  { value: 'list' as const, label: 'Danh sách' },
-  { value: 'table' as const, label: 'Bảng' },
+  { value: 'list' as const, label: tr('Danh sách') },
+  { value: 'table' as const, label: tr('Bảng') },
 ]
 
 function readViewMode(): LimitViewMode {
@@ -345,7 +347,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const axisNote = (categoryId: string): string => {
     const need = catOf(categoryId)?.need_level ?? null
     const b = bucketForNeed(method, need)
-    return b ? b.label : 'chưa phân loại'
+    return b ? b.label : tr('chưa phân loại')
   }
 
   async function handleCopy() {
@@ -356,13 +358,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       return
     }
     showToast(
-      n > 0 ? `Đã chép ${n} hạn mức từ tháng trước` : 'Tháng trước không có hạn mức để chép',
+      n > 0 ? tr('Đã chép {n} hạn mức từ tháng trước', { n }) : tr('Tháng trước không có hạn mức để chép'),
       n > 0 ? 'success' : 'info',
     )
   }
 
   /** Ghi MỘT hạn mức. Dùng cho nút `Đặt` / `Nâng lên` / `Tạo trần` của khối Cần bạn quyết. */
-  async function applyLimit(categoryId: string, amount: number, label: string) {
+  async function applyLimit(categoryId: string, amount: number, label: (amount: string) => string) {
     try {
       await upsert.mutateAsync({ categoryId, monthKey: monthKeyStr, amount })
     } catch {
@@ -370,7 +372,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       return
     }
     await syncAfterWrite([{ categoryId, amount }])
-    showToast(`${label} ${money(amount)}`, 'success')
+    showToast(label(money(amount)), 'success')
   }
 
   /**
@@ -397,10 +399,15 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     // con số không có dòng nào đỡ.
     if (written.length > 0) await syncAfterWrite(written)
     if (ok === rows.length) {
-      showToast(`Đã đặt ${ok} ${noun}`, 'success')
+      showToast(tr('Đã đặt {n} {noun}', { n: ok, noun }), 'success')
     } else if (ok > 0) {
       showToast(
-        `Đã đặt ${ok}/${rows.length} ${noun} — ${rows.length - ok} mục chưa lưu được, thử lại.`,
+        tr('Đã đặt {ok}/{total} {noun} — {n} mục chưa lưu được, thử lại.', {
+          ok,
+          total: rows.length,
+          noun,
+          n: rows.length - ok,
+        }),
         'info',
       )
     }
@@ -410,14 +417,16 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   async function handleUseAllSuggestions() {
     if (data.unset.length === 0) return
     const ok = await confirmDialog({
-      title: `Đặt hạn mức cho ${data.unset.length} danh mục?`,
-      message: `Mỗi mục lấy đúng mức quen tiêu (trung bình ${SUGGEST_MONTHS} tháng qua). Sửa lại từng mục sau vẫn được.`,
-      confirmLabel: 'Đặt hết',
+      title: tr('Đặt hạn mức cho {n} danh mục?', { n: data.unset.length }),
+      message: tr('Mỗi mục lấy đúng mức quen tiêu (trung bình {n} tháng qua). Sửa lại từng mục sau vẫn được.', {
+        n: SUGGEST_MONTHS,
+      }),
+      confirmLabel: tr('Đặt hết'),
     })
     if (!ok) return
     await writeMany(
       data.unset.map((r) => ({ categoryId: r.cat.id, amount: r.suggestion.average })),
-      'hạn mức',
+      trx('noun', 'hạn mức'),
     )
   }
 
@@ -433,14 +442,14 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     if (!headroomPlan || headroomPlan.size === 0) return
     const rows = [...headroomPlan].map(([categoryId, amount]) => ({ categoryId, amount }))
     const ok = await confirmDialog({
-      title: `Chia ${money(projection!.headroom)} cho ${rows.length} danh mục?`,
-      message: `Mục nào quen tiêu nhiều thì nhận nhiều hơn, và tổng vừa đủ để Để dành không xuống dưới mục tiêu ${Math.round(
-        (projection!.savingsFloor / summary.income) * 100,
-      )}%. Sửa lại từng mục sau vẫn được.`,
-      confirmLabel: 'Chia',
+      title: tr('Chia {amount} cho {n} danh mục?', { amount: money(projection!.headroom), n: rows.length }),
+      message: tr('Mục nào quen tiêu nhiều thì nhận nhiều hơn, và tổng vừa đủ để Để dành không xuống dưới mục tiêu {pct}%. Sửa lại từng mục sau vẫn được.', {
+        pct: Math.round((projection!.savingsFloor / summary.income) * 100),
+      }),
+      confirmLabel: tr('Chia'),
     })
     if (!ok) return
-    await writeMany(rows, 'hạn mức')
+    await writeMany(rows, trx('noun', 'hạn mức'))
   }
 
   const floorPct = projection && summary.income > 0
@@ -451,7 +460,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     <div className="flex flex-col gap-3">
       {data.hasMissingRate && (
         <div className="rounded-md border border-state-warn-border bg-state-warn-bg p-2 text-sm text-state-warn-fg">
-          Một phần cam kết ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
+          {tr('Một phần cam kết ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.')}
         </div>
       )}
 
@@ -461,7 +470,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               cùng cỡ chữ, đổi nghĩa. Mắt không phải học lại cách đọc trang. */}
           <Card as="section" className="order-1">
             <p className="mb-2 text-sm font-medium text-fg-accent">
-              Tháng chưa bắt đầu · đang lập kế hoạch
+              {tr('Tháng chưa bắt đầu · đang lập kế hoạch')}
             </p>
             {/* CÂU KẾT LUẬN của 18a, đứng trước mọi con số. Đây là màn duy nhất trong
                 app phán được "kế hoạch này có ổn không" TRƯỚC khi tiêu đồng nào, mà bốn
@@ -480,10 +489,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               <>
                 {/* E-ink + Gọn: bỏ lời khuyên — nút ngay dưới đã nói việc cần làm. */}
                 <p className="text-sm text-fg-secondary">
-                  Chưa biết tháng này thu bao nhiêu nên chưa chia được.
+                  {tr('Chưa biết tháng này thu bao nhiêu nên chưa chia được.')}
                   <span className="eink-gon:hidden">
                     {' '}
-                    Khai một số dự kiến là cả kế hoạch chạy.
+                    {tr('Khai một số dự kiến là cả kế hoạch chạy.')}
                   </span>
                 </p>
                 <ActionButton
@@ -491,7 +500,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   onClick={() => setIncomeOpen(true)}
                   className="mt-2"
                 >
-                  Khai thu dự kiến
+                  {tr('Khai thu dự kiến')}
                 </ActionButton>
               </>
             ) : (
@@ -503,13 +512,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     "Chưa phân bổ" giữ nguyên vị trí và cỡ chữ của con số lớn cũ: nó vẫn
                     là con số quyết định của màn, ba ô kia là bằng chứng đứng cạnh. */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <PlanTile label="Thu dự kiến" badge={summary.incomeSource === 'baseline' ? 'NỀN' : undefined}>
+                  <PlanTile label={tr('Thu dự kiến')} badge={summary.incomeSource === 'baseline' ? tr('NỀN') : undefined}>
                     <Money amount={summary.income} currency={base} tone="in" compact />
                   </PlanTile>
-                  <PlanTile label="Đã phân bổ">
+                  <PlanTile label={tr('Đã phân bổ')}>
                     <Money amount={summary.allocated} currency={base} tone="neutral" compact />
                   </PlanTile>
-                  <PlanTile label={over ? 'Chia quá tay' : 'Chưa phân bổ'}>
+                  <PlanTile label={over ? tr('Chia quá tay') : tr('Chưa phân bổ')}>
                     <Money
                       amount={Math.abs(summary.unallocated)}
                       currency={base}
@@ -517,7 +526,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       compact
                     />
                   </PlanTile>
-                  <PlanTile label="Cam kết đã biết">
+                  <PlanTile label={tr('Cam kết đã biết')}>
                     {data.commitmentsReady ? (
                       <Money
                         amount={data.commitments.total}
@@ -527,7 +536,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         compact
                       />
                     ) : (
-                      <span className="text-sm text-fg-muted">Đang tính…</span>
+                      <span className="text-sm text-fg-muted">{tr('Đang tính…')}</span>
                     )}
                   </PlanTile>
                 </div>
@@ -542,7 +551,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         : 1
                   }
                   fillClassName={over ? STATUS_FILL.bad : STATUS_FILL.good}
-                  label="Đã phân bổ trên thu nhập"
+                  label={tr('Đã phân bổ trên thu nhập')}
                   className="mt-3"
                 />
                 <div className="mt-1.5 flex items-baseline justify-between gap-2 text-sm text-fg-secondary">
@@ -552,16 +561,16 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     className="-my-2 inline-flex min-h-11 items-center gap-1 text-left"
                   >
                     <span>
-                      Sửa thu dự kiến{' '}
+                      {tr('Sửa thu dự kiến')}{' '}
                       <span className="text-fg-muted">
                         {summary.incomeSource === 'declared'
-                          ? 'đang dùng số tự khai'
-                          : `đang dùng nền — TB ${BASELINE_MONTHS} tháng có dữ liệu`}
+                          ? tr('đang dùng số tự khai')
+                          : tr('đang dùng nền — TB {n} tháng có dữ liệu', { n: BASELINE_MONTHS })}
                       </span>
                     </span>
                     <Pencil className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
                   </button>
-                  <span className="shrink-0">đã chia {money(summary.allocated)}</span>
+                  <span className="shrink-0">{tr('đã chia {amount}', { amount: money(summary.allocated) })}</span>
                 </div>
               </>
             )}
@@ -572,7 +581,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               chúng là một phép tính, không phải hai phép được canh cho khớp. */}
           {summary.axis && (
             <Card as="section" className="order-2">
-              <SectionTitle className="mb-2">Cơ cấu theo kế hoạch</SectionTitle>
+              <SectionTitle className="mb-2">{tr('Cơ cấu theo kế hoạch')}</SectionTitle>
               <ul className="space-y-3">
                 {summary.axis.lines.map((l) => {
                   const barPct = Math.min(Math.max(l.share, 0) * 100, 100)
@@ -586,8 +595,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         >
                           {shareLabel(l.share)}
                           <span className="ml-1 font-normal text-fg-muted">
-                            {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
-                            {Math.round(l.targetShare * 100)}%
+                            {l.direction === 'cap'
+                              ? tr('tối đa {pct}%', { pct: Math.round(l.targetShare * 100) })
+                              : tr('tối thiểu {pct}%', { pct: Math.round(l.targetShare * 100) })}
                           </span>
                         </span>
                       </div>
@@ -606,11 +616,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <span className={l.ok ? '' : 'text-fg-warn'}>
                           {money(Math.round(l.actual))}
                           {l.key === 'savings' && (
-                            <span className="ml-1 text-fg-accent">= phần chưa phân bổ</span>
+                            <span className="ml-1 text-fg-accent">{tr('= phần chưa phân bổ')}</span>
                           )}
                         </span>
                         <span>
-                          {l.direction === 'cap' ? 'trần' : 'sàn'} {money(l.target)}
+                          {l.direction === 'cap'
+                            ? tr('trần {amount}', { amount: money(l.target) })
+                            : tr('sàn {amount}', { amount: money(l.target) })}
                         </span>
                       </div>
                       {/* THÀNH PHẦN của trục, một dòng (18a: "Nhà ở ¥112,000 · Đi lại
@@ -624,7 +636,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                           {nameList(
                             l.slices.map(
                               (s) =>
-                                `${catOf(s.categoryId)?.name ?? 'Chưa rõ'} ${money(Math.round(s.amount))}`,
+                                `${catOf(s.categoryId)?.name ?? tr('Chưa rõ')} ${money(Math.round(s.amount))}`,
                             ),
                           )}
                         </p>
@@ -637,12 +649,12 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               {goalNeed > 0 && (
                 <p className="mt-3 border-t border-border-subtle pt-2 text-sm text-fg-secondary">
                   <Target className="mr-1 inline h-3.5 w-3.5 -translate-y-px" aria-hidden />
-                  Mục tiêu tiết kiệm cần {money(goalNeed)}/tháng —{' '}
+                  {tr('Mục tiêu tiết kiệm cần {amount}/tháng —', { amount: money(goalNeed) })}{' '}
                   {summary.unallocated >= goalNeed ? (
-                    <span className="text-money-in">kế hoạch này đủ.</span>
+                    <span className="text-money-in">{tr('kế hoạch này đủ.')}</span>
                   ) : (
                     <span className="text-fg-warn">
-                      còn thiếu {money(goalNeed - summary.unallocated)}.
+                      {tr('còn thiếu {amount}.', { amount: money(goalNeed - summary.unallocated) })}
                     </span>
                   )}
                 </p>
@@ -659,14 +671,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           {data.commitments.items.length > 0 && (
             <Card as="section" className="order-3">
               <div className="flex items-baseline justify-between gap-2">
-                <SectionTitle>Đã cam kết</SectionTitle>
+                <SectionTitle>{tr('Đã cam kết')}</SectionTitle>
                 <span className="text-sm font-semibold text-fg-primary">
                   {money(data.commitments.total)}
                 </span>
               </div>
               <Guide className="mb-2 text-sm text-fg-muted">
-                Tiền chắc chắn ra trong tháng — hạn mức phải phủ được. Số này không cộng vào
-                phần đã chia ở trên.
+                {tr('Tiền chắc chắn ra trong tháng — hạn mức phải phủ được. Số này không cộng vào phần đã chia ở trên.')}
               </Guide>
               <ul className="divide-y divide-border-subtle">
                 {data.commitments.items.map((it) => {
@@ -677,16 +688,16 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <span className="min-w-0 truncate text-fg-primary">{it.title}</span>
                         <span className="shrink-0 text-fg-primary">
                           {it.unknownAmount ? (
-                            <span className="text-sm text-fg-muted">chưa biết</span>
+                            <span className="text-sm text-fg-muted">{tr('chưa biết')}</span>
                           ) : (
                             money(it.amount)
                           )}
                         </span>
                       </div>
                       <p className="text-2xs text-fg-muted">
-                        {it.kind === 'recurring' ? 'định kỳ' : 'sắp chi'}
+                        {it.kind === 'recurring' ? tr('định kỳ') : tr('sắp chi')}
                         {it.times > 1 && ` ×${it.times}`}
-                        {c ? ` → ${c.name}` : ' · chưa gắn danh mục'}
+                        {c ? ` → ${c.name}` : tr(' · chưa gắn danh mục')}
                       </p>
                     </li>
                   )
@@ -699,8 +710,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   đâu", và với ba bốn dòng thì nó thành một phép cộng nhẩm. */}
               {data.gaps.length > 0 && (
                 <p className="mt-3 text-2xs font-semibold uppercase tracking-label text-fg-warn">
-                  {data.gaps.length} trần chưa phủ hết cam kết · thiếu tổng{' '}
-                  {money(data.gaps.reduce((s, g) => s + g.short, 0))}
+                  {tr('{n} trần chưa phủ hết cam kết · thiếu tổng {amount}', {
+                    n: data.gaps.length,
+                    amount: money(data.gaps.reduce((s, g) => s + g.short, 0)),
+                  })}
                 </p>
               )}
             </Card>
@@ -718,9 +731,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           <Card as="section" padding="none" className="order-4 overflow-hidden">
             <div className="border-b border-border-panel px-4 py-3.5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <SectionTitle>Hạn mức tháng này</SectionTitle>
+                <SectionTitle>{tr('Hạn mức tháng này')}</SectionTitle>
                 <SegmentedControl
-                  label="Cách xem hạn mức"
+                  label={tr('Cách xem hạn mức')}
                   items={VIEW_OPTIONS}
                   value={viewMode}
                   onChange={changeView}
@@ -738,15 +751,18 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   con số đầu của bảng đó in lần thứ hai bằng chữ nhỏ hơn. */}
               {summary.incomeSource !== 'unknown' && !projection && (
                 <p className="mt-1 text-2xs text-fg-muted">
-                  tính vào kế hoạch{' '}
-                  <Money amount={summary.allocated} currency={base} className="font-semibold text-fg-primary" />{' '}
-                  / thu dự kiến {money(summary.income)}
+                  {trn('tính vào kế hoạch {allocated} / thu dự kiến {income}', {
+                    allocated: <Money amount={summary.allocated} currency={base} className="font-semibold text-fg-primary" />,
+                    income: money(summary.income),
+                  })}
                 </p>
               )}
               {groups.markerTotal > 0 && (
                 <p className="mt-0.5 text-2xs text-fg-muted eink-gon:hidden">
-                  Các dòng dưới đây cộng lại {money(groups.lineTotal)} — lệch{' '}
-                  {money(groups.markerTotal)} là mốc con nằm trong trần nhóm, không cộng hai lần.
+                  {tr('Các dòng dưới đây cộng lại {total} — lệch {diff} là mốc con nằm trong trần nhóm, không cộng hai lần.', {
+                    total: money(groups.lineTotal),
+                    diff: money(groups.markerTotal),
+                  })}
                 </p>
               )}
 
@@ -766,7 +782,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   dùng được khi chưa biết thu nhập — kế hoạch điền dở hơn không có. */}
               <div className="mt-3 flex flex-wrap gap-2">
                 <ActionButton onClick={handleCopy} disabled={copy.isPending}>
-                  Chép tháng trước
+                  {tr('Chép tháng trước')}
                 </ActionButton>
               </div>
             </div>
@@ -785,8 +801,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
             {data.gaps.length > 0 && (
               <>
                 <BlockHeader
-                  title="Chắc chắn phải trả"
-                  meta={`${data.gaps.length} khoản hạn mức chưa đủ`}
+                  title={tr('Chắc chắn phải trả')}
+                  meta={tr('{n} khoản hạn mức chưa đủ', { n: data.gaps.length })}
                   tone="warn"
                 />
                 <ul>
@@ -802,8 +818,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       <DecisionRow
                         key={`gap-${g.categoryId}`}
                         icon={cat?.icon ?? '📦'}
-                        name={cat?.name ?? 'Danh mục'}
-                        note={`· ${laNhom ? 'nhóm ' : ''}${axisNote(g.categoryId)}`}
+                        name={cat?.name ?? tr('Danh mục')}
+                        note={laNhom ? tr('· nhóm {axis}', { axis: axisNote(g.categoryId) }) : `· ${axisNote(g.categoryId)}`}
                         // Vì sao in CÂU chứ chỉ con số: y nguyên lý do đã ghi trong
                         // capOverflow.ts — in một con số mà không nói nó ở đâu ra thì
                         // người dùng đọc như app tự bịa. Nhưng câu ngắn: tên khoản là đủ,
@@ -811,21 +827,26 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         // người dùng nói.
                         reason={
                           chuaCoTran
-                            ? `chưa có hạn mức · ${commitmentNames(g.categoryId)}`
-                            : `hạn mức ${money(g.budgeted)} chưa đủ · ${commitmentNames(g.categoryId)}`
+                            ? tr('chưa có hạn mức · {names}', { names: commitmentNames(g.categoryId) })
+                            : tr('hạn mức {amount} chưa đủ · {names}', {
+                                amount: money(g.budgeted),
+                                names: commitmentNames(g.categoryId),
+                              })
                         }
                         tone="bad"
                         amount={g.committed}
                         base={base}
                         dashed={false}
-                        actionLabel={chuaCoTran ? 'Đặt' : 'Nâng lên'}
+                        actionLabel={chuaCoTran ? tr('Đặt') : tr('Nâng lên')}
                         busy={upsert.isPending}
                         onAmount={() => setEditing(g.categoryId)}
                         onAction={() =>
                           applyLimit(
                             g.categoryId,
                             g.committed,
-                            chuaCoTran ? 'Đã đặt hạn mức' : 'Đã nâng hạn mức lên',
+                            chuaCoTran
+                              ? (a) => tr('Đã đặt hạn mức {amount}', { amount: a })
+                              : (a) => tr('Đã nâng hạn mức lên {amount}', { amount: a }),
                           )
                         }
                       />
@@ -839,7 +860,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     allocated={summary.allocated}
                     floor={projection.savingsFloor}
                     money={money}
-                    nameOf={(id) => catOf(id)?.name ?? 'Danh mục'}
+                    nameOf={(id) => catOf(id)?.name ?? tr('Danh mục')}
                   />
                 )}
               </>
@@ -853,10 +874,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
             {data.unset.length > 0 && (
               <>
                 <BlockHeader
-                  title={`${data.unset.length} mục chưa đặt hạn mức`}
+                  title={tr('{n} mục chưa đặt hạn mức', { n: data.unset.length })}
                   right={
                     <span className="text-2xs text-fg-muted">
-                      quen tiêu = trung bình {SUGGEST_MONTHS} tháng qua
+                      {tr('quen tiêu = trung bình {n} tháng qua', { n: SUGGEST_MONTHS })}
                     </span>
                   }
                 />
@@ -887,16 +908,19 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                           // ĐÂY là chỗ duy nhất `quen tiêu · cao nhất` còn đáng in ở dạng
                           // câu (B34.1): hai con số đó dùng để CHỌN một hạn mức, mà đây là
                           // dòng chưa chọn.
-                          reason={`quen tiêu ${money(r.suggestion.average)} · cao nhất ${money(r.suggestion.max)}`}
+                          reason={tr('quen tiêu {avg} · cao nhất {max}', {
+                            avg: money(r.suggestion.average),
+                            max: money(r.suggestion.max),
+                          })}
                           tone="muted"
                           amount={planned}
                           base={base}
                           // Viền nét đứt phân biệt "gợi ý chưa nhận" với "số đã đặt" (B31.3).
                           dashed
-                          actionLabel="Đặt"
+                          actionLabel={tr('Đặt')}
                           busy={upsert.isPending}
                           onAmount={() => setEditing(r.cat.id)}
-                          onAction={() => applyLimit(r.cat.id, planned, 'Đã đặt hạn mức')}
+                          onAction={() => applyLimit(r.cat.id, planned, (a) => tr('Đã đặt hạn mức {amount}', { amount: a }))}
                         />
                       )
                     })}
@@ -927,7 +951,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
 
             {groups.blocks.length === 0 && (
               <p className="px-4 py-8 text-center text-sm text-fg-muted">
-                Chưa đặt hạn mức nào cho tháng này.
+                {tr('Chưa đặt hạn mức nào cho tháng này.')}
               </p>
             )}
 
@@ -946,8 +970,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           <Guide className="order-6 flex items-start gap-1.5 px-1 text-2xs text-fg-muted">
             <PiggyBank className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
-              Kế hoạch không cần chốt: tháng {monthLabel} bắt đầu là trang này tự chuyển sang
-              theo dõi, dùng đúng những hạn mức bạn vừa đặt.
+              {tr('Kế hoạch không cần chốt: tháng {month} bắt đầu là trang này tự chuyển sang theo dõi, dùng đúng những hạn mức bạn vừa đặt.', {
+                month: monthLabel,
+              })}
             </span>
           </Guide>
         </div>
@@ -1031,28 +1056,28 @@ function PlanSummaryBox({
   )
   return (
     <div className="mt-3 flex flex-col gap-1 text-sm">
-      {row('Thu dự kiến', income)}
-      {row('Đã đặt hạn mức', allocated)}
+      {row(tr('Thu dự kiến'), income)}
+      {row(tr('Đã đặt hạn mức'), allocated)}
       {row(
         <>
-          Để dành <Num>{floorPct}%</Num>{' '}
-          <span className="text-2xs text-fg-muted">(mục tiêu của bạn)</span>
+          {trn('Để dành {pct}', { pct: <Num>{floorPct}%</Num> })}{' '}
+          <span className="text-2xs text-fg-muted">{tr('(mục tiêu của bạn)')}</span>
         </>,
         floor,
       )}
       <div className="mt-1 border-t border-border-subtle pt-1.5">
         {headroom > 0
-          ? row('Còn được chia', headroom, true)
-          : row('Đã chia quá phần giữ được', -headroom, true, 'out')}
+          ? row(tr('Còn được chia'), headroom, true)
+          : row(tr('Đã chia quá phần giữ được'), -headroom, true, 'out')}
       </div>
       {/* Ẩn đường thoát thì người dùng tưởng app kẹt — nên nói ra hai đường (B35.3),
           và không tự đi đường nào hộ họ (B35.4). */}
       {headroom <= 0 && (
         <p className="text-2xs text-fg-muted">
           {/* E-ink + Gọn: bỏ lời khuyên, chừa lại link. */}
-          <span className="eink-gon:hidden">Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc </span>
+          <span className="eink-gon:hidden">{tr('Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc ')}</span>
           <Link to="/settings?edit=budget-method" className="underline">
-            đổi mục tiêu để dành
+            {tr('đổi mục tiêu để dành')}
           </Link>
           <span className="eink-gon:hidden">.</span>
         </p>
@@ -1093,14 +1118,18 @@ function GapConsequence({
   const n = gaps.length
   let line: string | null = null
   if (savingsAfter < 0) {
-    line = `Đặt đủ ${n} khoản này là chia quá thu ${money(-savingsAfter)}, tháng này không để dành được.`
+    line = tr('Đặt đủ {n} khoản này là chia quá thu {amount}, tháng này không để dành được.', { n, amount: money(-savingsAfter) })
   } else if (savingsAfter < floor) {
-    line = `Đặt đủ ${n} khoản này thì để dành còn ${money(savingsAfter)}, dưới mục tiêu ${money(floor)}.`
+    line = tr('Đặt đủ {n} khoản này thì để dành còn {amount}, dưới mục tiêu {floor}.', {
+      n,
+      amount: money(savingsAfter),
+      floor: money(floor),
+    })
   }
   if (!line && !over) return null
   return (
     <p className="border-t border-border-subtle bg-state-bad-bg px-4 py-2 text-2xs text-state-bad-fg">
-      {over && `Riêng ${nameOf(over.categoryId)} đã hơn cả thu dự kiến. `}
+      {over && tr('Riêng {name} đã hơn cả thu dự kiến. ', { name: nameOf(over.categoryId) })}
       {line}
     </p>
   )
@@ -1148,37 +1177,43 @@ function UnsetSummary({
   return (
     <div className="border-t border-border-subtle px-4 py-3">
       <p className="text-sm text-fg-secondary">
-        {SUGGEST_MONTHS} tháng qua bạn tiêu trung bình{' '}
-        <span className="font-semibold text-fg-primary">{money(suggestedTotal)}</span> cho{' '}
-        <Num>{count}</Num> mục này.
+        {trn('{months} tháng qua bạn tiêu trung bình {amount} cho {count} mục này.', {
+          months: SUGGEST_MONTHS,
+          amount: <span className="font-semibold text-fg-primary">{money(suggestedTotal)}</span>,
+          count: <Num>{count}</Num>,
+        })}
         {/* E-ink + Gọn: vế sau chỉ nói lại "Còn được chia" ở bảng trên và nút ngay dưới. */}
         {headroom !== null && headroom <= 0 && (
-          <span className="eink-gon:hidden"> Không còn gì để chia mà vẫn giữ mục tiêu để dành.</span>
+          <span className="eink-gon:hidden">{tr(' Không còn gì để chia mà vẫn giữ mục tiêu để dành.')}</span>
         )}
         {headroom !== null && headroom > 0 && !fits && sharePct !== null && (
           <span className="eink-gon:hidden">
             {' '}
-            Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
-            chia, nên mỗi mục sẽ nhận khoảng <Num>{sharePct}%</Num> mức quen tiêu.
+            {trn('Bạn còn {amount} để chia, nên mỗi mục sẽ nhận khoảng {pct} mức quen tiêu.', {
+              amount: <span className="font-semibold text-fg-primary">{money(headroom)}</span>,
+              pct: <Num>{sharePct}%</Num>,
+            })}
           </span>
         )}
         {headroom !== null && headroom > 0 && fits && (
           <span className="eink-gon:hidden">
             {' '}
-            Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
-            chia — đủ cho cả <Num>{count}</Num> mục theo mức quen tiêu.
+            {trn('Bạn còn {amount} để chia — đủ cho cả {count} mục theo mức quen tiêu.', {
+              amount: <span className="font-semibold text-fg-primary">{money(headroom)}</span>,
+              count: <Num>{count}</Num>,
+            })}
           </span>
         )}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {fits && (
           <ActionButton variant="primary" onClick={onUseAll} disabled={busy}>
-            Đặt theo mức quen tiêu
+            {tr('Đặt theo mức quen tiêu')}
           </ActionButton>
         )}
         {!fits && headroom !== null && headroom > 0 && (
           <ActionButton variant="primary" onClick={onKeepFloor} disabled={busy}>
-            Chia {money(headroom)} cho {count} mục
+            {tr('Chia {amount} cho {n} mục', { amount: money(headroom), n: count })}
           </ActionButton>
         )}
         <ActionButton
@@ -1186,7 +1221,7 @@ function UnsetSummary({
           aria-expanded={open}
           aria-controls="plan-unset-rows"
         >
-          Xem và đặt từng mục
+          {tr('Xem và đặt từng mục')}
           {open ? (
             <ChevronDown className="h-4 w-4" aria-hidden />
           ) : (
@@ -1195,7 +1230,7 @@ function UnsetSummary({
         </ActionButton>
         {open && !fits && (
           <ActionButton onClick={onUseAll} disabled={busy}>
-            Đặt hết theo mức quen tiêu
+            {tr('Đặt hết theo mức quen tiêu')}
           </ActionButton>
         )}
       </div>
@@ -1359,14 +1394,14 @@ function BlockBody({
         title={block.label}
         meta={
           block.key === 'unclassified'
-            ? `${block.rows.length + block.tail.length} mục · chưa gắn nhóm nên không vào trần nào`
+            ? tr('{n} mục · chưa gắn nhóm nên không vào trần nào', { n: block.rows.length + block.tail.length })
             : block.key === 'markers'
-              ? `${block.rows.length + block.tail.length} mục · nằm trong trần nhóm cha, không cộng vào kế hoạch`
-              : `${block.rows.length + block.tail.length} mục${
-                  block.remaining !== null
-                    ? ` · ${block.remaining >= 0 ? 'còn' : 'vượt'} ${money(Math.abs(block.remaining))}`
-                    : ''
-                }`
+              ? tr('{n} mục · nằm trong trần nhóm cha, không cộng vào kế hoạch', { n: block.rows.length + block.tail.length })
+              : block.remaining === null
+                ? tr('{n} mục', { n: block.rows.length + block.tail.length })
+                : block.remaining >= 0
+                  ? tr('{n} mục · còn {amount}', { n: block.rows.length + block.tail.length, amount: money(Math.abs(block.remaining)) })
+                  : tr('{n} mục · vượt {amount}', { n: block.rows.length + block.tail.length, amount: money(Math.abs(block.remaining)) })
         }
         // Khối không có trần thì KHÔNG vẽ thanh (B30): một thanh không có mốc là một
         // thanh không nói được gì, và vẽ ra thì đọc như "đã dùng hết".
@@ -1386,7 +1421,7 @@ function BlockBody({
           <span className="text-2xs text-fg-secondary">
             <Money amount={block.total} currency={base} />
             {block.target !== null && (
-              <span className="text-fg-muted"> / trần {money(block.target)}</span>
+              <span className="text-fg-muted">{tr(' / trần {amount}', { amount: money(block.target) })}</span>
             )}
           </span>
         }
@@ -1406,7 +1441,7 @@ function BlockBody({
               .join(',')}`}
             className="-my-2 inline-flex min-h-11 items-center text-2xs font-medium text-fg-accent underline"
           >
-            Phân loại {block.rows.length + block.tail.length} danh mục này
+            {tr('Phân loại {n} danh mục này', { n: block.rows.length + block.tail.length })}
           </Link>
         </div>
       )}
@@ -1417,11 +1452,11 @@ function BlockBody({
             className={`${TABLE_COLS} border-t border-border-subtle bg-surface-chrome px-4 py-1.5 text-2xs uppercase tracking-label text-fg-muted`}
           >
             <span />
-            <span>Danh mục</span>
-            <span className="text-right">TB {SUGGEST_MONTHS} th</span>
-            <span className="hidden text-right sm:block">Cao nhất</span>
-            <span className="hidden text-right sm:block">{SUGGEST_MONTHS} tháng</span>
-            <span className="text-right text-fg-secondary">Hạn mức</span>
+            <span>{tr('Danh mục')}</span>
+            <span className="text-right">{tr('TB {n} th', { n: SUGGEST_MONTHS })}</span>
+            <span className="hidden text-right sm:block">{tr('Cao nhất')}</span>
+            <span className="hidden text-right sm:block">{tr('{n} tháng', { n: SUGGEST_MONTHS })}</span>
+            <span className="text-right text-fg-secondary">{tr('Hạn mức')}</span>
           </li>
         )}
         {block.rows.map((r) =>
@@ -1467,8 +1502,11 @@ function BlockBody({
                 <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
               )}
               <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">
-                {block.tail.length} mục dưới {money(TAIL_LIMIT)} —{' '}
-                {nameList(block.tail.map((r) => r.cat.name))}
+                {tr('{n} mục dưới {amount} — {names}', {
+                  n: block.tail.length,
+                  amount: money(TAIL_LIMIT),
+                  names: nameList(block.tail.map((r) => r.cat.name)),
+                })}
               </span>
               <Money amount={block.tailTotal} currency={base} className="shrink-0 text-2xs !text-fg-muted" />
             </button>
@@ -1538,16 +1576,19 @@ function groupMismatch(row: PlanRow, money: (v: number) => string) {
 
 function rowNote(row: PlanRow, money: (v: number) => string): { text: string; warn: boolean } | null {
   if (row.short > 0) {
-    return { text: `đang chờ nâng lên ${money(row.limit + row.short)}`, warn: true }
+    return { text: tr('đang chờ nâng lên {amount}', { amount: money(row.limit + row.short) }), warn: true }
   }
   const avg = row.suggestion?.average ?? 0
   if (isOffAverage(row.limit, avg)) {
     const factor = row.limit / avg
-    const label = factor >= 1 ? `gấp ${factor.toFixed(factor < 10 ? 1 : 0)}×` : `${Math.round(factor * 100)}% của TB`
-    return { text: `TB ${money(avg)} — ${label}`, warn: true }
+    const label =
+      factor >= 1
+        ? tr('gấp {x}×', { x: factor.toFixed(factor < 10 ? 1 : 0) })
+        : tr('{pct}% của TB', { pct: Math.round(factor * 100) })
+    return { text: tr('TB {amount} — {label}', { amount: money(avg), label }), warn: true }
   }
   if (row.committed > 0 && row.committed <= row.limit) {
-    return { text: 'khớp cam kết', warn: false }
+    return { text: tr('khớp cam kết'), warn: false }
   }
   return null
 }
@@ -1585,7 +1626,7 @@ function ListRow({
             type="button"
             onClick={onToggle}
             aria-expanded={open}
-            aria-label={open ? 'Thu gọn mốc con' : 'Xem mốc con'}
+            aria-label={open ? tr('Thu gọn mốc con') : tr('Xem mốc con')}
             className="-ml-1 flex min-h-11 w-6 shrink-0 items-center justify-center text-fg-muted"
           >
             {open ? (
@@ -1613,10 +1654,10 @@ function ListRow({
               {row.groupCap && <span aria-hidden>{row.cat.icon} </span>}
               {row.cat.name}
               {row.groupCap && (
-                <span className="text-2xs text-fg-muted"> trần nhóm · {row.childCount} mục con</span>
+                <span className="text-2xs text-fg-muted">{tr(' trần nhóm · {n} mục con', { n: row.childCount })}</span>
               )}
               {row.parentName && (
-                <span className="text-2xs text-fg-muted"> trong {row.parentName}</span>
+                <span className="text-2xs text-fg-muted">{tr(' trong {parent}', { parent: row.parentName })}</span>
               )}
             </span>
             {note && (
@@ -1648,7 +1689,7 @@ function ListRow({
               >
                 <span className="min-w-0 truncate text-fg-secondary">
                   {m.cat.icon} {m.cat.name}
-                  <span className="ml-1 text-2xs text-fg-on-track">mốc</span>
+                  <span className="ml-1 text-2xs text-fg-on-track">{tr('mốc')}</span>
                 </span>
                 <Money amount={m.limit} currency={base} className="shrink-0 text-2xs !text-fg-on-track" />
               </button>
@@ -1747,7 +1788,7 @@ function MismatchNote({
         {notice.text}
       </p>
       {notice.childCount > 0 && (
-        <ActionButton onClick={onSplit}>Chia cho {notice.childCount} mục con</ActionButton>
+        <ActionButton onClick={onSplit}>{tr('Chia cho {n} mục con', { n: notice.childCount })}</ActionButton>
       )}
     </div>
   )

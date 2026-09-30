@@ -300,6 +300,7 @@ export function useNotifications(): UseNotificationsResult {
         offTypes,
       })
     } catch (error) {
+      // i18n-ignore — nhật ký cho dev, không hiện lên màn
       console.error('Bộ luật thông báo lỗi, tạm ẩn thông báo:', error)
       return EMPTY_RESULT
     }

@@ -1,4 +1,4 @@
-// Bảng loại tiền — MODULE LÁ: cố tình KHÔNG import gì cả.
+// Bảng loại tiền — MODULE LÁ: cố tình KHÔNG import gì cả (trừ i18n/index.ts, cũng là lá).
 //
 // Vì sao tách khỏi money.ts: money.ts phải gọi isPrivacyEnabled() nên nó kéo theo
 // lib/privacy.ts, mà privacy.ts import React và đọc localStorage ngay lúc nạp
@@ -8,6 +8,7 @@
 // rates.ts chỉ cần CURRENCIES, nên chúng trỏ vào đây thay vì money.ts.
 // money.ts vẫn xuất lại hai thứ này để mọi chỗ import cũ không phải sửa.
 // Test canh: src/features/notifications/purity.test.ts
+import { tr } from '../i18n'
 
 export type CurrencyCode = 'JPY' | 'VND' | 'USD'
 
@@ -25,15 +26,15 @@ export const CURRENCIES: Record<
     decimal: string
   }
 > = {
-  JPY: { symbol: '¥', decimals: 0, label: 'Yên Nhật', position: 'prefix', group: ',', decimal: '.' },
-  VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix', group: '.', decimal: ',' },
+  JPY: { symbol: '¥', decimals: 0, label: tr('Yên Nhật'), position: 'prefix', group: ',', decimal: '.' },
+  VND: { symbol: '₫', decimals: 0, label: tr('Đồng Việt Nam'), position: 'suffix', group: '.', decimal: ',' },
   // USD theo chuẩn Mỹ ($2,000.00), đổi 2026-08-11. Trước đây là group '.' / decimal ','
   // kiểu Việt ($2.000,00) — mà màn Tài khoản hiện "¥1,187,910 · $2.000,00" cạnh nhau,
   // tức dấu ',' vừa là hàng nghìn (JPY) vừa là thập phân (USD) trong CÙNG một danh sách:
   // $2.000,00 rất dễ đọc thành hai nghìn hoặc hai triệu. Việc đổi này chỉ ảnh hưởng
   // HIỂN THỊ — parseAmountToMinor (nhập CSV) đoán dấu thập phân bằng heuristic "dấu cuối
   // theo sau 1–2 chữ số" nên đọc được cả hai kiểu, còn parseMoney chỉ giữ chữ số.
-  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: ',', decimal: '.' },
+  USD: { symbol: '$', decimals: 2, label: tr('Đô la Mỹ'), position: 'prefix', group: ',', decimal: '.' },
 }
 
 /**

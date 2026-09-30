@@ -16,6 +16,8 @@ import { Money, Num, Select } from '../../components/ui'
 import { useUpdateTransaction } from '../../hooks/queries'
 import { ngay } from './investFormat'
 import type { TaggableCashflow } from './positionTable'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const VND = 'VND' as const
 
@@ -49,11 +51,11 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
           aria-hidden
           className={`h-3.5 w-3.5 shrink-0 transition-transform duration-fast ${mo ? 'rotate-0' : '-rotate-90'}`}
         />
-        Gắn cổ tức vào mã
+        {tr('Gắn cổ tức vào mã')}
         {chuaGan > 0 && (
           <>
             {' — '}
-            <Num>{chuaGan}</Num> khoản chưa gắn
+            {trn('{count} khoản chưa gắn', { count: <Num>{chuaGan}</Num>, n: chuaGan })}
           </>
         )}
       </button>
@@ -63,8 +65,10 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
           {/* Chữ để DẠY: bỏ đi vẫn gắn mã được bình thường, nên nó đi qua cổng Guide
               (chế độ Gọn ẩn). Ranh giới ghi ở src/components/Guide.tsx. */}
           <Guide className="mt-1.5 text-2xs text-fg-muted">
-            Khoản thu/chi của tài khoản chứng khoán. Gắn mã thì cột <b>Cổ tức</b> ở bảng
-            trên mới có số — app không đoán mã từ ghi chú.
+            {trn(
+              'Khoản thu/chi của tài khoản chứng khoán. Gắn mã thì cột {col} ở bảng trên mới có số — app không đoán mã từ ghi chú.',
+              { col: <b>{tr('Cổ tức')}</b> },
+            )}
           </Guide>
           <ul className="mt-1.5 space-y-1.5">
             {hien.map((f) => (
@@ -81,7 +85,7 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
                 )}
                 <Select
                   wrapClassName="ml-auto"
-                  aria-label={`Mã cho khoản ngày ${ngay(f.occurredOn)}`}
+                  aria-label={tr('Mã cho khoản ngày {date}', { date: ngay(f.occurredOn) })}
                   value={f.symbol}
                   disabled={capNhat.isPending}
                   onChange={(e) =>
@@ -93,7 +97,7 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
                     })
                   }
                 >
-                  <option value="">chưa gắn mã</option>
+                  <option value="">{tr('chưa gắn mã')}</option>
                   {symbols.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -105,9 +109,9 @@ export function InvestDividendTagger({ flows, symbols }: Props) {
           </ul>
           {flows.length > TOI_DA && (
             <p className="mt-1.5 text-2xs text-fg-muted">
-              Còn <Num>{flows.length - TOI_DA}</Num> khoản cũ hơn
+              {trn('Còn {count} khoản cũ hơn', { count: <Num>{flows.length - TOI_DA}</Num>, n: flows.length - TOI_DA })}
               {/* E-ink + Gọn: giữ số đếm, bỏ lời chỉ đường. */}
-              <span className="eink-gon:hidden"> — sửa trực tiếp trong Sổ</span>.
+              <span className="eink-gon:hidden">{tr(' — sửa trực tiếp trong Sổ')}</span>.
             </p>
           )}
         </>

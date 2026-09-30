@@ -4,6 +4,7 @@
 //
 // Nằm ngoài React theo quy ước "toán thuần" — component render kết quả, không tính.
 import type { CostType, NeedLevel } from '../../types/database.types'
+import { tr, trx } from '../../i18n'
 import { COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 
 /** Hai trục phân loại của một danh mục — phần `CategoryRow` mà trang này quan tâm. */
@@ -16,8 +17,8 @@ export interface ClassifyState {
 export const isClassified = (s: ClassifyState): boolean =>
   s.need_level != null && s.cost_type != null
 
-const needLabel = (v: NeedLevel | null) => NEED_OPTIONS.find(([o]) => o === v)?.[1] ?? 'Chưa'
-const costLabel = (v: CostType | null) => COST_OPTIONS.find(([o]) => o === v)?.[1] ?? 'Chưa'
+const needLabel = (v: NeedLevel | null) => NEED_OPTIONS.find(([o]) => o === v)?.[1] ?? tr('Chưa')
+const costLabel = (v: CostType | null) => COST_OPTIONS.find(([o]) => o === v)?.[1] ?? tr('Chưa')
 
 /**
  * Chữ trên nhãn tóm tắt của một dòng. Cả hai trống → "Chưa phân loại"; thiếu một
@@ -25,7 +26,7 @@ const costLabel = (v: CostType | null) => COST_OPTIONS.find(([o]) => o === v)?.[
  * người đã quen màn trước không phải học từ mới.
  */
 export function summaryLabel(s: ClassifyState): string {
-  if (s.need_level == null && s.cost_type == null) return 'Chưa phân loại'
+  if (s.need_level == null && s.cost_type == null) return trx('class', 'Chưa phân loại')
   return `${needLabel(s.need_level)} · ${costLabel(s.cost_type)}`
 }
 

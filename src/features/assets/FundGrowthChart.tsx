@@ -17,6 +17,7 @@ import { CHART_TEXT_3XS } from '../../lib/chartText'
 import { dayMonthLabel } from '../../lib/dates'
 import { fundGrowth, type GrowthTrade } from './fundGrowth'
 import { heSo } from './investFormat'
+import { tr } from '../../i18n'
 
 const MAU_QUY = 'var(--color-sky-500)'
 const MAU_TOI = 'var(--color-green-600)'
@@ -41,10 +42,10 @@ export function FundGrowthChart({ trades, navByDate }: Props) {
     <div className="mt-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {/* Nhãn NÀY là chỗ duy nhất nói ra rằng biểu đồ khác đơn vị với ba con số trên. */}
-        <span className="text-2xs text-fg-muted">Tích luỹ từ ngày mua đầu</span>
-        <ChuGiai mau={MAU_QUY} nhan="Quỹ tự chạy" pct={cuoi.fund} />
-        <ChuGiai mau={MAU_TOI} nhan="Tiền của bạn" pct={cuoi.mine} />
-        {hasDca && <ChuGiai mau={MAU_MAY} nhan="Máy mua đều" pct={cuoi.dca} />}
+        <span className="text-2xs text-fg-muted">{tr('Tích luỹ từ ngày mua đầu')}</span>
+        <ChuGiai mau={MAU_QUY} nhan={tr('Quỹ tự chạy')} pct={cuoi.fund} />
+        <ChuGiai mau={MAU_TOI} nhan={tr('Tiền của bạn')} pct={cuoi.mine} />
+        {hasDca && <ChuGiai mau={MAU_MAY} nhan={tr('Máy mua đều')} pct={cuoi.dca} />}
       </div>
 
       <div className="mt-1 h-40">
@@ -71,9 +72,9 @@ export function FundGrowthChart({ trades, navByDate }: Props) {
             <Tooltip
               formatter={(v, name) => [
                 v == null ? '—' : `${heSo(Number(v), 1)}%`,
-                name === 'fund' ? 'Quỹ tự chạy' : name === 'mine' ? 'Tiền của bạn' : 'Máy mua đều',
+                name === 'fund' ? tr('Quỹ tự chạy') : name === 'mine' ? tr('Tiền của bạn') : tr('Máy mua đều'),
               ]}
-              labelFormatter={(l) => (typeof l === 'string' ? `Phiên ${dayMonthLabel(l)}` : '')}
+              labelFormatter={(l) => (typeof l === 'string' ? tr('Phiên {date}', { date: dayMonthLabel(l) }) : '')}
             />
             {/* Vẽ máy trước, rồi quỹ, rồi MÌNH sau cùng — đường của người dùng nằm trên
                 khi ba đường chồng nhau. */}

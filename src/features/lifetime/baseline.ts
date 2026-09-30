@@ -17,6 +17,7 @@ import type { CurrencyCode } from '../../lib/currencies'
 // chung helper để nếu luật hoàn tiền đổi thì chỉ phải sửa một chỗ.
 import { expenseSign, type CurrencyOf } from '../reports/aggregate'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 export interface BaselineCategoryLine {
   categoryId: string
@@ -89,7 +90,7 @@ export function suggestBaseline(
   const expenseSum = expenses.reduce((s, t) => s + t.amount * expenseSign(t), 0)
 
   const nameOf = (id: string | null) =>
-    categories.find((c) => c.id === id)?.name ?? 'Danh mục đã xóa'
+    categories.find((c) => c.id === id)?.name ?? tr('Danh mục đã xóa')
 
   const byCat = new Map<string, number>()
   for (const t of expenses) {

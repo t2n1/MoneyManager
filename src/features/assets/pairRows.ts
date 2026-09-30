@@ -15,6 +15,7 @@
 
 import type { ExplainedCause, Pair, ReconcileResult } from './statementReconcile'
 import type { ReviewRow } from './statementReviewRows'
+import { tr } from '../../i18n'
 
 export type PairRow =
   | { kind: 'diff'; row: ReviewRow }
@@ -23,14 +24,14 @@ export type PairRow =
   | { kind: 'dismissed'; row: ReviewRow }
 
 export const CAUSE_LABEL: Record<ExplainedCause, string> = {
-  'date-edge': 'lệch ngày',
-  'late-posting': 'ghi trễ',
-  'refund-shifted': 'hoàn cấn kỳ khác',
-  'merged-rows': 'sổ ghi gộp',
-  'wallet-topup': 'nạp ví',
-  recalculated: 'nhà thẻ tính lại',
-  installment: 'trả góp',
-  investment: 'mua quỹ',
+  'date-edge': tr('lệch ngày'),
+  'late-posting': tr('ghi trễ'),
+  'refund-shifted': tr('hoàn cấn kỳ khác'),
+  'merged-rows': tr('sổ ghi gộp'),
+  'wallet-topup': tr('nạp ví'),
+  recalculated: tr('nhà thẻ tính lại'),
+  installment: tr('trả góp'),
+  investment: tr('mua quỹ'),
 }
 
 export function pairRows(result: ReconcileResult, open: ReviewRow[], hidden: ReviewRow[], showAll: boolean): PairRow[] {

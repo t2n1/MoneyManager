@@ -17,11 +17,12 @@ import { drawerEvents, type DrawerSort } from './drawerList'
 import type { DraftEvent, DraftPhase } from './draft'
 import { LIFE_PRESETS, type LifePreset } from './presets'
 import { EVENT_WORDS, PHASE_WORDS } from './planWords'
+import { tr } from '../../i18n'
 
 const SORT_LABEL: Record<DrawerSort, string> = {
-  year: 'Theo năm',
-  money: 'Tiền lớn nhất',
-  type: 'Theo loại',
+  year: tr('Theo năm'),
+  money: tr('Tiền lớn nhất'),
+  type: tr('Theo loại'),
 }
 
 export function PlanListDrawer({
@@ -73,20 +74,20 @@ export function PlanListDrawer({
       {/* Scrim là nút đóng: bấm ra ngoài để đóng là cử chỉ ai cũng thử trước tiên. */}
       <button
         type="button"
-        aria-label="Đóng danh sách đầy đủ"
+        aria-label={tr('Đóng danh sách đầy đủ')}
         className="flex-1 cursor-default"
         onClick={onClose}
       />
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Danh sách đầy đủ"
+        aria-label={tr('Danh sách đầy đủ')}
         className="flex w-[32.5rem] max-w-full flex-col overflow-y-auto overscroll-contain bg-surface-chrome p-3 shadow-lg"
       >
         <div className="flex items-baseline justify-between gap-2">
-          <SectionTitle>Danh sách đầy đủ</SectionTitle>
+          <SectionTitle>{tr('Danh sách đầy đủ')}</SectionTitle>
           <ActionButton variant="outline" onClick={onClose}>
-            Đóng
+            {tr('Đóng')}
           </ActionButton>
         </div>
 
@@ -114,7 +115,7 @@ export function PlanListDrawer({
                     <span className="block truncate text-sm text-fg-primary">{p.label}</span>
                     <span className="block text-2xs text-fg-muted">
                       <Num tone="muted">{p.startYear}</Num>
-                      {den !== null ? <>–<Num tone="muted">{den}</Num></> : ' → hết đời'}
+                      {den !== null ? <>–<Num tone="muted">{den}</Num></> : ` ${tr('→ hết đời')}`}
                       {p.country ? ` · ${p.country}` : ''}
                     </span>
                   </span>
@@ -135,13 +136,13 @@ export function PlanListDrawer({
           {/* Ô tìm 120px của bản vẽ → `w-30` (7,5rem). `rem` để nó co theo Cỡ chữ. */}
           <input
             type="search"
-            aria-label="Tìm mốc"
-            placeholder="Tìm mốc…"
+            aria-label={tr('Tìm mốc')}
+            placeholder={tr('Tìm mốc…')}
             value={q}
             onChange={(ev) => setQ(ev.target.value)}
             className="w-30 rounded-md border border-border-strong bg-surface px-2 py-1 text-xs text-fg-primary"
           />
-          <span role="group" aria-label="Sắp xếp mốc" className="flex items-center gap-1">
+          <span role="group" aria-label={tr('Sắp xếp mốc')} className="flex items-center gap-1">
             {(['year', 'money', 'type'] as DrawerSort[]).map((s) => (
               <FilterChip key={s} size="sm" on={sort === s} onClick={() => setSort(s)}>
                 {SORT_LABEL[s]}
@@ -152,7 +153,7 @@ export function PlanListDrawer({
 
         {moc.length === 0 ? (
           <p className="py-2 text-sm text-fg-muted">
-            {q.trim() === '' ? 'Kế hoạch chưa có mốc nào.' : 'Không mốc nào khớp.'}
+            {q.trim() === '' ? tr('Kế hoạch chưa có mốc nào.') : tr('Không mốc nào khớp.')}
           </p>
         ) : (
           <ul className="divide-y divide-border-subtle">
@@ -170,7 +171,7 @@ export function PlanListDrawer({
                     <span className="block truncate text-sm text-fg-primary">{e.label}</span>
                     <span className="block text-2xs text-fg-muted">
                       <Num tone="muted">{e.startYear}</Num>
-                      {e.endYear === null ? ' → hết đời' : e.endYear !== e.startYear ? <>–<Num tone="muted">{e.endYear}</Num></> : ''}
+                      {e.endYear === null ? ` ${tr('→ hết đời')}` : e.endYear !== e.startYear ? <>–<Num tone="muted">{e.endYear}</Num></> : ''}
                     </span>
                   </span>
                   <Money
@@ -187,7 +188,7 @@ export function PlanListDrawer({
 
         {/* --- Bảng mẫu thêm nhanh --- */}
         <SectionTitle role="micro" className="mt-3">
-          Thêm nhanh từ mẫu
+          {tr('Thêm nhanh từ mẫu')}
         </SectionTitle>
         <div className="flex flex-wrap gap-1.5">
           {LIFE_PRESETS.map((p) => (
@@ -204,8 +205,7 @@ export function PlanListDrawer({
           ))}
         </div>
         <Guide>
-          Mẫu chỉ điền sẵn số rồi thành bản ghi thường — sửa xoá như mọi dòng khác. Mọi số
-          mặc định là phỏng đoán, kiểm tra lại.
+          {tr('Mẫu chỉ điền sẵn số rồi thành bản ghi thường — sửa xoá như mọi dòng khác. Mọi số mặc định là phỏng đoán, kiểm tra lại.')}
         </Guide>
       </aside>
     </div>

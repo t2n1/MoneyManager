@@ -16,6 +16,7 @@ import {
 } from './axisTargets'
 import { Card, Collapse, SectionTitle } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+import { tr } from '../../i18n'
 
 interface Props {
   data: AxisProgress
@@ -57,7 +58,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
             hoạch, nên hai mặt không thể đếm ra hai kết quả khác nhau khi tháng chuyển
             từ chưa-bắt-đầu sang đang-chạy. */}
         <SectionTitle className="min-w-0">
-          Cơ cấu chi so với mốc
+          {tr('Cơ cấu chi so với mốc')}
           {miss && (
             <span className={miss.missed.length === 0 ? 'text-money-in' : 'text-fg-warn'}>
               {' — '}
@@ -71,7 +72,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
           to="/settings?edit=budget-method"
           className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
-          Đổi mốc
+          {tr('Đổi mốc')}
         </Link>
       </div>
 
@@ -79,9 +80,11 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
           đọc tới các tỷ lệ, chứ không phải chú thích cuối thẻ. */}
       {data.estimated && (
         <p className="mb-2 text-2xs text-fg-muted">
-          Tháng này mới nhận {formatMoney(Math.round(data.actualIncome), base)} — các tỷ lệ
-          dưới đây tính tạm trên {formatMoney(data.income, base)}, mức thu trung bình{' '}
-          {BASELINE_MONTHS} tháng gần đây.
+          {tr('Tháng này mới nhận {actual} — các tỷ lệ dưới đây tính tạm trên {income}, mức thu trung bình {n} tháng gần đây.', {
+            actual: formatMoney(Math.round(data.actualIncome), base),
+            income: formatMoney(data.income, base),
+            n: BASELINE_MONTHS,
+          })}
         </p>
       )}
 
@@ -117,8 +120,9 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                 >
                   {shareLabel(l.share)}
                   <span className="ml-1 font-normal text-fg-muted">
-                    {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
-                    {Math.round(l.targetShare * 100)}%
+                    {l.direction === 'cap'
+                      ? tr('tối đa {pct}%', { pct: Math.round(l.targetShare * 100) })
+                      : tr('tối thiểu {pct}%', { pct: Math.round(l.targetShare * 100) })}
                   </span>
                 </span>
               </div>
@@ -141,7 +145,9 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                   {formatMoney(Math.round(l.actual), base)}
                 </span>
                 <span>
-                  {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
+                  {l.direction === 'cap'
+                    ? tr('trần {amount}', { amount: formatMoney(l.target, base) })
+                    : tr('sàn {amount}', { amount: formatMoney(l.target, base) })}
                 </span>
               </div>
             </>
@@ -182,7 +188,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm text-fg-secondary">
                               {c?.icon && <span className="mr-1">{c.icon}</span>}
-                              {c?.name ?? 'Không rõ danh mục'}
+                              {c?.name ?? tr('Không rõ danh mục')}
                             </span>
                             {/* Thanh XÁM cố ý: xanh/hổ phách ở thanh trục mang nghĩa
                                 "đạt/vượt mốc", mà danh mục con không có mốc riêng nào cả. */}
@@ -210,10 +216,11 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
 
       {data.unclassified > 0 && (
         <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-sm">
-          Còn {formatMoney(Math.round(data.unclassified), base)} chi chưa phân loại nên các dòng chi
-          đang thiếu.{' '}
+          {tr('Còn {amount} chi chưa phân loại nên các dòng chi đang thiếu.', {
+            amount: formatMoney(Math.round(data.unclassified), base),
+          })}{' '}
           <Link to="/settings/categories/classify" className="font-medium underline">
-            Phân loại nhanh
+            {tr('Phân loại nhanh')}
           </Link>
         </p>
       )}

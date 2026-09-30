@@ -50,7 +50,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { loadStatus, mergeLoad } from '../../lib/loadStatus'
 import { lastReconciledMap } from '../notifications/reconciledAt'
 import { accountRowStats, DELTA_DAYS, type AccountRowStat } from './accountRowStats'
-import { ACCOUNT_TYPE_LABELS, UNGROUPED_LABEL, type AssetAccount } from './aggregate'
+import { ACCOUNT_TYPE_LABELS, UNGROUPED_LABEL, groupDisplayName, type AssetAccount } from './aggregate'
 import { AssetsKpi } from './AssetsKpi'
 import { CardsSection } from './CardsSection'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
@@ -62,6 +62,8 @@ import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
 import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
 import { SectionTitle } from '../../components/ui'
+import { tr, decimalSep } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /**
  * Bề rộng các cột của bảng tài khoản, khai MỘT lần ở đây.
@@ -89,9 +91,9 @@ const COL = {
 type GroupMode = 'purpose' | 'type' | 'currency'
 
 const GROUP_MODES: readonly (readonly [GroupMode, string])[] = [
-  ['purpose', 'Mục đích'],
-  ['type', 'Loại'],
-  ['currency', 'Tiền tệ'],
+  ['purpose', tr('Mục đích')],
+  ['type', tr('Loại')],
+  ['currency', tr('Tiền tệ')],
 ] as const
 
 interface Props {
@@ -497,9 +499,9 @@ export function AssetsNowView({ viewCur }: Props) {
     // đầu tư nằm trong nhóm tên "Đầu tư" mà vẫn gắn thẻ "loại: đầu tư" là một dòng nói
     // hai lần cùng một chữ. Nó vẫn tính vào độ lệch ở ô Hiệu quả đầu tư (câu ở đó nêu
     // đủ tên và số tiền) — chỉ cái huy hiệu ở dòng là thừa.
-    const tenLoai = ACCOUNT_TYPE_LABELS.investment.toLowerCase()
+    const tenLoai = new Set(['đầu tư', ACCOUNT_TYPE_LABELS.investment.toLowerCase()]) // i18n-ignore — so với tên nhóm người dùng đặt
     return new Set(
-      scope.outsiders.filter((o) => o.groupName.toLowerCase() !== tenLoai).map((o) => o.id),
+      scope.outsiders.filter((o) => !tenLoai.has(o.groupName.toLowerCase())).map((o) => o.id),
     )
   }, [groupMode, scope])
 
@@ -524,8 +526,8 @@ export function AssetsNowView({ viewCur }: Props) {
   const bangNhom = chuaDu ? [] : displayGroups
 
   const thieuTyGia = [
-    breakdown.hasMissingRate && 'tài sản',
-    (debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && 'công nợ',
+    breakdown.hasMissingRate && tr('tài sản'),
+    (debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && tr('công nợ'),
   ].filter((s): s is string => typeof s === 'string')
 
   return (
@@ -539,13 +541,14 @@ export function AssetsNowView({ viewCur }: Props) {
           phải chuyện mới không. Gộp lên đầu và nói RÕ chỗ nào đang thiếu. */}
       {loadFailed && (
         <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
-          Không tải được dữ liệu tài sản — thử tải lại trang.
+          {tr('Không tải được dữ liệu tài sản — thử tải lại trang.')}
         </p>
       )}
       {thieuTyGia.length > 0 && (
         <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
-          Chưa quy đổi được tỷ giá cho một phần {thieuTyGia.join(' và ')} — mọi tổng trên tab
-          này đang thiếu phần đó.
+          {tr('Chưa quy đổi được tỷ giá cho một phần {parts} — mọi tổng trên tab này đang thiếu phần đó.', {
+            parts: thieuTyGia.join(tr(' và ')),
+          })}
         </p>
       )}
 
@@ -555,8 +558,8 @@ export function AssetsNowView({ viewCur }: Props) {
         netWorthFoot={
           trend && (
             <span className="flex items-center gap-2">
-              <Sparkline values={trend} label="Tài sản ròng gần đây" />
-              <span>{trend.length} mốc gần nhất</span>
+              <Sparkline values={trend} label={tr('Tài sản ròng gần đây')} />
+              <span>{tr('{n} mốc gần nhất', { n: trend.length })}</span>
             </span>
           )
         }
@@ -596,14 +599,14 @@ export function AssetsNowView({ viewCur }: Props) {
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border-panel px-4 py-2">
           <SectionTitle role="micro">
-            Danh sách tài khoản
+            {tr('Danh sách tài khoản')}
           </SectionTitle>
-          <span className="text-2xs text-fg-muted">cắt lát theo</span>
+          <span className="text-2xs text-fg-muted">{tr('cắt lát theo')}</span>
           <SegmentedControl
             items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
             value={groupMode}
             onChange={setGroupMode}
-            label="Chế độ xem cơ cấu"
+            label={tr('Chế độ xem cơ cấu')}
             size="sm"
             stretch={false}
           />
@@ -614,8 +617,13 @@ export function AssetsNowView({ viewCur }: Props) {
               as="span"
               className={`ml-auto text-2xs text-fg-muted ${sortMode ? '' : 'hidden lg:inline'}`}
             >
-              Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> để sắp
-              thứ tự{allowCross ? ' hoặc kéo sang nhóm khác' : ' trong cùng một loại'}
+              {allowCross
+                ? trn('Nhấn giữ {icon} để sắp thứ tự hoặc kéo sang nhóm khác', {
+                    icon: <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" />,
+                  })
+                : trn('Nhấn giữ {icon} để sắp thứ tự trong cùng một loại', {
+                    icon: <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" />,
+                  })}
             </Guide>
           )}
           {/* Nút vào/ra chế độ Sắp xếp — CHỈ dưới lg. Từ lg tay kéo luôn hiện nên một
@@ -627,7 +635,7 @@ export function AssetsNowView({ viewCur }: Props) {
               className={`ml-auto lg:hidden ${sortMode ? 'border-accent text-fg-accent' : ''}`}
             >
               <ArrowUpDown className="h-4 w-4" strokeWidth={2} />
-              {sortMode ? 'Xong' : 'Sắp xếp'}
+              {sortMode ? tr('Xong') : tr('Sắp xếp')}
             </ActionButton>
           )}
         </div>
@@ -635,18 +643,18 @@ export function AssetsNowView({ viewCur }: Props) {
         {/* Hàng tên cột — chỉ từ lg. Dưới lg dòng là hai tầng nên không có cột để đặt tên. */}
         <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted lg:flex">
           {dragEnabled && <span className={`${COL.drag} shrink-0`} aria-hidden />}
-          <span className="min-w-0 flex-1">Nhóm · tài khoản</span>
-          <span className={`${COL.share} shrink-0 text-right`}>Tỷ trọng</span>
-          <span className={`${COL.delta} shrink-0 text-right`}>Δ {DELTA_DAYS} ngày</span>
+          <span className="min-w-0 flex-1">{tr('Nhóm · tài khoản')}</span>
+          <span className={`${COL.share} shrink-0 text-right`}>{tr('Tỷ trọng')}</span>
+          <span className={`${COL.delta} shrink-0 text-right`}>{tr('Δ {n} ngày', { n: DELTA_DAYS })}</span>
           <span className={`${COL.spark} shrink-0`} aria-hidden />
-          <span className={`${COL.balance} shrink-0 text-right`}>Số dư</span>
-          <span className={`${COL.reconcile} shrink-0 text-right`}>Đối chiếu</span>
+          <span className={`${COL.balance} shrink-0 text-right`}>{tr('Số dư')}</span>
+          <span className={`${COL.reconcile} shrink-0 text-right`}>{tr('Đối chiếu')}</span>
           <span className="w-4 shrink-0" aria-hidden />
         </div>
 
         {chuaDu && (
           <p className="px-4 py-8 text-center text-sm text-fg-muted">
-            {loadFailed ? 'Chưa tải được danh sách tài khoản.' : 'Đang tải…'}
+            {loadFailed ? tr('Chưa tải được danh sách tài khoản.') : tr('Đang tải…')}
           </p>
         )}
         {bangNhom.map((g) => {
@@ -677,21 +685,21 @@ export function AssetsNowView({ viewCur }: Props) {
                       outsideTotals ? 'text-fg-secondary' : 'text-fg-primary'
                     }`}
                   >
-                    {g.name}
+                    {groupDisplayName(g.name)}
                   </span>
                   <span className="shrink-0 text-2xs text-fg-muted">
-                    {g.accounts.length} tài khoản
+                    {tr('{n} tài khoản', { n: g.accounts.length })}
                     {/* Dưới lg cột Tỷ trọng không có chỗ, nên tỷ trọng đi kèm số đếm.
                         Từ lg nó là một thanh thật ở cột riêng. */}
                     {!outsideTotals && g.share > 0 && (
                       <span className="lg:hidden"> · {phanTram(g.share)}</span>
                     )}
-                    {outsideTotals && <span className="lg:hidden"> · ngoài tổng</span>}
+                    {outsideTotals && <span className="lg:hidden">{tr(' · ngoài tổng')}</span>}
                   </span>
                 </span>
                 <span className={`${COL.share} hidden shrink-0 items-center justify-end gap-1.5 lg:flex`}>
                   {outsideTotals ? (
-                    <span className="text-2xs text-fg-muted">ngoài tổng</span>
+                    <span className="text-2xs text-fg-muted">{tr('ngoài tổng')}</span>
                   ) : (
                     <>
                       <span className="block h-1 w-14 rounded-full bg-surface-sunken">
@@ -715,7 +723,7 @@ export function AssetsNowView({ viewCur }: Props) {
                   {!statsReady ? (
                     <span
                       className="text-2xs text-fg-muted"
-                      aria-label={statsLoad === 'failed' ? 'Chưa tải được' : 'Đang tính'}
+                      aria-label={statsLoad === 'failed' ? tr('Chưa tải được') : tr('Đang tính')}
                     >
                       …
                     </span>
@@ -781,9 +789,9 @@ export function AssetsNowView({ viewCur }: Props) {
                       'outline',
                       'min-h-8 border-state-warn-border text-state-warn-fg',
                     )}
-                    aria-label={`Đối chiếu ${a.name} — quá ${DELTA_DAYS} ngày chưa đối chiếu`}
+                    aria-label={tr('Đối chiếu {name} — quá {n} ngày chưa đối chiếu', { name: a.name, n: DELTA_DAYS })}
                   >
-                    Đối chiếu
+                    {tr('Đối chiếu')}
                   </Link>
                 ) : stat?.lastReconciledISO ? (
                   <span className="font-mono text-2xs text-fg-muted">
@@ -817,7 +825,7 @@ export function AssetsNowView({ viewCur }: Props) {
                           className={`${
                             sortMode ? 'inline-flex' : 'hidden lg:inline-flex'
                           } ${COL.drag} min-h-11 shrink-0 cursor-grab touch-none items-center justify-center text-fg-disabled active:cursor-grabbing`}
-                          aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${a.name}`}
+                          aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: a.name })}
                         >
                           <GripVertical className="h-4 w-4" />
                         </button>
@@ -842,7 +850,7 @@ export function AssetsNowView({ viewCur }: Props) {
                           {a.name}
                           <span className="ml-1 text-2xs text-fg-muted">{a.currency}</span>
                           {!a.includeInTotals && (
-                            <span className="ml-1 text-2xs text-fg-muted">(ngoài tổng)</span>
+                            <span className="ml-1 text-2xs text-fg-muted">{tr('(ngoài tổng)')}</span>
                           )}
                           {rowPnl !== null && (
                             <span
@@ -862,12 +870,12 @@ export function AssetsNowView({ viewCur }: Props) {
                                 (cắt theo LOẠI) lệch với dòng nhóm (cắt theo MỤC ĐÍCH). */}
                           {theCount != null && (
                             <span className="ml-1.5 whitespace-nowrap rounded-full border border-state-warn-border px-1.5 text-2xs text-state-warn-fg">
-                              nguồn trả {theCount} thẻ
+                              {tr('nguồn trả {n} thẻ', { n: theCount })}
                             </span>
                           )}
                           {outsiderIds.has(a.id) && (
                             <span className="ml-1.5 whitespace-nowrap rounded-full border border-border-strong px-1.5 text-2xs text-fg-muted">
-                              loại: {ACCOUNT_TYPE_LABELS[a.type].toLowerCase()}
+                              {tr('loại: {type}', { type: ACCOUNT_TYPE_LABELS[a.type].toLowerCase() })}
                             </span>
                           )}
                         </span>
@@ -878,7 +886,7 @@ export function AssetsNowView({ viewCur }: Props) {
                         {!statsReady && (
                           <span
                             className={`${COL.delta} hidden shrink-0 justify-end text-right text-2xs text-fg-muted sm:flex`}
-                            aria-label={statsLoad === 'failed' ? 'Chưa tải được' : 'Đang tính'}
+                            aria-label={statsLoad === 'failed' ? tr('Chưa tải được') : tr('Đang tính')}
                           >
                             …
                           </span>
@@ -908,7 +916,7 @@ export function AssetsNowView({ viewCur }: Props) {
                           >
                             <Sparkline
                               values={stat.spark}
-                              label={`Số dư ${a.name} 30 ngày qua`}
+                              label={tr('Số dư {name} 30 ngày qua', { name: a.name })}
                             />
                           </span>
                         )}
@@ -966,12 +974,12 @@ export function AssetsNowView({ viewCur }: Props) {
                               showSign
                               className="text-2xs"
                             />{' '}
-                            / {DELTA_DAYS} ngày
+                            {tr('/ {n} ngày', { n: DELTA_DAYS })}
                           </span>
                         )}
                         {reconcileBtn && (
                           <span className="ml-auto flex items-center gap-1">
-                            {!stat.stale && 'đối chiếu '}
+                            {!stat.stale && tr('đối chiếu ')}
                             {reconcileBtn}
                           </span>
                         )}
@@ -982,7 +990,7 @@ export function AssetsNowView({ viewCur }: Props) {
               })}
               {dragEnabled && allowCross && rowIds.length === 0 && dragAcc != null && (
                 <p className="border-b border-border-subtle px-4 py-3 text-center text-sm text-fg-muted">
-                  Thả vào đây để chuyển sang nhóm này
+                  {tr('Thả vào đây để chuyển sang nhóm này')}
                 </p>
               )}
             </div>
@@ -992,8 +1000,10 @@ export function AssetsNowView({ viewCur }: Props) {
 
       {(breakdown.hasForeign || mv.converted) && rates && (
         <p className="text-center text-2xs text-fg-muted">
-          Tỷ giá ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
-          {rates.USD ? (1 / rates.USD).toFixed(1) : '?'}{' '}
+          {tr('Tỷ giá ¥1 ≈ {vnd} ₫ · $1 ≈ ¥{usd}', {
+            vnd: rates.VND?.toFixed(2) ?? '',
+            usd: rates.USD ? (1 / rates.USD).toFixed(1) : '?',
+          })}{' '}
           <Guide as="span">(open.er-api.com, cache 12h)</Guide>
         </p>
       )}
@@ -1005,8 +1015,8 @@ export function AssetsNowView({ viewCur }: Props) {
 function phanTram(share: number): string {
   const pct = share * 100
   if (pct >= 10) return `${Math.round(pct)}%`
-  if (pct >= 1) return `${pct.toFixed(1).replace('.', ',')}%`
-  return `${pct.toFixed(2).replace('.', ',')}%`
+  if (pct >= 1) return `${pct.toFixed(1).replace('.', decimalSep())}%`
+  return `${pct.toFixed(2).replace('.', decimalSep())}%`
 }
 
 /**
@@ -1022,5 +1032,5 @@ function tienGocNhom(
     .slice(0, 2)
     .map((n) => formatMoney(n.amount, n.currency))
     .join(' · ')
-  return nativeTotals.length > 2 ? `${head} +${nativeTotals.length - 2} loại tiền` : head
+  return nativeTotals.length > 2 ? tr('{head} +{n} loại tiền', { head, n: nativeTotals.length - 2 }) : head
 }

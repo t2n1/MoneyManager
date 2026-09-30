@@ -8,6 +8,7 @@ import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   account: AccountRow
@@ -71,31 +72,34 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-1">
-          Cập nhật giá trị
+          {tr('Cập nhật giá trị')}
         </SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
-          {account.name} · giá trị thị trường hiện tại ({CURRENCIES[currency].label})
+          {tr('{name} · giá trị thị trường hiện tại ({currency})', {
+            name: account.name,
+            currency: CURRENCIES[currency].label,
+          })}
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Giá trị hiện tại
+          {tr('Giá trị hiện tại')}
         </span>
         <div className="mb-3">
           <MoneyField
             value={marketValue}
             onChange={setMarketValue}
             currency={currency}
-            ariaLabel="Giá trị hiện tại"
+            ariaLabel={tr('Giá trị hiện tại')}
             onEnter={handleSubmit}
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ngày')}</span>
         <DateField
-          ariaLabel="Ngày"
+          ariaLabel={tr('Ngày')}
           value={valuedOn}
           max={toISODate(new Date())}
           onChange={setValuedOn}
@@ -103,18 +107,19 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         />
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Ghi chú')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </label>
         <input
           id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: theo giá đóng cửa"
+          placeholder={tr('Ví dụ: theo giá đóng cửa')}
           className="mb-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
         <Guide className="mb-3 text-sm text-fg-muted">
-          Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
-          so với vốn gốc là lãi/lỗ chưa thực hiện.
+          {tr(
+            'Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch so với vốn gốc là lãi/lỗ chưa thực hiện.',
+          )}
         </Guide>
 
         {/* Vế "số này chỉ giữ cho hôm nay" đứng ngoài <Guide>: hôm sau con số tự đổi lại,
@@ -123,8 +128,8 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             lệnh) mới là chữ dạy. */}
         {tuDongChay && (
           <p className="mb-3 text-sm text-fg-muted">
-            Số bạn gõ ở đây chỉ giữ cho đúng ngày này — từ những ngày sau app tự tính lại.
-            <Guide as="span"> Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh.</Guide>
+            {tr('Số bạn gõ ở đây chỉ giữ cho đúng ngày này — từ những ngày sau app tự tính lại.')}
+            <Guide as="span">{tr(' Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh.')}</Guide>
           </p>
         )}
 
@@ -134,7 +139,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <button
             type="button"
@@ -142,7 +147,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             disabled={!canSave}
             className={actionButtonClass('primary')}
           >
-            {saving ? 'Đang lưu…' : 'Lưu'}
+            {saving ? tr('Đang lưu…') : tr('Lưu')}
           </button>
         </div>
       </div>

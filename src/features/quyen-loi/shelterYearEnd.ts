@@ -9,6 +9,7 @@ import type { AccountRow, TransactionRow } from '../../types/database.types'
 import { calendarYearOf } from '../../lib/dates'
 import type { KetLuan } from './ketLuan'
 import { THANG_NHAC_CUOI_NAM } from './furusato'
+import { tr, trx } from '../../i18n'
 
 export interface ShelterInput {
   year: number
@@ -48,23 +49,23 @@ export function tinhShelterYearEnd(input: ShelterInput): ShelterKetQua {
   const con_lai = tai_khoan.reduce((s, t) => s + (t.remaining ?? 0), 0)
   const namNay = calendarYearOf(input.todayISO)
   const muaNhac = input.year === namNay && Number(input.todayISO.slice(5, 7)) >= THANG_NHAC_CUOI_NAM
-  const ly_do = ['Hạn mức NISA không dùng là mất, không dồn sang năm sau (金融庁).']
-  if (tai_khoan.some((t) => t.limit === null)) ly_do.push('Có tài khoản chưa đặt hạn mức năm — sửa ở Cài đặt › Tài khoản.')
+  const ly_do = [tr('Hạn mức NISA không dùng là mất, không dồn sang năm sau (金融庁).')]
+  if (tai_khoan.some((t) => t.limit === null)) ly_do.push(tr('Có tài khoản chưa đặt hạn mức năm — sửa ở Cài đặt › Tài khoản.'))
 
   const da_nap = tai_khoan.reduce((s, t) => s + t.used, 0)
-  const nam = input.year === namNay ? 'năm nay' : `năm ${input.year}`
+  const nam = input.year === namNay ? tr('năm nay') : trx('in', 'năm {year}', { year: input.year })
   // Câu nói SỐ TIỀN đã nạp — "đã nạp 1 tài khoản" nghe như xong dù nạp ¥0.
   let trang_thai: KetLuan['trang_thai'] = 'du'
-  let viec = `Đã nạp ${input.fmt(da_nap)} vào NISA/iDeCo ${nam}`
+  let viec = tr('Đã nạp {amount} vào NISA/iDeCo {year}', { amount: input.fmt(da_nap), year: nam })
   if (tai_khoan.length === 0) {
     trang_thai = 'thieu-du-lieu'
-    viec = 'Chưa tài khoản nào được đánh dấu NISA/iDeCo'
+    viec = tr('Chưa tài khoản nào được đánh dấu NISA/iDeCo')
   } else if (muaNhac && con_lai > 0) {
     trang_thai = 'thieu'
-    viec = `Còn ${input.fmt(con_lai)} hạn mức NISA/iDeCo chưa dùng · hết 31/12`
+    viec = tr('Còn {amount} hạn mức NISA/iDeCo chưa dùng · hết 31/12', { amount: input.fmt(con_lai) })
   } else if (da_nap <= 0) {
     trang_thai = 'chua-dung'
-    viec = `Chưa nạp đồng nào vào NISA/iDeCo ${nam}`
+    viec = tr('Chưa nạp đồng nào vào NISA/iDeCo {year}', { year: nam })
   }
   return {
     ketLuan: { id: 'shelter', year: input.year, trang_thai, muc: 'low', tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },

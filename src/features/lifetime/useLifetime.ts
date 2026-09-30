@@ -34,6 +34,7 @@ import {
   type LifetimePhase,
   type YearRow,
 } from './project'
+import { tr } from '../../i18n'
 
 /** Đủ trùm MAX_MONTHS (12) của suggestBaseline kể cả tháng lệch ngày.
  *  Export vì `ScenarioEditorDrawer` cũng nạp giao dịch cho `suggestBaseline` — hai
@@ -364,7 +365,7 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
       // đã bị `disabled` ở LifetimePage khi thiếu `profile`, đây là lớp thứ hai cho mọi
       // chỗ gọi khác.
       showToast(
-        'Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch bản — kiểm tra mạng rồi mở lại màn này.',
+        tr('Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch bản — kiểm tra mạng rồi mở lại màn này.'),
         'error',
       )
       return
@@ -389,7 +390,7 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
       // hoặc chưa tải xong) → 0, KHÔNG được điền một số thiếu rồi im lặng — LifetimePage hiện
       // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorDrawer, để sửa lại).
       const scenario = await createScenario.mutateAsync({
-        name: 'Kịch bản của tôi',
+        name: tr('Kịch bản của tôi'),
         display_currency: currency,
         end_age: DEFAULT_END_AGE,
         real_return_bps: DEFAULT_REAL_RETURN_BPS,
@@ -402,7 +403,7 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
       await createPhase.mutateAsync({
         scenario_id: scenario.id,
         start_year: new Date().getFullYear(),
-        label: 'Hiện tại',
+        label: tr('Hiện tại'),
         country: null,
         currency,
         annual_income_minor: baseline.annualIncomeMinor,
@@ -418,20 +419,20 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
       // được chép vào — để im là người dùng tưởng app tính sai (đã xảy ra 2026-08).
       if (baseline.annualIncomeMinor === 0 && baseline.annualExpenseMinor > 0) {
         showToast(
-          'Sổ 12 tháng qua không có khoản thu nào nên kịch bản tạm coi thu = 0 — bấm dòng "Giả định" để nhập thu nhập của bạn.',
+          tr('Sổ 12 tháng qua không có khoản thu nào nên kịch bản tạm coi thu = 0 — bấm dòng "Giả định" để nhập thu nhập của bạn.'),
           'info',
           8000,
         )
       }
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      const detail = err instanceof Error ? err.message : tr('lỗi không rõ')
       showToast(
         scenarioId === null
-          ? `Không tạo được kịch bản (${detail}). Chưa có gì được lưu — thử lại.`
+          ? tr('Không tạo được kịch bản ({detail}). Chưa có gì được lưu — thử lại.', { detail })
           // "Thêm chặng" là NHÃN THẬT của một nút có trên màn (dải Mốc cuộc đời dưới đồ
           // thị). Câu cũ bảo "bấm nút bút chì" — nút đó đã bị xoá lúc header rút gọn,
           // nên câu hướng dẫn chỉ vào một cái nút không tồn tại.
-          : `Đã tạo kịch bản nhưng chưa tạo được chặng nền (${detail}). Kịch bản đang thiếu chặng nên chưa chiếu được gì — bấm "Thêm chặng" ở dải Mốc cuộc đời, hoặc xoá kịch bản đó rồi thử lại.`,
+          : tr('Đã tạo kịch bản nhưng chưa tạo được chặng nền ({detail}). Kịch bản đang thiếu chặng nên chưa chiếu được gì — bấm "Thêm chặng" ở dải Mốc cuộc đời, hoặc xoá kịch bản đó rồi thử lại.', { detail }),
         'error',
       )
     } finally {
@@ -474,11 +475,11 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
         },
       })
       copyId = copy.id
-      showToast(`Đã tạo "${copy.name}" — sửa tên và các con số trong "Sửa kịch bản".`, 'success')
+      showToast(tr('Đã tạo "{name}" — sửa tên và các con số trong "Sửa kịch bản".', { name: copy.name }), 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      const detail = err instanceof Error ? err.message : tr('lỗi không rõ')
       showToast(
-        `Không tạo được kịch bản mới (${detail}). Có thể đã có một bản sao thiếu dòng trong dải chip — kiểm và xoá nếu cần.`,
+        tr('Không tạo được kịch bản mới ({detail}). Có thể đã có một bản sao thiếu dòng trong dải chip — kiểm và xoá nếu cần.', { detail }),
         'error',
       )
     } finally {
@@ -518,14 +519,14 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
     if (deleting) return
     if (scenarios.length <= 1) {
       showToast(
-        'Đây là kịch bản duy nhất — xoá nó thì không còn gì để chiếu. Tạo một kịch bản khác trước rồi xoá cái này.',
+        tr('Đây là kịch bản duy nhất — xoá nó thì không còn gì để chiếu. Tạo một kịch bản khác trước rồi xoá cái này.'),
         'error',
       )
       return
     }
     // Lấy tên TRƯỚC khi xoá: sau lệnh ghi thì dòng đó không còn trong `scenarios`, và
     // toast sẽ nói "Đã xoá kịch bản" trần — không ai biết mình vừa xoá cái nào.
-    const name = scenarios.find((s) => s.id === id)?.name ?? 'kịch bản'
+    const name = scenarios.find((s) => s.id === id)?.name ?? tr('kịch bản')
     setDeleting(true)
     try {
       await repo.deleteLifeScenario(id)
@@ -540,11 +541,11 @@ export function useLifetime(options: { enabled?: boolean } = {}) {
       // mới là bỏ tiền nạp lại một mảng chắc chắn rỗng, còn để nguyên là giữ ảnh chụp
       // của một kịch bản đã chết tới hết phiên.
       qc.removeQueries({ queryKey: ['lifetimeVerdictSnapshots', id] })
-      showToast(`Đã xoá kịch bản "${name}".`, 'success')
+      showToast(tr('Đã xoá kịch bản "{name}".', { name }), 'success')
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      const detail = err instanceof Error ? err.message : tr('lỗi không rõ')
       showToast(
-        `Không xoá được kịch bản "${name}" (${detail}). Nó vẫn còn nguyên — kiểm tra mạng rồi thử lại.`,
+        tr('Không xoá được kịch bản "{name}" ({detail}). Nó vẫn còn nguyên — kiểm tra mạng rồi thử lại.', { name, detail }),
         'error',
       )
     } finally {

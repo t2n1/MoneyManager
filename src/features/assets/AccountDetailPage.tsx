@@ -66,6 +66,8 @@ import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Một dòng của phép cộng ra số bị rút: nhãn · dấu · số. Cột dấu riêng để các dấu thẳng hàng. */
 const DUE_ROW = 'grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-x-2'
@@ -318,7 +320,7 @@ export function AccountDetailPage() {
               <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
             </span>
           ) : (
-            'Tài khoản'
+            tr('Tài khoản')
           )
         }
         /* Dòng phụ của 19a: "Thẻ tín dụng · JPY · trả từ Rakuten Bank". Ba mẩu này
@@ -330,7 +332,7 @@ export function AccountDetailPage() {
           account && (
             <>
               {ACCOUNT_TYPE_LABELS[account.type]} · {account.currency}
-              {cardFundingGroup && ` · trả từ ${cardFundingGroup.sourceName}`}
+              {cardFundingGroup && tr(' · trả từ {source}', { source: cardFundingGroup.sourceName })}
               {account.asset_group && ` · ${account.asset_group}`}
             </>
           )
@@ -338,7 +340,7 @@ export function AccountDetailPage() {
       >
         {account && (
           <ActionButton onClick={() => setShowEditAccount(true)}>
-            <Pencil className="h-3.5 w-3.5" /> Sửa
+            <Pencil className="h-3.5 w-3.5" /> {tr('Sửa')}
           </ActionButton>
         )}
       </PageHeader>
@@ -348,10 +350,10 @@ export function AccountDetailPage() {
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-sm font-medium text-fg-muted">
             {account?.type === 'card'
-              ? 'Đang nợ thẻ'
+              ? tr('Đang nợ thẻ')
               : isInvestment || isFixed
-                ? 'Giá trị hiện tại'
-                : 'Số dư hiện tại'}
+                ? tr('Giá trị hiện tại')
+                : tr('Số dư hiện tại')}
           </p>
           {/* Không chỉ cần `session` — bảng giá cổ phiếu trả về phiên MỚI NHẤT của CẢ
               bảng, không phải phiên của riêng mã tài khoản này đang giữ, nên `session`
@@ -368,7 +370,7 @@ export function AccountDetailPage() {
             <span className="text-2xs text-fg-muted">
               {currentBasisLabel}
               {danhMuc?.session && danhMuc.marketValue != null && (
-                <> · phiên {ngay(danhMuc.session)}</>
+                <>{tr(' · phiên {date}', { date: ngay(danhMuc.session) })}</>
               )}
             </span>
           )}
@@ -398,7 +400,7 @@ export function AccountDetailPage() {
           {/* Chỉ gắn dấu khi con số ĐANG hiện thật sự do công thức khấu hao suy ra:
               có định giá nhập tay thì đó là số người dùng tự khai, không phải app đoán. */}
           {isFixed && balanceRow?.market_value == null && dep != null && (
-            <EstimateMark reason="Suy ra từ ngày mua và số tháng khấu hao bạn đã đặt, không phải giá thị trường." />
+            <EstimateMark reason={tr('Suy ra từ ngày mua và số tháng khấu hao bạn đã đặt, không phải giá thị trường.')} />
           )}
         </p>
         {/* Nhóm tài sản đã lên dòng phụ ở tiêu đề cùng loại và loại tiền — ba mẩu nhận
@@ -409,7 +411,7 @@ export function AccountDetailPage() {
         {account && !isInvestment && !isFixed && (
           <ActionButton onClick={() => setShowReconcile(true)} className="mt-3">
             <Scale className="h-3.5 w-3.5" />{' '}
-            {account.type === 'card' ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
+            {account.type === 'card' ? tr('Điều chỉnh số nợ') : tr('Điều chỉnh số dư')}
           </ActionButton>
         )}
 
@@ -439,12 +441,14 @@ export function AccountDetailPage() {
             {danhMuc.marketValue == null ? (
               <p className="text-sm text-fg-muted">
                 {danhMuc.cash != null && danhMuc.cash < 0
-                  ? 'Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.'
-                  : `Chưa tính được — chưa có giá cho ${danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} nào đang giữ.`}
+                  ? tr('Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.')
+                  : danhMuc.kind === 'funds'
+                    ? tr('Chưa tính được — chưa có giá cho quỹ nào đang giữ.')
+                    : tr('Chưa tính được — chưa có giá cho mã nào đang giữ.')}
               </p>
             ) : (
               <PnlRow
-                label="Lời/lỗ chưa bán"
+                label={tr('Lời/lỗ chưa bán')}
                 amount={danhMuc.unrealizedPnl}
                 currency={currency}
                 percent={danhMuc.unrealizedPercent}
@@ -455,7 +459,7 @@ export function AccountDetailPage() {
                 thành một dòng riêng ở tab Tài sản. Cộng vào đây là đếm ngân hàng hai lần. */}
             {viTien && (
               <p className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-fg-muted">Ví tiền</span>
+                <span className="text-fg-muted">{tr('Ví tiền')}</span>
                 <span className="text-fg-secondary">{viTien.name}</span>
               </p>
             )}
@@ -467,9 +471,11 @@ export function AccountDetailPage() {
               className="flex items-center justify-between gap-2 pt-1 text-fg-accent"
             >
               <span className="text-sm font-medium">
-                Danh mục · {danhMuc.count} {danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} · sổ lệnh
+                {danhMuc.kind === 'funds'
+                  ? tr('Danh mục · {n} quỹ · sổ lệnh', { n: danhMuc.count })
+                  : tr('Danh mục · {n} mã · sổ lệnh', { n: danhMuc.count })}
               </span>
-              <span className="text-sm font-medium">Xem →</span>
+              <span className="text-sm font-medium">{tr('Xem →')}</span>
             </Link>
           </div>
         )}
@@ -487,7 +493,7 @@ export function AccountDetailPage() {
         {isInvestment && danhMuc === null && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             <div className="flex items-center justify-between text-fg-muted">
-              <span>Vốn gốc (đã bỏ vào)</span>
+              <span>{tr('Vốn gốc (đã bỏ vào)')}</span>
               <Money
                 amount={invStats.costBasis}
                 currency={currency}
@@ -496,11 +502,11 @@ export function AccountDetailPage() {
             </div>
             {invStats.unrealizedPnl == null ? (
               <p className="text-sm text-fg-muted">
-                Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
+                {tr('Chưa cập nhật giá thị trường — đang tính theo vốn gốc.')}
               </p>
             ) : (
               <PnlRow
-                label="Lãi/lỗ so với vốn gốc"
+                label={tr('Lãi/lỗ so với vốn gốc')}
                 amount={invStats.unrealizedPnl}
                 currency={currency}
                 percent={invStats.pnlPercent}
@@ -511,7 +517,7 @@ export function AccountDetailPage() {
               onClick={() => setShowValuation(true)}
               className={actionButtonClass('primary', 'mt-1')}
             >
-              <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
+              <LineChart className="h-3.5 w-3.5" /> {tr('Cập nhật giá trị')}
             </button>
           </div>
         )}
@@ -524,7 +530,7 @@ export function AccountDetailPage() {
                 {TAX_SHELTER_LABELS[account.tax_shelter]}
               </span>
               <span className="shrink-0 text-sm text-fg-muted">
-                năm {shelterYear}
+                {tr('năm {year}', { year: shelterYear })}
               </span>
             </div>
             <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
@@ -536,19 +542,22 @@ export function AccountDetailPage() {
               />
             </div>
             <p className="mt-1.5 text-sm text-fg-secondary">
-              Đã nạp <b>{formatMoney(shelter.used, currency)}</b>
+              {trn('Đã nạp {amount}', { amount: <b>{formatMoney(shelter.used, currency)}</b> })}
               {shelter.limit !== null && <> / {formatMoney(shelter.limit, currency)}</>}
               {shelter.remaining !== null && shelter.remaining > 0 && (
                 <>
                   {' '}
-                  · còn <b>{formatMoney(shelter.remaining, currency)}</b> hạn mức năm nay
+                  {trn('· còn {amount} hạn mức năm nay', {
+                    amount: <b>{formatMoney(shelter.remaining, currency)}</b>,
+                  })}
                 </>
               )}
-              {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
+              {shelter.remaining === 0 && <>{tr(' · đã dùng hết hạn mức')}</>}
             </p>
             <Guide className="mt-0.5 text-2xs text-fg-muted">
-              Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
-              không hoàn lại phần hạn mức đã dùng.
+              {tr(
+                'Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng không hoàn lại phần hạn mức đã dùng.',
+              )}
             </Guide>
           </div>
         )}
@@ -557,7 +566,7 @@ export function AccountDetailPage() {
         {isFixed && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             <div className="flex items-center justify-between text-fg-muted">
-              <span>Giá mua</span>
+              <span>{tr('Giá mua')}</span>
               <Money
                 amount={account?.initial_balance ?? 0}
                 currency={currency}
@@ -567,7 +576,7 @@ export function AccountDetailPage() {
             {dep ? (
               <>
                 <div className="flex items-center justify-between font-medium text-money-out">
-                  <span>Đã khấu hao</span>
+                  <span>{tr('Đã khấu hao')}</span>
                   <span>
                     <Money amount={dep.accumulated} currency={currency} tone="out" showSign />
                     <span className="ml-1 font-mono text-sm">
@@ -577,17 +586,17 @@ export function AccountDetailPage() {
                 </div>
                 <p className="text-sm text-fg-muted">
                   {dep.monthsLeft > 0
-                    ? `Còn ${dep.monthsLeft} tháng nữa là hết vòng đời khấu hao.`
-                    : 'Đã hết vòng đời khấu hao — giá trị giữ ở mức còn lại.'}
+                    ? tr('Còn {n} tháng nữa là hết vòng đời khấu hao.', { n: dep.monthsLeft })
+                    : tr('Đã hết vòng đời khấu hao — giá trị giữ ở mức còn lại.')}
                 </p>
               </>
             ) : (
               <p className="text-sm text-fg-muted">
-                Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ.
+                {tr('Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ.')}
                 {/* E-ink + Gọn: bỏ lời khuyên, giữ trạng thái. */}
                 <span className="eink-gon:hidden">
                   {' '}
-                  Sửa tài khoản để bật khấu hao tự động.
+                  {tr('Sửa tài khoản để bật khấu hao tự động.')}
                 </span>
               </p>
             )}
@@ -596,7 +605,7 @@ export function AccountDetailPage() {
               onClick={() => setShowValuation(true)}
               className={actionButtonClass('primary', 'mt-1')}
             >
-              <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
+              <LineChart className="h-3.5 w-3.5" /> {tr('Cập nhật giá trị thực tế')}
             </button>
           </div>
         )}
@@ -608,7 +617,7 @@ export function AccountDetailPage() {
             {cardStatement?.billed != null && cardStatement.dueISO && (
               <>
                 <div className="flex items-center justify-between text-fg-muted">
-                  <span>Kỳ này · đến hạn {dueDateLabel(cardStatement.dueISO)}</span>
+                  <span>{tr('Kỳ này · đến hạn {date}', { date: dueDateLabel(cardStatement.dueISO) })}</span>
                   <Money
                     amount={cardStatement.billed}
                     currency={currency}
@@ -621,13 +630,13 @@ export function AccountDetailPage() {
                     {/* Nói rõ khoảng ngày: "kỳ sau mới đòi" không cho biết đây là
                         tiền quẹt tháng nào, dễ tưởng trùng tháng đang xem bên dưới */}
                     <span>
-                      Chưa chốt
-                      {unbilledFromISO && ` · từ ${dayMonthLabel(unbilledFromISO)}`}
+                      {tr('Chưa chốt')}
+                      {unbilledFromISO && tr(' · từ {date}', { date: dayMonthLabel(unbilledFromISO) })}
                       {/* Bỏ thứ ở đây: dòng này còn cả tháng rưỡi nữa mới tới, thứ
                           chỉ làm nhãn dài thêm và đẩy sang hai dòng ở cỡ chữ lớn */}
                       {cardStatement.nextDueISO
-                        ? ` · đòi ${dayMonthLabel(cardStatement.nextDueISO)}`
-                        : ' · kỳ sau mới đòi'}
+                        ? tr(' · đòi {date}', { date: dayMonthLabel(cardStatement.nextDueISO) })
+                        : tr(' · kỳ sau mới đòi')}
                     </span>
                     <Money
                       amount={cardStatement.unbilled ?? 0}
@@ -641,7 +650,7 @@ export function AccountDetailPage() {
             {account.credit_limit != null && (
               <>
                 <div className="flex items-center justify-between text-fg-muted">
-                  <span>Còn dùng được</span>
+                  <span>{tr('Còn dùng được')}</span>
                   <Money
                     amount={account.credit_limit - (balance < 0 ? -balance : 0)}
                     currency={currency}
@@ -649,7 +658,7 @@ export function AccountDetailPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between text-fg-muted">
-                  <span>Hạn mức</span>
+                  <span>{tr('Hạn mức')}</span>
                   {/* Không đặt text-fg-primary: dòng này cố ý mờ hơn dòng trên.
                       "đã chiếm N%" là của 19a: hai con số tiền không tự nói được mức
                       dùng thẻ là bình thường hay đang sát trần — phải nhẩm một phép chia
@@ -663,8 +672,9 @@ export function AccountDetailPage() {
                     />
                     {account.credit_limit > 0 && (
                       <span className="tabular-nums text-2xs text-fg-muted">
-                        · đã chiếm{' '}
-                        {Math.round(((balance < 0 ? -balance : 0) / account.credit_limit) * 100)}%
+                        {tr('· đã chiếm {pct}%', {
+                          pct: Math.round(((balance < 0 ? -balance : 0) / account.credit_limit) * 100),
+                        })}
                       </span>
                     )}
                   </span>
@@ -674,14 +684,14 @@ export function AccountDetailPage() {
 
             {account.statement_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
-                <span>Ngày chốt sao kê</span>
-                <span className="font-mono">Ngày {account.statement_day}</span>
+                <span>{tr('Ngày chốt sao kê')}</span>
+                <span className="font-mono">{tr('Ngày {day}', { day: account.statement_day })}</span>
               </div>
             )}
             {account.payment_due_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
-                <span>Ngày đến hạn</span>
-                <span className="font-mono">Ngày {account.payment_due_day}</span>
+                <span>{trx('card', 'Ngày đến hạn')}</span>
+                <span className="font-mono">{tr('Ngày {day}', { day: account.payment_due_day })}</span>
               </div>
             )}
             {/* NGUỒN TRẢ (19a). Đứng CUỐI khối thẻ vì nó là câu trả lời cho "rồi tiền ở
@@ -692,7 +702,7 @@ export function AccountDetailPage() {
               <div className="mt-1 border-t border-border-subtle pt-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="min-w-0 truncate text-fg-muted">
-                    Nguồn trả · {cardFundingGroup.sourceName}
+                    {tr('Nguồn trả · {source}', { source: cardFundingGroup.sourceName })}
                   </span>
                   <Money
                     amount={cardFundingGroup.sourceBalance}
@@ -703,23 +713,25 @@ export function AccountDetailPage() {
                 {cardFundingGroup.totalOwed > 0 &&
                   (cardFundingGroup.enough ? (
                     <p className="mt-1 text-2xs text-fg-muted">
-                      Đủ trả{' '}
-                      {cardFundingGroup.cardCount > 1 &&
-                        `cả ${cardFundingGroup.cardCount} thẻ dùng ví này `}
-                      kỳ tới.
+                      {cardFundingGroup.cardCount > 1
+                        ? tr('Đủ trả cả {n} thẻ dùng ví này kỳ tới.', { n: cardFundingGroup.cardCount })
+                        : tr('Đủ trả kỳ tới.')}
                     </p>
                   ) : (
                     // Câu này chính là câu tin "Tài khoản sắp không đủ tiền" đã nói ở
                     // chuông, và nút của tin đó dẫn về đúng trang này. Không có nó thì
                     // chuỗi đứt ở bước cuối: người dùng bấm nút rồi không thấy con số nào.
                     <p className="mt-1 rounded-md border border-state-bad-border bg-state-bad-bg px-2.5 py-1.5 text-2xs text-state-bad-fg">
-                      Cần nạp thêm{' '}
-                      <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>{' '}
-                      vào {cardFundingGroup.sourceName} mới đủ trả{' '}
                       {cardFundingGroup.cardCount > 1
-                        ? `${cardFundingGroup.cardCount} thẻ dùng ví này`
-                        : 'kỳ tới'}
-                      .
+                        ? trn('Cần nạp thêm {amount} vào {source} mới đủ trả {count} thẻ dùng ví này.', {
+                            amount: <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>,
+                            source: cardFundingGroup.sourceName,
+                            count: cardFundingGroup.cardCount,
+                          })
+                        : trn('Cần nạp thêm {amount} vào {source} mới đủ trả kỳ tới.', {
+                            amount: <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>,
+                            source: cardFundingGroup.sourceName,
+                          })}
                     </p>
                   ))}
               </div>
@@ -731,7 +743,7 @@ export function AccountDetailPage() {
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {(isInvestment || isFixed) && accountValuations.length > 0 && (
         <Card as="section" padding="none" className="mb-3 overflow-hidden">
-          <SectionTitle className="px-4 pt-3">Lịch sử giá trị</SectionTitle>
+          <SectionTitle className="px-4 pt-3">{tr('Lịch sử giá trị')}</SectionTitle>
           <ul className="mt-2 divide-y divide-border-subtle">
             {accountValuations.map((v) => (
               <li key={v.id} className="flex items-center gap-2 px-4 py-2.5">
@@ -747,11 +759,11 @@ export function AccountDetailPage() {
                 <IconButton
                   variant="ghost"
                   onClick={async () => {
-                    if (await confirmDialog({ title: 'Xóa bản ghi giá trị này?', danger: true, confirmLabel: 'Xóa' }))
+                    if (await confirmDialog({ title: tr('Xóa bản ghi giá trị này?'), danger: true, confirmLabel: tr('Xóa') }))
                       deleteValuation.mutate(v.id)
                   }}
                   className="shrink-0 hover:text-money-out"
-                  aria-label="Xóa bản ghi giá trị"
+                  aria-label={tr('Xóa bản ghi giá trị')}
                 >
                   <Trash2 className="h-4 w-4" />
                 </IconButton>
@@ -765,21 +777,20 @@ export function AccountDetailPage() {
       <div className="mb-3 flex items-center gap-2">
         <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
-          aria-label="Tháng trước"
+          aria-label={tr('Tháng trước')}
         >
           <ChevronLeft className="h-5 w-5" />
         </IconButton>
         {/* Thẻ: nói "sao kê" chứ không chỉ số tháng — bên dưới là giao dịch của
             THÁNG TRƯỚC, y như app thẻ, nên tiêu đề phải tự nó giải thích được */}
         <SectionTitle className="flex-1 text-center">
-          {billing ? 'Sao kê ' : ''}
           {billing
-            ? formatMonthLabel(activeMonthKey).toLowerCase()
+            ? tr('Sao kê {month}', { month: formatMonthLabel(activeMonthKey).toLowerCase() })
             : formatMonthLabel(activeMonthKey)}
         </SectionTitle>
         <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
-          aria-label="Tháng sau"
+          aria-label={tr('Tháng sau')}
         >
           <ChevronRight className="h-5 w-5" />
         </IconButton>
@@ -797,17 +808,19 @@ export function AccountDetailPage() {
               phải chiều thu/chi, nên không mượn `showSign` (nó lấy dấu từ màu). */}
           {(() => {
             const chargedLabel = billing
-              ? `Quẹt ${dayMonthLabel(billing.start)} – ${dayMonthLabel(billing.closeISO)}`
-              : `Quẹt trong ${formatMonthLabel(activeMonthKey).toLowerCase()}`
+              ? tr('Quẹt {from} – {to}', { from: dayMonthLabel(billing.start), to: dayMonthLabel(billing.closeISO) })
+              : tr('Quẹt trong {month}', { month: formatMonthLabel(activeMonthKey).toLowerCase() })
             const signOf = (sign: 1 | -1) => <Num tone="muted">{sign < 0 ? '−' : '+'}</Num>
             // Khoản bù: dấu theo tác động lên số phải trả — bớt nợ là TRỪ. Cùng một dấu
             // dù đang dựng phép cộng hay không, để hai kỳ đứng cạnh nhau đọc cùng nghĩa.
             const reconcileRow = (sign: 1 | -1, amount: number) => (
               <div className={`${DUE_ROW} mt-1.5 text-sm`}>
                 <span className="min-w-0 text-fg-muted">
-                  Khoản bù “Điều chỉnh số nợ”
+                  {tr('Khoản bù “Điều chỉnh số nợ”')}
                   <span className="block text-2xs">
-                    {sign < 0 ? 'bớt nợ' : 'thêm nợ'} — không tính vào tiền quẹt
+                    {sign < 0
+                      ? tr('bớt nợ — không tính vào tiền quẹt')
+                      : tr('thêm nợ — không tính vào tiền quẹt')}
                   </span>
                 </span>
                 {signOf(sign)}
@@ -842,16 +855,18 @@ export function AccountDetailPage() {
                             lần trả TRONG kỳ, trước khi trừ khoản bù — nên nó có thể lớn hơn cả
                             số đang nợ, và cái tên cũ làm con số đó đọc như một khoản nợ thật. */}
                         <span className="min-w-0 text-fg-muted">
-                          Chuyển từ kỳ trước
+                          {tr('Chuyển từ kỳ trước')}
                           <span className="block text-2xs">
                             {l.sign < 0
-                              ? 'đã trả dư ở kỳ trước'
-                              : 'dư nợ đầu kỳ − đã trả trong kỳ'}
+                              ? tr('đã trả dư ở kỳ trước')
+                              : tr('dư nợ đầu kỳ − đã trả trong kỳ')}
                           </span>
                           {l.sign > 0 && l.amount > owedNow && (
                             <span className="block text-2xs">
-                              Lớn hơn số đang nợ ({formatMoney(owedNow, currency)}) vì là số trước
-                              khi trừ khoản bù và các lần trả sau ngày chốt.
+                              {tr(
+                                'Lớn hơn số đang nợ ({amount}) vì là số trước khi trừ khoản bù và các lần trả sau ngày chốt.',
+                                { amount: formatMoney(owedNow, currency) },
+                              )}
                             </span>
                           )}
                         </span>
@@ -863,7 +878,7 @@ export function AccountDetailPage() {
                   {/* Vạch kẻ + "=": dòng tổng của phép cộng, đứng cùng cột số với các dòng
                       trên — cách duy nhất để thấy ngay nó KHÁC tổng quẹt. */}
                   <div className={`${DUE_ROW} mt-1.5 border-t border-border-subtle pt-1.5 text-sm`}>
-                    <span className="text-fg-primary">Bị rút {dueDateLabel(billing.dueISO)}</span>
+                    <span className="text-fg-primary">{tr('Bị rút {date}', { date: dueDateLabel(billing.dueISO) })}</span>
                     <Num tone="muted">=</Num>
                     <Money
                       amount={breakdown.total}
@@ -893,7 +908,7 @@ export function AccountDetailPage() {
                   reconcileRow(monthReconcileNet > 0 ? -1 : 1, Math.abs(monthReconcileNet))}
                 {billing && (
                   <div className={`${DUE_ROW} mt-1.5 text-sm`}>
-                    <span className="text-fg-muted">Bị rút ngày</span>
+                    <span className="text-fg-muted">{tr('Bị rút ngày')}</span>
                     <span />
                     <span className="justify-self-end text-fg-muted">
                       {dueDateLabel(billing.dueISO)}
@@ -910,18 +925,19 @@ export function AccountDetailPage() {
             dueAmount != null &&
             dueAmount !== monthCharged && (
               <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-                Số bị rút không bằng tiền quẹt kỳ này — phép cộng trên nói vì sao. Đối chiếu với
-                sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
+                {tr(
+                  'Số bị rút không bằng tiền quẹt kỳ này — phép cộng trên nói vì sao. Đối chiếu với sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.',
+                )}
               </p>
             )
           ) : (
             // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
             // thay vì suy ra một ngày rút sai.
             <p className="mt-1.5 text-sm text-fg-muted">
-              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch.
+              {tr('Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch.')}
               <span className="eink-gon:hidden">
                 {' '}
-                Sửa tài khoản để xem đúng kỳ như app thẻ.
+                {tr('Sửa tài khoản để xem đúng kỳ như app thẻ.')}
               </span>
             </p>
           )}
@@ -931,9 +947,9 @@ export function AccountDetailPage() {
               chung một cột với các dòng của phép cộng là mời người đọc cộng cả nó vào. */}
           {bill && (
             <div className="mt-3 border-t border-border-subtle pt-2">
-              <SectionTitle role="micro">So với hoá đơn nhà thẻ · không thuộc phép cộng trên</SectionTitle>
+              <SectionTitle role="micro">{tr('So với hoá đơn nhà thẻ · không thuộc phép cộng trên')}</SectionTitle>
               <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
-                <span className="text-fg-muted">Hoá đơn nhà thẻ</span>
+                <span className="text-fg-muted">{tr('Hoá đơn nhà thẻ')}</span>
                 <Money
                   amount={bill.total}
                   currency={currency}
@@ -952,10 +968,10 @@ export function AccountDetailPage() {
                       trung tính. */}
                   <span className="text-fg-muted">
                     {bill.reviewed
-                      ? 'Lệch với tiền quẹt — đã xem hết'
+                      ? tr('Lệch với tiền quẹt — đã xem hết')
                       : billGap > 0
-                        ? 'Lệch với tiền quẹt — sổ ghi thừa'
-                        : 'Lệch với tiền quẹt — sổ ghi thiếu'}
+                        ? tr('Lệch với tiền quẹt — sổ ghi thừa')
+                        : tr('Lệch với tiền quẹt — sổ ghi thiếu')}
                   </span>
                   <Money
                     amount={Math.abs(billGap)}
@@ -973,10 +989,10 @@ export function AccountDetailPage() {
                 còn "Chỉnh cho khớp" đẻ một khoản bù làm số khớp ngay — tiện, nhưng chôn
                 luôn dòng ghi sai. */}
             <ActionButton onClick={() => navigate(`/assets/account/${account.id}/sao-ke`)}>
-              <FileUp className="h-3.5 w-3.5" /> Nạp sao kê
+              <FileUp className="h-3.5 w-3.5" /> {tr('Nạp sao kê')}
             </ActionButton>
             <ActionButton onClick={() => setShowMonthAdjust(true)}>
-              <Scale className="h-3.5 w-3.5" /> Chỉnh cho khớp
+              <Scale className="h-3.5 w-3.5" /> {tr('Chỉnh cho khớp')}
             </ActionButton>
           </div>
         </Card>
@@ -984,11 +1000,11 @@ export function AccountDetailPage() {
 
       {/* Lịch sử giao dịch trong tháng */}
       <p className="mb-2 px-1 text-sm text-fg-muted">
-        {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
+        {isLoading ? tr('Đang tải…') : tr('{n} giao dịch', { n: results.length })}
       </p>
       {days.length === 0 && !isLoading ? (
         <EmptyState>
-          Không có giao dịch trong {billing ? 'kỳ này' : 'tháng này'}
+          {billing ? tr('Không có giao dịch trong kỳ này') : tr('Không có giao dịch trong tháng này')}
         </EmptyState>
       ) : (
         days.map(([day, txs]) => (

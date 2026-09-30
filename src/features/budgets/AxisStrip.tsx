@@ -16,6 +16,7 @@ import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { shareLabel, sharePct, type AxisProgress } from './axisTargets'
 import { STATUS_FILL } from '../../components/ui/statusColors'
+import { tr } from '../../i18n'
 
 interface Props {
   data: AxisProgress
@@ -68,10 +69,10 @@ export function AxisStrip({
       <Card padding="sm" className={linkToDetail ? 'hover:bg-surface-sunken' : ''}>
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <span className="min-w-0 truncate text-2xs font-medium text-fg-muted">
-            Cơ cấu chi{data.estimated && ' (tạm tính)'}
-            {missing && <span className="text-fg-warn"> · thiếu {missing} chưa phân loại</span>}
+            {data.estimated ? tr('Cơ cấu chi (tạm tính)') : tr('Cơ cấu chi')}
+            {missing && <span className="text-fg-warn">{tr(' · thiếu {amount} chưa phân loại', { amount: missing })}</span>}
           </span>
-          {linkToDetail && <span className="shrink-0 text-2xs text-fg-accent">Chi tiết</span>}
+          {linkToDetail && <span className="shrink-0 text-2xs text-fg-accent">{tr('Chi tiết')}</span>}
         </div>
 
         {/* aria-hidden: nội dung đã nằm gọn trong aria-label của thẻ liên kết, đọc lại
@@ -130,7 +131,9 @@ export function AxisStrip({
     </>
   )
 
-  const nhan = `Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên các dòng chi đang thiếu.` : ''}`
+  const nhan =
+    tr('Cơ cấu chi: {parts}.', { parts }) +
+    (missing ? tr(' Còn {amount} chi chưa phân loại nên các dòng chi đang thiếu.', { amount: missing }) : '')
 
   if (!linkToDetail) {
     // <section> chứ không <div>: đây là một khối có nội dung riêng, và `aria-label` chỉ
@@ -146,7 +149,7 @@ export function AxisStrip({
     <Link
       to={`/budget?ym=${monthKeyString(monthKey)}`}
       className="mb-3 block"
-      aria-label={`${nhan} Mở tab Ngân sách.`}
+      aria-label={tr('{label} Mở tab Ngân sách.', { label: nhan })}
     >
       {noiDung}
     </Link>

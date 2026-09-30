@@ -14,6 +14,8 @@ import { CHART_TEXT_XS } from '../../lib/chartText'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, type AxisKey } from '../budgets/budgetMethods'
 import { axisMissSummary, axisProgress, sharePct } from '../budgets/axisTargets'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const C = {
   need: '#16a34a',
@@ -65,9 +67,9 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
   // Donut C2 (Cố định/Biến đổi) — chỉ lát > 0
   const c2Slices = [
-    { name: 'Cố định', value: folded.costFixed, color: C.need },
-    { name: 'Biến đổi', value: folded.costVariable, color: C.want },
-    { name: 'Chưa phân loại', value: costUnclassified, color: C.unknown },
+    { name: tr('Cố định'), value: folded.costFixed, color: C.need },
+    { name: tr('Biến đổi'), value: folded.costVariable, color: C.want },
+    { name: trx('class', 'Chưa phân loại'), value: costUnclassified, color: C.unknown },
   ].filter((s) => s.value > 0)
 
   const reducedMotion =
@@ -76,30 +78,32 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
   return (
     <Card as="section">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <SectionTitle>Cơ cấu chi tiêu</SectionTitle>
+        <SectionTitle>{tr('Cơ cấu chi tiêu')}</SectionTitle>
         {unclassifiedCount > 0 && (
           <Link
             to="/settings/categories/classify"
             className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-state-good-fg hover:bg-state-good-bg"
           >
-            Phân loại {unclassifiedCount} danh mục →
+            {tr('Phân loại {n} danh mục →', { n: unclassifiedCount })}
           </Link>
         )}
       </div>
 
       {/* C1 — cơ cấu theo phương pháp đang chọn, trên thu nhập */}
       <SectionTitle as="h3" className="mb-2">
-        Cơ cấu so với mốc <span className="text-fg-muted">(% thu nhập · {method.name})</span>
+        {trn('Cơ cấu so với mốc {detail}', {
+          detail: <span className="text-fg-muted">{tr('(% thu nhập · {method})', { method: method.name })}</span>,
+        })}
       </SectionTitle>
       {income <= 0 || !axis ? (
         <p className="mb-3 rounded-lg bg-surface-page px-3 py-3 text-center text-sm text-fg-muted">
-          Cần có thu nhập trong {periodNoun} để tính cơ cấu.
+          {tr('Cần có thu nhập trong {period} để tính cơ cấu.', { period: periodNoun })}
         </p>
       ) : (
         <div className="mb-4 space-y-2.5">
           {axis.lines.map((l) => {
             const over = !l.ok
-            const suffix = over ? (l.direction === 'cap' ? ' — vượt mục tiêu' : ' — dưới mục tiêu') : ''
+            const suffix = over ? (l.direction === 'cap' ? tr(' — vượt mục tiêu') : tr(' — dưới mục tiêu')) : ''
             return (
               <BreakdownRow
                 key={l.key}
@@ -117,7 +121,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           })}
           {axis.unclassified > 0 && (
             <BreakdownRow
-              icon="" name="Chi chưa phân loại"
+              icon="" name={tr('Chi chưa phân loại')}
               pct={sharePct(axis.unclassified / axis.income)} value={axis.unclassified}
               barPct={(axis.unclassified / axis.income) * 100} color={C.unknown} base={base}
             />
@@ -127,8 +131,15 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               đọc vẫn phải tự tổng hợp thành một kết luận. Nói thẳng ra đây. */}
           <div className="space-y-1.5 pt-0.5">
             {miss && miss.missed.length === 0 ? (
-              <VerdictNote tone="good" short={`Cơ cấu ${method.name} đạt cả ${axis.lines.length} mốc`}>
-                Cả {axis.lines.length} khoản đều trong mốc {method.name} — cơ cấu {periodNoun} không có gì phải sửa.
+              <VerdictNote
+                tone="good"
+                short={tr('Cơ cấu {method} đạt cả {n} mốc', { method: method.name, n: axis.lines.length })}
+              >
+                {tr('Cả {n} khoản đều trong mốc {method} — cơ cấu {period} không có gì phải sửa.', {
+                  n: axis.lines.length,
+                  method: method.name,
+                  period: periodNoun,
+                })}
               </VerdictNote>
             ) : (
               miss?.missed.map((l) =>
@@ -136,21 +147,39 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
                   <VerdictNote
                     key={l.key}
                     tone={l.actual < 0 ? 'bad' : 'warn'}
-                    label="Để dành dưới mục tiêu"
-                    short={l.actual < 0 ? 'Chi vượt thu' : `Để dành ${sharePct(l.share)}% / mục tiêu ${Math.round(l.targetShare * 100)}%`}
+                    label={tr('Để dành dưới mục tiêu')}
+                    short={
+                      l.actual < 0
+                        ? tr('Chi vượt thu')
+                        : tr('Để dành {pct}% / mục tiêu {target}%', {
+                            pct: sharePct(l.share),
+                            target: Math.round(l.targetShare * 100),
+                          })
+                    }
                   >
                     {l.actual < 0
-                      ? `chi vượt thu ${periodNoun}, tức là đang rút vào tiền cũ.`
-                      : `giữ được ${sharePct(l.share)}% thu nhập, mục tiêu là ${Math.round(l.targetShare * 100)}%.`}
+                      ? tr('chi vượt thu {period}, tức là đang rút vào tiền cũ.', { period: periodNoun })
+                      : tr('giữ được {pct}% thu nhập, mục tiêu là {target}%.', {
+                          pct: sharePct(l.share),
+                          target: Math.round(l.targetShare * 100),
+                        })}
                   </VerdictNote>
                 ) : (
                   <VerdictNote
                     key={l.key}
                     tone="warn"
-                    label={`${l.label} vượt mục tiêu`}
-                    short={`${l.label} ${sharePct(l.share)}% / mục tiêu ${Math.round(l.targetShare * 100)}%`}
+                    label={tr('{name} vượt mục tiêu', { name: l.label })}
+                    short={tr('{name} {pct}% / mục tiêu {target}%', {
+                      name: l.label,
+                      pct: sharePct(l.share),
+                      target: Math.round(l.targetShare * 100),
+                    })}
                   >
-                    {sharePct(l.share)}% thu nhập (mục tiêu ≤ {Math.round(l.targetShare * 100)}%) — {l.hint}.
+                    {tr('{pct}% thu nhập (mục tiêu ≤ {target}%) — {hint}.', {
+                      pct: sharePct(l.share),
+                      target: Math.round(l.targetShare * 100),
+                      hint: l.hint,
+                    })}
                   </VerdictNote>
                 ),
               )
@@ -161,18 +190,21 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
       {/* C2 — Cố định vs Biến đổi trên tổng chi (donut + thanh) */}
       <SectionTitle as="h3" className="mb-2">
-        Cố định vs Biến đổi <span className="text-fg-muted">(% chi tiêu)</span>
+        {trn('Cố định vs Biến đổi {detail}', { detail: <span className="text-fg-muted">{tr('(% chi tiêu)')}</span> })}
       </SectionTitle>
       {totalExpense <= 0 ? (
         <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-sm text-fg-muted">
-          Chưa có chi tiêu trong {periodNoun}.
+          {tr('Chưa có chi tiêu trong {period}.', { period: periodNoun })}
         </p>
       ) : (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div
             className="relative mx-auto h-36 w-36 shrink-0"
             role="img"
-            aria-label={`Cố định ${pctOfExpense(folded.costFixed).toFixed(0)}%, biến đổi ${pctOfExpense(folded.costVariable).toFixed(0)}% trên tổng chi`}
+            aria-label={tr('Cố định {fixed}%, biến đổi {variable}% trên tổng chi', {
+              fixed: pctOfExpense(folded.costFixed).toFixed(0),
+              variable: pctOfExpense(folded.costVariable).toFixed(0),
+            })}
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -204,7 +236,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
               aria-hidden="true"
             >
-              <span className="text-2xs leading-none text-fg-muted">Tổng chi</span>
+              <span className="text-2xs leading-none text-fg-muted">{tr('Tổng chi')}</span>
               <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-fg-primary">
                 {formatCompact(totalExpense, base)}
               </span>
@@ -212,18 +244,18 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           </div>
           <div className="flex-1 space-y-2.5">
             <BreakdownRow
-              icon="" name="Cố định"
+              icon="" name={tr('Cố định')}
               pct={pctOfExpense(folded.costFixed)} value={folded.costFixed}
               barPct={pctOfExpense(folded.costFixed)} color={C.need} base={base}
             />
             <BreakdownRow
-              icon="" name="Biến đổi"
+              icon="" name={tr('Biến đổi')}
               pct={pctOfExpense(folded.costVariable)} value={folded.costVariable}
               barPct={pctOfExpense(folded.costVariable)} color={C.want} base={base}
             />
             {costUnclassified > 0 && (
               <BreakdownRow
-                icon="" name="Chưa phân loại"
+                icon="" name={trx('class', 'Chưa phân loại')}
                 pct={pctOfExpense(costUnclassified)} value={costUnclassified}
                 barPct={pctOfExpense(costUnclassified)} color={C.unknown} base={base}
               />
@@ -236,23 +268,23 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       {folded.emergencyCut > 0 ? (
         <p className="mt-3 rounded-lg bg-state-warn-bg px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           {visual ? (
-            <>
-              Cắt gấp được tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> (
-              {pctOfExpense(folded.emergencyCut).toFixed(0)}% chi)
-            </>
+            trn('Cắt gấp được tối đa {amount} ({pct}% chi)', {
+              amount: <b>{formatMoney(folded.emergencyCut, base)}</b>,
+              pct: pctOfExpense(folded.emergencyCut).toFixed(0),
+            })
           ) : (
-            <>
-              Cần cắt giảm gấp? Có thể cắt tối đa{' '}
-              <b>{formatMoney(folded.emergencyCut, base)}</b> trong {periodNoun} ở nhóm Linh hoạt ×
-              Biến đổi ({pctOfExpense(folded.emergencyCut).toFixed(0)}% chi tiêu).
-            </>
+            trn('Cần cắt giảm gấp? Có thể cắt tối đa {amount} trong {period} ở nhóm Linh hoạt × Biến đổi ({pct}% chi tiêu).', {
+              amount: <b>{formatMoney(folded.emergencyCut, base)}</b>,
+              period: periodNoun,
+              pct: pctOfExpense(folded.emergencyCut).toFixed(0),
+            })
           )}
         </p>
       ) : (
         // E-ink + Gọn: bỏ lời gợi ý — link "Phân loại … danh mục" ở đầu thẻ đã là đường bấm.
         totalExpense > 0 && (
           <p className="mt-3 text-center text-sm text-fg-muted eink-gon:hidden">
-            Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.
+            {tr('Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.')}
           </p>
         )
       )}

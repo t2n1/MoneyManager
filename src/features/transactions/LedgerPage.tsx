@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { tr, trx } from '../../i18n'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
@@ -51,11 +52,11 @@ import { SummaryView } from './SummaryView'
 import { useTxSelection } from './useTxSelection'
 
 const VIEWS = [
-  { key: 'daily', label: 'Ngày' },
-  { key: 'calendar', label: 'Lịch' },
-  { key: 'monthly', label: 'Tháng' },
-  { key: 'summary', label: 'Tổng hợp' },
-] as const
+  { key: 'daily' as const, label: trx('view', 'Ngày') },
+  { key: 'calendar' as const, label: tr('Lịch') },
+  { key: 'monthly' as const, label: tr('Tháng') },
+  { key: 'summary' as const, label: tr('Tổng hợp') },
+]
 
 type LedgerView = (typeof VIEWS)[number]['key']
 
@@ -238,7 +239,7 @@ export function LedgerPage() {
     })
     qc.invalidateQueries({ queryKey: ['transactions'] })
     qc.invalidateQueries({ queryKey: ['balances'] })
-    showUndoToast('Đã nhân bản sang hôm nay', async () => {
+    showUndoToast(tr('Đã nhân bản sang hôm nay'), async () => {
       await repo.deleteTransaction(row.id)
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
@@ -250,10 +251,10 @@ export function LedgerPage() {
     if (ids.length === 0) return
     if (
       !(await confirmDialog({
-        title: `Xóa ${ids.length} giao dịch?`,
-        message: 'Xóa xong còn 5 giây để bấm Hoàn tác.',
+        title: tr('Xóa {n} giao dịch?', { n: ids.length }),
+        message: tr('Xóa xong còn 5 giây để bấm Hoàn tác.'),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
@@ -264,7 +265,7 @@ export function LedgerPage() {
     const tagsOf = new Map(snapshot.map((t) => [t.id, (tagsOfTx.get(t.id) ?? []).map((g) => g.id)]))
     await bulkDelete.mutateAsync(ids)
     selection.exit()
-    showUndoToast(`Đã xóa ${ids.length} giao dịch`, async () => {
+    showUndoToast(tr('Đã xóa {n} giao dịch', { n: ids.length }), async () => {
       // Tuần tự: repo demo ghi thẳng vào localStorage nên chạy song song dễ ghi đè nhau.
       for (const t of snapshot) {
         await repo.createTransaction(toNewTransaction(t, tagsOf.get(t.id)))
@@ -298,7 +299,7 @@ export function LedgerPage() {
   )
   const yearHasForeign = yearTxs.some((t) => currencyOf(t.account_id) !== base)
 
-  const label = yearNav ? `Năm ${activeMonthKey.year}` : formatMonthLabel(activeMonthKey)
+  const label = yearNav ? tr('Năm {year}', { year: activeMonthKey.year }) : formatMonthLabel(activeMonthKey)
   const step = yearNav ? 12 : 1
 
   // HAI CỘT từ lg (bản vẽ 10a; cột phụ 420px theo §1.4).
@@ -338,7 +339,7 @@ export function LedgerPage() {
           hàng trên (nhãn tháng canh giữa cả bề rộng, gọn hơn hàng cũ), bốn nút hành động
           xuống hàng dưới canh phải; từ ~768px trở lên vẫn đủ chỗ cho một hàng.
           Guard: src/features/transactions/ledgerHeaderFit.test.ts */}
-      <PageHeader title="Sổ">
+      <PageHeader title={tr('Sổ')}>
         {/* Bộ chuyển kỳ chỉ còn ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên
             top bar. Bốn nút hành động bên phải thì Ở LẠI cả hai cỡ — top bar chỉ mang
             ô tìm kiếm, còn Sắp chi / Định kỳ / chuông là đường đi riêng của màn này.
@@ -354,7 +355,7 @@ export function LedgerPage() {
         <div className="flex items-center gap-1 lg:hidden">
           <IconButton
             onClick={() => stepMonth(-step)}
-            aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
+            aria-label={yearNav ? tr('Năm trước') : tr('Tháng trước')}
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
@@ -364,23 +365,23 @@ export function LedgerPage() {
           </p>
           <IconButton
             onClick={() => stepMonth(step)}
-            aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
+            aria-label={yearNav ? tr('Năm sau') : tr('Tháng sau')}
           >
             <ChevronRight className="h-5 w-5" />
           </IconButton>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
+          <Link to="/search" className={iconButtonClass()} aria-label={tr('Tìm kiếm giao dịch')}>
             <Search className="h-5 w-5" />
           </Link>
           {/* Định kỳ dời từ Cài đặt về đây (nó là giao dịch tương lai, không phải cấu hình).
               Đặt ở header chứ KHÔNG thành tab con thứ 5: 5 mục segmented control quá chật
               trên mobile, và đây là danh sách quy tắc chứ không phải một cách xem cùng dữ
               liệu như 4 tab kia. Xem docs/information-architecture.md §2.1. */}
-          <Link to="/planned" className={iconButtonClass()} aria-label="Khoản sắp chi">
+          <Link to="/planned" className={iconButtonClass()} aria-label={tr('Khoản sắp chi')}>
             <CalendarClock className="h-5 w-5" />
           </Link>
-          <Link to="/recurring" className={iconButtonClass()} aria-label="Giao dịch định kỳ">
+          <Link to="/recurring" className={iconButtonClass()} aria-label={tr('Giao dịch định kỳ')}>
             <Repeat className="h-5 w-5" />
           </Link>
           <NotificationBoundary>
@@ -399,7 +400,7 @@ export function LedgerPage() {
           items={VIEWS.map((v) => ({ value: v.key, label: v.label }))}
           value={view}
           onChange={setView}
-          label="Cách xem sổ giao dịch"
+          label={tr('Cách xem sổ giao dịch')}
           stretch="lg"
           // `basis-full`, không `w-full`: SegmentedControl tự đặt `lg:w-fit`, nên hai
           // tiện ích `w-*` cùng hạng sẽ đấu nhau theo thứ tự trong CSS build ra.
@@ -408,7 +409,7 @@ export function LedgerPage() {
         {view === 'calendar' && (
           <div className="ml-auto hidden items-center gap-5 text-sm lg:flex">
             <span className="flex items-baseline gap-1.5 text-fg-muted">
-              Thu
+              {tr('Thu')}
               {periodIncome ? (
                 <Money
                   amount={periodIncome.value}
@@ -425,7 +426,7 @@ export function LedgerPage() {
               )}
             </span>
             <span className="flex items-baseline gap-1.5 text-fg-muted">
-              Chi
+              {tr('Chi')}
               {periodExpense ? (
                 <Money
                   amount={periodExpense.value}
@@ -442,7 +443,7 @@ export function LedgerPage() {
               )}
             </span>
             <span className="flex items-baseline gap-1.5 text-fg-muted">
-              Còn lại
+              {tr('Còn lại')}
               {/* Thiếu tỷ giá thì KHÔNG in một số cộng thiếu: hai vế trên đã tách theo
                   loại tiền, mà chênh lệch giữa hai loại tiền khác nhau thì vô nghĩa. */}
               {periodNet === null ? (
@@ -461,13 +462,13 @@ export function LedgerPage() {
             {/* 36px, không phải 44px của `IconButton`: chúng nhập vào hàng tab để tiết
                 kiệm một hàng, mà một nút 44px thì cao hơn cả dải tab. Bản 44px vẫn còn
                 nguyên ở hàng trên cho mobile — nơi vùng chạm mới là ràng buộc. */}
-            <Link to="/search" aria-label="Tìm kiếm giao dịch" className={DESK_ICON}>
+            <Link to="/search" aria-label={tr('Tìm kiếm giao dịch')} className={DESK_ICON}>
               <Search className="h-4 w-4" />
             </Link>
-            <Link to="/planned" aria-label="Khoản sắp chi" className={`${DESK_ICON} -ml-3`}>
+            <Link to="/planned" aria-label={tr('Khoản sắp chi')} className={`${DESK_ICON} -ml-3`}>
               <CalendarClock className="h-4 w-4" />
             </Link>
-            <Link to="/recurring" aria-label="Giao dịch định kỳ" className={`${DESK_ICON} -ml-3`}>
+            <Link to="/recurring" aria-label={tr('Giao dịch định kỳ')} className={`${DESK_ICON} -ml-3`}>
               <Repeat className="h-4 w-4" />
             </Link>
           </div>
@@ -580,7 +581,7 @@ export function LedgerPage() {
           monthKey={activeMonthKey}
           heat={heat}
           topCategories={topCategories}
-          nameOf={(id) => categoryOf(id)?.name ?? 'Chưa rõ'}
+          nameOf={(id) => categoryOf(id)?.name ?? tr('Chưa rõ')}
           iconOf={(id) => categoryOf(id)?.icon}
           expenseTotal={expenseBreakdown.total}
           base={base}

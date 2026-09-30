@@ -10,6 +10,8 @@ import { ActionButton, Card, Num } from '../../components/ui'
 import { useCreateTrip, useTrips } from '../../hooks/queries'
 import type { TransactionRow } from '../../types/database.types'
 import { doKhoangVang, nhanNgayVang } from './ngayDiVang'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export function TripGapCard({
   txs,
@@ -44,15 +46,17 @@ export function TripGapCard({
   return (
     <Card as="section" elevation="panel" padding="panel">
       <p className="text-sm text-fg-primary">
-        <Num tone="neutral">{g.soNgay}</Num> ngày không có giao dịch nào (
-        {nhanNgayVang(g.startISO)} → {nhanNgayVang(g.endISO)}) — anh đi vắng?
+        {trn('{days} ngày không có giao dịch nào ({from} → {to}) — anh đi vắng?', {
+          days: <Num tone="neutral">{g.soNgay}</Num>,
+          from: nhanNgayVang(g.startISO),
+          to: nhanNgayVang(g.endISO),
+        })}
       </p>
       {/* Chữ DẠY — bọc Guide (biến mất ở chế độ Gọn là đúng): câu hỏi + hai nút ở trên
           và dưới tự đứng được, đoạn này chỉ giải thích cơ chế. designSystem.test.ts canh
           trần số đoạn fg-muted và chỉ cho qua đường này. */}
       <Guide className="mt-1 text-sm text-fg-muted">
-        Đánh dấu là chuyến đi thì "TB 3 tháng", "so với tháng trước" và dự báo sẽ bỏ những
-        ngày này ra — tháng đó thôi trông rẻ giả.
+        {tr('Đánh dấu là chuyến đi thì "TB 3 tháng", "so với tháng trước" và dự báo sẽ bỏ những ngày này ra — tháng đó thôi trông rẻ giả.')}
       </Guide>
       <div className="mt-3 flex justify-end gap-2">
         <button
@@ -61,14 +65,14 @@ export function TripGapCard({
           disabled={createTrip.isPending}
           className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
         >
-          Không phải, đừng hỏi lại
+          {tr('Không phải, đừng hỏi lại')}
         </button>
         <ActionButton
           variant="primary"
           onClick={() => traLoi(false)}
           disabled={createTrip.isPending}
         >
-          {createTrip.isPending ? 'Đang lưu…' : 'Đánh dấu là chuyến đi'}
+          {createTrip.isPending ? tr('Đang lưu…') : tr('Đánh dấu là chuyến đi')}
         </ActionButton>
       </div>
     </Card>

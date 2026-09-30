@@ -31,6 +31,8 @@ import {
   verdictShort,
 } from './summary'
 import type { useLifetime } from './useLifetime'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
   const { scenarios, active, activeId, setActiveId, rows, input, isLoading, fxOf } = lt
@@ -47,19 +49,19 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
   const missing = useMemo(() => (input ? missingRateCurrencies(input, fxOf) : []), [input, fxOf])
   const phases = useMemo(() => (input ? phaseDigest(input, rows) : []), [input, rows])
 
-  if (isLoading) return <EmptyState>Đang tải…</EmptyState>
+  if (isLoading) return <EmptyState>{tr('Đang tải…')}</EmptyState>
 
   if (scenarios.length === 0) {
     return (
       <Card as="section">
         <EmptyState compact>
-          Chưa có kịch bản nào. Mở trang này trên máy tính để tạo kịch bản đầu tiên.
+          {tr('Chưa có kịch bản nào. Mở trang này trên máy tính để tạo kịch bản đầu tiên.')}
         </EmptyState>
       </Card>
     )
   }
 
-  if (!active || !input) return <EmptyState>Đang tải…</EmptyState>
+  if (!active || !input) return <EmptyState>{tr('Đang tải…')}</EmptyState>
 
   const currency = input.displayCurrency
   const approx = missing.length > 0
@@ -70,7 +72,7 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
     <div className="flex min-w-0 flex-col gap-3">
       {/* --- Kịch bản đã lưu — chọn để xem ------------------------------------------ */}
       <Card as="section">
-        <SectionTitle>Kịch bản đã lưu</SectionTitle>
+        <SectionTitle>{tr('Kịch bản đã lưu')}</SectionTitle>
         <div className="mt-2 flex flex-wrap gap-2">
           {scenarios.map((s) => (
             <FilterChip
@@ -82,13 +84,13 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
             >
               {s.is_primary && <Star className="h-3 w-3 shrink-0" aria-hidden="true" />}
               <span className="truncate">{s.name}</span>
-              {s.is_primary && <span className="sr-only">(kịch bản chính)</span>}
+              {s.is_primary && <span className="sr-only">{tr('(kịch bản chính)')}</span>}
             </FilterChip>
           ))}
         </div>
         {/* E-ink + Gọn: bỏ lời dặn và định nghĩa, giữ con số. */}
         <p className="mt-2 text-sm text-fg-muted eink-gon:hidden">
-          Đây là bản xem nhanh. Muốn chỉnh kế hoạch thì mở trên máy tính.
+          {tr('Đây là bản xem nhanh. Muốn chỉnh kế hoạch thì mở trên máy tính.')}
         </p>
       </Card>
 
@@ -104,25 +106,24 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
             {/* Nghĩa của "tự do tài chính" viết ra chữ — trên điện thoại không có rê chuột
                 để đọc `title` (mục 26). */}
             <p className="mt-2 text-sm text-fg-secondary">
-              Tự do tài chính
+              {tr('Tự do tài chính')}
               <span className="eink-gon:hidden"> ({FIRE_MEANING})</span>:{' '}
-              {verdict.fireYear !== null ? (
-                <>
-                  năm <Num>{verdict.fireYear}</Num>, tuổi <Num>{verdict.fireAge}</Num>.
-                </>
-              ) : (
-                'chưa đạt trong bản chiếu này.'
-              )}
+              {verdict.fireYear !== null
+                ? trn('năm {year}, tuổi {age}.', {
+                    year: <Num>{verdict.fireYear}</Num>,
+                    age: <Num>{verdict.fireAge}</Num>,
+                  })
+                : tr('chưa đạt trong bản chiếu này.')}
             </p>
             <div className="mt-3 flex flex-col gap-1.5 border-t border-border-subtle pt-3 text-sm">
-              <Row label={`Tài sản lúc ${input.endAge} tuổi`}>
+              <Row label={tr('Tài sản lúc {age} tuổi', { age: input.endAge })}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
                   <Money amount={atEnd.center} currency={currency} compact tone="bySign" approx={approx} />
                 )}
               </Row>
-              <Row label="Nếu bi quan">
+              <Row label={tr('Nếu bi quan')}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
@@ -132,7 +133,7 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
             </div>
             {approx && (
               <p className="mt-2 text-sm text-fg-warn">
-                Chưa tra được tỷ giá {missing.join(', ')} — các số có dấu ≈ còn thiếu phần đó.
+                {tr('Chưa tra được tỷ giá {currencies} — các số có dấu ≈ còn thiếu phần đó.', { currencies: missing.join(', ') })}
               </p>
             )}
           </>
@@ -141,32 +142,35 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
 
       {/* --- Giả định chính ------------------------------------------------------------ */}
       <Card as="section">
-        <SectionTitle>Giả định của kịch bản</SectionTitle>
+        <SectionTitle>{tr('Giả định của kịch bản')}</SectionTitle>
         <div className="mt-2 flex flex-col gap-1.5 text-sm">
-          <Row label="Năm sinh">
+          <Row label={tr('Năm sinh')}>
             <Num>{input.birthYear}</Num>
           </Row>
-          <Row label="Chiếu đến">
+          <Row label={tr('Chiếu đến')}>
             <span>
-              tuổi <Num>{input.endAge}</Num> (năm <Num>{input.birthYear + input.endAge}</Num>)
+              {trn('tuổi {age} (năm {year})', {
+                age: <Num>{input.endAge}</Num>,
+                year: <Num>{input.birthYear + input.endAge}</Num>,
+              })}
             </span>
           </Row>
-          <Row label="Tài sản khởi điểm">
+          <Row label={tr('Tài sản khởi điểm')}>
             <Money amount={input.startingAssetsMinor} currency={currency} compact />
           </Row>
-          <Row label="Lợi suất thực">
+          <Row label={tr('Lợi suất thực')}>
             <Num>{pctPerYear(input.realReturnBps)}</Num>
           </Row>
-          <Row label="Dải dao động">
+          <Row label={tr('Dải dao động')}>
             <Num tone="warn">±{pctPerYear(input.bandSpreadBps)}</Num>
           </Row>
-          <Row label="Lạm phát chi tiêu">
+          <Row label={tr('Lạm phát chi tiêu')}>
             {inflation.active ? <Num>{inflation.text}</Num> : <span>{inflation.text}</span>}
           </Row>
         </div>
 
         <SectionTitle role="micro" as="h3" className="mt-4">
-          Chặng đời
+          {tr('Chặng đời')}
         </SectionTitle>
         <ul className="mt-1.5 flex flex-col">
           {phases.map((p) => (
@@ -178,17 +182,17 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
                 <span className="min-w-0 truncate font-medium text-fg-primary">{p.label}</span>
                 <span className="shrink-0 text-fg-muted">
                   <Num tone="muted">{p.start}</Num>
-                  {p.end === null ? ' trở đi' : <>–<Num tone="muted">{p.end}</Num></>}
+                  {p.end === null ? ` ${tr('trở đi')}` : <>–<Num tone="muted">{p.end}</Num></>}
                 </span>
               </div>
               {p.incomeMinor === null || p.expenseMinor === null ? (
-                <p className="text-fg-muted">Đã qua</p>
+                <p className="text-fg-muted">{tr('Đã qua')}</p>
               ) : (
                 <p className="text-fg-secondary">
-                  Thu <Money amount={p.incomeMinor} currency={currency} compact tone="in" approx={approx} />
-                  {' · '}Chi{' '}
-                  <Money amount={p.expenseMinor} currency={currency} compact tone="out" approx={approx} />
-                  {' '}mỗi năm
+                  {trn('Thu {income} · Chi {expense} mỗi năm', {
+                    income: <Money amount={p.incomeMinor} currency={currency} compact tone="in" approx={approx} />,
+                    expense: <Money amount={p.expenseMinor} currency={currency} compact tone="out" approx={approx} />,
+                  })}
                 </p>
               )}
             </li>
@@ -196,10 +200,10 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
         </ul>
 
         <SectionTitle role="micro" as="h3" className="mt-4">
-          Mốc cuộc đời
+          {tr('Mốc cuộc đời')}
         </SectionTitle>
         {events.length === 0 ? (
-          <p className="mt-1.5 text-sm text-fg-muted">Kế hoạch chưa có mốc nào.</p>
+          <p className="mt-1.5 text-sm text-fg-muted">{tr('Kế hoạch chưa có mốc nào.')}</p>
         ) : (
           <ul className="mt-1.5 flex flex-col gap-1 text-sm">
             {events.map((e) => (
@@ -219,19 +223,19 @@ export function TuongLaiMobile({ lt }: { lt: ReturnType<typeof useLifetime> }) {
           `netFlowMinor` — gồm cả tiền của các mốc, tức đúng phần làm tài sản đổi trong năm. */}
       <Card as="section" padding="none">
         <div className="px-4 pt-4">
-          <SectionTitle>Theo từng năm</SectionTitle>
+          <SectionTitle>{tr('Theo từng năm')}</SectionTitle>
         </div>
         <table className="mt-2 w-full table-fixed text-sm">
           <thead>
             <tr className="text-2xs text-fg-muted">
               <th scope="col" className="px-4 py-1.5 text-left font-medium">
-                Năm · tuổi
+                {tr('Năm · tuổi')}
               </th>
               <th scope="col" className="py-1.5 text-right font-medium">
-                Tài sản cuối năm
+                {tr('Tài sản cuối năm')}
               </th>
               <th scope="col" className="px-4 py-1.5 text-right font-medium">
-                Thu − chi
+                {tr('Thu − chi')}
               </th>
             </tr>
           </thead>

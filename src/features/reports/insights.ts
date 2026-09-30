@@ -6,6 +6,7 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import type { CurrencyOf } from './aggregate'
 import { compareClause } from './headline'
+import { tr } from '../../i18n'
 
 /** (thu − chi) / thu. income <= 0 → null. Có thể âm nếu chi > thu. */
 export function savingsRate(income: number, expense: number): number | null {
@@ -53,8 +54,11 @@ export function buildInsights(
       id: 'vs-prev',
       text:
         pct === 0
-          ? `Tháng này chi ${fmt(expenseThis)}, ngang tháng trước.`
-          : `Tháng này chi ${fmt(expenseThis)}, ${compareClause(pct, 'tháng trước')}.`,
+          ? tr('Tháng này chi {amount}, ngang tháng trước.', { amount: fmt(expenseThis) })
+          : tr('Tháng này chi {amount}, {cmp}.', {
+              amount: fmt(expenseThis),
+              cmp: compareClause(pct, tr('tháng trước')),
+            }),
     })
   }
 
@@ -62,7 +66,7 @@ export function buildInsights(
     const pct = Math.round((topCategoryAmount / expenseTotal) * 100)
     out.push({
       id: 'top-cat',
-      text: `${topCategoryName} chiếm ${pct}% tổng chi tháng này.`,
+      text: tr('{name} chiếm {pct}% tổng chi tháng này.', { name: topCategoryName, pct }),
     })
   }
 

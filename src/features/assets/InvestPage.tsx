@@ -16,12 +16,13 @@ import { PageHeader, SegmentedControl, type SegmentedItem } from '../../componen
 import { useAccounts } from '../../hooks/queries'
 import { InvestFundsTab } from './InvestFundsTab'
 import { InvestStocksTab } from './InvestStocksTab'
+import { tr, trx } from '../../i18n'
 
 type InvestTab = 'stocks' | 'funds'
 
 const TABS: readonly SegmentedItem<InvestTab>[] = [
-  { value: 'stocks', label: 'Cổ phiếu VN' },
-  { value: 'funds', label: 'Quỹ Nhật' },
+  { value: 'stocks', label: tr('Cổ phiếu VN') },
+  { value: 'funds', label: tr('Quỹ Nhật') },
 ]
 
 const isTab = (v: string | null): v is InvestTab => TABS.some((t) => t.value === v)
@@ -78,7 +79,7 @@ export function InvestPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Đầu tư" back="/assets" flush />
+      <PageHeader title={tr('Đầu tư')} back="/assets" flush />
 
       {tab && (
         <>
@@ -86,7 +87,7 @@ export function InvestPage() {
             items={TABS}
             value={tab}
             onChange={setTab}
-            label="Loại danh mục"
+            label={trx('portfolio', 'Loại danh mục')}
             stretch="lg"
           />
 

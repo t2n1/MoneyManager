@@ -8,6 +8,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { PlannedExpenseRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 /** Khoảng cách ngày (b − a); cả hai là ISO 'YYYY-MM-DD'. */
 export function daysUntil(fromISO: string, toISO: string): number {
@@ -63,18 +64,18 @@ export interface PlannedRowStatus {
 export function plannedRowStatus(r: PlannedExpenseRow, todayISO: string): PlannedRowStatus {
   const month = r.due_precision === 'month'
   const left = daysUntil(todayISO, month ? lastDayOfMonthISO(r.due_on) : r.due_on)
-  if (left < 0) return { level: 'overdue', overdueDays: -left, label: `Quá hạn ${-left} ngày` }
+  if (left < 0) return { level: 'overdue', overdueDays: -left, label: tr('Quá hạn {n} ngày', { n: -left }) }
   if (month) {
-    return { level: 'month', overdueDays: 0, label: `Trong tháng ${Number(r.due_on.slice(5, 7))}` }
+    return { level: 'month', overdueDays: 0, label: tr('Trong tháng {m}', { m: Number(r.due_on.slice(5, 7)) }) }
   }
   if (left <= PLANNED_SOON_DAYS) {
     return {
       level: 'soon',
       overdueDays: 0,
-      label: left === 0 ? 'Đến hạn hôm nay' : `Còn ${left} ngày`,
+      label: left === 0 ? tr('Đến hạn hôm nay') : tr('Còn {n} ngày', { n: left }),
     }
   }
-  return { level: 'later', overdueDays: 0, label: `Còn ${left} ngày` }
+  return { level: 'later', overdueDays: 0, label: tr('Còn {n} ngày', { n: left }) }
 }
 
 /**

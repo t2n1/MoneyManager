@@ -5,6 +5,7 @@
 // kỳ sau nào để nhắc nữa.
 import { addDaysISO } from '../../../lib/dates'
 import { plannedDue } from '../../planned/planned'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 export function plannedRules(input: NotificationInput): AppNotification[] {
@@ -25,16 +26,20 @@ export function plannedRules(input: NotificationInput): AppNotification[] {
       // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
       title:
         d.daysLeft < 0
-          ? `Chưa chi "${d.title}"${money}`
+          ? tr('Chưa chi "{name}"{amount}', { name: d.title, amount: money })
           : d.duePrecision === 'month'
-            ? `Trong tháng ${Number(d.dueISO.slice(5, 7))} cần chi "${d.title}"${money}`
+            ? tr('Trong tháng {month} cần chi "{name}"{amount}', {
+                month: Number(d.dueISO.slice(5, 7)),
+                name: d.title,
+                amount: money,
+              })
             : d.daysLeft === 0
-              ? `Hôm nay tới hạn "${d.title}"${money}`
-              : `${d.daysLeft} ngày nữa tới hạn "${d.title}"${money}`,
+              ? tr('Hôm nay tới hạn "{name}"{amount}', { name: d.title, amount: money })
+              : tr('{n} ngày nữa tới hạn "{name}"{amount}', { n: d.daysLeft, name: d.title, amount: money }),
       detail:
         d.daysLeft < 0
-          ? `Quá hạn ${-d.daysLeft} ngày. Bấm để ghi khoản này.`
-          : 'Bấm để ghi khoản này, hoặc dời hạn / bỏ nếu không cần nữa.',
+          ? tr('Quá hạn {n} ngày. Bấm để ghi khoản này.', { n: -d.daysLeft })
+          : tr('Bấm để ghi khoản này, hoặc dời hạn / bỏ nếu không cần nữa.'),
       // Khoản chỉ biết tháng: đưa HẠN CHÓT (ngày cuối tháng) chứ không phải ngày 1 đang
       // lưu — Việc cần làm tính nhãn và "có hạn trong tuần" từ đây, đưa ngày 1 là cả
       // tháng 9 hiện đỏ "QUÁ HẠN" dưới tiêu đề "Trong tháng 9…".

@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { isDemoMode } from '../../lib/demo'
 import { useAuth } from './AuthProvider'
+import { tr } from '../../i18n'
 
 export function RequireAuth() {
   const { session, loading } = useAuth()
@@ -10,7 +11,7 @@ export function RequireAuth() {
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-surface-page text-fg-muted">
-        Đang tải…
+        {tr('Đang tải…')}
       </div>
     )
   }

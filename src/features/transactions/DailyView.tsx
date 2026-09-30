@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
+import { tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
@@ -75,7 +76,7 @@ export function DailyView({
             onClick={onToggleSelecting}
             className="inline-flex min-h-11 items-center justify-center px-2 text-sm font-medium text-fg-accent"
           >
-            {selecting ? 'Xong' : 'Chọn'}
+            {selecting ? tr('Xong') : tr('Chọn')}
           </button>
         </div>
       )}
@@ -83,9 +84,9 @@ export function DailyView({
       {aboveList}
 
       {isLoading ? (
-        <EmptyState>Đang tải…</EmptyState>
+        <EmptyState>{tr('Đang tải…')}</EmptyState>
       ) : days.length === 0 ? (
-        <EmptyState>Chưa có giao dịch trong tháng này</EmptyState>
+        <EmptyState>{tr('Chưa có giao dịch trong tháng này')}</EmptyState>
       ) : (
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
@@ -109,7 +110,7 @@ export function DailyView({
                 {balanceOfDay?.get(day) !== undefined && (
                   <span
                     className="hidden font-mono text-2xs text-fg-muted sm:inline"
-                    title="Số dư chạy từ đầu kỳ tới hết ngày này"
+                    title={tr('Số dư chạy từ đầu kỳ tới hết ngày này')}
                   >
                     Σ{' '}
                     <span

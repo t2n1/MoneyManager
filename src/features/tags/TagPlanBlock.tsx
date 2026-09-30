@@ -9,6 +9,7 @@
 // thanh tiến độ. Tháng chưa bắt đầu thì chưa tiêu đồng nào, nên thanh tiến độ của trần
 // THÁNG luôn rỗng — vẽ ra chỉ là ba cái khung trắng. Câu hỏi ở đây là "tháng tới còn tiêu
 // được bao nhiêu trong trần này", và chỉ trần CẢ ĐỢT mới có tiến độ đáng vẽ.
+import { tr } from '../../i18n'
 import { Link } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
 import { Guide } from '../../components/Guide'
@@ -29,9 +30,9 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-panel bg-surface-chrome px-4 py-2.5">
-        <SectionTitle as="h3">Trần theo nhãn</SectionTitle>
+        <SectionTitle as="h3">{tr('Trần theo nhãn')}</SectionTitle>
         <span className="text-2xs text-fg-muted">
-          cắt ngang danh mục · {lines.length} nhãn
+          {tr('cắt ngang danh mục · {n} nhãn', { n: lines.length })}
         </span>
         {/* -my-3 để vùng chạm 44px không đẩy hàng header giãn ra — cùng mẹo với "Đổi mốc"
             ở AxisTargetsCard. Để trần thì đo được 41×16, không bấm nổi. */}
@@ -39,15 +40,14 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
           to="/settings/tags"
           className="-my-3 ml-auto inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
-          Đổi trần
+          {tr('Đổi trần')}
         </Link>
       </div>
 
       {/* Cùng lý do với khối "Đã cam kết": nhãn CẮT NGANG danh mục, nên tiền của nó đã
           nằm sẵn trong các hạn mức danh mục. Cộng vào phần đã chia là đếm hai lần. */}
       <Guide className="border-t border-border-subtle px-4 py-2 text-2xs text-fg-muted">
-        Trần cắt ngang danh mục, nên số ở đây không cộng vào phần đã chia — nó là ràng
-        buộc thứ hai đè lên cùng số tiền đó.
+        {tr('Trần cắt ngang danh mục, nên số ở đây không cộng vào phần đã chia — nó là ràng buộc thứ hai đè lên cùng số tiền đó.')}
       </Guide>
 
       <ul>
@@ -67,16 +67,16 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                       được nó chồng lên những hạn mức nào — mà đó chính là câu hỏi duy nhất
                       một trần cắt ngang đặt ra. */}
                   <span className="min-w-0 truncate text-2xs text-fg-muted">
-                    {laDot ? 'cả đợt' : 'mỗi tháng'}
+                    {laDot ? tr('cả đợt') : tr('mỗi tháng')}
                     {l.categoryCount > 0
-                      ? ` · đang phủ ${l.categoryCount} danh mục`
-                      : ' · chưa gắn giao dịch nào'}
+                      ? tr(' · đang phủ {n} danh mục', { n: l.categoryCount })
+                      : tr(' · chưa gắn giao dịch nào')}
                   </span>
                 </span>
                 {l.exhausted ? (
                   <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-money-out">
                     <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
-                    đã cạn
+                    {tr('đã cạn')}
                   </span>
                 ) : (
                   <span className="shrink-0 text-sm">
@@ -86,7 +86,7 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                       tone="neutral"
                       className="font-semibold"
                     />
-                    <span className="ml-1 text-2xs text-fg-muted">còn dùng được</span>
+                    <span className="ml-1 text-2xs text-fg-muted">{tr('còn dùng được')}</span>
                   </span>
                 )}
               </div>
@@ -103,12 +103,14 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                   </div>
                   <div className="mt-0.5 flex justify-between gap-2 text-2xs text-fg-muted">
                     <span>
-                      đã tiêu {formatMoney(Math.round(l.spent), base)} /{' '}
-                      {formatMoney(l.budget, base)}
+                      {tr('đã tiêu {spent} / {budget}', {
+                        spent: formatMoney(Math.round(l.spent), base),
+                        budget: formatMoney(l.budget, base),
+                      })}
                     </span>
                     {l.exhausted && l.spent > l.budget && (
                       <span className="text-money-out">
-                        vượt {formatMoney(Math.round(l.spent - l.budget), base)}
+                        {tr('vượt {amount}', { amount: formatMoney(Math.round(l.spent - l.budget), base) })}
                       </span>
                     )}
                   </div>
@@ -121,7 +123,7 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
 
       {hasMissingRate && (
         <p className="border-t border-border-subtle px-4 py-2 text-2xs text-fg-muted">
-          Thiếu tỷ giá cho vài khoản ngoại tệ nên phần đã tiêu đang tính thiếu.
+          {tr('Thiếu tỷ giá cho vài khoản ngoại tệ nên phần đã tiêu đang tính thiếu.')}
         </p>
       )}
 
@@ -129,8 +131,7 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
           tháng đó bắt đầu vẫn còn ngày để tiêu, và mỗi đồng tiêu thêm ăn vào đúng nó. */}
       {lines.some((l) => l.period === 'total' && !l.exhausted) && (
         <Guide className="border-t border-border-subtle px-4 py-2 text-2xs text-fg-muted">
-          Phần còn dùng được của trần cả đợt có thể hụt thêm: những ngày còn lại của
-          tháng này vẫn tiêu vào cùng một túi.
+          {tr('Phần còn dùng được của trần cả đợt có thể hụt thêm: những ngày còn lại của tháng này vẫn tiêu vào cùng một túi.')}
         </Guide>
       )}
     </>

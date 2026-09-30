@@ -13,6 +13,7 @@
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
 import { dongChiChuaGhi, type ChiChuaGhi } from '../reports/chiChuaGhi'
+import { trn } from '../../i18n/react'
 
 export function ChiChuaGhiLine({ chuaGhi, base }: { chuaGhi: ChiChuaGhi; base: CurrencyCode }) {
   const dong = dongChiChuaGhi(chuaGhi)
@@ -23,17 +24,19 @@ export function ChiChuaGhiLine({ chuaGhi, base }: { chuaGhi: ChiChuaGhi; base: C
   // Chú thích đầu Guide.tsx cũng xếp "cảnh báo dữ liệu sai / số không khớp" vào nhóm
   // ĐỪNG bọc: mất nó là mất chức năng, không phải gọn hơn. Đây đúng là loại đó — nó nói
   // sổ và ví đang lệch nhau.
+  const amount = (
+    <Money
+      amount={Math.abs(dong.soTien)}
+      currency={base}
+      tone="warn"
+      approx={chuaGhi.hasMissingRate}
+    />
+  )
   return (
     <p className="mt-2 text-sm text-fg-warn">
-      Ngoài ra{' '}
-      <Money
-        amount={Math.abs(dong.soTien)}
-        currency={base}
-        tone="warn"
-        approx={chuaGhi.hasMissingRate}
-      />{' '}
-      {dong.nhan === 'Chưa ghi rõ' ? 'chưa rõ tiêu vào đâu' : 'đã ghi thừa'} — không nằm trong
-      phán quyết trên.
+      {dong.nhan === 'Chưa ghi rõ' // i18n-ignore — so với nhãn logic của dongChiChuaGhi
+        ? trn('Ngoài ra {amount} chưa rõ tiêu vào đâu — không nằm trong phán quyết trên.', { amount })
+        : trn('Ngoài ra {amount} đã ghi thừa — không nằm trong phán quyết trên.', { amount })}
     </p>
   )
 }

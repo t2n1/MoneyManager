@@ -11,10 +11,12 @@ import { addDaysISO, addMonthsISO, calendarYearOf, calendarYearRange } from '../
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import type { KetLuan } from './ketLuan'
 import { luatChoNam, type LuatNam } from './rules/luat'
+import { tr } from '../../i18n'
 
 /** Tên danh mục chuẩn — tìm theo TÊN, cùng lối TAX_PARENT_NAME. */
 export const FURUSATO_CATEGORY_NAME = 'ふるさと納税 (寄附)'
 /** Tên hai danh mục thuế trên phiếu lương (phieu-luong/nhap.ts MAP_THUE + tax/categories.ts). */
+// i18n-ignore — tên danh mục trong DB, khớp theo tên
 export const SO_TAX_NAMES = { shotoku: 'Thuế thu nhập (所得税)', jumin: 'Thuế cư trú (住民税)' } as const
 /** Dưới mức này thì "còn hạn mức" không đáng một dòng thông báo. */
 export const FURUSATO_NHAC_TU = 10_000
@@ -89,10 +91,10 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
   const onestop_rui_ro = input.deXuatKhaiThue && da_gui > 0
 
   const ly_do = [
-    'Trần ước từ 住民税 trên phiếu lương 12 tháng gần nhất, tức thu nhập NĂM TRƯỚC; lương tăng thì trần thật cao hơn.',
+    tr('Trần ước từ 住民税 trên phiếu lương 12 tháng gần nhất, tức thu nhập NĂM TRƯỚC; lương tăng thì trần thật cao hơn.'),
   ]
-  if (!co_danh_muc) ly_do.push(`Chưa có danh mục "${FURUSATO_CATEGORY_NAME}" nên không đếm được đã gửi bao nhiêu.`)
-  if (input.suatBien === null) ly_do.push('Chưa ước được thuế suất (thiếu phiếu lương 所得税).')
+  if (!co_danh_muc) ly_do.push(tr('Chưa có danh mục "{name}" nên không đếm được đã gửi bao nhiêu.', { name: FURUSATO_CATEGORY_NAME }))
+  if (input.suatBien === null) ly_do.push(tr('Chưa ước được thuế suất (thiếu phiếu lương 所得税).'))
 
   const thang = Number(input.todayISO.slice(5, 7))
   const muaNhac = input.year === namNay && thang >= THANG_NHAC_CUOI_NAM
@@ -100,31 +102,31 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
   let viec: string
   if (onestop_rui_ro) {
     trang_thai = 'thieu'
-    viec = `Nếu nộp 確定申告 cho khoản phụ thuộc thì khai cả ${input.fmt(da_gui)} furusato vào đó — ワンストップ sẽ vô hiệu`
+    viec = tr('Nếu nộp 確定申告 cho khoản phụ thuộc thì khai cả {amount} furusato vào đó — ワンストップ sẽ vô hiệu', { amount: input.fmt(da_gui) })
   } else if (shotoku_wari === null) {
     trang_thai = 'thieu-du-lieu'
-    viec = 'Nhập phiếu lương (住民税) để ước trần ふるさと納税'
+    viec = tr('Nhập phiếu lương (住民税) để ước trần ふるさと納税')
   } else if (tran === null) {
     trang_thai = 'thieu-du-lieu'
-    viec = 'Nhập phiếu lương (所得税) để ước trần ふるさと納税'
+    viec = tr('Nhập phiếu lương (所得税) để ước trần ふるさと納税')
   } else if (!co_danh_muc) {
     // Không đếm được đã gửi bao nhiêu → không được nói "Xong" hay "còn nguyên trần" (chưa biết ≠ 0).
     trang_thai = 'thieu-du-lieu'
-    viec = `Trần ≈ ${input.fmt(tran)} · tạo danh mục "${FURUSATO_CATEGORY_NAME}" để app đếm được đã gửi bao nhiêu`
+    viec = tr('Trần ≈ {cap} · tạo danh mục "{name}" để app đếm được đã gửi bao nhiêu', { cap: input.fmt(tran), name: FURUSATO_CATEGORY_NAME })
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = 'thieu'
-    viec = `Còn ≈ ${input.fmt(con_lai)} furusato chưa dùng · hết 31/12`
+    viec = tr('Còn ≈ {amount} furusato chưa dùng · hết 31/12', { amount: input.fmt(con_lai) })
   } else if (da_gui <= 0) {
     trang_thai = 'chua-dung'
     viec = input.year < namNay
-      ? `Năm ${input.year} chưa gửi ふるさと納税 nào · trần khi đó ≈ ${input.fmt(tran)}`
-      : `Chưa gửi ふるさと納税 nào năm nay · trần ≈ ${input.fmt(tran)}, hết 31/12`
+      ? tr('Năm {year} chưa gửi ふるさと納税 nào · trần khi đó ≈ {cap}', { year: input.year, cap: input.fmt(tran) })
+      : tr('Chưa gửi ふるさと納税 nào năm nay · trần ≈ {cap}, hết 31/12', { cap: input.fmt(tran) })
   } else if (input.year < namNay) {
     trang_thai = 'het-han'
-    viec = `Năm ${input.year} đã gửi ${input.fmt(da_gui)} trên trần ≈ ${input.fmt(tran)}`
+    viec = tr('Năm {year} đã gửi {sent} trên trần ≈ {cap}', { year: input.year, sent: input.fmt(da_gui), cap: input.fmt(tran) })
   } else {
     trang_thai = 'du'
-    viec = `Trần ≈ ${input.fmt(tran)} · đã gửi ${input.fmt(da_gui)}`
+    viec = tr('Trần ≈ {cap} · đã gửi {sent}', { cap: input.fmt(tran), sent: input.fmt(da_gui) })
   }
 
   return {

@@ -34,12 +34,14 @@ import {
   type CategoryTreeLike,
   type Rect,
 } from './treemap'
+import { tr, decimalSep } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 type Mode = 'group' | 'flat'
 
 const MODES: readonly SegmentedItem<Mode>[] = [
-  { value: 'group', label: 'Theo nhóm' },
-  { value: 'flat', label: 'Phẳng' },
+  { value: 'group', label: tr('Theo nhóm') },
+  { value: 'flat', label: tr('Phẳng') },
 ]
 
 /**
@@ -173,7 +175,7 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
   )
 
   const money = (v: number) => `${approx ? '≈ ' : ''}${formatMoney(v, base)}`
-  const pct = (s: number) => `${(s * 100).toFixed(1).replace('.', ',')}%`
+  const pct = (s: number) => `${(s * 100).toFixed(1).replace('.', decimalSep())}%`
 
   const frame: Rect = { x: 0, y: 0, w: box.w, h: box.h }
 
@@ -232,13 +234,13 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
     <Card as="section" elevation="panel" padding="panel">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <SectionTitle as="h3" id={titleId} className="min-w-0">
-          Chi đi vào đâu — theo diện tích
+          {tr('Chi đi vào đâu — theo diện tích')}
         </SectionTitle>
         <SegmentedControl
           items={MODES}
           value={mode}
           onChange={setMode}
-          label="Cách xếp ô"
+          label={tr('Cách xếp ô')}
           size="sm"
           stretch={false}
         />
@@ -289,24 +291,26 @@ export function TreemapCard({ rows, categories, base, monthKey, approx = false }
           để nó mọc ra/biến mất là mỗi lần rê chuột cả bảng bên dưới lại nhảy lên xuống. */}
       <p className="mt-1.5 min-h-5 text-sm text-fg-secondary" aria-live="polite">
         {lit ? (
-          <>
-            <b className="text-fg-primary">{lit.label}</b>
-            {lit.groupLabel ? ` · ${lit.groupLabel}` : ''} — <b>{money(lit.value)}</b>,{' '}
-            {pct(lit.share)} tổng chi
-          </>
+          trn('{label}{group} — {amount}, {pct} tổng chi', {
+            label: <b className="text-fg-primary">{lit.label}</b>,
+            group: lit.groupLabel ? ` · ${lit.groupLabel}` : '',
+            amount: <b>{money(lit.value)}</b>,
+            pct: pct(lit.share),
+          })
         ) : (
           // E-ink + Gọn: bỏ chữ dạy cách dùng; dòng vẫn giữ chỗ (min-h-5) để bảng không nhảy.
           <span className="text-fg-muted eink-gon:hidden">
-            Trỏ vào một ô để xem số; bấm để mở chi tiết.
+            {tr('Trỏ vào một ô để xem số; bấm để mở chi tiết.')}
           </span>
         )}
       </p>
 
       <Guide className="mt-1 text-2xs text-fg-muted">
-        Ô càng lớn thì càng tốn tiền — <b>diện tích</b> tỉ lệ đúng với số tiền, nên so hai ô
-        bằng mắt là so được. <b>Theo nhóm</b> gom danh mục con vào nhóm cha của nó (Ăn uống,
-        Nhà ở…), <b>Phẳng</b> bỏ tầng nhóm và xếp thẳng mọi danh mục. Bảng ngay dưới là cùng
-        bộ số này, thêm cột so với tháng trước và hạn mức.
+        {trn('Ô càng lớn thì càng tốn tiền — {area} tỉ lệ đúng với số tiền, nên so hai ô bằng mắt là so được. {byGroup} gom danh mục con vào nhóm cha của nó (Ăn uống, Nhà ở…), {flat} bỏ tầng nhóm và xếp thẳng mọi danh mục. Bảng ngay dưới là cùng bộ số này, thêm cột so với tháng trước và hạn mức.', {
+          area: <b>{tr('diện tích')}</b>,
+          byGroup: <b>{tr('Theo nhóm')}</b>,
+          flat: <b>{tr('Phẳng')}</b>,
+        })}
       </Guide>
     </Card>
   )

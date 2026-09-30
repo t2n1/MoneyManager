@@ -58,6 +58,7 @@ function fundHoldingsFromTrades(trades) {
 function sessionNavs(rows, heldFundCds) {
   if (heldFundCds == null)
     throw new TypeError(
+      // i18n-ignore — lỗi cho lập trình viên, không hiện cho người dùng
       "sessionNavs: thi\u1EBFu tham s\u1ED1 heldFundCds (danh s\xE1ch qu\u1EF9 \u0110ANG GI\u1EEE). Truy\u1EC1n holdings.map(h => h.assocFundCd) \u2014 kh\xF4ng \u0111\u01B0\u1EE3c b\u1ECF tr\u1ED1ng, xem ch\xFA th\xEDch tr\xEAn h\xE0m."
     );
   const dangGiu = new Set(heldFundCds);
@@ -131,11 +132,31 @@ function planFundBackfill(account, navHistory, alreadyValued, maxDays) {
   return { ok: true, days, skipped };
 }
 
+// src/i18n/index.ts
+var lang = "vi";
+var dict = {};
+function fill(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, k) => k in vars ? String(vars[k]) : m);
+}
+function pick(vi, vars) {
+  if (lang === "vi") return vi;
+  const hit = dict[vi];
+  if (hit === void 0) return vi;
+  if (typeof hit === "string") return hit;
+  return vars?.n === 1 ? hit.one : hit.other;
+}
+function tr(vi, vars) {
+  return fill(pick(vi, vars), vars);
+}
+
 // src/lib/dates.ts
 var pad = (n) => String(n).padStart(2, "0");
 function toISODate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+var KE_CA_HOM_NAY = tr("(k\u1EC3 c\u1EA3 h\xF4m nay)");
+var WEEKDAY_VI = [tr("CN"), tr("T2"), tr("T3"), tr("T4"), tr("T5"), tr("T6"), tr("T7")];
 export {
   NAV_UNITS,
   fundHoldingsFromTrades,

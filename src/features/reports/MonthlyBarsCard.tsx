@@ -20,6 +20,8 @@ import { Card, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 // MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
 // class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
@@ -144,8 +146,8 @@ export function MonthlyBarsCard({
             <Tooltip
               formatter={(v, name) =>
                 name === 'rate' || name === 'rateAll'
-                  ? [`${Number(v)}%`, 'Giữ lại']
-                  : [formatMoney(Number(v), base), name === 'income' ? 'Thu' : 'Chi']
+                  ? [`${Number(v)}%`, tr('Giữ lại')]
+                  : [formatMoney(Number(v), base), name === 'income' ? tr('Thu') : tr('Chi')]
               }
               labelFormatter={(l) => String(l)}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
@@ -252,26 +254,24 @@ export function MonthlyBarsCard({
           nhãn dữ liệu chứ không phải chữ dạy. Chỉ hiện khi thật sự có tháng như vậy. */}
       {(coThangChuyenDi || kyChuaTron) && (
         <p className="mt-1 text-center text-2xs text-fg-muted">
-          {coThangChuyenDi && 'Cột mờ = tháng có chuyến đi, không so được với tháng thường.'}
+          {coThangChuyenDi && tr('Cột mờ = tháng có chuyến đi, không so được với tháng thường.')}
           {coThangChuyenDi && kyChuaTron ? ' ' : null}
           {kyChuaTron && (
-            <>
-              Cột cuối là <b>tháng chưa trọn</b> — số còn tăng tới cuối kỳ.
-            </>
+            trn('Cột cuối là {partial} — số còn tăng tới cuối kỳ.', { partial: <b>{tr('tháng chưa trọn')}</b> })
           )}
         </p>
       )}
       <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-fg-muted">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> Thu
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> {tr('Thu')}
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EXPENSE }} /> Chi
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EXPENSE }} /> {tr('Chi')}
         </span>
         {hasRate && (
           <span className="flex items-center gap-1">
-            <span className="h-0.5 w-4 rounded" style={{ backgroundColor: RATE }} /> Giữ lại (%,
-            trục phải)
+            <span className="h-0.5 w-4 rounded" style={{ backgroundColor: RATE }} />{' '}
+            {tr('Giữ lại (%, trục phải)')}
           </span>
         )}
       </div>
@@ -284,27 +284,33 @@ export function MonthlyBarsCard({
             tone={trend.tone}
             short={
               trend.tone === 'info'
-                ? `${labelOf(trend.lastKey)} đi ngang`
-                : `${labelOf(trend.lastKey)} chi ${
-                    trend.delta > 0 ? '+' : '-'
-                  }${Math.abs(Math.round(trend.delta * 100))}%`
+                ? tr('{month} đi ngang', { month: labelOf(trend.lastKey) })
+                : tr('{month} chi {sign}{pct}%', {
+                    month: labelOf(trend.lastKey),
+                    sign: trend.delta > 0 ? '+' : '-',
+                    pct: Math.abs(Math.round(trend.delta * 100)),
+                  })
             }
           >
-            {labelOf(trend.lastKey)} chi{' '}
-            <b>{formatMoney(Math.round(trend.last), base)}</b>
-            {trend.tone === 'info' ? ', đi ngang so với ' : ', '}
-            {trend.tone !== 'info' && (
-              <>
-                {trend.delta > 0 ? 'cao hơn' : 'thấp hơn'}{' '}
-                <b>{Math.abs(Math.round(trend.delta * 100))}%</b> so với{' '}
-              </>
-            )}
-            {/* Một tháng thì KHÔNG gọi là trung bình — nói "trung bình 1 tháng" đọc
-                như thể có nền dày, trong khi đó chỉ là so với đúng một tháng. */}
-            {trend.priorMonths === 1
-              ? 'tháng trước đó'
-              : `trung bình ${trend.priorMonths} tháng trước đó`}{' '}
-            ({formatMoney(Math.round(trend.avgPrior), base)}).
+            {(() => {
+              const vars = {
+                month: labelOf(trend.lastKey),
+                amount: <b>{formatMoney(Math.round(trend.last), base)}</b>,
+                pct: <b>{Math.abs(Math.round(trend.delta * 100))}%</b>,
+                // Một tháng thì KHÔNG gọi là trung bình — nói "trung bình 1 tháng" đọc
+                // như thể có nền dày, trong khi đó chỉ là so với đúng một tháng.
+                prior:
+                  trend.priorMonths === 1
+                    ? tr('tháng trước đó')
+                    : tr('trung bình {n} tháng trước đó', { n: trend.priorMonths }),
+                avg: formatMoney(Math.round(trend.avgPrior), base),
+              }
+              return trend.tone === 'info'
+                ? trn('{month} chi {amount}, đi ngang so với {prior} ({avg}).', vars)
+                : trend.delta > 0
+                  ? trn('{month} chi {amount}, cao hơn {pct} so với {prior} ({avg}).', vars)
+                  : trn('{month} chi {amount}, thấp hơn {pct} so với {prior} ({avg}).', vars)
+            })()}
           </VerdictNote>
         </div>
       )}
@@ -317,28 +323,37 @@ export function MonthlyBarsCard({
             // Bản ngắn cũng phải nói KỲ TÍNH: ngay trên trang còn "Giữ lại X%" của tháng
             // đang dở (câu tổng, ô Không tiêu). Hai con số cùng tên mà không kỳ là hai con
             // số người đọc đem so với nhau rồi tưởng app tính sai.
-            short={`Giữ lại ${Math.round(saving.rate * 100)}% · ${saving.months} tháng đã xong${
-              saving.trend && saving.trend !== 'flat'
-                ? saving.trend === 'up'
-                  ? ' · đang lên'
-                  : ' · đang xuống'
-                : ''
-            }`}
+            short={tr('Giữ lại {pct}% · {n} tháng đã xong{trend}', {
+              pct: Math.round(saving.rate * 100),
+              n: saving.months,
+              trend:
+                saving.trend && saving.trend !== 'flat'
+                  ? saving.trend === 'up'
+                    ? tr(' · đang lên')
+                    : tr(' · đang xuống')
+                  : '',
+            })}
           >
-            {saving.months} tháng đã xong (không tính tháng đang dở): giữ lại{' '}
-            <b>{Math.round(saving.rate * 100)}%</b> tổng thu nhập
-            {saving.tone === 'good' && ` — đạt mốc ${Math.round(savingsShare * 100)}%`}
-            {saving.tone === 'warn' && ` — chưa tới mốc ${Math.round(savingsShare * 100)}%`}
-            {saving.tone === 'bad' && ' — tức là chi vượt thu, đang phải rút vào tiền cũ'}
-            {saving.trend && saving.trendDelta !== null && saving.trend !== 'flat' ? (
-              <>
-                . Xu hướng {saving.trend === 'up' ? 'đang lên' : 'đang xuống'}: nửa sau kỳ{' '}
-                {saving.trendDelta > 0 ? 'hơn' : 'kém'} nửa đầu{' '}
-                <b>{Math.abs(Math.round(saving.trendDelta * 100))} điểm %</b>.
-              </>
-            ) : (
-              '.'
-            )}
+            {trn('{n} tháng đã xong (không tính tháng đang dở): giữ lại {pct} tổng thu nhập', {
+              n: saving.months,
+              pct: <b>{Math.round(saving.rate * 100)}%</b>,
+            })}
+            {saving.tone === 'good' && tr(' — đạt mốc {pct}%', { pct: Math.round(savingsShare * 100) })}
+            {saving.tone === 'warn' && tr(' — chưa tới mốc {pct}%', { pct: Math.round(savingsShare * 100) })}
+            {saving.tone === 'bad' && tr(' — tức là chi vượt thu, đang phải rút vào tiền cũ')}
+            {saving.trend && saving.trendDelta !== null && saving.trend !== 'flat'
+              ? (() => {
+                  const pts = { pts: <b>{tr('{n} điểm %', { n: Math.abs(Math.round(saving.trendDelta * 100)) })}</b> }
+                  if (saving.trend === 'up') {
+                    return saving.trendDelta > 0
+                      ? trn('. Xu hướng đang lên: nửa sau kỳ hơn nửa đầu {pts}.', pts)
+                      : trn('. Xu hướng đang lên: nửa sau kỳ kém nửa đầu {pts}.', pts)
+                  }
+                  return saving.trendDelta > 0
+                    ? trn('. Xu hướng đang xuống: nửa sau kỳ hơn nửa đầu {pts}.', pts)
+                    : trn('. Xu hướng đang xuống: nửa sau kỳ kém nửa đầu {pts}.', pts)
+                })()
+              : '.'}
           </VerdictNote>
         </div>
       )}

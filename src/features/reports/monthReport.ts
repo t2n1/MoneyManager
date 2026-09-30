@@ -11,6 +11,7 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import { applyTx } from '../assets/accountRowStats'
 import { expenseSign, type CurrencyOf, type TransferIds } from './aggregate'
+import { tr } from '../../i18n'
 
 // ---------------------------------------------------------------------------------
 // Khối 01 · Ra theo ba đường
@@ -55,28 +56,28 @@ export function outflowTiers(
   return [
     {
       key: 'expense',
-      label: 'Chi tiêu',
+      label: tr('Chi tiêu'),
       // Ba trạng thái, không phải hai. Số 0 do bị trừ hết KHÁC số 0 do không tiêu gì —
       // và chỉ ca thứ nhất mới cần một lời giải thích.
       note:
         expense > 0
           ? categoryCount > 0
-            ? `${categoryCount} danh mục`
+            ? tr('{n} danh mục', { n: categoryCount })
             : ''
           : chiDaGhi > 0
-            ? 'đã trừ hết vì ghi thừa'
+            ? tr('đã trừ hết vì ghi thừa')
             : '',
       amount: expense,
       pct: pct(expense),
     },
     {
       key: 'transfer',
-      label: 'Chuyển tài sản',
-      note: 'không phải chi tiêu',
+      label: tr('Chuyển tài sản'),
+      note: tr('không phải chi tiêu'),
       amount: transfer,
       pct: pct(transfer),
     },
-    { key: 'kept', label: 'Phần để lại', note: '', amount: kept, pct: pct(kept) },
+    { key: 'kept', label: tr('Phần để lại'), note: '', amount: kept, pct: pct(kept) },
   ]
 }
 
@@ -385,16 +386,16 @@ export function budgetCellLabel(row: Pick<MonthTableRow, 'budgeted' | 'thisMonth
   text: string
   tone: 'over' | 'warn' | 'ok' | 'muted'
 } {
-  if (row.fixed) return { text: 'cố định', tone: 'muted' }
+  if (row.fixed) return { text: tr('cố định'), tone: 'muted' }
   // null = chưa đặt trần. Trần ¥0 là trần THẬT (`budgetRatio`): chi một đồng là vượt, và
   // "%" của nó vô nghĩa nên in thẳng chữ.
   if (row.budgeted === null) return { text: '—', tone: 'muted' }
   if (row.budgeted <= 0) {
-    return row.thisMonth > 0 ? { text: 'vượt', tone: 'over' } : { text: '0%', tone: 'ok' }
+    return row.thisMonth > 0 ? { text: tr('vượt'), tone: 'over' } : { text: '0%', tone: 'ok' }
   }
   const ratio = row.thisMonth / row.budgeted
   const pct = Math.round(ratio * 100)
-  if (pct === 100) return { text: 'vừa hết', tone: 'warn' }
+  if (pct === 100) return { text: tr('vừa hết'), tone: 'warn' }
   return { text: `${pct}%`, tone: ratio > 1 ? 'over' : ratio >= 0.8 ? 'warn' : 'ok' }
 }
 
@@ -403,7 +404,7 @@ export const windowDays = (startISO: string, lastISO: string) =>
   daysBetween(startISO, lastISO) + 1
 
 /** Nhãn kỳ ngắn cho tiêu đề bảng: "Tháng 8". */
-export const monthWordLabel = (k: MonthKey) => `Tháng ${k.month}`
+export const monthWordLabel = (k: MonthKey) => tr('Tháng {m}', { m: k.month })
 
 // ---------------------------------------------------------------------------------
 // Khối 02 · Đường tí hon từng danh mục

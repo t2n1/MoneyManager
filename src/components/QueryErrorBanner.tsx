@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useSyncExternalStore } from 'react'
 import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { ActionButton } from './ui'
+import { tr } from '../i18n'
 
 export function QueryErrorBanner() {
   const qc = useQueryClient()
@@ -40,7 +41,7 @@ export function QueryErrorBanner() {
     >
       <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
       <span className="flex-1">
-        Không tải được một phần dữ liệu — số liệu đang hiển thị có thể thiếu.
+        {tr('Không tải được một phần dữ liệu — số liệu đang hiển thị có thể thiếu.')}
       </span>
       {/* <ActionButton> chứ không viết tay: guardrail đếm `active:scale-95` viết tay,
           và dáng "outline" trên nền banner đỏ vẫn đọc được. */}
@@ -52,7 +53,7 @@ export function QueryErrorBanner() {
         }
       >
         <RefreshCw className="h-4 w-4" aria-hidden />
-        Thử lại
+        {tr('Thử lại')}
       </ActionButton>
     </div>
   )

@@ -13,6 +13,8 @@ import { showToast } from '../../lib/dialog'
 import { useUpdateProfile } from '../../hooks/queries'
 import type { KikinSheet } from '../../types/database.types'
 import type { CalibrationPoint } from '../tax/kikinBenefit'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const JPY = 'JPY' as const
 
@@ -74,10 +76,10 @@ export function KikinSourceSheet({ rateBps, dated, points, onClose }: Props) {
     }
     try {
       await update.mutateAsync({ kikin_give_rate_bps: bps, kikin_sheet: sheet })
-      showToast('Đã lưu số của 基金')
+      showToast(tr('Đã lưu số của 基金'))
       onClose()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không lưu được, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không lưu được, thử lại.'), 'error')
     }
   }
 
@@ -91,18 +93,18 @@ export function KikinSourceSheet({ rateBps, dated, points, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Số của 基金</SectionTitle>
+          <SectionTitle role="block">{tr('Số của 基金')}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
         <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="kikin-rate">
-          給付利率 (%/năm)
+          {tr('給付利率 (%/năm)')}
         </label>
         <input
           id="kikin-rate"
@@ -113,11 +115,11 @@ export function KikinSourceSheet({ rateBps, dated, points, onClose }: Props) {
           className="w-full rounded-md border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary"
         />
         <Guide className="mt-1 text-2xs text-fg-muted">
-          Số trên giấy 残高通知 gửi hằng năm. 基金 đặt lại theo từng 事業年度.
+          {tr('Số trên giấy 残高通知 gửi hằng năm. 基金 đặt lại theo từng 事業年度.')}
         </Guide>
 
         <label className="mt-4 mb-1 block text-sm font-medium text-fg-muted" htmlFor="kikin-dated">
-          Ngày in trên sheet (YYYY-MM)
+          {tr('Ngày in trên sheet (YYYY-MM)')}
         </label>
         <input
           id="kikin-dated"
@@ -129,51 +131,51 @@ export function KikinSourceSheet({ rateBps, dated, points, onClose }: Props) {
           className="w-full rounded-md border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary"
         />
 
-        <SectionTitle className="mt-4">Ba mức trên sheet</SectionTitle>
+        <SectionTitle className="mt-4">{tr('Ba mức trên sheet')}</SectionTitle>
         <Guide className="mt-1 text-2xs text-fg-muted">
-          Với mỗi mức đóng, gõ 社会保険料 và 所得・住民税 CẢ NĂM đúng như sheet in.
+          {tr('Với mỗi mức đóng, gõ 社会保険料 và 所得・住民税 CẢ NĂM đúng như sheet in.')}
         </Guide>
 
         {hang.map((h, i) => (
           <div key={i} className="mt-3 rounded-lg bg-surface-sunken p-2.5">
             <span className="mb-1 block text-sm font-medium text-fg-muted">
-              掛金 mỗi tháng
+              {tr('掛金 mỗi tháng')}
             </span>
             <MoneyField
               value={h.m}
               onChange={(v) => doiHang(i, { m: v })}
               currency={JPY}
               autoOpen={false}
-              ariaLabel={`Mức đóng mỗi tháng, hàng ${i + 1}`}
+              ariaLabel={tr('Mức đóng mỗi tháng, hàng {n}', { n: i + 1 })}
               className={MONEY_FIELD_CLASS}
             />
             <span className="mt-2 mb-1 block text-sm font-medium text-fg-muted">
-              社会保険料 cả năm
+              {tr('社会保険料 cả năm')}
             </span>
             <MoneyField
               value={h.si}
               onChange={(v) => doiHang(i, { si: v })}
               currency={JPY}
               autoOpen={false}
-              ariaLabel={`社会保険料 cả năm, hàng ${i + 1}`}
+              ariaLabel={tr('社会保険料 cả năm, hàng {n}', { n: i + 1 })}
               className={MONEY_FIELD_CLASS}
             />
             <span className="mt-2 mb-1 block text-sm font-medium text-fg-muted">
-              所得税 + 住民税 cả năm
+              {tr('所得税 + 住民税 cả năm')}
             </span>
             <MoneyField
               value={h.tax}
               onChange={(v) => doiHang(i, { tax: v })}
               currency={JPY}
               autoOpen={false}
-              ariaLabel={`Thuế cả năm, hàng ${i + 1}`}
+              ariaLabel={tr('Thuế cả năm, hàng {n}', { n: i + 1 })}
               className={MONEY_FIELD_CLASS}
             />
           </div>
         ))}
 
         <Guide className="mt-3 text-2xs text-fg-muted">
-          Phải có một hàng mức <b>¥0</b> — đó là mốc để tính "tiết kiệm được bao nhiêu".
+          {trn('Phải có một hàng mức {zero} — đó là mốc để tính "tiết kiệm được bao nhiêu".', { zero: <b>¥0</b> })}
         </Guide>
 
         <div className="mt-4 flex gap-2">
@@ -183,18 +185,18 @@ export function KikinSourceSheet({ rateBps, dated, points, onClose }: Props) {
             disabled={!suatHopLe || !ngayHopLe || !bangHopLe || update.isPending}
             className={`${actionButtonClass('primary')} flex-1`}
           >
-            Lưu
+            {tr('Lưu')}
           </button>
         </div>
         {(!suatHopLe || !ngayHopLe || !bangHopLe) && (
           <p className="mt-2 text-2xs text-money-out">
             {!suatHopLe
-              ? 'Suất phải là số từ 0 tới 100.'
+              ? tr('Suất phải là số từ 0 tới 100.')
               : !ngayHopLe
-                ? 'Ngày sheet phải dạng 2026-08.'
+                ? tr('Ngày sheet phải dạng 2026-08.')
                 : !hang.some((h) => h.m === 0)
-                  ? 'Phải có một hàng mức đóng ¥0 làm mốc.'
-                  : 'Mỗi hàng phải có cả 社会保険料 và thuế lớn hơn 0.'}
+                  ? tr('Phải có một hàng mức đóng ¥0 làm mốc.')
+                  : tr('Mỗi hàng phải có cả 社会保険料 và thuế lớn hơn 0.')}
           </p>
         )}
       </div>

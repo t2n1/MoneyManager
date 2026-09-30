@@ -1,4 +1,5 @@
 // TỆP SINH TỰ ĐỘNG — ĐỪNG SỬA TAY.
+// i18n-ignore-file — tên công ty là tên riêng, không dịch.
 // Nguồn: SSI iBoard (https://iboard-query.ssi.com.vn/stock/exchange/hose), lọc stockType='s'
 // Sinh lại: node scripts/harvest-hose-symbols.mjs
 // Vì sao là file tĩnh chứ không gọi mạng: xem đầu scripts/harvest-hose-symbols.mjs

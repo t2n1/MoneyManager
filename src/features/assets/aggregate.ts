@@ -8,19 +8,24 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, AccountType } from '../../types/database.types'
 import { depreciate } from './depreciation'
 import type { AccountCurrentValue } from './currentValue'
+import { tr, decimalSep } from '../../i18n'
 
 /** Nhãn hiển thị cho tài khoản chưa gán nhóm. */
-export const UNGROUPED_LABEL = 'Chưa phân nhóm'
+export const UNGROUPED_LABEL = 'Chưa phân nhóm' // i18n-ignore — khoá nhóm, lưu trong asset_group_settings.name
+
+export function groupDisplayName(name: string): string {
+  return name === UNGROUPED_LABEL ? tr('Chưa phân nhóm') : name
+}
 
 /** Nhãn tiếng Việt cho từng loại tài khoản (chế độ xem "Theo loại"). */
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
-  cash: 'Tiền mặt',
-  bank: 'Ngân hàng',
-  card: 'Thẻ tín dụng',
-  ic: 'IC giao thông',
-  ewallet: 'Ví điện tử',
-  investment: 'Đầu tư',
-  fixed: 'Tài sản cố định',
+  cash: tr('Tiền mặt'),
+  bank: tr('Ngân hàng'),
+  card: tr('Thẻ tín dụng'),
+  ic: tr('IC giao thông'),
+  ewallet: tr('Ví điện tử'),
+  investment: tr('Đầu tư'),
+  fixed: tr('Tài sản cố định'),
 }
 
 /** Cài đặt riêng của một nhóm (từ bảng asset_group_settings). */
@@ -605,6 +610,6 @@ export function formatShare(share: number): string {
   if (share <= 0) return '—'
   const pct = share * 100
   if (pct >= 10) return `${Math.round(pct)}%`
-  if (pct >= 1) return `${pct.toFixed(1).replace('.', ',')}%`
-  return `${pct.toFixed(2).replace('.', ',')}%`
+  if (pct >= 1) return `${pct.toFixed(1).replace('.', decimalSep())}%`
+  return `${pct.toFixed(2).replace('.', decimalSep())}%`
 }

@@ -9,6 +9,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useDensity } from '../hooks/useDensity'
 import { Collapse } from './ui'
+import { tr } from '../i18n'
 
 interface Props {
   /** Nhãn nút; mặc định "Cách tính & nên làm gì". */
@@ -16,7 +17,7 @@ interface Props {
   children: ReactNode
 }
 
-export function ExplainBox({ label = 'Cách tính & nên làm gì', children }: Props) {
+export function ExplainBox({ label = tr('Cách tính & nên làm gì'), children }: Props) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
   const { visual } = useDensity()

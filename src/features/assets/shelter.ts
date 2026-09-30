@@ -1,12 +1,13 @@
 // Tài khoản ưu đãi thuế Nhật (NISA / iDeCo): hạn mức nạp tính theo NĂM DƯƠNG LỊCH
 // và không dồn sang năm sau — không nạp là mất. Thuần, không phụ thuộc React.
 import type { TaxShelter, TransactionRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 export const TAX_SHELTER_LIST: TaxShelter[] = ['nisa_tsumitate', 'nisa_growth', 'ideco']
 
 export const TAX_SHELTER_LABELS: Record<TaxShelter, string> = {
-  nisa_tsumitate: 'NISA tích lũy (つみたて投資枠)',
-  nisa_growth: 'NISA tăng trưởng (成長投資枠)',
+  nisa_tsumitate: tr('NISA tích lũy (つみたて投資枠)'),
+  nisa_growth: tr('NISA tăng trưởng (成長投資枠)'),
   ideco: 'iDeCo (個人型確定拠出年金)',
 }
 

@@ -9,6 +9,8 @@
 // Vòng tròn vẽ bằng stroke-dasharray: chu vi cố định, phần đã chạy là dashoffset. Có
 // `transition` nên nhích giữa hai nấc thì trượt chứ không giật, dù bản thân con số nhảy
 // theo nấc.
+import { tr } from '../i18n'
+
 const R = 9
 const CIRC = 2 * Math.PI * R
 
@@ -30,7 +32,7 @@ export function LoadProgress({ percent }: { percent: number | null }) {
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Đang tải dữ liệu"
+        aria-label={tr('Đang tải dữ liệu')}
         className="flex items-center gap-2 rounded-full bg-gray-900/90 py-1.5 pl-2 pr-3.5 text-sm font-medium text-white shadow-lg"
       >
         <svg viewBox="0 0 24 24" className="h-6 w-6 -rotate-90" aria-hidden="true">

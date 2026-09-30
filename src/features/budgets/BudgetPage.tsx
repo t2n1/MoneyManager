@@ -9,6 +9,7 @@ import { formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
 import { BudgetView } from './BudgetView'
 import { isPlanningMonth } from './planning'
 import { PlanningView } from './PlanningView'
+import { tr } from '../../i18n'
 
 export function BudgetPage() {
   // Kỳ đang xem là state DÙNG CHUNG cả app (src/hooks/useMonthKey) chứ không còn của
@@ -34,16 +35,16 @@ export function BudgetPage() {
           tháng dồn sang phải.
           Vẫn chỉ có ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên top bar; để cả
           hai cùng hiện là hai bộ điều khiển giống hệt nhau cách nhau 60px trên một màn. */}
-      <PageHeader title="Ngân sách" flush mobileOnly>
+      <PageHeader title={tr('Ngân sách')} flush mobileOnly>
         <div className="ml-auto flex items-center gap-1">
-          <IconButton onClick={() => stepMonth(-1)} aria-label="Tháng trước">
+          <IconButton onClick={() => stepMonth(-1)} aria-label={tr('Tháng trước')}>
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
           {/* E-ink: tháng là nhãn CHÍNH của cụm ‹ › — chữ mực đậm, không xám (xám đọc ra "bị khoá"). */}
           <p aria-live="polite" className="font-mono text-sm text-fg-muted eink:px-1 eink:font-semibold eink:text-fg-primary">
             {formatMonthLabel(activeMonthKey)}
           </p>
-          <IconButton onClick={() => stepMonth(1)} aria-label="Tháng sau">
+          <IconButton onClick={() => stepMonth(1)} aria-label={tr('Tháng sau')}>
             <ChevronRight className="h-5 w-5" />
           </IconButton>
         </div>

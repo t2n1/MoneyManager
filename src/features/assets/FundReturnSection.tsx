@@ -10,6 +10,8 @@ import type { FundTradeRow } from '../../types/database.types'
 import { fundReturnRow, GAP_NOISE_PP, type FundReturnRow } from './fundReturns'
 import { asFundTrade } from './fundHoldings'
 import { ngay, pct } from './investFormat'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface PositionLike {
   assocFundCd: string
@@ -28,10 +30,10 @@ interface Props {
 function verdictOf(r: FundReturnRow): string {
   if (r.mwrrPct === null) return ''
   const gap = r.mwrrPct - r.twrPct
-  if (Math.abs(gap) < GAP_NOISE_PP) return 'Tiền vào theo kịp quỹ — thời điểm mua không lấy mất gì.'
+  if (Math.abs(gap) < GAP_NOISE_PP) return tr('Tiền vào theo kịp quỹ — thời điểm mua không lấy mất gì.')
   return gap < 0
-    ? 'Phần chênh là giá của thời điểm vào tiền — mua đều tay và đừng canh đáy là cách rẻ nhất để thu hẹp nó.'
-    : 'Thời điểm vào tiền của bạn đang THẮNG chính quỹ — hiếm, và đừng coi nó là kỹ năng lặp lại được.'
+    ? tr('Phần chênh là giá của thời điểm vào tiền — mua đều tay và đừng canh đáy là cách rẻ nhất để thu hẹp nó.')
+    : tr('Thời điểm vào tiền của bạn đang THẮNG chính quỹ — hiếm, và đừng coi nó là kỹ năng lặp lại được.')
 }
 
 export function FundReturnSection({ positions, trades, session, fundName }: Props) {
@@ -55,25 +57,25 @@ export function FundReturnSection({ positions, trades, session, fundName }: Prop
 
   return (
     <Card as="section">
-      <SectionTitle>Quỹ chạy vs tiền vào (%/năm)</SectionTitle>
+      <SectionTitle>{tr('Quỹ chạy vs tiền vào (%/năm)')}</SectionTitle>
       <ul className="mt-1 divide-y divide-border-subtle">
         {rows.map(({ pos, r }) => (
           <li key={pos.assocFundCd} className="py-2">
             <p className="truncate text-sm font-semibold text-fg-primary">
               {fundName(pos.assocFundCd)}
               <span className="ml-1.5 text-2xs font-normal text-fg-muted">
-                từ {ngay(r.fromISO)}
+                {tr('từ {date}', { date: ngay(r.fromISO) })}
               </span>
             </p>
             <dl className="mt-1 grid grid-cols-3 gap-x-3 text-sm">
               <div>
-                <dt className="text-2xs text-fg-muted">Quỹ tự chạy</dt>
+                <dt className="text-2xs text-fg-muted">{tr('Quỹ tự chạy')}</dt>
                 <dd>
                   <Num tone={r.twrPct >= 0 ? 'in' : 'out'}>{pct(r.twrPct / 100)}</Num>
                 </dd>
               </div>
               <div>
-                <dt className="text-2xs text-fg-muted">Tiền của bạn</dt>
+                <dt className="text-2xs text-fg-muted">{tr('Tiền của bạn')}</dt>
                 <dd>
                   {r.mwrrPct === null ? (
                     <span className="text-fg-muted">—</span>
@@ -83,7 +85,7 @@ export function FundReturnSection({ positions, trades, session, fundName }: Prop
                 </dd>
               </div>
               <div>
-                <dt className="text-2xs text-fg-muted">Máy mua đều</dt>
+                <dt className="text-2xs text-fg-muted">{tr('Máy mua đều')}</dt>
                 <dd>
                   {r.dcaPct === null ? (
                     <span className="text-fg-muted">—</span>
@@ -100,20 +102,21 @@ export function FundReturnSection({ positions, trades, session, fundName }: Prop
         ))}
       </ul>
 
-      <ExplainBox label="Ba con số khác nhau chỗ nào">
+      <ExplainBox label={tr('Ba con số khác nhau chỗ nào')}>
         <p>
-          <b>Quỹ tự chạy</b> (TWR): 基準価額 đầu kỳ so cuối kỳ — quỹ tốt hay dở, không quan
-          tâm bạn bỏ tiền lúc nào. <b>Tiền của bạn</b> (MWRR): chính đồng tiền của bạn sinh
-          lời bao nhiêu — mua nhiều lúc giá cao thì số này tụt dưới TWR dù quỹ vẫn thế.
+          {trn(
+            '{a} (TWR): 基準価額 đầu kỳ so cuối kỳ — quỹ tốt hay dở, không quan tâm bạn bỏ tiền lúc nào. {b} (MWRR): chính đồng tiền của bạn sinh lời bao nhiêu — mua nhiều lúc giá cao thì số này tụt dưới TWR dù quỹ vẫn thế.',
+            { a: <b>{tr('Quỹ tự chạy')}</b>, b: <b>{tr('Tiền của bạn')}</b> },
+          )}
         </p>
         <p>
-          <b>Máy mua đều</b>: cùng tổng tiền, rải đều qua đúng những ngày bạn đã mua. Nó là
-          cái máy không biết sợ cũng không biết hưng phấn — so với nó là thấy cảm xúc đã
-          lấy (hay tình cờ cho thêm) bao nhiêu %/năm.
+          {trn(
+            '{a}: cùng tổng tiền, rải đều qua đúng những ngày bạn đã mua. Nó là cái máy không biết sợ cũng không biết hưng phấn — so với nó là thấy cảm xúc đã lấy (hay tình cờ cho thêm) bao nhiêu %/năm.',
+            { a: <b>{tr('Máy mua đều')}</b> },
+          )}
         </p>
         <p>
-          Bán sạch rồi mua lại cũng là một quyết định thời điểm: quãng đứng ngoài vẫn được
-          tính vào “Tiền của bạn”, còn quỹ thì cứ chạy.
+          {tr('Bán sạch rồi mua lại cũng là một quyết định thời điểm: quãng đứng ngoài vẫn được tính vào “Tiền của bạn”, còn quỹ thì cứ chạy.')}
         </p>
       </ExplainBox>
     </Card>

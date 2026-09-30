@@ -1,18 +1,19 @@
+import { tr } from '../../i18n'
 import type { CategoryKind, CostType, NeedLevel } from '../../types/database.types'
 
 export const NEED_OPTIONS = [
-  ['essential', 'Thiết yếu'],
-  ['flexible', 'Linh hoạt'],
-  ['education', 'Giáo dục'],
-  ['giving', 'Cho đi'],
-  ['buffer', 'Dự phòng'],
-  [null, 'Chưa'],
+  ['essential', tr('Thiết yếu')],
+  ['flexible', tr('Linh hoạt')],
+  ['education', tr('Giáo dục')],
+  ['giving', tr('Cho đi')],
+  ['buffer', tr('Dự phòng')],
+  [null, tr('Chưa')],
 ] as const satisfies readonly (readonly [NeedLevel | null, string])[]
 
 export const COST_OPTIONS = [
-  ['fixed', 'Cố định'],
-  ['variable', 'Biến đổi'],
-  [null, 'Chưa'],
+  ['fixed', tr('Cố định')],
+  ['variable', tr('Biến đổi')],
+  [null, tr('Chưa')],
 ] as const satisfies readonly (readonly [CostType | null, string])[]
 
 /**
@@ -23,8 +24,8 @@ export const COST_OPTIONS = [
  * THẬT mà app phải đếm được (nó làm chỉ số Cơ cấu chi tiêu thiếu).
  */
 export const KIND_OPTIONS = [
-  ['expense', 'Tiêu thật'],
-  ['transfer', 'Chuyển tài sản'],
+  ['expense', tr('Tiêu thật')],
+  ['transfer', tr('Chuyển tài sản')],
 ] as const satisfies readonly (readonly [CategoryKind, string])[]
 
 /**

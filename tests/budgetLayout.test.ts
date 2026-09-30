@@ -64,9 +64,9 @@ const COLUMN_MARK = 'className="contents lg:flex lg:flex-col lg:gap-3">'
 //     khỏi dòng "mỗi ngày" ngay trên nó (B36), nên đọc rời hai khối là đọc một con số hạ
 //     xuống mà không biết vì sao.
 const BLOCKS: { name: string; mark: string; column: 'trái' | 'phải' }[] = [
-  { name: 'Tổng ngân sách (kèm phán quyết)', mark: '>Tổng ngân sách<', column: 'trái' },
-  { name: 'Còn phải trả', mark: '>Còn phải trả<', column: 'trái' },
-  { name: 'Danh sách hạn mức', mark: 'label="Sắp xếp hạn mức"', column: 'trái' },
+  { name: 'Tổng ngân sách (kèm phán quyết)', mark: ">{tr('Tổng ngân sách')}<", column: 'trái' },
+  { name: 'Còn phải trả', mark: ">{tr('Còn phải trả')}<", column: 'trái' },
+  { name: 'Danh sách hạn mức', mark: "label={tr('Sắp xếp hạn mức')}", column: 'trái' },
   { name: 'Ngân sách theo nhãn', mark: '<TagBudgetsCard', column: 'trái' },
   { name: 'Chi tích lũy vs ngân sách', mark: '<SpendPaceSection', column: 'phải' },
   { name: 'Cơ cấu chi so với mốc', mark: '<AxisTargetsCard', column: 'phải' },
@@ -121,8 +121,8 @@ describe('bố cục trang Ngân sách', () => {
     // Đây là thứ kéo câu "sẽ vượt trần" từ y=803 lên trên mép gấp 732. Mốc dưới đổi từ
     // "Cần để ý" sang danh sách hạn mức khi B8 bỏ khối đó — vế cần canh vẫn y nguyên:
     // phán quyết phải nằm trong thẻ tổng, không trôi xuống dưới khối kế tiếp.
-    expect(at('<BudgetVerdictLine')).toBeGreaterThan(at('>Tổng ngân sách<'))
-    expect(at('<BudgetVerdictLine')).toBeLessThan(at('label="Sắp xếp hạn mức"'))
+    expect(at('<BudgetVerdictLine')).toBeGreaterThan(at(">{tr('Tổng ngân sách')}<"))
+    expect(at('<BudgetVerdictLine')).toBeLessThan(at("label={tr('Sắp xếp hạn mức')}"))
   })
 
   it('không còn khối "Cần để ý" riêng, nhưng mẫu số 3/5 vẫn còn', () => {

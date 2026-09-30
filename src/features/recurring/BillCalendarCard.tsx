@@ -30,6 +30,8 @@ import {
   type BillCell,
   type BillCellStatus,
 } from './billCalendar'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Bốn trạng thái của lịch ánh sang bốn tông đã đo của design system. */
 const TONE: Record<BillCellStatus, StatusTone> = {
@@ -40,13 +42,13 @@ const TONE: Record<BillCellStatus, StatusTone> = {
 }
 
 const NHAN: Record<BillCellStatus, string> = {
-  'da-tra': 'đã trả',
-  'lech-so': 'lệch số',
-  'lo-mat': 'lỡ mất',
-  'sap-toi': 'sắp tới',
+  'da-tra': tr('đã trả'),
+  'lech-so': tr('lệch số'),
+  'lo-mat': tr('lỡ mất'),
+  'sap-toi': tr('sắp tới'),
 }
 
-const THU = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+const THU = [tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7'), tr('CN')]
 
 interface Props {
   rules: readonly BillCalRule[]
@@ -86,16 +88,16 @@ export function BillCalendarCard({
     <Card as="section" elevation="panel" padding="panel">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <SectionTitle as="h3" className="min-w-0">
-          Lịch khoản định kỳ
+          {tr('Lịch khoản định kỳ')}
         </SectionTitle>
         <div className="flex shrink-0 items-center gap-1">
-          <IconButton aria-label="Tháng trước" onClick={onPrev}>
+          <IconButton aria-label={tr('Tháng trước')} onClick={onPrev}>
             <ChevronLeft className="h-4 w-4" />
           </IconButton>
           <span className="min-w-16 text-center font-mono text-sm text-fg-secondary">
             {monthLabel}
           </span>
-          <IconButton aria-label="Tháng sau" onClick={onNext}>
+          <IconButton aria-label={tr('Tháng sau')} onClick={onNext}>
             <ChevronRight className="h-4 w-4" />
           </IconButton>
         </div>
@@ -103,7 +105,7 @@ export function BillCalendarCard({
 
       {cells.length === 0 ? (
         <p className="py-6 text-center text-sm text-fg-muted">
-          Tháng này không có kỳ nào đến hạn.
+          {tr('Tháng này không có kỳ nào đến hạn.')}
         </p>
       ) : (
         <>
@@ -115,22 +117,25 @@ export function BillCalendarCard({
             <p className="mb-2 text-sm text-fg-secondary">
               {sum.expected > 0 && (
                 <>
-                  Phải trả{' '}
-                  <b>
-                    <MoneyInline v={sum.expected} cells={cells} currencyOf={currencyOf} />
-                  </b>
+                  {trn('Phải trả {amount}', {
+                    amount: (
+                      <b>
+                        <MoneyInline v={sum.expected} cells={cells} currencyOf={currencyOf} />
+                      </b>
+                    ),
+                  })}
                 </>
               )}
               {sum.expected > 0 && sum.loMat > 0 ? ' · ' : null}
               {sum.loMat > 0 && (
                 <b className="text-money-out">
-                  <Num>{sum.loMat}</Num> khoản lỡ
+                  {trn('{n} khoản lỡ', { n: <Num>{sum.loMat}</Num> })}
                 </b>
               )}
               {(sum.expected > 0 || sum.loMat > 0) && sum.lechSo > 0 ? ' · ' : null}
               {sum.lechSo > 0 && (
                 <span className="text-fg-warn">
-                  <Num>{sum.lechSo}</Num> khoản lệch số
+                  {trn('{n} khoản lệch số', { n: <Num>{sum.lechSo}</Num> })}
                 </span>
               )}
             </p>
@@ -164,7 +169,7 @@ export function BillCalendarCard({
                   <span className="font-mono text-sm text-fg-primary">{dayLabel(iso)}</span>
                   {iso === todayISO && (
                     <span className="rounded-full bg-accent px-1.5 py-0.5 text-3xs font-medium text-fg-on-accent">
-                      hôm nay
+                      {tr('hôm nay')}
                     </span>
                   )}
                 </div>
@@ -192,9 +197,9 @@ export function BillCalendarCard({
           </div>
 
           <Guide className="mt-1.5 text-2xs text-fg-muted">
-            “Đã trả” = đã có giao dịch gắn đúng quy tắc đó, đúng số. “Lệch số” là có ghi
-            nhưng số khác với quy tắc — hoá đơn điện tháng nóng chẳng hạn. Mỗi giao dịch chỉ
-            khớp vào <b>một</b> kỳ gần nó nhất, nên trả trễ vài ngày vẫn về đúng kỳ của nó.
+            {trn('“Đã trả” = đã có giao dịch gắn đúng quy tắc đó, đúng số. “Lệch số” là có ghi nhưng số khác với quy tắc — hoá đơn điện tháng nóng chẳng hạn. Mỗi giao dịch chỉ khớp vào {one} kỳ gần nó nhất, nên trả trễ vài ngày vẫn về đúng kỳ của nó.', {
+              one: <b>{tr('một')}</b>,
+            })}
           </Guide>
         </>
       )}
@@ -226,7 +231,7 @@ function MoneyInline({
 }) {
   const chi = cells.filter((c) => c.type === 'expense')
   const loai = new Set(chi.map((c) => currencyOf(c.ruleId)))
-  if (loai.size !== 1) return <>nhiều loại tiền</>
+  if (loai.size !== 1) return <>{tr('nhiều loại tiền')}</>
   return <Money amount={v} currency={[...loai][0]} />
 }
 
@@ -279,9 +284,10 @@ function BillChip({
   // Lệch số thì hiện số THẬT — con số của quy tắc lúc đó chỉ là dự kiến, còn cái đã rời
   // ví mới là cái người ta cần đối chiếu với sao kê.
   const so = cell.paid ?? cell.amount
-  const title = `${cell.label} · ${NHAN[cell.status]}${
-    cell.status === 'lech-so' ? ` (quy tắc ${cell.amount})` : ''
-  }`
+  const title =
+    cell.status === 'lech-so'
+      ? tr('{label} · {status} (quy tắc {amount})', { label: cell.label, status: NHAN[cell.status], amount: cell.amount })
+      : `${cell.label} · ${NHAN[cell.status]}`
   return (
     <span
       title={title}

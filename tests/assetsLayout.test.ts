@@ -94,7 +94,7 @@ describe('bố cục trang Tài sản', () => {
       // Bản trước nút ở thẻ "Cơ cấu tài sản": trên PC 1280 nó ở y=420 cột phải còn thứ nó
       // dựng lại bắt đầu ở y=678 chiếm hết bề ngang — bấm một chỗ, đổi một chỗ khác cách
       // 258px. Nay nó ở header của chính cái bảng, tức cùng một panel.
-      const picker = at(now, 'AssetsNowView.tsx', 'label="Chế độ xem cơ cấu"')
+      const picker = at(now, 'AssetsNowView.tsx', "label={tr('Chế độ xem cơ cấu')}")
       // Mốc là chuỗi CẤU TRÚC, không phải tiêu đề: chữ "Danh sách tài khoản" còn xuất
       // hiện trong chú thích và trong nhãn cột, mà `at()` đòi mốc phải duy nhất.
       const panel = at(now, 'AssetsNowView.tsx', 'className="flex flex-col overflow-hidden"')

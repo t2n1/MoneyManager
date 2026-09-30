@@ -11,6 +11,8 @@ import { formatMoney } from '../../lib/money'
 import { normalizeText } from '../transactions/filter'
 import type { YearEvent, YearRow } from './project'
 import { buildYearCsv } from './yearCsv'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   rows: YearRow[]
@@ -110,7 +112,7 @@ function EventLine({
     <button
       type="button"
       onClick={() => onEdit(e.id)}
-      aria-label={`Sửa sự kiện ${e.label}`}
+      aria-label={tr('Sửa sự kiện {label}', { label: e.label })}
       className="flex w-full items-center gap-1.5 rounded-md text-left transition hover:bg-surface-sunken"
     >
       {body}
@@ -147,7 +149,7 @@ function YearCard({
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-fg-primary">
-          {row.year} · {row.age} tuổi · {row.country ?? row.phaseLabel}
+          {tr('{year} · {age} tuổi · {place}', { year: row.year, age: row.age, place: row.country ?? row.phaseLabel })}
         </p>
         {/* KHÔNG có icon cảnh báo ở con số này: `negative` đọc dấu của
             `assetsPessimisticMinor`, còn đây là `assetsEndMinor` — dán icon vào đây là
@@ -158,7 +160,10 @@ function YearCard({
         </span>
       </div>
       <p className="mt-0.5 text-sm text-fg-muted">
-        thu {formatMoney(row.incomeMinor, currency)} · chi {formatMoney(row.expenseMinor, currency)}
+        {tr('thu {income} · chi {expense}', {
+          income: formatMoney(row.incomeMinor, currency),
+          expense: formatMoney(row.expenseMinor, currency),
+        })}
       </p>
       {/* Biên dưới của dải — con số THẬT SỰ quyết định nền đỏ và viền đỏ của thẻ này.
           Trước đây nó không hiện ở đâu cả: với `band_spread_bps = 150` (mặc định
@@ -170,7 +175,7 @@ function YearCard({
         }`}
       >
         {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-        bi quan {formatMoney(row.assetsPessimisticMinor, currency)}
+        {tr('bi quan {amount}', { amount: formatMoney(row.assetsPessimisticMinor, currency) })}
       </p>
       {row.events.length > 0 && (
         <div className="mt-1.5 space-y-1 border-t border-border-panel pt-1.5 text-sm">
@@ -260,19 +265,19 @@ function YearTableRow({
 }
 
 const TABLE_HEADERS = [
-  'Năm',
-  'Tuổi',
-  'Nơi ở',
-  'Thu',
-  'Chi',
-  'Sự kiện',
-  'Tài sản cuối năm',
+  tr('Năm'),
+  tr('Tuổi'),
+  tr('Nơi ở'),
+  tr('Thu'),
+  tr('Chi'),
+  tr('Sự kiện'),
+  tr('Tài sản cuối năm'),
   // Cột này là điều kiện tô đỏ của cả dòng — xem JSDoc `YearTableRow`.
-  'Bi quan',
+  tr('Bi quan'),
 ]
 /** Cột nào canh phải (số tiền). Trước đây là một biểu thức `h === … || h === …` viết
  *  thẳng trong JSX; thêm cột thứ tư vào đó là lúc nó nên thành một tập. */
-const RIGHT_ALIGNED = new Set(['Thu', 'Chi', 'Tài sản cuối năm', 'Bi quan'])
+const RIGHT_ALIGNED = new Set([tr('Thu'), tr('Chi'), tr('Tài sản cuối năm'), tr('Bi quan')])
 
 /**
  * Bảng chi tiết theo năm — bản dự phòng a11y của đồ thị Lifetime. Mặc định chỉ hiện
@@ -380,7 +385,7 @@ function YearTableBody({
             />
           </span>
           <span id={switchLabelId} className="text-sm font-medium text-fg-primary">
-            Chỉ năm có sự kiện
+            {tr('Chỉ năm có sự kiện')}
           </span>
         </button>
 
@@ -390,14 +395,14 @@ function YearTableBody({
           className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary transition active:scale-95"
         >
           <Download className="h-4 w-4" />
-          Xuất CSV
+          {tr('Xuất CSV')}
         </button>
       </div>
 
       {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
       <div className={scrollClassName}>
         {rows.length === 0 ? (
-          <EmptyState compact>Chưa có dữ liệu để hiện.</EmptyState>
+          <EmptyState compact>{tr('Chưa có dữ liệu để hiện.')}</EmptyState>
         ) : (
           <>
             <div className="space-y-2 sm:hidden">
@@ -450,16 +455,17 @@ function YearTableBody({
         <div className="shrink-0 border-t border-border-panel pt-2 text-center text-sm text-fg-muted">
           <p>
             {hiddenCount > 0
-              ? `đang ẩn ${hiddenCount} năm không có sự kiện`
-              : `đang hiện đủ ${rows.length} năm`}
+              ? tr('đang ẩn {n} năm không có sự kiện', { n: hiddenCount })
+              : tr('đang hiện đủ {n} năm', { n: rows.length })}
           </p>
           {/* Nói ra ĐIỀU KIỆN tô đỏ. Không có câu này thì người đọc mặc định gán màu đỏ
               cho con số to nhất trên dòng ("Tài sản cuối năm"), tức đọc thành "đang âm"
               trong khi tin thật là "có thể âm ở nhánh xấu" — hai tin khác nhau. */}
           {hasPessimisticNegative && (
             <p className="mt-0.5">
-              Dòng tô đỏ = cột <b>Bi quan</b> (biên dưới của dải) xuống dưới 0, không phải tài
-              sản cuối năm âm.
+              {trn('Dòng tô đỏ = cột {col} (biên dưới của dải) xuống dưới 0, không phải tài sản cuối năm âm.', {
+                col: <b>{tr('Bi quan')}</b>,
+              })}
             </p>
           )}
         </div>
@@ -496,18 +502,18 @@ export function YearTableView({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Bảng theo năm"
+        aria-label={tr('Bảng theo năm')}
         className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-surface-page lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border-strong lg:hidden" />
 
         <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-          <SectionTitle role="block" className="flex-1">Bảng theo năm</SectionTitle>
+          <SectionTitle role="block" className="flex-1">{tr('Bảng theo năm')}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Đóng bảng theo năm"
+            aria-label={tr('Đóng bảng theo năm')}
             className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition active:scale-95"
           >
             <X className="h-5 w-5" />

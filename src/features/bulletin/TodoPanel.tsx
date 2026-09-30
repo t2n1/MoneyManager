@@ -26,6 +26,7 @@ import type {
 } from "../notifications/types";
 import { dueSoonCount, todoBadge, todoSource, urgentCount } from "./todoView";
 import { SectionTitle } from '../../components/ui'
+import { tr } from "../../i18n";
 
 /** Nối <button aria-controls> với vùng co giãn — thiếu nó thì trình đọc màn hình biết
  *  nút này đóng/mở, nhưng không biết nó đóng/mở CÁI GÌ. */
@@ -38,9 +39,9 @@ const TONE: Record<NotificationSeverity, "bad" | "warn" | "info"> = {
 };
 
 const TONE_LABEL: Record<NotificationSeverity, string> = {
-  high: "Gấp",
-  medium: "Nên làm sớm",
-  low: "Khi rảnh",
+  high: tr("Gấp"),
+  medium: tr("Nên làm sớm"),
+  low: tr("Khi rảnh"),
 };
 
 interface Props {
@@ -128,11 +129,11 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                 gì gấp không" mà chú thích trên vừa nói là phải giữ. Từ lg mới đủ rộng
                 để một dòng. */}
             <span className="min-w-0 flex-1 line-clamp-2 lg:line-clamp-none lg:truncate">
-              Việc cần làm ({items.length})
+              {tr("Việc cần làm ({n})", { n: items.length })}
               {soon > 0 && (
                 <span className="font-normal text-fg-muted">
                   {" "}
-                  · {soon} có hạn trong tuần
+                  {tr("· {n} có hạn trong tuần", { n: soon })}
                 </span>
               )}
             </span>
@@ -142,7 +143,7 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                 bấm. Chỉ hiện khi > 0: một badge "0 gấp" mỗi ngày cũng là một thứ phải đọc. */}
             {gap > 0 && (
               <span className="shrink-0 rounded-full bg-state-bad-bg px-2 py-0.5 text-2xs font-semibold text-state-bad-fg">
-                {gap} gấp
+                {tr("{n} gấp", { n: gap })}
               </span>
             )}
           </button>
@@ -151,7 +152,7 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
           to="/settings/notifications"
           className="-my-2 shrink-0 py-2 text-2xs text-fg-muted hover:underline"
         >
-          Chọn loại nhắc
+          {tr("Chọn loại nhắc")}
         </Link>
       </div>
 
@@ -208,7 +209,7 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                         {/* E-ink + Gọn: bỏ dòng này — còn tên việc + chip; bấm vào việc vẫn
                             về màn nguồn nên đường quay về không mất. */}
                         <span className="block truncate text-2xs text-fg-muted eink-gon:hidden">
-                          Từ {todoSource(n)}
+                          {tr("Từ {source}", { source: todoSource(n) })}
                           {n.detail && ` — ${n.detail}`}
                         </span>
                       </span>
@@ -236,8 +237,8 @@ export function TodoPanel({ items, onDismiss, className }: Props) {
                       type="button"
                       onClick={() => hide(n.key)}
                       disabled={going}
-                      aria-label={`Ẩn: ${n.title}`}
-                      title="Ẩn việc này"
+                      aria-label={tr("Ẩn: {title}", { title: n.title })}
+                      title={tr("Ẩn việc này")}
                       className={iconButtonClass("ghost", "shrink-0")}
                     >
                       <Check className="h-4 w-4" />

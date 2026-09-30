@@ -16,6 +16,7 @@ import { SO_NAM_HOAN_THUE, tinhRefund, type RefundKetQua } from './refund'
 import { luatChoNam } from './rules/luat'
 import { tinhShelterYearEnd, type ShelterKetQua } from './shelterYearEnd'
 import { tinhIryohi, type IryohiKetQua } from './iryohi'
+import { tr } from '../../i18n'
 
 /** Định dạng tiền mặc định cho test — bản thật đi qua `formatMoney`/`serverFormatMoney`. */
 export const fmtYen = (n: number) => `¥${n.toLocaleString('en-US')}`
@@ -95,8 +96,8 @@ export function tinhQuyenLoi(input: QuyenLoiInput): QuyenLoiKetQua {
     muc: 'low',
     tiet_kiem_uoc: null,
     han: null,
-    viec: fuyo.chua_gan.so_lan > 0 ? `${fuyo.chua_gan.so_lan} lần gửi tiền chưa gán người nhận` : 'Mọi lần gửi đã có người nhận',
-    ly_do: ['Chưa gán thì khấu trừ người phụ thuộc đang tính thiếu.'],
+    viec: fuyo.chua_gan.so_lan > 0 ? tr('{n} lần gửi tiền chưa gán người nhận', { n: fuyo.chua_gan.so_lan }) : tr('Mọi lần gửi đã có người nhận'),
+    ly_do: [tr('Chưa gán thì khấu trừ người phụ thuộc đang tính thiếu.')],
   }
 
   return {

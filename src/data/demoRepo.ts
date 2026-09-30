@@ -60,6 +60,7 @@ import type {
   TransactionTagRow,
 } from '../types/database.types'
 import { demoSessions, demoWalk } from './demoPrices'
+import { tr, trx } from '../i18n'
 import {
   type NewLifetimeVerdictSnapshot,
   BACKUP_VERSION,
@@ -124,15 +125,15 @@ const DEMO_USER = 'demo-user'
  */
 function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount'>) {
   if (input.type === 'transfer') {
-    if (!input.to_account_id) throw new Error('Chuyển khoản phải có tài khoản đích')
+    if (!input.to_account_id) throw new Error(tr('Chuyển khoản phải có tài khoản đích'))
     if (input.to_account_id === input.account_id)
-      throw new Error('Không chuyển khoản về chính nó')
-    if (input.category_id) throw new Error('Chuyển khoản không mang danh mục')
+      throw new Error(tr('Không chuyển khoản về chính nó'))
+    if (input.category_id) throw new Error(tr('Chuyển khoản không mang danh mục'))
     return
   }
-  if (!input.category_id) throw new Error('Giao dịch thu/chi phải có danh mục')
+  if (!input.category_id) throw new Error(tr('Giao dịch thu/chi phải có danh mục'))
   if (input.to_account_id || input.to_amount)
-    throw new Error('Giao dịch thu/chi không có tài khoản đích')
+    throw new Error(tr('Giao dịch thu/chi không có tài khoản đích'))
 }
 
 /**
@@ -144,12 +145,12 @@ function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'acc
  */
 function assertStockTradeShape(input: Pick<NewStockTrade, 'kind' | 'quantity' | 'price'>) {
   if (input.kind === 'adjust') {
-    if (input.quantity === 0) throw new Error('Điều chỉnh phải khác 0 cổ')
-    if (input.price !== 0) throw new Error('Điều chỉnh không được có giá')
+    if (input.quantity === 0) throw new Error(tr('Điều chỉnh phải khác 0 cổ'))
+    if (input.price !== 0) throw new Error(tr('Điều chỉnh không được có giá'))
     return
   }
-  if (!(input.quantity > 0)) throw new Error('Số cổ phải là số dương')
-  if (!(input.price > 0)) throw new Error('Giá phải là số dương')
+  if (!(input.quantity > 0)) throw new Error(tr('Số cổ phải là số dương'))
+  if (!(input.price > 0)) throw new Error(tr('Giá phải là số dương'))
 }
 
 /**
@@ -204,15 +205,15 @@ function assertFundTradeShape(
   input: Pick<NewFundTrade, 'kind' | 'units' | 'nav' | 'amount'>,
 ) {
   if (input.kind === 'adjust') {
-    if (input.units === 0) throw new Error('Lệnh điều chỉnh phải có số 口数 khác 0.')
-    if (input.nav !== 0) throw new Error('Lệnh điều chỉnh không được có 基準価額.')
-    if (input.amount !== 0) throw new Error('Lệnh điều chỉnh không được có số tiền.')
+    if (input.units === 0) throw new Error(tr('Lệnh điều chỉnh phải có số 口数 khác 0.'))
+    if (input.nav !== 0) throw new Error(tr('Lệnh điều chỉnh không được có 基準価額.'))
+    if (input.amount !== 0) throw new Error(tr('Lệnh điều chỉnh không được có số tiền.'))
     return
   }
   if (!Number.isFinite(input.units) || input.units <= 0)
-    throw new Error('Lệnh mua/bán phải có số 口数 dương.')
+    throw new Error(tr('Lệnh mua/bán phải có số 口数 dương.'))
   if (!Number.isFinite(input.amount) || input.amount <= 0)
-    throw new Error('Lệnh mua/bán phải có số tiền dương.')
+    throw new Error(tr('Lệnh mua/bán phải có số tiền dương.'))
 }
 
 interface DemoDB {
@@ -370,17 +371,17 @@ function seed(): DemoDB {
   })
 
   const accounts = [
-    account('Tiền mặt', 'cash', 'JPY', 30_000, 0, 'Tiêu dùng'), // ¥30.000
-    account('Ngân hàng', 'bank', 'JPY', 800_000, 1, 'Tiêu dùng'), // ¥800.000
+    account(tr('Tiền mặt'), 'cash', 'JPY', 30_000, 0, tr('Tiêu dùng')), // ¥30.000
+    account(tr('Ngân hàng'), 'bank', 'JPY', 800_000, 1, tr('Tiêu dùng')), // ¥800.000
     // Tài khoản riêng cho sổ lệnh cổ phiếu Việt Nam (migration 0035) — tách khỏi
     // 'Đầu tư VN' bên dưới vì tài khoản đó đã có giao dịch/định giá gắn sẵn; nếu dùng
     // chung, test "xoá tài khoản còn sổ lệnh" sẽ luôn báo lỗi vì giao dịch trước.
-    account('Chứng khoán VN', 'investment', 'VND', 100_000_000, 2, 'Tài sản Việt Nam'), // 100.000.000 ₫ (vốn gốc)
-    account('Đầu tư VN', 'investment', 'VND', 50_000_000, 3, 'Đầu tư'), // 50.000.000 ₫ (vốn gốc)
-    account('Dự trữ USD', 'bank', 'USD', 200_000, 4, 'Dự phòng'), // $2.000,00
+    account(tr('Chứng khoán VN'), 'investment', 'VND', 100_000_000, 2, tr('Tài sản Việt Nam')), // 100.000.000 ₫ (vốn gốc)
+    account(tr('Đầu tư VN'), 'investment', 'VND', 50_000_000, 3, tr('Đầu tư')), // 50.000.000 ₫ (vốn gốc)
+    account(tr('Dự trữ USD'), 'bank', 'USD', 200_000, 4, trx('group', 'Dự phòng')), // $2.000,00
     // Thẻ tín dụng: số dư ban đầu âm = đang nợ ¥45.000. Không thuộc nhóm tài sản.
     {
-      ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 5, null),
+      ...account(tr('Thẻ Rakuten'), 'card', 'JPY', -45_000, 5, null),
       credit_limit: 500_000,
       statement_day: 31, // chốt cuối tháng (kẹp về ngày cuối)
       payment_due_day: 27, // trả ngày 27 (dời T7/CN sang T2 khi hiển thị)
@@ -388,104 +389,104 @@ function seed(): DemoDB {
     // Tài khoản NISA quỹ đầu tư Nhật (migration 0045) — vốn gốc đến từ fund_trades, không
     // từ initial_balance: Rakuten quét sạch tiền dư (自動出金) nên không có "tiền chưa
     // đầu tư" để gán ở đây.
-    account('NISA Rakuten', 'investment', 'JPY', 0, 6, 'Tài sản Nhật'),
+    account('NISA Rakuten', 'investment', 'JPY', 0, 6, tr('Tài sản Nhật')),
   ]
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
   accounts[5].payment_account_id = accounts[1].id
 
   // Danh mục cha + con — bộ chuẩn hoá kiểu "Money Manager" (dịch tiếng Việt).
-  const nhaO = category('Nhà ở', 'expense', '🏠')
-  const anUong = category('Ăn uống', 'expense', '🍜')
-  const giaoTe = category('Giao tế', 'expense', '👫')
-  const diLai = category('Đi lại', 'expense', '🚆')
-  const thoiTrang = category('Thời trang', 'expense', '🧥')
-  const soThich = category('Sở thích', 'expense', '🌱')
-  const sucKhoe = category('Sức khỏe', 'expense', '🧘')
+  const nhaO = category(tr('Nhà ở'), 'expense', '🏠')
+  const anUong = category(tr('Ăn uống'), 'expense', '🍜')
+  const giaoTe = category(tr('Giao tế'), 'expense', '👫')
+  const diLai = category(tr('Đi lại'), 'expense', '🚆')
+  const thoiTrang = category(tr('Thời trang'), 'expense', '🧥')
+  const soThich = category(tr('Sở thích'), 'expense', '🌱')
+  const sucKhoe = category(tr('Sức khỏe'), 'expense', '🧘')
   // "Tài chính" không có con -> tự nó là danh mục lá, nên có nhãn 2 trục. Chỉ chứa
   // PHÍ tài chính; mua đầu tư là chuyển khoản sang tài khoản đầu tư, không phải chi.
-  const taiChinh = category('Tài chính', 'expense', '🏦', null, 'essential', 'variable')
-  const giaoDuc = category('Giáo dục', 'expense', '📔')
-  const duLich = category('Du lịch', 'expense', '🧳')
-  const giayTo = category('Giấy tờ & Pháp lý', 'expense', '📄')
-  const quaTang = category('Quà tặng', 'expense', '🎁')
-  const khacChi = category('Khác', 'expense', '📦')
+  const taiChinh = category('Tài chính', 'expense', '🏦', null, 'essential', 'variable') // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+  const giaoDuc = category(tr('Giáo dục'), 'expense', '📔')
+  const duLich = category(tr('Du lịch'), 'expense', '🧳')
+  const giayTo = category(tr('Giấy tờ & Pháp lý'), 'expense', '📄')
+  const quaTang = category(tr('Quà tặng'), 'expense', '🎁')
+  const khacChi = category(tr('Khác'), 'expense', '📦')
   // ふるさと納税 (mục Quyền lợi, migration 0056): khoản quyên góp trừ vào thuế cư trú năm
   // sau — không phải "cho không", nên cần lộ diện trong danh mục demo để màn Quyền lợi có
   // gì mà đếm.
   const furusato = category('ふるさと納税 (寄附)', 'expense', '🎁', null, 'flexible', 'variable')
   const categories = [
     nhaO,
-    category('Tiền nhà', 'expense', '🔑', nhaO.id, 'essential', 'fixed'),
-    category('Nội thất', 'expense', '🛋️', nhaO.id),
-    category('Đồ bếp', 'expense', '🍳', nhaO.id),
-    category('Đồ vệ sinh cá nhân', 'expense', '🧴', nhaO.id),
-    category('Điện', 'expense', '💡', nhaO.id, 'essential', 'variable'),
-    category('Nước', 'expense', '🚰', nhaO.id),
+    category(tr('Tiền nhà'), 'expense', '🔑', nhaO.id, 'essential', 'fixed'),
+    category(tr('Nội thất'), 'expense', '🛋️', nhaO.id),
+    category(tr('Đồ bếp'), 'expense', '🍳', nhaO.id),
+    category(tr('Đồ vệ sinh cá nhân'), 'expense', '🧴', nhaO.id),
+    category(tr('Điện'), 'expense', '💡', nhaO.id, 'essential', 'variable'),
+    category(tr('Nước'), 'expense', '🚰', nhaO.id),
     category('Gas', 'expense', '🔥', nhaO.id),
-    category('Điện thoại', 'expense', '📱', nhaO.id, 'essential', 'fixed'),
+    category(tr('Điện thoại'), 'expense', '📱', nhaO.id, 'essential', 'fixed'),
     anUong,
-    category('Bữa sáng', 'expense', '🥐', anUong.id),
-    category('Bữa trưa', 'expense', '🍱', anUong.id, 'essential', 'variable'),
-    category('Bữa tối', 'expense', '🍚', anUong.id),
-    category('Ăn ngoài', 'expense', '🍽️', anUong.id, 'flexible', 'variable'),
-    category('Đồ uống', 'expense', '🥤', anUong.id),
-    category('Đi chợ', 'expense', '🛒', anUong.id, 'essential', 'variable'),
+    category(tr('Bữa sáng'), 'expense', '🥐', anUong.id),
+    category(tr('Bữa trưa'), 'expense', '🍱', anUong.id, 'essential', 'variable'),
+    category(tr('Bữa tối'), 'expense', '🍚', anUong.id),
+    category(tr('Ăn ngoài'), 'expense', '🍽️', anUong.id, 'flexible', 'variable'),
+    category(tr('Đồ uống'), 'expense', '🥤', anUong.id),
+    category(tr('Đi chợ'), 'expense', '🛒', anUong.id, 'essential', 'variable'),
     giaoTe,
-    category('Bạn bè', 'expense', '🧑‍🤝‍🧑', giaoTe.id),
-    category('Tình cảm', 'expense', '💑', giaoTe.id),
+    category(tr('Bạn bè'), 'expense', '🧑‍🤝‍🧑', giaoTe.id),
+    category(tr('Tình cảm'), 'expense', '💑', giaoTe.id),
     diLai,
-    category('Xe buýt', 'expense', '🚌', diLai.id),
-    category('Tàu điện', 'expense', '🚉', diLai.id, 'essential', 'variable'),
+    category(tr('Xe buýt'), 'expense', '🚌', diLai.id),
+    category(tr('Tàu điện'), 'expense', '🚉', diLai.id, 'essential', 'variable'),
     category('Taxi', 'expense', '🚕', diLai.id),
-    category('Ô tô', 'expense', '🚗', diLai.id),
-    category('Bãi đỗ xe', 'expense', '🅿️', diLai.id, 'essential', 'fixed'),
+    category(tr('Ô tô'), 'expense', '🚗', diLai.id),
+    category(tr('Bãi đỗ xe'), 'expense', '🅿️', diLai.id, 'essential', 'fixed'),
     category('Luup', 'expense', '🛴', diLai.id),
     thoiTrang,
-    category('Quần áo', 'expense', '👕', thoiTrang.id, 'flexible', 'variable'),
-    category('Giày dép', 'expense', '👟', thoiTrang.id),
-    category('Phụ kiện', 'expense', '👜', thoiTrang.id),
-    category('Mỹ phẩm', 'expense', '💄', thoiTrang.id),
-    category('Giặt là', 'expense', '🧺', thoiTrang.id),
+    category(tr('Quần áo'), 'expense', '👕', thoiTrang.id, 'flexible', 'variable'),
+    category(tr('Giày dép'), 'expense', '👟', thoiTrang.id),
+    category(tr('Phụ kiện'), 'expense', '👜', thoiTrang.id),
+    category(tr('Mỹ phẩm'), 'expense', '💄', thoiTrang.id),
+    category(tr('Giặt là'), 'expense', '🧺', thoiTrang.id),
     soThich,
-    category('Cây cối', 'expense', '🪴', soThich.id),
-    category('Nhiếp ảnh', 'expense', '📷', soThich.id),
-    category('Đăng ký', 'expense', '📺', soThich.id, 'flexible', 'fixed'),
-    category('Thể thao', 'expense', '⚽', soThich.id),
+    category(tr('Cây cối'), 'expense', '🪴', soThich.id),
+    category(tr('Nhiếp ảnh'), 'expense', '📷', soThich.id),
+    category(tr('Đăng ký'), 'expense', '📺', soThich.id, 'flexible', 'fixed'),
+    category(tr('Thể thao'), 'expense', '⚽', soThich.id),
     sucKhoe,
     category('Gym', 'expense', '🏋️', sucKhoe.id),
-    category('Bệnh viện', 'expense', '🏥', sucKhoe.id),
-    category('Thuốc', 'expense', '💊', sucKhoe.id, 'essential', 'variable'),
-    category('Thuốc lá', 'expense', '🚬', sucKhoe.id),
+    category('Bệnh viện', 'expense', '🏥', sucKhoe.id), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+    category('Thuốc', 'expense', '💊', sucKhoe.id, 'essential', 'variable'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+    category(tr('Thuốc lá'), 'expense', '🚬', sucKhoe.id),
     taiChinh,
     // `kind: 'transfer'` — cùng quy ước với backfill của migration 0046. Có nó thì demo
     // mới chạy qua đúng nhánh "tầng chuyển tài sản" của khối 01, và mới thấy được chi tiêu
     // KHÔNG gồm ¥30.000 gửi về nhà.
-    category('Gửi tiền về VN', 'expense', '🧧', taiChinh.id, null, null, 'transfer'),
+    category('Gửi tiền về VN', 'expense', '🧧', taiChinh.id, null, null, 'transfer'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
     giaoDuc,
-    category('Thi cử', 'expense', '📝', giaoDuc.id),
-    category('Học phí', 'expense', '🏫', giaoDuc.id),
-    category('Sách vở', 'expense', '📚', giaoDuc.id),
+    category(tr('Thi cử'), 'expense', '📝', giaoDuc.id),
+    category(tr('Học phí'), 'expense', '🏫', giaoDuc.id),
+    category(tr('Sách vở'), 'expense', '📚', giaoDuc.id),
     duLich,
-    category('Vé máy bay', 'expense', '✈️', duLich.id, 'flexible', 'variable'),
-    category('Khách sạn', 'expense', '🏨', duLich.id),
-    category('Tham quan & ăn chơi', 'expense', '🎡', duLich.id),
-    category('Quà mang về', 'expense', '🍡', duLich.id),
+    category(tr('Vé máy bay'), 'expense', '✈️', duLich.id, 'flexible', 'variable'),
+    category(tr('Khách sạn'), 'expense', '🏨', duLich.id),
+    category(tr('Tham quan & ăn chơi'), 'expense', '🎡', duLich.id),
+    category(tr('Quà mang về'), 'expense', '🍡', duLich.id),
     giayTo,
-    category('Visa & lưu trú', 'expense', '🛂', giayTo.id, 'essential', 'variable'),
-    category('Hộ chiếu & lãnh sự', 'expense', '🛃', giayTo.id),
-    category('Dịch thuật & công chứng', 'expense', '✍️', giayTo.id),
+    category(tr('Visa & lưu trú'), 'expense', '🛂', giayTo.id, 'essential', 'variable'),
+    category(tr('Hộ chiếu & lãnh sự'), 'expense', '🛃', giayTo.id),
+    category(tr('Dịch thuật & công chứng'), 'expense', '✍️', giayTo.id),
     quaTang,
-    category('Quà', 'expense', '🎀', quaTang.id),
-    category('Hỗ trợ gia đình', 'expense', '👪', quaTang.id),
+    category(tr('Quà'), 'expense', '🎀', quaTang.id),
+    category(tr('Hỗ trợ gia đình'), 'expense', '👪', quaTang.id),
     khacChi,
     furusato,
     // Thu
-    category('Lương', 'income', '💰'),
-    category('Thưởng', 'income', '🎉'),
-    category('Được tặng', 'income', '🧧'),
-    category('Đầu tư', 'income', '📈'),
-    category('Bán đồ cũ', 'income', '♻️'),
-    category('Khác', 'income', '💵'),
+    category(tr('Lương'), 'income', '💰'),
+    category(tr('Thưởng'), 'income', '🎉'),
+    category(tr('Được tặng'), 'income', '🧧'),
+    category(tr('Đầu tư'), 'income', '📈'),
+    category(tr('Bán đồ cũ'), 'income', '♻️'),
+    category('Khác', 'income', '💵'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
   ]
 
   const cat = (name: string, type: CategoryType) =>
@@ -521,10 +522,10 @@ function seed(): DemoDB {
     type: 'income',
     amount: 280_000,
     to_amount: null,
-    category_id: cat('Lương', 'income').id,
+    category_id: cat(tr('Lương'), 'income').id,
     account_id: bank.id,
     to_account_id: null,
-    note: 'Lương tháng',
+    note: tr('Lương tháng'),
     frequency: 'monthly',
     start_on: monthsAgoISO(24, 25),
     end_on: null,
@@ -539,30 +540,30 @@ function seed(): DemoDB {
 
   // Người thân nhận tiền gửi về VN (migration 0056) — mẹ (70+, đã quá tuổi ngưỡng 30–69)
   // và em Hùng (30–69, đúng khoảng tuổi luật 国外居住親族 áp dụng).
-  const me = { id: uuid(), user_id: DEMO_USER, name: 'Mẹ', birth_year: 1955, relationship: 'parent' as const, country: 'VN', is_archived: false, sort_order: 0, created_at: nowISO() }
-  const em = { id: uuid(), user_id: DEMO_USER, name: 'Em Hùng', birth_year: 1995, relationship: 'sibling' as const, country: 'VN', is_archived: false, sort_order: 1, created_at: nowISO() }
+  const me = { id: uuid(), user_id: DEMO_USER, name: tr('Mẹ'), birth_year: 1955, relationship: 'parent' as const, country: 'VN', is_archived: false, sort_order: 0, created_at: nowISO() }
+  const em = { id: uuid(), user_id: DEMO_USER, name: tr('Em Hùng'), birth_year: 1995, relationship: 'sibling' as const, country: 'VN', is_archived: false, sort_order: 1, created_at: nowISO() }
   const relatives: RelativeRow[] = [me, em]
 
   const transactions = [
     // Chi tiêu hàng ngày bằng JPY
-    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Bữa trưa', 'expense').id }),
-    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: 'Tàu điện', category_id: cat('Tàu điện', 'expense').id }),
-    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: 'Ăn tối cùng bạn', category_id: cat('Ăn ngoài', 'expense').id }),
-    tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: 'Áo khoác Uniqlo', category_id: cat('Quần áo', 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: 'Tiền điện + gas', category_id: cat('Điện', 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Thuốc', 'expense').id }),
-    tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(0), note: 'Tiền thuê nhà tháng này', category_id: cat('Tiền nhà', 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: tr('Cơm trưa'), category_id: cat(tr('Bữa trưa'), 'expense').id }),
+    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: tr('Tàu điện'), category_id: cat(tr('Tàu điện'), 'expense').id }),
+    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: tr('Ăn tối cùng bạn'), category_id: cat(tr('Ăn ngoài'), 'expense').id }),
+    tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: tr('Áo khoác Uniqlo'), category_id: cat(tr('Quần áo'), 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: tr('Tiền điện + gas'), category_id: cat(tr('Điện'), 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: tr('Thuốc cảm'), category_id: cat('Thuốc', 'expense').id }), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+    tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(0), note: tr('Tiền thuê nhà tháng này'), category_id: cat(tr('Tiền nhà'), 'expense').id, account_id: bank.id }),
     // GẮN quy tắc lương: không gắn thì khối "thu định kỳ vs một lần" của tháng đang chạy
     // không có tín hiệu nào và tự ẩn — tức khối mới dựng không bao giờ thấy được trong demo.
     {
-      ...tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+      ...tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: tr('Lương tháng'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
       recurring_rule_id: luongRule.id,
     },
     // Thưởng nhỏ KHÔNG gắn quy tắc → cột "một lần", để hai cột đều có số.
-    tx({ type: 'income', amount: 9_181, occurred_on: daysAgo(2), note: 'Thưởng nhỏ', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    tx({ type: 'income', amount: 9_181, occurred_on: daysAgo(2), note: tr('Thưởng nhỏ'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
     // Gửi về VN của tháng đang chạy — để tầng "chuyển tài sản" của khối 01 khác 0.
     {
-      ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: 'Gửi tiền về nhà', category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }),
+      ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: tr('Gửi tiền về nhà'), category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
       is_remittance: true,
       remit_service: 'Wise',
       remit_fee_jpy: 500,
@@ -570,15 +571,15 @@ function seed(): DemoDB {
       remit_recipient_id: me.id,
     },
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
-    tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
+    tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: tr('Rút tiền mặt'), account_id: bank.id, to_account_id: cash.id }),
     // Chuyển khoản XUYÊN TỆ: ¥50.000 → Đầu tư VN nhận 8.250.000 ₫
-    tx({ type: 'transfer', amount: 50_000, to_amount: 8_250_000, occurred_on: daysAgo(7), note: 'Nạp tài khoản đầu tư', account_id: bank.id, to_account_id: invest.id }),
+    tx({ type: 'transfer', amount: 50_000, to_amount: 8_250_000, occurred_on: daysAgo(7), note: tr('Nạp tài khoản đầu tư'), account_id: bank.id, to_account_id: invest.id }),
     // Thu nhập đầu tư bằng VND
-    tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: 'Cổ tức', category_id: cat('Đầu tư', 'income').id, account_id: invest.id }),
+    tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: tr('Cổ tức'), category_id: cat(tr('Đầu tư'), 'income').id, account_id: invest.id }),
     // Tháng trước
-    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Đăng ký', 'expense').id }),
-    tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Đi chợ', 'expense').id, account_id: bank.id }),
-    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: tr('Xem phim'), category_id: cat(tr('Đăng ký'), 'expense').id }),
+    tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: tr('Siêu thị'), category_id: cat(tr('Đi chợ'), 'expense').id, account_id: bank.id }),
+    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: tr('Lương tháng'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
     tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(40), note: 'ふるさと納税', category_id: cat('ふるさと納税 (寄附)', 'expense').id, account_id: bank.id }),
     // ---------------------------------------------------------------- 24 THÁNG LỊCH SỬ
     //
@@ -619,8 +620,8 @@ function seed(): DemoDB {
           type: 'income',
           amount: 280_000 + wobble * 1_000,
           occurred_on: monthsAgoISO(i, 25),
-          note: 'Lương tháng',
-          category_id: cat('Lương', 'income').id,
+          note: tr('Lương tháng'),
+          category_id: cat(tr('Lương'), 'income').id,
           account_id: bank.id,
         }),
         recurring_rule_id: luongRule.id,
@@ -633,8 +634,8 @@ function seed(): DemoDB {
             type: 'income',
             amount: 80_000,
             occurred_on: monthsAgoISO(i, 15),
-            note: 'Thưởng hè',
-            category_id: cat('Lương', 'income').id,
+            note: tr('Thưởng hè'),
+            category_id: cat(tr('Lương'), 'income').id,
             account_id: bank.id,
           }),
         )
@@ -646,8 +647,8 @@ function seed(): DemoDB {
           type: 'expense',
           amount: cuNep ? 112_000 : 68_000,
           occurred_on: monthsAgoISO(i, 1),
-          note: 'Tiền thuê nhà',
-          category_id: cat('Tiền nhà', 'expense').id,
+          note: tr('Tiền thuê nhà'),
+          category_id: cat(tr('Tiền nhà'), 'expense').id,
           account_id: bank.id,
         }),
       )
@@ -659,23 +660,23 @@ function seed(): DemoDB {
           type: 'expense',
           amount: Math.round(bienDoi * 0.45),
           occurred_on: monthsAgoISO(i, 6),
-          note: 'Đi chợ',
-          category_id: cat('Đi chợ', 'expense').id,
+          note: tr('Đi chợ'),
+          category_id: cat(tr('Đi chợ'), 'expense').id,
           account_id: bank.id,
         }),
         tx({
           type: 'expense',
           amount: Math.round(bienDoi * 0.4),
           occurred_on: monthsAgoISO(i, 12),
-          note: 'Ăn ngoài',
-          category_id: cat('Ăn ngoài', 'expense').id,
+          note: tr('Ăn ngoài'),
+          category_id: cat(tr('Ăn ngoài'), 'expense').id,
         }),
         tx({
           type: 'expense',
           amount: Math.round(bienDoi * 0.15),
           occurred_on: monthsAgoISO(i, 18),
-          note: 'Tàu điện',
-          category_id: cat('Tàu điện', 'expense').id,
+          note: tr('Tàu điện'),
+          category_id: cat(tr('Tàu điện'), 'expense').id,
         }),
       )
 
@@ -687,8 +688,8 @@ function seed(): DemoDB {
             type: 'expense',
             amount: 90_000,
             occurred_on: monthsAgoISO(i, 20),
-            note: 'Vé máy bay về nhà',
-            category_id: cat('Vé máy bay', 'expense').id,
+            note: tr('Vé máy bay về nhà'),
+            category_id: cat(tr('Vé máy bay'), 'expense').id,
             account_id: bank.id,
           }),
         )
@@ -701,8 +702,8 @@ function seed(): DemoDB {
             type: 'expense',
             amount: idx === 15 ? 40_000 : 30_000,
             occurred_on: monthsAgoISO(i, 26),
-            note: 'Gửi tiền về nhà',
-            category_id: cat('Gửi tiền về VN', 'expense').id,
+            note: tr('Gửi tiền về nhà'),
+            category_id: cat('Gửi tiền về VN', 'expense').id, // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
             account_id: bank.id,
           }),
           is_remittance: true,
@@ -724,7 +725,7 @@ function seed(): DemoDB {
             type: 'transfer',
             amount: 45_000,
             occurred_on: monthsAgoISO(i, 27),
-            note: 'Nạp NISA',
+            note: tr('Nạp NISA'),
             account_id: bank.id,
             to_account_id: nisaAcc.id,
           }),
@@ -745,10 +746,10 @@ function seed(): DemoDB {
     updated_at: nowISO(),
   })
   const budgets = [
-    budget('Ăn uống', 40_000), // trần nhóm ở cha — gộp chi của mọi con
-    budget('Bữa trưa', 15_000), // mốc theo dõi ở con (không cộng vào tổng)
-    budget('Đi lại', 8_000), // trần nhóm ở cha
-    budget('Quần áo', 20_000), // con của nhóm chưa có trần → tính độc lập (tương thích)
+    budget(tr('Ăn uống'), 40_000), // trần nhóm ở cha — gộp chi của mọi con
+    budget(tr('Bữa trưa'), 15_000), // mốc theo dõi ở con (không cộng vào tổng)
+    budget(tr('Đi lại'), 8_000), // trần nhóm ở cha
+    budget(tr('Quần áo'), 20_000), // con của nhóm chưa có trần → tính độc lập (tương thích)
   ]
 
   // Cài đặt nhóm mặc định: giữ đúng thứ tự đã seed cho 3 nhóm.
@@ -763,23 +764,23 @@ function seed(): DemoDB {
     created_at: nowISO(),
   })
   const assetGroupSettings = [
-    groupSetting('Tiêu dùng', 0),
-    groupSetting('Tài sản Việt Nam', 1),
-    groupSetting('Đầu tư', 2),
-    groupSetting('Dự phòng', 3),
+    groupSetting(tr('Tiêu dùng'), 0),
+    groupSetting(tr('Tài sản Việt Nam'), 1),
+    groupSetting(tr('Đầu tư'), 2),
+    groupSetting(trx('group', 'Dự phòng'), 3),
   ]
 
   // Khoản nợ mẫu: mình cho bạn vay ¥50.000 (đã nhận lại ¥20.000) và mình nợ công ty $500.
   const debtLent: DebtRow = {
     id: uuid(),
     user_id: DEMO_USER,
-    counterparty: 'Bạn Minh',
+    counterparty: tr('Bạn Minh'),
     direction: 'owed_to_me',
     currency: 'JPY',
     principal: 50_000,
     due_on: null,
     status: 'open',
-    note: 'Cho mượn lúc chuyển nhà',
+    note: tr('Cho mượn lúc chuyển nhà'),
     interest_bps: null,
     term_months: null,
     // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
@@ -792,7 +793,7 @@ function seed(): DemoDB {
   const debtOwed: DebtRow = {
     id: uuid(),
     user_id: DEMO_USER,
-    counterparty: 'Trả góp máy tính',
+    counterparty: tr('Trả góp máy tính'),
     direction: 'i_owe',
     currency: 'USD',
     principal: 50_000, // $500,00
@@ -817,7 +818,7 @@ function seed(): DemoDB {
       account_id: invest.id,
       valued_on: daysAgo(1),
       market_value: 65_000_000,
-      note: 'Cập nhật cuối tháng',
+      note: tr('Cập nhật cuối tháng'),
       source: 'manual',
       created_at: nowISO(),
     },
@@ -825,9 +826,9 @@ function seed(): DemoDB {
 
   // Bảng giá cứng cho chế độ demo — xem thử khu Danh mục không cần mạng.
   const stockPrices: StockPriceRow[] = [
-    { symbol: 'FPT', exchange: 'hose', name: 'Công ty Cổ phần FPT', price: 70_300, prior_close: 71_500, trading_date: '2026-08-05', industry: 'Phần mềm và Dịch vụ máy tính', updated_at: nowISO() },
-    { symbol: 'VNM', exchange: 'hose', name: 'Công ty Cổ phần Sữa Việt Nam', price: 58_600, prior_close: 59_500, trading_date: '2026-08-05', industry: 'Sản xuất thực phẩm', updated_at: nowISO() },
-    { symbol: 'HPG', exchange: 'hose', name: 'Công ty Cổ phần Tập đoàn Hòa Phát', price: 22_000, prior_close: 22_150, trading_date: '2026-08-05', industry: 'Thép', updated_at: nowISO() },
+    { symbol: 'FPT', exchange: 'hose', name: 'Công ty Cổ phần FPT', price: 70_300, prior_close: 71_500, trading_date: '2026-08-05', industry: 'Phần mềm và Dịch vụ máy tính', updated_at: nowISO() }, // i18n-ignore — tên công ty/ngành từ nguồn giá HOSE, tên riêng
+    { symbol: 'VNM', exchange: 'hose', name: 'Công ty Cổ phần Sữa Việt Nam', price: 58_600, prior_close: 59_500, trading_date: '2026-08-05', industry: 'Sản xuất thực phẩm', updated_at: nowISO() }, // i18n-ignore — tên công ty/ngành từ nguồn giá HOSE, tên riêng
+    { symbol: 'HPG', exchange: 'hose', name: 'Công ty Cổ phần Tập đoàn Hòa Phát', price: 22_000, prior_close: 22_150, trading_date: '2026-08-05', industry: 'Thép', updated_at: nowISO() }, // i18n-ignore — tên công ty/ngành từ nguồn giá HOSE, tên riêng
   ]
 
   // Sổ lệnh mẫu — tài khoản 'Chứng khoán VN' riêng (investment/VND) đã seed ở trên.
@@ -835,7 +836,7 @@ function seed(): DemoDB {
   const stockTrades: StockTradeRow[] = [
     { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'buy', traded_on: '2026-03-10', quantity: 500, price: 62_000, fee: 46_500, tax: 0, note: '', created_at: nowISO(), updated_at: nowISO() },
     { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'HPG', kind: 'buy', traded_on: '2026-04-02', quantity: 1_000, price: 21_000, fee: 31_500, tax: 0, note: '', created_at: nowISO(), updated_at: nowISO() },
-    { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'adjust', traded_on: '2026-06-20', quantity: 50, price: 0, fee: 0, tax: 0, note: 'Cổ phiếu thưởng 10%', created_at: nowISO(), updated_at: nowISO() },
+    { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'adjust', traded_on: '2026-06-20', quantity: 50, price: 0, fee: 0, tax: 0, note: tr('Cổ phiếu thưởng 10%'), created_at: nowISO(), updated_at: nowISO() },
   ]
 
   // Hai quỹ Rakuten thật + 基準価額 phiên 2026-08-10 (đo thật từ nguồn 投信協会). Dùng số
@@ -927,13 +928,13 @@ function seed(): DemoDB {
   const debtCard: DebtRow = {
     id: uuid(),
     user_id: DEMO_USER,
-    counterparty: 'Thẻ tín dụng trả góp',
+    counterparty: tr('Thẻ tín dụng trả góp'),
     direction: 'i_owe',
     currency: 'JPY',
     principal: 318_400,
     due_on: daysAgo(-12),
     status: 'open',
-    note: 'Mua máy giặt + tủ lạnh',
+    note: tr('Mua máy giặt + tủ lạnh'),
     interest_bps: 1_500,
     term_months: 11,
     // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
@@ -946,7 +947,7 @@ function seed(): DemoDB {
   const debtTax: DebtRow = {
     id: uuid(),
     user_id: DEMO_USER,
-    counterparty: 'Thuế cư trú trả sau',
+    counterparty: tr('Thuế cư trú trả sau'),
     direction: 'i_owe',
     currency: 'JPY',
     principal: 91_498,
@@ -970,11 +971,11 @@ function seed(): DemoDB {
     {
       id: uuid(),
       user_id: DEMO_USER,
-      name: 'Đủ 1× trả nợ ngắn hạn',
+      name: tr('Đủ 1× trả nợ ngắn hạn'),
       account_id: bank.id,
       target_amount: 650_000,
       target_date: null,
-      note: 'Tiền mặt phủ hết phần nợ tới hạn 12 tháng',
+      note: tr('Tiền mặt phủ hết phần nợ tới hạn 12 tháng'),
       sort_order: 0,
       created_at: nowISO(),
     },
@@ -987,7 +988,7 @@ function seed(): DemoDB {
       amount: 20_000,
       paid_on: daysAgo(2),
       transaction_id: null, // ghi nhận suông (demo)
-      note: 'Trả trước một phần',
+      note: tr('Trả trước một phần'),
       created_at: nowISO(),
     },
   ]
@@ -995,7 +996,7 @@ function seed(): DemoDB {
   return {
     profile: {
       user_id: DEMO_USER,
-      display_name: 'Người dùng demo',
+      display_name: tr('Người dùng demo'),
       base_currency: 'JPY',
       month_start_day: 1,
       hourly_wage: null,
@@ -1279,7 +1280,7 @@ export const demoRepo: Repo = {
     assertTxShape(input)
     // CHECK amount > 0 của 0001: demo không chặn là bug chỉ nổ ở bản thật.
     if (!(typeof input.amount === 'number' && Number.isFinite(input.amount) && input.amount > 0))
-      throw new Error('Số tiền phải là số dương')
+      throw new Error(tr('Số tiền phải là số dương'))
     const db = load()
     // tag_ids không phải cột của transactions — tách ra thành liên kết riêng
     const { tag_ids, ...fields } = input
@@ -1303,7 +1304,7 @@ export const demoRepo: Repo = {
   async updateTransaction(id: string, patch: TransactionPatch) {
     const db = load()
     const idx = db.transactions.findIndex((t) => t.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy giao dịch')
+    if (idx < 0) throw new Error(tr('Không tìm thấy giao dịch'))
     const { tag_ids, ...fields } = patch
     const next = { ...db.transactions[idx], ...fields, updated_at: nowISO() }
     // Soi hình dạng SAU khi trộn patch, y như CHECK của Postgres soi dòng kết quả.
@@ -1311,7 +1312,7 @@ export const demoRepo: Repo = {
     // — chỉ soi lúc tạo là demo nhận những patch mà bản thật từ chối bằng 23514.
     assertTxShape(next)
     if (!(typeof next.amount === 'number' && Number.isFinite(next.amount) && next.amount > 0))
-      throw new Error('Số tiền phải là số dương')
+      throw new Error(tr('Số tiền phải là số dương'))
     db.transactions[idx] = next
     if (tag_ids) {
       db.transactionTags = (db.transactionTags ?? []).filter((l) => l.transaction_id !== id)
@@ -1401,7 +1402,7 @@ export const demoRepo: Repo = {
   async updateAccount(id: string, patch: AccountPatch) {
     const db = load()
     const idx = db.accounts.findIndex((a) => a.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy tài khoản')
+    if (idx < 0) throw new Error(tr('Không tìm thấy tài khoản'))
     db.accounts[idx] = { ...db.accounts[idx], ...patch }
     save(db)
     return db.accounts[idx]
@@ -1419,19 +1420,19 @@ export const demoRepo: Repo = {
   async deleteAccount(id: string) {
     const db = load()
     if (db.transactions.some((t) => t.account_id === id || t.to_account_id === id))
-      throw new Error('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.recurringRules ?? []).some((r) => r.account_id === id || r.to_account_id === id))
-      throw new Error('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.savingsGoals ?? []).some((g) => g.account_id === id))
-      throw new Error('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.')
+      throw new Error(tr('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.'))
     if (db.accounts.some((a) => a.payment_account_id === id))
-      throw new Error('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.')
+      throw new Error(tr('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.'))
     if ((db.accountValuations ?? []).some((v) => v.account_id === id))
-      throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.'))
     if ((db.stockTrades ?? []).some((t) => t.account_id === id))
-      throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.'))
     if ((db.fundTrades ?? []).some((t) => t.account_id === id))
-      throw new Error('Không xóa được: còn sổ lệnh quỹ của tài khoản này.')
+      throw new Error(tr('Không xóa được: còn sổ lệnh quỹ của tài khoản này.'))
     db.accounts = db.accounts.filter((a) => a.id !== id)
     save(db)
   },
@@ -1597,7 +1598,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.stockTrades ??= []
     const idx = db.stockTrades.findIndex((t) => t.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy lệnh này.')
+    if (idx < 0) throw new Error(tr('Không tìm thấy lệnh này.'))
     const current = db.stockTrades[idx]
     const next: StockTradeRow = {
       ...current,
@@ -1733,7 +1734,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.fundTrades ??= []
     const idx = db.fundTrades.findIndex((t) => t.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy lệnh quỹ này.')
+    if (idx < 0) throw new Error(tr('Không tìm thấy lệnh quỹ này.'))
     const current = db.fundTrades[idx]
     const next: FundTradeRow = {
       ...current,
@@ -1790,7 +1791,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.savingsGoals ??= []
     const idx = db.savingsGoals.findIndex((g) => g.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy mục tiêu')
+    if (idx < 0) throw new Error(tr('Không tìm thấy mục tiêu'))
     db.savingsGoals[idx] = { ...db.savingsGoals[idx], ...patch }
     save(db)
     return db.savingsGoals[idx]
@@ -1858,7 +1859,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.relatives ??= []
     const idx = db.relatives.findIndex((r) => r.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy người thân')
+    if (idx < 0) throw new Error(tr('Không tìm thấy người thân'))
     db.relatives[idx] = { ...db.relatives[idx], ...patch }
     save(db)
     return db.relatives[idx]
@@ -1910,7 +1911,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.lifeScenarios ??= []
     const idx = db.lifeScenarios.findIndex((s) => s.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy kịch bản')
+    if (idx < 0) throw new Error(tr('Không tìm thấy kịch bản'))
     db.lifeScenarios[idx] = { ...db.lifeScenarios[idx], ...patch }
     save(db)
     return db.lifeScenarios[idx]
@@ -1960,7 +1961,7 @@ export const demoRepo: Repo = {
     // UNIQUE (scenario_id, start_year) của 0031: hai chặng cùng năm bắt đầu trong một
     // kịch bản thì Postgres nổ 23505 — demo phải chặn y hệt, không thì bug chỉ nổ bản thật.
     if (db.lifePhases.some((p) => p.scenario_id === input.scenario_id && p.start_year === input.start_year))
-      throw new Error(`Kịch bản đã có chặng bắt đầu năm ${input.start_year}`)
+      throw new Error(tr('Kịch bản đã có chặng bắt đầu năm {year}', { year: input.start_year }))
     const row: LifePhaseRow = {
       id: uuid(),
       user_id: DEMO_USER,
@@ -1987,11 +1988,11 @@ export const demoRepo: Repo = {
     const db = load()
     db.lifePhases ??= []
     const idx = db.lifePhases.findIndex((p) => p.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy chặng')
+    if (idx < 0) throw new Error(tr('Không tìm thấy chặng'))
     const next = { ...db.lifePhases[idx], ...patch }
     // Soi UNIQUE sau khi trộn patch, giống createLifePhase (dời chặng đè lên năm của chặng khác).
     if (db.lifePhases.some((p) => p.id !== id && p.scenario_id === next.scenario_id && p.start_year === next.start_year))
-      throw new Error(`Kịch bản đã có chặng bắt đầu năm ${next.start_year}`)
+      throw new Error(tr('Kịch bản đã có chặng bắt đầu năm {year}', { year: next.start_year }))
     db.lifePhases[idx] = next
     save(db)
     return db.lifePhases[idx]
@@ -2083,7 +2084,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.lifeEvents ??= []
     const idx = db.lifeEvents.findIndex((e) => e.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy sự kiện')
+    if (idx < 0) throw new Error(tr('Không tìm thấy sự kiện'))
     db.lifeEvents[idx] = { ...db.lifeEvents[idx], ...patch }
     save(db)
     return db.lifeEvents[idx]
@@ -2111,13 +2112,11 @@ export const demoRepo: Repo = {
       cao: 3_400_000,
       dien_giai:
         tien === 'JPY'
-          ? 'Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra ' +
-            'số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)'
-          : `(Bản demo: kết quả mẫu cố định theo JPY, không gọi mạng — số hiển thị KHÔNG ` +
-            `phải số đã tra cho ${tien}, chỉ để xem đúng luồng.)`,
+          ? tr('Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)')
+          : tr('(Bản demo: kết quả mẫu cố định theo JPY, không gọi mạng — số hiển thị KHÔNG phải số đã tra cho {currency}, chỉ để xem đúng luồng.)', { currency: tien }),
       canh_bao: [
-        'Khảo sát 2025 đổi cách đo — số mới ¥2.986.000 không so trực tiếp được với 2024.',
-        'Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.',
+        tr('Khảo sát 2025 đổi cách đo — số mới ¥2.986.000 không so trực tiếp được với 2024.'),
+        tr('Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.'),
       ],
       nguon: { ten: 'ゼクシィ結婚トレンド調査', url: 'https://souken.zexy.net/', nam: 2024 },
     }
@@ -2362,7 +2361,7 @@ export const demoRepo: Repo = {
       // mục bút toán này là chuyển tài sản, không phải chi tiêu.
       kind:
         input.kind ??
-        (input.name === 'Gửi tiền về VN' || input.name === 'Điều chỉnh số dư'
+        (input.name === 'Gửi tiền về VN' || input.name === 'Điều chỉnh số dư' // i18n-ignore — so với tên danh mục trong DB (trigger 0046)
           ? 'transfer'
           : 'expense'),
       id: uuid(),
@@ -2379,7 +2378,7 @@ export const demoRepo: Repo = {
   async updateCategory(id: string, patch: CategoryPatch) {
     const db = load()
     const idx = db.categories.findIndex((c) => c.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy danh mục')
+    if (idx < 0) throw new Error(tr('Không tìm thấy danh mục'))
     db.categories[idx] = { ...db.categories[idx], ...patch }
     save(db)
     return db.categories[idx]
@@ -2397,18 +2396,18 @@ export const demoRepo: Repo = {
   async deleteCategory(id: string) {
     const db = load()
     const target = db.categories.find((c) => c.id === id)
-    if (!target) throw new Error('Không tìm thấy danh mục')
+    if (!target) throw new Error(tr('Không tìm thấy danh mục'))
     // Cha (parent_id null) có con → gom cha + tất cả con để xóa cả nhóm.
     const childIds = target.parent_id
       ? []
       : db.categories.filter((c) => c.parent_id === id).map((c) => c.id)
     const ids = new Set<string>([id, ...childIds])
     if (db.transactions.some((t) => t.category_id != null && ids.has(t.category_id)))
-      throw new Error('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.recurringRules ?? []).some((r) => r.category_id != null && ids.has(r.category_id)))
-      throw new Error('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.'))
     if ((db.budgets ?? []).some((b) => ids.has(b.category_id)))
-      throw new Error('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.')
+      throw new Error(tr('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.'))
     db.categories = db.categories.filter((c) => !ids.has(c.id))
     save(db)
   },
@@ -2570,7 +2569,7 @@ export const demoRepo: Repo = {
     // người ta thử app lần đầu, để nó nhận -5.000 rồi vẽ ra kế hoạch vô nghĩa thì
     // lỗi hiện ra ở tận chỗ khác. Xem ghi chú "demo mode không kiểm ràng buộc".
     if (!Number.isFinite(expectedIncome) || expectedIncome < 0) {
-      throw new Error('Thu dự kiến không được là số âm')
+      throw new Error(tr('Thu dự kiến không được là số âm'))
     }
     const db = load()
     db.monthPlans ??= []
@@ -2652,7 +2651,7 @@ export const demoRepo: Repo = {
   async updateDebt(id: string, patch: DebtPatch) {
     const db = load()
     const idx = (db.debts ?? []).findIndex((d) => d.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy khoản nợ')
+    if (idx < 0) throw new Error(tr('Không tìm thấy khoản nợ'))
     // `transaction` chỉ dùng lúc tạo (giải ngân), không phải cột của debts.
     const { transaction: _ignore, ...debtPatch } = patch
     db.debts[idx] = { ...db.debts[idx], ...debtPatch, updated_at: nowISO() }
@@ -2770,7 +2769,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.recurringRules ??= []
     const idx = db.recurringRules.findIndex((r) => r.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy quy tắc định kỳ')
+    if (idx < 0) throw new Error(tr('Không tìm thấy quy tắc định kỳ'))
     // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
     const { tag_ids, ...fields } = patch
     if (tag_ids) {
@@ -2957,7 +2956,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.plannedExpenses ??= []
     const idx = db.plannedExpenses.findIndex((p) => p.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy khoản sắp chi')
+    if (idx < 0) throw new Error(tr('Không tìm thấy khoản sắp chi'))
     // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
     const { tag_ids, ...fields } = patch
     if (tag_ids) {
@@ -2989,7 +2988,7 @@ export const demoRepo: Repo = {
     const name = input.name.trim()
     // Postgres có unique(user_id, name); demoRepo không thực thi ràng buộc nào nên
     // phải tự chặn, không thì "thử ở demo thấy chạy" không nói gì về bản thật.
-    if (db.tagGroups.some((g) => g.name === name)) throw new Error(`Nhóm "${name}" đã tồn tại`)
+    if (db.tagGroups.some((g) => g.name === name)) throw new Error(tr('Nhóm "{name}" đã tồn tại', { name }))
     const row: TagGroupRow = {
       id: uuid(),
       user_id: DEMO_USER,
@@ -3006,10 +3005,10 @@ export const demoRepo: Repo = {
     const db = load()
     db.tagGroups ??= []
     const idx = db.tagGroups.findIndex((g) => g.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy nhóm nhãn')
+    if (idx < 0) throw new Error(tr('Không tìm thấy nhóm nhãn'))
     const name = patch.name?.trim()
     if (name && db.tagGroups.some((g) => g.id !== id && g.name === name))
-      throw new Error(`Nhóm "${name}" đã tồn tại`)
+      throw new Error(tr('Nhóm "{name}" đã tồn tại', { name }))
     db.tagGroups[idx] = { ...db.tagGroups[idx], ...patch, ...(name ? { name } : {}) }
     save(db)
     return db.tagGroups[idx]
@@ -3027,7 +3026,7 @@ export const demoRepo: Repo = {
     const db = load()
     db.tags ??= []
     const name = input.name.trim()
-    if (db.tags.some((t) => t.name === name)) throw new Error(`Nhãn "${name}" đã tồn tại`)
+    if (db.tags.some((t) => t.name === name)) throw new Error(tr('Nhãn "{name}" đã tồn tại', { name }))
     const row: TagRow = {
       id: uuid(),
       user_id: DEMO_USER,
@@ -3049,10 +3048,10 @@ export const demoRepo: Repo = {
     const db = load()
     db.tags ??= []
     const idx = db.tags.findIndex((t) => t.id === id)
-    if (idx < 0) throw new Error('Không tìm thấy nhãn')
+    if (idx < 0) throw new Error(tr('Không tìm thấy nhãn'))
     const name = patch.name?.trim()
     if (name && db.tags.some((t) => t.id !== id && t.name === name))
-      throw new Error(`Nhãn "${name}" đã tồn tại`)
+      throw new Error(tr('Nhãn "{name}" đã tồn tại', { name }))
     db.tags[idx] = { ...db.tags[idx], ...patch, ...(name ? { name } : {}) }
     save(db)
     return db.tags[idx]
@@ -3132,7 +3131,7 @@ export const demoRepo: Repo = {
     const problems = validateBackupPayload(data)
     if (problems.length)
       throw new Error(
-        `File sao lưu có ${problems.length} vấn đề, chưa xoá gì cả:\n· ${problems.join('\n· ')}`,
+        tr('File sao lưu có {n} vấn đề, chưa xoá gì cả:\n· {list}', { n: problems.length, list: problems.join('\n· ') }),
       )
     // Giữ nguyên user_id demo để dữ liệu nhất quán với seed/reset.
     const stamp = <T extends { user_id: string }>(rows: T[]): T[] =>

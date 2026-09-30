@@ -21,6 +21,8 @@ import {
   type MonthTableRow,
   type MonthTableSort,
 } from './monthReport'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const TONE_CLASS: Record<ReturnType<typeof budgetCellLabel>['tone'], string> = {
   over: 'text-money-out',
@@ -82,7 +84,7 @@ function DongChuaGhi({
 /** Δ: dương là chi TĂNG nên tô màu chi; không so được thì in "mới", không in 0%. */
 function DeltaCell({ deltaPct, isNew }: { deltaPct: number | null; isNew: boolean }) {
   if (deltaPct === null && isNew) {
-    return <span className="text-2xs text-fg-muted">mới</span>
+    return <span className="text-2xs text-fg-muted">{tr('mới')}</span>
   }
   return <Num tone={deltaTone(deltaPct)}>{signedPct(deltaPct)}</Num>
 }
@@ -145,7 +147,7 @@ export function MonthCategoryTable({
   if (rows.length === 0 && chuaGhi === null) {
     return (
       <Card as="section" elevation="panel" padding="panel">
-        <p className="text-sm text-fg-muted">Kỳ này chưa có khoản chi nào có danh mục.</p>
+        <p className="text-sm text-fg-muted">{tr('Kỳ này chưa có khoản chi nào có danh mục.')}</p>
       </Card>
     )
   }
@@ -188,7 +190,7 @@ export function MonthCategoryTable({
   return (
     <Card as="section" elevation="panel" padding="none">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-border-panel px-4 py-3">
-        <SectionTitle as="h3">Chi tiêu {monthLabel}</SectionTitle>
+        <SectionTitle as="h3">{tr('Chi tiêu {month}', { month: monthLabel })}</SectionTitle>
         <Money
           amount={total}
           currency={base}
@@ -200,7 +202,7 @@ export function MonthCategoryTable({
             này ở một thẻ riêng. Ở đây nó là một mệnh đề trong chính tiêu đề bảng. */}
         {conc && (
           <span className="text-2xs text-fg-muted">
-            · {conc.count} danh mục giữ {conc.pct}%
+            · {tr('{n} danh mục giữ {pct}%', { n: conc.count, pct: conc.pct })}
           </span>
         )}
       </div>
@@ -209,13 +211,13 @@ export function MonthCategoryTable({
           suy ra được cấu trúc; không khai thì nó đọc thành một dãy chữ liền.
           overflow-x-auto: khi min của các cột vượt bề ngang (cỡ chữ Rất lớn ở 375px),
           bảng cuộn ngang trong thẻ — thân trang không bao giờ cuộn ngang. */}
-      <div role="table" aria-label={`Chi theo danh mục ${monthLabel}`} className="overflow-x-auto">
+      <div role="table" aria-label={tr('Chi theo danh mục {month}', { month: monthLabel })} className="overflow-x-auto">
         <div
           role="row"
           className={`${GRID} border-b border-border-panel bg-surface-chrome px-4 py-2.5`}
         >
           <span role="columnheader" className="min-w-0">
-            {sortBtn('name', 'Danh mục', 'justify-start text-left')}
+            {sortBtn('name', tr('Danh mục'), 'justify-start text-left')}
           </span>
           <span role="columnheader" className="text-right">
             {sortBtn('amount', monthLabel)}
@@ -230,7 +232,7 @@ export function MonthCategoryTable({
             role="columnheader"
             className="hidden text-right text-2xs uppercase tracking-label text-fg-muted lg:block"
           >
-            TB 3 th
+            {tr('TB 3 th')}
           </span>
           <span role="columnheader" className="text-right">
             {sortBtn('delta', 'Δ')}
@@ -239,13 +241,13 @@ export function MonthCategoryTable({
             role="columnheader"
             className="hidden text-right text-2xs uppercase tracking-label text-fg-muted lg:block"
           >
-            6 th
+            {tr('6 th')}
           </span>
           <span
             role="columnheader"
             className="text-right text-2xs uppercase tracking-label text-fg-muted"
           >
-            Hạn mức
+            {tr('Hạn mức')}
           </span>
         </div>
 
@@ -291,7 +293,7 @@ export function MonthCategoryTable({
                 </span>
                 <span role="cell" className="hidden justify-end lg:flex">
                   {r.spark.length >= 2 && (
-                    <Sparkline values={r.spark} label={`Chi 6 tháng của ${r.name}`} />
+                    <Sparkline values={r.spark} label={tr('Chi 6 tháng của {name}', { name: r.name })} />
                   )}
                 </span>
                 <span role="cell" className={`text-right text-sm ${TONE_CLASS[budget.tone]}`}>
@@ -309,7 +311,7 @@ export function MonthCategoryTable({
           {!moHet && cat.tail.length > 0 && (
             <li role="row" className={`${GRID} border-b border-border-subtle px-4 py-2.5`}>
               <span role="cell" className="min-w-0 truncate text-sm text-fg-muted">
-                {cat.tail.length} danh mục nhỏ hơn
+                {tr('{n} danh mục nhỏ hơn', { n: cat.tail.length })}
               </span>
               <span role="cell" className="text-right">
                 <Money
@@ -341,7 +343,7 @@ export function MonthCategoryTable({
             onClick={() => setMoHet((v) => !v)}
             className="w-full border-b border-border-subtle px-4 py-2.5 text-left text-sm font-medium text-fg-accent hover:bg-surface-sunken"
           >
-            {moHet ? 'Thu gọn' : `Xem tất cả ${rows.length} danh mục`}
+            {moHet ? tr('Thu gọn') : tr('Xem tất cả {n} danh mục', { n: rows.length })}
           </button>
         )}
 
@@ -349,7 +351,7 @@ export function MonthCategoryTable({
             trước khi biết nó là tổng của cái gì. */}
         <div role="row" className={`${GRID} bg-surface-chrome px-4 py-2.5`}>
           <span role="cell" className="min-w-0 truncate text-2xs font-semibold text-fg-secondary">
-            Tổng · {rows.length} danh mục
+            {tr('Tổng · {n} danh mục', { n: rows.length })}
           </span>
           <span role="cell" className="text-right">
             <Money
@@ -368,16 +370,16 @@ export function MonthCategoryTable({
           <span role="cell" className="hidden lg:block" />
           <span role="cell" className="text-right text-sm">
             <Num tone={overCount > 0 ? 'out' : 'muted'}>
-              {overCount > 0 ? `${overCount} vượt` : '—'}
+              {overCount > 0 ? tr('{n} vượt', { n: overCount }) : '—'}
             </Num>
           </span>
         </div>
       </div>
 
       <Guide className="border-t border-border-panel px-4 py-2.5 text-2xs text-fg-muted">
-        Cột <b>Δ</b> so với trung bình 3 tháng trước và đã cắt về cùng số ngày của kỳ đang
-        chạy — không cắt thì giữa tháng mọi dòng đều đọc ra “giảm”. Danh mục mới hiện “mới”
-        thay vì một phần trăm, vì chưa có mốc nào để so.
+        {trn('Cột {delta} so với trung bình 3 tháng trước và đã cắt về cùng số ngày của kỳ đang chạy — không cắt thì giữa tháng mọi dòng đều đọc ra “giảm”. Danh mục mới hiện “mới” thay vì một phần trăm, vì chưa có mốc nào để so.', {
+          delta: <b>Δ</b>,
+        })}
       </Guide>
     </Card>
   )

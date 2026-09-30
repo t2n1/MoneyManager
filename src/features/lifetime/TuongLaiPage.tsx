@@ -127,6 +127,8 @@ import { useConsoleKeys } from './useConsoleKeys'
 import { baselineRange, DEFAULT_END_AGE, makeCurrencyOf, useLifetime } from './useLifetime'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
 import { YearTablePane } from './YearTableView'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /**
  * Nhóm ¥/$/₫ ở hàng 5 — TIỀN HIỂN THỊ của kịch bản.
@@ -197,9 +199,9 @@ function phaseCovering(phases: readonly DraftPhase[], year: number): DraftPhase 
 const CONSOLE_BREAKPOINT_QUERY = '(min-width: 80rem)' // == Tailwind xl, khớp xl:hidden/xl:block dưới
 
 const ZOOM_ITEMS = [
-  { value: '10', label: '10 năm' },
-  { value: '20', label: '20 năm' },
-  { value: 'all', label: 'Cả đời' },
+  { value: '10', label: tr('10 năm') },
+  { value: '20', label: tr('20 năm') },
+  { value: 'all', label: tr('Cả đời') },
 ] as const
 
 export function TuongLaiPage() {
@@ -213,7 +215,7 @@ export function TuongLaiPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Tương lai" flush />
+      <PageHeader title={tr('Tương lai')} flush />
 
       {/* Console dòng thời gian là màn CHỈ CHO MÁY TÍNH (quyết định 2026-09-09, xem spec
           §1). Cần 1280px để chứa rail + vùng vẽ + dock 24,5rem cùng lúc. Dưới mốc đó
@@ -483,9 +485,10 @@ function TuongLaiConsole({
       const out = changeDisplayCurrency(working, next, pageFxOf, neo)
       if (out === null) {
         showToast(
-          `Chưa có tỷ giá ${working.displayCurrency} → ${next} nên chưa đổi được tiền ` +
-            `hiển thị. Đổi nhãn mà không quy đổi tài sản khởi điểm là sai ngay từ điểm ` +
-            `đầu bản chiếu — thà chưa đổi.`,
+          tr('Chưa có tỷ giá {from} → {to} nên chưa đổi được tiền hiển thị. Đổi nhãn mà không quy đổi tài sản khởi điểm là sai ngay từ điểm đầu bản chiếu — thà chưa đổi.', {
+            from: working.displayCurrency,
+            to: next,
+          }),
           'error',
         )
         return
@@ -605,9 +608,9 @@ function TuongLaiConsole({
       await commitDraft({ saved: savedDraft, draft, afterWrite: refreshTree })
       setDraft(null)
       setExpenseAdjPct(0)
-      showToast('Đã lưu vào kế hoạch.', 'success')
+      showToast(tr('Đã lưu vào kế hoạch.'), 'success')
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Không lưu được.', 'error')
+      showToast(err instanceof Error ? err.message : tr('Không lưu được.'), 'error')
     } finally {
       setSaving(false)
     }
@@ -627,18 +630,18 @@ function TuongLaiConsole({
       const copy = await saveDraftAsNewScenario({
         draft,
         source: active,
-        name: `${active.name} (thử)`,
+        name: tr('{name} (thử)', { name: active.name }),
         afterCreate: refreshTree,
       })
       setDraft(null)
       setExpenseAdjPct(0)
       setActiveId(copy.id)
-      showToast(`Đã lưu thành "${copy.name}" — bản gốc giữ nguyên.`, 'success')
+      showToast(tr('Đã lưu thành "{name}" — bản gốc giữ nguyên.', { name: copy.name }), 'success')
     } catch (err) {
       showToast(
         err instanceof Error
-          ? `${err.message} — kiểm dải chip kịch bản, có thể đã tạo một bản dở dang.`
-          : 'Không tạo được kịch bản mới.',
+          ? tr('{error} — kiểm dải chip kịch bản, có thể đã tạo một bản dở dang.', { error: err.message })
+          : tr('Không tạo được kịch bản mới.'),
         'error',
       )
     } finally {
@@ -668,17 +671,20 @@ function TuongLaiConsole({
    */
   const handleDeleteScenario = useCallback(async () => {
     if (!active || deletingScenario) return
-    const mat = events.length > 0 ? `${phases.length} chặng và ${events.length} mốc` : `${phases.length} chặng`
+    const mat =
+      events.length > 0
+        ? tr('{phases} chặng và {events} mốc', { phases: phases.length, events: events.length })
+        : tr('{n} chặng', { n: phases.length })
     const ok = await confirmDialog({
-      title: `Xoá kịch bản "${active.name}"?`,
+      title: tr('Xoá kịch bản "{name}"?', { name: active.name }),
       message:
-        `Mất luôn ${mat} của nó.` +
-        (dirty ? ' Bản nháp đang vặn cũng mất.' : '') +
+        tr('Mất luôn {what} của nó.', { what: mat }) +
+        (dirty ? ` ${tr('Bản nháp đang vặn cũng mất.')}` : '') +
         (active.is_primary
-          ? ' Đây là kịch bản CHÍNH — thông báo và trang Tài sản sẽ đọc theo kịch bản đầu dải chip.'
+          ? ` ${tr('Đây là kịch bản CHÍNH — thông báo và trang Tài sản sẽ đọc theo kịch bản đầu dải chip.')}`
           : '') +
-        ' Không lấy lại được.',
-      confirmLabel: 'Xoá kịch bản',
+        ` ${tr('Không lấy lại được.')}`,
+      confirmLabel: tr('Xoá kịch bản'),
       danger: true,
     })
     if (!ok) return
@@ -1072,7 +1078,7 @@ function TuongLaiConsole({
         d,
         {
           startYear: y,
-          label: 'Chặng mới',
+          label: tr('Chặng mới'),
           country: phu?.country ?? null,
           currency: phu?.currency ?? working?.displayCurrency ?? 'JPY',
           annualIncomeMinor: phu?.annualIncomeMinor ?? 0,
@@ -1114,7 +1120,7 @@ function TuongLaiConsole({
       // với năm người dùng chỉ vào, và im lặng ở đây là chặng mới nằm lệch mà không ai nói.
       setQuick(null)
       showToast(
-        `Đã thêm chặng "${p.label}" từ năm ${y} — kiểm lại số rồi kéo tới đúng năm.`,
+        tr('Đã thêm chặng "{label}" từ năm {year} — kiểm lại số rồi kéo tới đúng năm.', { label: p.label, year: y }),
         'success',
       )
     },
@@ -1209,7 +1215,7 @@ function TuongLaiConsole({
           ? base.phases.find((p) => p.id === id)?.label
           : base.events.find((e) => e.id === id)?.label
       if (label === undefined) return
-      const cau = `Đã xoá ${what === 'phase' ? 'chặng' : 'mốc'} "${label}"`
+      const cau = what === 'phase' ? tr('Đã xoá chặng "{label}"', { label }) : tr('Đã xoá mốc "{label}"', { label })
       undo.push(cau, base)
       setDraft(what === 'phase' ? removeDraftPhase(base, id) : removeDraftEvent(base, id))
       // Bỏ chọn NGAY: id vừa xoá không còn dòng nào, và dock rơi về thẻ tóm tắt thay vì
@@ -1295,7 +1301,7 @@ function TuongLaiConsole({
 
   useConsoleKeys({ onClose: closeTop, onDelete: deleteSelected, onUndo: doUndo, onNudge: nudge })
 
-  if (isLoading) return <EmptyState>Đang tải…</EmptyState>
+  if (isLoading) return <EmptyState>{tr('Đang tải…')}</EmptyState>
 
   // --- Cổng 2: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
   if (needsBirthYear) return <BirthYearCard />
@@ -1306,9 +1312,7 @@ function TuongLaiConsole({
       <Card as="section">
         {/* E-ink + Gọn: bỏ đoạn giới thiệu màn — nút tạo bên dưới đã tự nói. */}
         <p className="text-sm text-fg-secondary eink-gon:hidden">
-          Màn này chiếu tài sản ròng của bạn tới năm bạn {DEFAULT_END_AGE} tuổi, dựa trên thu
-          chi nền và các mốc (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi
-          tiêu thật của bạn — không cần khai tay từng con số.
+          {tr('Màn này chiếu tài sản ròng của bạn tới năm bạn {age} tuổi, dựa trên thu chi nền và các mốc (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn — không cần khai tay từng con số.', { age: DEFAULT_END_AGE })}
         </p>
 
         {/* Tài sản khởi điểm của kịch bản = tài sản ròng hiện tại. Hiện rõ số này TRƯỚC
@@ -1322,23 +1326,18 @@ function TuongLaiConsole({
             }`}
           >
             {netWorthReliable ? (
-              <>
-                Tài sản khởi điểm sẽ lấy từ tài sản ròng hiện tại:{' '}
-                <Money amount={netWorth} currency={profile.base_currency as CurrencyCode} />.
-              </>
+              trn('Tài sản khởi điểm sẽ lấy từ tài sản ròng hiện tại: {amount}.', {
+                amount: <Money amount={netWorth} currency={profile.base_currency as CurrencyCode} />,
+              })
             ) : (
-              <>
-                Một phần tài khoản/công nợ chưa quy đổi được tỷ giá nên chưa tính được tài
-                sản ròng đáng tin. Tài sản khởi điểm sẽ để 0 — sửa lại sau khi tạo.
-              </>
+              tr('Một phần tài khoản/công nợ chưa quy đổi được tỷ giá nên chưa tính được tài sản ròng đáng tin. Tài sản khởi điểm sẽ để 0 — sửa lại sau khi tạo.')
             )}
           </p>
         )}
 
         {!profile && (
           <p className="mt-2 rounded-md bg-state-warn-bg p-2.5 text-sm text-state-warn-fg">
-            Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch
-            bản — kiểm tra mạng rồi mở lại màn này.
+            {tr('Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch bản — kiểm tra mạng rồi mở lại màn này.')}
           </p>
         )}
 
@@ -1350,10 +1349,10 @@ function TuongLaiConsole({
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           {creating || isCreatingFirstScenario
-            ? 'Đang tạo…'
+            ? tr('Đang tạo…')
             : netWorthLoading
-              ? 'Đang tính tài sản ròng…'
-              : 'Tạo kịch bản từ chi tiêu thật của tôi'}
+              ? tr('Đang tính tài sản ròng…')
+              : tr('Tạo kịch bản từ chi tiêu thật của tôi')}
         </ActionButton>
       </Card>
     )
@@ -1361,7 +1360,7 @@ function TuongLaiConsole({
 
   // `scenarios.length > 0` nên `active` luôn có giá trị ở nhánh này; guard chỉ để TS thu
   // hẹp kiểu cho phần JSX bên dưới, không phải một trạng thái thật sẽ xảy ra.
-  if (!active || !input || !shownInput || !working) return <EmptyState>Đang tải…</EmptyState>
+  if (!active || !input || !shownInput || !working) return <EmptyState>{tr('Đang tải…')}</EmptyState>
 
   /**
    * Đơn vị của MỌI con số trên màn — lấy từ bản NHÁP, không từ bản đã lưu.
@@ -1446,7 +1445,7 @@ function TuongLaiConsole({
                 d,
                 {
                   startYear: y,
-                  label: `${selPhase.label} (bản sao)`,
+                  label: tr('{name} (bản sao)', { name: selPhase.label }),
                   country: selPhase.country,
                   currency: selPhase.currency,
                   annualIncomeMinor: selPhase.annualIncomeMinor,
@@ -1530,7 +1529,7 @@ function TuongLaiConsole({
     // chọn — không có mốc để nhắm tới.
     if (result.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
     showToast(
-      `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+      tr('Đã thêm "{label}" vào năm {year} — kiểm lại số rồi kéo tới đúng năm.', { label: preset.label, year: nam }),
       'success',
     )
   }
@@ -1551,14 +1550,16 @@ function TuongLaiConsole({
   const handleTryRetire = (year: number) => {
     const result = buildRetireTrial(shownInput, active.id, year, pageFxOf)
     if (!result) {
-      showToast('Chưa có chặng nào để dựa vào — thêm chặng trước rồi thử lại.', 'error')
+      showToast(tr('Chưa có chặng nào để dựa vào — thêm chặng trước rồi thử lại.'), 'error')
       return
     }
     const seed = ++newIdSeed.current
     editDraft((d) => applyRetireTrial(d, result, seed))
     const stretched = working.endAge < RETIRE_TRIAL_MIN_END_AGE
     showToast(
-      `Đã thêm chặng Nghỉ hưu từ ${year}${stretched ? ` và kéo tuổi chiếu tới ${RETIRE_TRIAL_MIN_END_AGE}` : ''}. Đọc lại kết luận ở trên; không muốn giữ thì bấm Bỏ ở thanh nháp.`,
+      stretched
+        ? tr('Đã thêm chặng Nghỉ hưu từ {year} và kéo tuổi chiếu tới {age}. Đọc lại kết luận ở trên; không muốn giữ thì bấm Bỏ ở thanh nháp.', { year, age: RETIRE_TRIAL_MIN_END_AGE })
+        : tr('Đã thêm chặng Nghỉ hưu từ {year}. Đọc lại kết luận ở trên; không muốn giữ thì bấm Bỏ ở thanh nháp.', { year }),
       'success',
       8000,
     )
@@ -1592,7 +1593,7 @@ function TuongLaiConsole({
     if (final.events.length > 0) setSel({ type: 'event', id: presetEventId(seed, 0) })
     setQuick(null)
     showToast(
-      `Đã thêm "${preset.label}" vào năm ${nam} — kiểm lại số rồi kéo tới đúng năm.`,
+      tr('Đã thêm "{label}" vào năm {year} — kiểm lại số rồi kéo tới đúng năm.', { label: preset.label, year: nam }),
       'success',
     )
   }
@@ -1626,7 +1627,7 @@ function TuongLaiConsole({
           kind: 'expense',
           amountMinor: 0,
           currency: tien,
-          label: 'Mốc mới',
+          label: tr('Mốc mới'),
           note: '',
           fxToDisplay: tien === currency ? 1 : (ph?.fxToDisplay ?? 1),
           inflate: true,
@@ -1704,7 +1705,7 @@ function TuongLaiConsole({
             const seed = ++newIdSeed.current
             editDraft((d) => {
               const { id: _cu, ...rest } = selEvent
-              return addDraftEvent(d, { ...rest, label: `${selEvent.label} (bản sao)` }, seed).draft
+              return addDraftEvent(d, { ...rest, label: tr('{name} (bản sao)', { name: selEvent.label }) }, seed).draft
             })
             setSel({ type: 'event', id: addedEventId(seed) })
           },
@@ -1723,7 +1724,7 @@ function TuongLaiConsole({
                 d,
                 {
                   startYear: y,
-                  label: `Sau "${selEvent.label}"`,
+                  label: tr('Sau "{label}"', { label: selEvent.label }),
                   // Kế thừa từ chặng phủ năm đó, KHÔNG để 0: một chặng thu 0 chi 0 làm
                   // tài sản đứng yên, và đó là một giả định (sai) chứ không phải một ô
                   // trống chờ điền.
@@ -1803,12 +1804,12 @@ function TuongLaiConsole({
                   on={on}
                   size="sm"
                   onClick={() => setActiveId(s.id)}
-                  title={`Mở kịch bản "${s.name}"`}
+                  title={tr('Mở kịch bản "{name}"', { name: s.name })}
                   className="max-w-full"
                 >
                   {s.is_primary && <Star className="h-3 w-3 shrink-0" aria-hidden="true" />}
                   <span className="truncate">{s.name}</span>
-                  {s.is_primary && <span className="sr-only">(kịch bản chính)</span>}
+                  {s.is_primary && <span className="sr-only">{tr('(kịch bản chính)')}</span>}
                 </FilterChip>
               )
             })}
@@ -1824,8 +1825,8 @@ function TuongLaiConsole({
                 nháp ở trên nói ra chênh lệch đó bằng chữ. */}
             <input
               type="text"
-              aria-label="Tên kịch bản"
-              title="Đổi tên kịch bản đang mở"
+              aria-label={tr('Tên kịch bản')}
+              title={tr('Đổi tên kịch bản đang mở')}
               value={working.name}
               onChange={(ev) => renameScenario(ev.target.value)}
               onBlur={renameBlur}
@@ -1866,8 +1867,8 @@ function TuongLaiConsole({
             {scenarios.length > 1 && (
               <IconButton
                 variant="ghost"
-                aria-label={`Xoá kịch bản "${active.name}"`}
-                title="Xoá kịch bản đang mở"
+                aria-label={tr('Xoá kịch bản "{name}"', { name: active.name })}
+                title={tr('Xoá kịch bản đang mở')}
                 disabled={deletingScenario}
                 onClick={() => void handleDeleteScenario()}
                 className="shrink-0 hover:text-money-out"
@@ -1881,9 +1882,9 @@ function TuongLaiConsole({
                 on={compareOn}
                 size="sm"
                 onClick={() => setCompareOn((v) => !v)}
-                title="Vẽ các kịch bản khác lên cùng đồ thị"
+                title={tr('Vẽ các kịch bản khác lên cùng đồ thị')}
               >
-                So sánh
+                {tr('So sánh')}
               </FilterChip>
             )}
 
@@ -1893,17 +1894,20 @@ function TuongLaiConsole({
               className="whitespace-nowrap"
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              {duplicatingScenario ? 'Đang tạo…' : 'Kịch bản mới'}
+              {duplicatingScenario ? tr('Đang tạo…') : tr('Kịch bản mới')}
             </ActionButton>
 
             {/* Bên phải: "Sinh 1994 · chiếu đến tuổi 70 · JPY". Ba con số quyết định
                 cách đọc MỌI thứ bên dưới, nên chúng đứng cùng hàng với tên kịch bản
                 chứ không nằm trong một hộp cài đặt nào. */}
             <p className="ml-auto shrink-0 truncate text-sm text-fg-muted">
-              Sinh <Num tone="muted">{birthYear}</Num> · chiếu đến tuổi{' '}
               {/* `currency` là MÃ ba chữ ("JPY"), không phải số — <Num> chỉ dành cho số
                   (xem đầu file Num.tsx). Bọc nó là hiện văn xuôi bằng chữ mono. */}
-              <Num tone="muted">{shownInput.endAge}</Num> · <span>{currency}</span>
+              {trn('Sinh {year} · chiếu đến tuổi {age} · {currency}', {
+                year: <Num tone="muted">{birthYear}</Num>,
+                age: <Num tone="muted">{shownInput.endAge}</Num>,
+                currency: <span>{currency}</span>,
+              })}
             </p>
           </div>
 
@@ -1916,14 +1920,14 @@ function TuongLaiConsole({
                 {verdictHeadline(verdict)}
               </SectionTitle>
 
-              <StatCell label="Tự do tài chính">
+              <StatCell label={tr('Tự do tài chính')}>
                 {verdict?.fireYear == null ? (
                   // "chưa đạt" là CHỮ, không phải số — không qua <Num> (xem đầu file
                   // Num.tsx: "Con số KHÔNG phải tiền").
-                  <span className="text-fg-muted">chưa đạt</span>
+                  <span className="text-fg-muted">{tr('chưa đạt')}</span>
                 ) : (
                   <Num tone="in">
-                    {verdict.fireYear} · {verdict.fireAge}t
+                    {tr('{year} · {age}t', { year: verdict.fireYear, age: verdict.fireAge ?? '' })}
                   </Num>
                 )}
               </StatCell>
@@ -1933,7 +1937,7 @@ function TuongLaiConsole({
                   cờ ở đây là dải thống kê khẳng định một con số chắc chắn trong khi thẻ
                   Tóm tắt kế hoạch ở dock hiện `≈` cho CÙNG con số (phát hiện review cuối
                   nhánh 2026-09-09, Finding 4). Spec §14: thiếu rate phải THẤY ĐƯỢC. */}
-              <StatCell label={`Lúc ${shownInput.endAge} tuổi`}>
+              <StatCell label={tr('Lúc {age} tuổi', { age: shownInput.endAge })}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
@@ -1947,7 +1951,7 @@ function TuongLaiConsole({
                 )}
               </StatCell>
 
-              <StatCell label="Bi quan">
+              <StatCell label={tr('Bi quan')}>
                 {atEnd === null ? (
                   <Num tone="muted">—</Num>
                 ) : (
@@ -1981,10 +1985,10 @@ function TuongLaiConsole({
                   onClick={() => setHintsOpen((v) => !v)}
                   aria-expanded={hintsOpen}
                 >
-                  Gợi ý &amp; cách đọc
+                  {tr('Gợi ý & cách đọc')}
                   {tinMoi > 0 && !hintsOpen && (
                     <span className="text-fg-warn">
-                      · <Num tone="warn">{tinMoi}</Num> tin mới
+                      {trn('· {count} tin mới', { count: <Num tone="warn">{tinMoi}</Num>, n: tinMoi })}
                     </span>
                   )}
                 </FilterChip>
@@ -2035,11 +2039,11 @@ function TuongLaiConsole({
                   lại một bug thật từ cách kia: chữ chồng lên chip FIRE. -------------- */}
           <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5">
             <SectionTitle className="shrink-0">
-              Tài sản ròng cả đời
-              <EstimateMark reason="Toàn bộ khối này là số chiếu theo kịch bản bạn đặt, không phải số đã xảy ra." />
+              {tr('Tài sản ròng cả đời')}
+              <EstimateMark reason={tr('Toàn bộ khối này là số chiếu theo kịch bản bạn đặt, không phải số đã xảy ra.')} />
             </SectionTitle>
             <span className="min-w-0 flex-1 truncate text-2xs uppercase tracking-label text-fg-muted">
-              Rê chuột trên đồ thị để đọc số theo từng năm
+              {tr('Rê chuột trên đồ thị để đọc số theo từng năm')}
             </span>
             {rateLines.length > 0 && (
               <span className="shrink-0 font-mono text-2xs text-fg-muted">
@@ -2056,7 +2060,7 @@ function TuongLaiConsole({
               items={CURRENCY_ITEMS}
               value={currency}
               onChange={switchCurrency}
-              label="Tiền hiển thị của kịch bản"
+              label={tr('Tiền hiển thị của kịch bản')}
               size="sm"
               stretch={false}
             />
@@ -2065,7 +2069,7 @@ function TuongLaiConsole({
               items={ZOOM_ITEMS}
               value={zoom === 'all' ? 'all' : String(zoom)}
               onChange={(v) => setZoom(v === 'all' ? 'all' : (Number(v) as 10 | 20))}
-              label="Khoảng thời gian trên đồ thị"
+              label={tr('Khoảng thời gian trên đồ thị')}
               size="sm"
               stretch={false}
             />
@@ -2073,15 +2077,15 @@ function TuongLaiConsole({
               on={showBand}
               size="sm"
               onClick={() => setShowBand((v) => !v)}
-              title="Dải lạc quan – bi quan"
+              title={tr('Dải lạc quan – bi quan')}
             >
-              Dải
+              {tr('Dải')}
             </FilterChip>
             <FilterChip
               on={showFire}
               size="sm"
               onClick={() => setShowFire((v) => !v)}
-              title="Ngưỡng tự do tài chính = 25× chi mỗi năm"
+              title={tr('Ngưỡng tự do tài chính = 25× chi mỗi năm')}
             >
               FIRE
             </FilterChip>
@@ -2089,7 +2093,7 @@ function TuongLaiConsole({
               on={log}
               size="sm"
               onClick={() => setLog((v) => !v)}
-              title="Trục tiền theo thang log — nhìn rõ giai đoạn đầu"
+              title={tr('Trục tiền theo thang log — nhìn rõ giai đoạn đầu')}
             >
               Log
             </FilterChip>
@@ -2098,21 +2102,21 @@ function TuongLaiConsole({
           {/* --- HÀNG 6: chú giải. Cũng là HÀNG TĨNH, cùng lý do. ------------------- */}
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-fg-muted">
             <LegendItem color="var(--accent)" dash="6 4">
-              Nhánh trung tâm
+              {tr('Nhánh trung tâm')}
             </LegendItem>
             {showBand && (
               <>
                 <LegendItem color="var(--money-in)" dash="1 4">
-                  Lạc quan
+                  {tr('Lạc quan')}
                 </LegendItem>
                 <LegendItem color="var(--money-out)" dash="1 4">
-                  Bi quan
+                  {tr('Bi quan')}
                 </LegendItem>
               </>
             )}
             {showFire && (
               <LegendItem color="var(--money-in)" dash="8 4">
-                Ngưỡng tự do tài chính
+                {tr('Ngưỡng tự do tài chính')}
               </LegendItem>
             )}
             {/* HAI LỚP TÔ — thêm 2026-09-10. Trước bản này chú giải chỉ nói các ĐƯỜNG, nên
@@ -2138,21 +2142,27 @@ function TuongLaiConsole({
             ))}
             {compareSkip.currencyMismatch > 0 && (
               <span className="text-fg-warn">
-                <Num tone="warn">{compareSkip.currencyMismatch}</Num> kịch bản đang ẩn — khác đơn
-                vị tiền với {currency}, chưa quy đổi được nên không vẽ để tránh sai đơn vị.
+                {trn('{count} kịch bản đang ẩn — khác đơn vị tiền với {currency}, chưa quy đổi được nên không vẽ để tránh sai đơn vị.', {
+                  count: <Num tone="warn">{compareSkip.currencyMismatch}</Num>,
+                  n: compareSkip.currencyMismatch,
+                  currency,
+                })}
               </span>
             )}
             {compareSkip.zeroYears > 0 && (
               <span className="text-fg-warn">
-                <Num tone="warn">{compareSkip.zeroYears}</Num> kịch bản đang ẩn — chưa chiếu được
-                năm nào, kiểm chặng đời và tuổi kết thúc của kịch bản đó.
+                {trn('{count} kịch bản đang ẩn — chưa chiếu được năm nào, kiểm chặng đời và tuổi kết thúc của kịch bản đó.', {
+                  count: <Num tone="warn">{compareSkip.zeroYears}</Num>,
+                  n: compareSkip.zeroYears,
+                })}
               </span>
             )}
             {missingRateCurrencies.length > 0 && (
               <span className="text-fg-warn">
-                Thiếu tỷ giá {missingRateCurrencies.join(', ')} → {currency}, nên các khoản
-                khai bằng đơn vị đó chưa quy đổi được. Số trên đồ thị là số THIẾU, không
-                phải số quy 1:1.
+                {tr('Thiếu tỷ giá {from} → {to}, nên các khoản khai bằng đơn vị đó chưa quy đổi được. Số trên đồ thị là số THIẾU, không phải số quy 1:1.', {
+                  from: missingRateCurrencies.join(', '),
+                  to: currency,
+                })}
               </span>
             )}
           </div>
@@ -2245,7 +2255,7 @@ function TuongLaiConsole({
             <div className="pointer-events-none absolute inset-x-0 bottom-9 z-40 flex justify-center">
               <div className="pointer-events-auto flex animate-toast-in items-center gap-2 rounded-full border border-border-strong bg-surface-chrome px-3 py-1.5 shadow-sm">
                 <span className="text-2xs text-fg-secondary">{undoLabel}</span>
-                <ActionButton onClick={doUndo}>Hoàn tác</ActionButton>
+                <ActionButton onClick={doUndo}>{tr('Hoàn tác')}</ActionButton>
               </div>
             </div>
           )}
@@ -2360,7 +2370,7 @@ function TuongLaiConsole({
               Stress test
               {stressCount > 0 && (
                 <span className="normal-case tracking-normal text-fg-warn">
-                  <Num tone="warn">{stressCount}</Num> đang bật
+                  {trn('{count} đang bật', { count: <Num tone="warn">{stressCount}</Num> })}
                 </span>
               )}
               <ChevronDown
@@ -2537,13 +2547,10 @@ function BirthYearCard() {
   return (
     <Card as="section">
       <p className="text-sm text-fg-secondary eink-gon:hidden">
-        Màn này chiếu tài sản ròng của bạn theo từng năm tới tuổi cuối của kịch bản (mặc
-        định {DEFAULT_END_AGE} tuổi), nên cần năm sinh để
-        đổi qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài
-        chính…). Thiếu năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
+        {tr('Màn này chiếu tài sản ròng của bạn theo từng năm tới tuổi cuối của kịch bản (mặc định {age} tuổi), nên cần năm sinh để đổi qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu năm sinh thì không tính được tuổi, nên chưa chiếu được gì.', { age: DEFAULT_END_AGE })}
       </p>
       <label htmlFor={inputId} className="mt-3 block text-sm font-medium text-fg-muted">
-        Năm sinh
+        {tr('Năm sinh')}
       </label>
       <input
         id={inputId}
@@ -2551,7 +2558,7 @@ function BirthYearCard() {
         inputMode="numeric"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Ví dụ: 1994"
+        placeholder={tr('Ví dụ: 1994')}
         className="mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
       />
       <button
@@ -2560,7 +2567,7 @@ function BirthYearCard() {
         onClick={() => saveMut.mutate({ birth_year: year })}
         className={actionButtonClass('primary', 'mt-3 w-full')}
       >
-        {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
+        {saveMut.isPending ? tr('Đang lưu…') : tr('Lưu năm sinh')}
       </button>
     </Card>
   )

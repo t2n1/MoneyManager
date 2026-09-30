@@ -1,5 +1,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import { ActionButton, Money } from '../../components/ui'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** Phần trả vượt số còn lại (minor units theo tệ KHOẢN NỢ). 0 → không bày gì. */
@@ -28,10 +30,12 @@ export function OverpayConfirm({ overpay, currency, confirmed, onToggle, classNa
       className={`rounded-md border border-state-warn-border bg-state-warn-bg p-3 text-sm text-state-warn-fg ${className}`}
     >
       <p>
-        Nhiều hơn số còn lại — trả thừa <Money amount={overpay} currency={currency} tone="warn" />.
+        {trn('Nhiều hơn số còn lại — trả thừa {amount}.', {
+          amount: <Money amount={overpay} currency={currency} tone="warn" />,
+        })}
       </p>
       <ActionButton variant="outline" className="mt-2" aria-pressed={confirmed} onClick={onToggle}>
-        {confirmed ? 'Đã xác nhận trả thừa ✓' : 'Đúng, ghi trả thừa'}
+        {confirmed ? tr('Đã xác nhận trả thừa ✓') : tr('Đúng, ghi trả thừa')}
       </ActionButton>
     </div>
   )

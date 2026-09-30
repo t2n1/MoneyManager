@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
 import { showToast } from '../lib/dialog'
+import { tr } from '../i18n'
 import {
   densityFromProfile,
   getMirroredDensity,
@@ -89,7 +90,7 @@ export function useDensityControl(): {
           // và lần mở app sau `useDensitySync` sẽ lặng lẽ lật lại — người dùng tưởng
           // app tự đổi cài đặt.
           setMirroredDensity(truoc)
-          showToast('Chưa lưu được cách trình bày. Kiểm tra mạng rồi thử lại.')
+          showToast(tr('Chưa lưu được cách trình bày. Kiểm tra mạng rồi thử lại.'))
         },
       },
     )

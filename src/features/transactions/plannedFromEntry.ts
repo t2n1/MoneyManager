@@ -1,4 +1,5 @@
 import type { NewPlannedExpense } from '../../data/repo'
+import { tr } from '../../i18n'
 import type { CurrencyCode } from '../../lib/money'
 import type { DuePrecision } from '../../types/database.types'
 
@@ -67,5 +68,5 @@ export function plannedFromEntry(d: PlannedDraft): NewPlannedExpense {
 
 /** Điều kiện lưu: CHỈ CẦN có tên. Số tiền, danh mục, ghi chú đều để trống được. */
 export function plannedMissing(d: PlannedDraft): string | null {
-  return d.title.trim() ? null : 'Còn thiếu: chi cái gì.'
+  return d.title.trim() ? null : tr('Còn thiếu: chi cái gì.')
 }

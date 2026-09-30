@@ -20,6 +20,7 @@ import { overpayConfirmed, overpayOf } from './aggregate'
 import { OverpayConfirm } from './OverpayConfirm'
 import { formatRateLine } from '../../lib/rates'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   debt: DebtRow
@@ -123,6 +124,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           account_id: accountId,
           to_account_id: null,
           occurred_on: paidOn,
+          // i18n-ignore — ghi chú mặc định lưu vào DB
           note: note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
         }
       }
@@ -149,22 +151,29 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <SectionTitle role="block" className="mb-1">Ghi nhận trả</SectionTitle>
+        <SectionTitle role="block" className="mb-1">{tr('Ghi nhận trả')}</SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
-          {debt.direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · {debt.counterparty} · còn{' '}
-          {formatMoney(Math.max(remaining, 0), debt.currency)}
+          {debt.direction === 'i_owe'
+            ? tr('Mình trả · {name} · còn {amount}', {
+                name: debt.counterparty,
+                amount: formatMoney(Math.max(remaining, 0), debt.currency),
+              })
+            : tr('Người ta trả · {name} · còn {amount}', {
+                name: debt.counterparty,
+                amount: formatMoney(Math.max(remaining, 0), debt.currency),
+              })}
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          {cross ? `Xoá bao nhiêu nợ (${CURRENCIES[debt.currency].label})` : 'Số tiền trả'}
+          {cross ? tr('Xoá bao nhiêu nợ ({currency})', { currency: CURRENCIES[debt.currency].label }) : tr('Số tiền trả')}
         </span>
         <div className="mb-3">
           <MoneyField
             value={amount}
             onChange={setAmount}
             currency={debt.currency}
-            ariaLabel="Số tiền trả"
+            ariaLabel={tr('Số tiền trả')}
             onEnter={handleSave}
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
@@ -179,9 +188,9 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         />
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày trả</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ngày trả')}</span>
         <DateField
-          ariaLabel="Ngày trả"
+          ariaLabel={tr('Ngày trả')}
           value={paidOn}
           onChange={setPaidOn}
           className="mb-3 w-full px-3 py-2"
@@ -191,16 +200,16 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         <div className="mb-3 rounded-lg bg-surface-sunken p-3">
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
-              Có chuyển tiền thật
+              {tr('Có chuyển tiền thật')}
               <span className="block text-sm text-fg-muted">
-                {debt.direction === 'i_owe' ? 'Tạo giao dịch chi (trừ số dư)' : 'Tạo giao dịch thu (cộng số dư)'}
+                {debt.direction === 'i_owe' ? tr('Tạo giao dịch chi (trừ số dư)') : tr('Tạo giao dịch thu (cộng số dư)')}
               </span>
             </span>
             <button
               type="button"
               role="switch"
               aria-checked={realOn}
-              aria-label="Có chuyển tiền thật"
+              aria-label={tr('Có chuyển tiền thật')}
               disabled={!canRecordReal}
               onClick={() => setWithTransaction((v) => !v)}
               // Vùng chạm 44×44 ở nút, đường ray 24×44 ở <span> trong: ray đặt thẳng lên
@@ -223,15 +232,14 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
 
           {!canRecordReal && (
             <p className="mt-2 text-sm text-state-warn-fg">
-              Chưa có tài khoản nào để tạo giao dịch thật. Vẫn ghi nhận được lần trả (không đổi
-              số dư).
+              {tr('Chưa có tài khoản nào để tạo giao dịch thật. Vẫn ghi nhận được lần trả (không đổi số dư).')}
             </p>
           )}
 
           {realOn && (
             <div className="mt-3">
               <label htmlFor={`${uid}-acc`} className="mb-1 block text-sm font-medium text-fg-muted">
-                Tài khoản
+                {tr('Tài khoản')}
               </label>
               <Select
                 id={`${uid}-acc`}
@@ -250,8 +258,9 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
               {cross && (
                 <div className="mt-3">
                   <span className="mb-1 block text-sm font-medium text-fg-muted">
-                    {debt.direction === 'i_owe' ? 'Thực trả từ ví' : 'Thực nhận vào ví'} (
-                    {CURRENCIES[accCurrency].label})
+                    {debt.direction === 'i_owe'
+                      ? tr('Thực trả từ ví ({currency})', { currency: CURRENCIES[accCurrency].label })
+                      : tr('Thực nhận vào ví ({currency})', { currency: CURRENCIES[accCurrency].label })}
                   </span>
                   <MoneyField
                     value={received}
@@ -260,14 +269,14 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
                       setReceivedTouched(true)
                     }}
                     currency={accCurrency}
-                    ariaLabel={debt.direction === 'i_owe' ? 'Thực trả từ ví' : 'Thực nhận vào ví'}
+                    ariaLabel={debt.direction === 'i_owe' ? tr('Thực trả từ ví') : tr('Thực nhận vào ví')}
                     onEnter={handleSave}
                     className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
                   />
                   {rateLine && (
                     // Tỷ giá ngầm của chính hai số vừa gõ — gõ thừa một số 0 thì dòng
                     // này nhảy gấp mười và nhìn là thấy, hai con số rời thì không.
-                    <p className="mt-1 text-sm text-fg-muted">Tỷ giá lần này: {rateLine}</p>
+                    <p className="mt-1 text-sm text-fg-muted">{tr('Tỷ giá lần này: {rate}', { rate: rateLine })}</p>
                   )}
                 </div>
               )}
@@ -276,13 +285,13 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         </div>
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Ghi chú (không bắt buộc)
+          {tr('Ghi chú (không bắt buộc)')}
         </label>
         <input
           id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: trả đợt 1"
+          placeholder={tr('Ví dụ: trả đợt 1')}
           className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
@@ -292,7 +301,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <button
             type="button"
@@ -300,7 +309,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             disabled={!canSave}
             className={actionButtonClass('primary')}
           >
-            {saving ? 'Đang lưu…' : 'Ghi nhận'}
+            {saving ? tr('Đang lưu…') : tr('Ghi nhận')}
           </button>
         </div>
       </div>

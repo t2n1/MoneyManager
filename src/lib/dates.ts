@@ -1,6 +1,7 @@
 // "Tháng" của app có thể bắt đầu từ ngày bất kỳ (profiles.month_start_day, 1–28).
 // MỌI query theo tháng phải đi qua getMonthRange — không tự cộng trừ ngày ở nơi khác.
 
+import { tr } from '../i18n'
 import { shiftToBusinessDay } from './jpHolidays'
 
 /** Tháng hiển thị, xác định bởi tháng dương lịch chứa ngày bắt đầu. month: 1–12. */
@@ -62,17 +63,17 @@ export function periodDays(range: MonthRange, todayISO: string): PeriodDays {
 }
 
 /** Chú thích đi kèm MỌI con số "còn N ngày" — câu nào tự dựng quanh con số thì dùng nó. */
-export const KE_CA_HOM_NAY = '(kể cả hôm nay)'
+export const KE_CA_HOM_NAY = tr('(kể cả hôm nay)')
 
 /** "còn 8 ngày (kể cả hôm nay)" — chữ DUY NHẤT cho số ngày còn lại của một kỳ. */
 export function daysLeftLabel(left: number): string {
-  return `còn ${left} ngày ${KE_CA_HOM_NAY}`
+  return tr('còn {n} ngày (kể cả hôm nay)', { n: left })
 }
 
 /** Nhãn kỳ: "đã qua 22 ngày · còn 8 ngày (kể cả hôm nay)"; kỳ đã xong chỉ còn "31 ngày". */
 export function periodDaysLabel(d: PeriodDays): string {
-  if (!d.inProgress) return `${d.total} ngày`
-  return `đã qua ${d.passed} ngày · ${daysLeftLabel(d.left)}`
+  if (!d.inProgress) return tr('{n} ngày', { n: d.total })
+  return tr('đã qua {n} ngày · {left}', { n: d.passed, left: daysLeftLabel(d.left) })
 }
 
 /** Ngày ISO thuộc "tháng" nào (ngày trước monthStartDay thuộc tháng trước). */
@@ -139,7 +140,7 @@ export function addDaysISO(iso: string, delta: number): string {
 }
 
 // Nhãn thứ trong tuần cho ngày đến hạn thẻ (đã dời sang ngày làm việc nên chỉ rơi T2–T6)
-const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+const WEEKDAY_VI = [tr('CN'), tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7')]
 
 /** "T2, 7/27" (tháng/ngày) cho một ngày ISO — dùng cho ngày đến hạn trả thẻ. */
 export function dueDateLabel(iso: string): string {
@@ -171,9 +172,9 @@ export function dayMonthLabel(iso: string): string {
 /** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */
 export function dueRelativeLabel(todayISO: string, dueISO: string): string {
   const n = daysBetween(todayISO, dueISO)
-  if (n <= 0) return 'hôm nay'
-  if (n === 1) return 'ngày mai'
-  return `còn ${n} ngày`
+  if (n <= 0) return tr('hôm nay')
+  if (n === 1) return tr('ngày mai')
+  return tr('còn {n} ngày', { n })
 }
 
 /**
@@ -223,7 +224,7 @@ export function getYearRange(year: number, monthStartDay = 1): MonthRange {
 
 /** Nhãn năm hiển thị. */
 export function formatYearLabel(year: number): string {
-  return `Năm ${year}`
+  return tr('Năm {year}', { year })
 }
 
 /**

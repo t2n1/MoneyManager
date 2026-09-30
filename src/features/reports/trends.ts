@@ -3,6 +3,7 @@
 // trung bình trượt, cùng kỳ năm trước, điểm gãy, giá rổ quen thuộc, dịch chuyển hai nửa kỳ.
 
 import type { MonthKey } from '../../lib/dates'
+import { tr } from '../../i18n'
 
 /**
  * Trung bình trượt `window` phần tử gần nhất. Phần tử chưa đủ cửa sổ trả null
@@ -181,7 +182,7 @@ export function basketCost(
 }
 
 /** Câu bắt buộc đi kèm mọi chỗ in `basketCost` — đừng bỏ, đừng viết lại nhẹ hơn. */
-export const BASKET_COST_CAVEAT = 'Gồm cả việc mua ít hơn — không phải chỉ số giá.'
+export const BASKET_COST_CAVEAT = tr('Gồm cả việc mua ít hơn — không phải chỉ số giá.')
 
 // ------------------------------------------------------------
 // Dịch chuyển giữa hai nửa kỳ

@@ -10,6 +10,8 @@ import type { FundTradeRow } from '../../types/database.types'
 import { feeShareAfterYears, fundFeePaid, parsePercentToPpm } from './fundFees'
 import { asFundTrade } from './fundHoldings'
 import { ngay } from './investFormat'
+import { numLocale, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const JPY = 'JPY' as const
 /** Chân trời của câu dự phóng — cùng một con số với bài học đã đối chiếu (20 năm). */
@@ -72,7 +74,7 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
 
   return (
     <Card as="section">
-      <SectionTitle>Phí quỹ (信託報酬)</SectionTitle>
+      <SectionTitle>{tr('Phí quỹ (信託報酬)')}</SectionTitle>
       <ul className="mt-1 divide-y divide-border-subtle">
         {rows.map(({ pos, erPpm, paid }) => (
           <li key={pos.assocFundCd} className="flex items-baseline gap-2 py-2">
@@ -83,16 +85,18 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
               <p className="text-2xs text-fg-secondary">
                 {paid ? (
                   <>
-                    đã trả ước tính từ {ngay(paid.fromISO)} —{' '}
-                    <Money amount={paid.feeMinor} currency={JPY} tone="out" className="text-2xs" />
+                    {trn('đã trả ước tính từ {date} — {amount}', {
+                      date: ngay(paid.fromISO),
+                      amount: <Money amount={paid.feeMinor} currency={JPY} tone="out" className="text-2xs" />,
+                    })}
                   </>
                 ) : erPpm !== null && erPpm > 0 ? (
-                  'chưa đủ mốc giá để ước phí đã trả'
+                  tr('chưa đủ mốc giá để ước phí đã trả')
                 ) : (
                   <>
-                    chưa khai
+                    {tr('chưa khai')}
                     {/* E-ink + Gọn: bỏ lời chỉ chỗ tra / lời giải thích, giữ con số. */}
-                    <span className="eink-gon:hidden"> — xem 信託報酬 trong 目論見書 của quỹ</span>
+                    <span className="eink-gon:hidden">{tr(' — xem 信託報酬 trong 目論見書 của quỹ')}</span>
                   </>
                 )}
               </p>
@@ -104,7 +108,7 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
                 inputMode="decimal"
                 defaultValue={erPpm !== null && erPpm > 0 ? ppmToPercentText(erPpm) : ''}
                 placeholder="0,077"
-                aria-label={`信託報酬 %/năm của ${fundName(pos.assocFundCd)}`}
+                aria-label={tr('信託報酬 %/năm của {fund}', { fund: fundName(pos.assocFundCd) })}
                 className="w-20 rounded-md border border-border-strong bg-surface px-2 py-1 text-right font-mono text-sm tabular-nums"
                 onBlur={(e) => {
                   const ppm = parsePercentToPpm(e.target.value)
@@ -116,7 +120,7 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
                   if (ppm !== erPpm) update.mutate({ assocFundCd: pos.assocFundCd, ppm })
                 }}
               />
-              <span>%/năm</span>
+              <span>{tr('%/năm')}</span>
             </label>
           </li>
         ))}
@@ -125,7 +129,8 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
       {totalPaid > 0 && (
         <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-panel pt-2">
           <span className="text-sm font-medium text-fg-secondary">
-            Tổng phí đã trả{from !== null && <span className="text-fg-muted"> · từ {ngay(from)}</span>}
+            {tr('Tổng phí đã trả')}
+            {from !== null && <span className="text-fg-muted">{tr(' · từ {date}', { date: ngay(from) })}</span>}
           </span>
           <Money amount={totalPaid} currency={JPY} tone="out" className="text-sm font-semibold" />
         </div>
@@ -133,27 +138,34 @@ export function FundFeeSection({ positions, trades, session, fundName }: Props) 
       {share > 0 && (
         <>
           <p className="mt-1 hidden text-2xs text-fg-secondary eink-gon:block">
-            +<Num tone="muted">{PROJECTION_YEARS} năm</Num> → phí ≈{' '}
-            <Num tone="muted">{(share * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</Num>{' '}
-            số cuối
+            {trn('+{years} → phí ≈ {pct} số cuối', {
+              years: <Num tone="muted">{tr('{n} năm', { n: PROJECTION_YEARS })}</Num>,
+              pct: <Num tone="muted">{(share * 100).toLocaleString(numLocale(), { maximumFractionDigits: 1 })}%</Num>,
+            })}
           </p>
           <p className="mt-1 text-2xs text-fg-secondary eink-gon:hidden">
-            Giữ thêm <Num tone="muted">{PROJECTION_YEARS} năm</Num> với mức phí này, phí sẽ lấy
-            khoảng <Num tone="muted">{(share * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%</Num>{' '}
-            số cuối cùng — vì phần bị trừ mỗi năm mất luôn lãi kép của nó.
+            {trn(
+              'Giữ thêm {years} với mức phí này, phí sẽ lấy khoảng {pct} số cuối cùng — vì phần bị trừ mỗi năm mất luôn lãi kép của nó.',
+              {
+                years: <Num tone="muted">{tr('{n} năm', { n: PROJECTION_YEARS })}</Num>,
+                pct: <Num tone="muted">{(share * 100).toLocaleString(numLocale(), { maximumFractionDigits: 1 })}%</Num>,
+              },
+            )}
           </p>
         </>
       )}
 
-      <ExplainBox label="Cách tính">
+      <ExplainBox label={tr('Cách tính')}>
         <p>
-          Phí đã trả là <b>ước tính</b>: giá trị nắm giữ giữa các mốc (mỗi lệnh mua/bán và
-          giá mới nhất) được nội suy, nhân với %/năm bạn khai. Quỹ mua định kỳ hằng tháng
-          thì mốc dày nên sai số nhỏ.
+          {trn(
+            'Phí đã trả là {est}: giá trị nắm giữ giữa các mốc (mỗi lệnh mua/bán và giá mới nhất) được nội suy, nhân với %/năm bạn khai. Quỹ mua định kỳ hằng tháng thì mốc dày nên sai số nhỏ.',
+            { est: <b>{tr('ước tính')}</b> },
+          )}
         </p>
         <p>
-          Phí này Rakuten trừ thẳng vào 基準価額 mỗi ngày — không có dòng nào trên sao kê,
-          nên đừng tìm nó trong lịch sử giao dịch.
+          {tr(
+            'Phí này Rakuten trừ thẳng vào 基準価額 mỗi ngày — không có dòng nào trên sao kê, nên đừng tìm nó trong lịch sử giao dịch.',
+          )}
         </p>
       </ExplainBox>
     </Card>

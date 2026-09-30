@@ -27,6 +27,8 @@ import {
 } from './merchantCategory'
 import { detectStatementFormat, type StatementFormat } from './statementFormat'
 import { Card, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 type Encoding = 'utf-8' | 'shift-jis'
 
@@ -71,7 +73,7 @@ export function ImportCsvPage() {
   const account = accounts.find((a) => a.id === accountId)
   const currency = account?.currency ?? 'JPY'
   const headerRow = rows[0] ?? []
-  const columns = headerRow.map((h, i) => ({ i, label: hasHeader ? h || `Cột ${i + 1}` : `Cột ${i + 1}` }))
+  const columns = headerRow.map((h, i) => ({ i, label: hasHeader ? h || tr('Cột {n}', { n: i + 1 }) : tr('Cột {n}', { n: i + 1 }) }))
 
   function decodeAndParse(bufs: ArrayBuffer[], enc: Encoding) {
     const dec = new TextDecoder(enc)
@@ -105,7 +107,7 @@ export function ImportCsvPage() {
     setCatByMerchant({})
     const bufs = await Promise.all(picked.map((f) => f.arrayBuffer()))
     setBuffers(bufs)
-    setFileName(picked.length === 1 ? picked[0].name : `${picked.length} file sao kê`)
+    setFileName(picked.length === 1 ? picked[0].name : tr('{n} file sao kê', { n: picked.length }))
     decodeAndParse(bufs, encoding)
   }
 
@@ -348,7 +350,7 @@ export function ImportCsvPage() {
   const transferCount = preview.items.filter(
     (it, i) => dupes[i] === null && isInternal(it),
   ).length
-  const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
+  const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? tr('tài khoản khác')
 
   // ─── Danh mục: gom theo QUÁN, không theo dòng ────────────────────────────────
   // Gán tay từng dòng thì một xấp sao kê là cả buổi tối; gom theo quán thì mỗi quán
@@ -398,7 +400,7 @@ export function ImportCsvPage() {
   )
   const withCategory = toImport.filter((it) => categoryOf(it.note) !== null).length
   const blankGroups = groups.filter((g) => catByKey.get(normalizeMerchant(g.merchant)) == null)
-  const khac = leaves.find((c) => c.name.trim().toLowerCase() === 'khác')
+  const khac = leaves.find((c) => c.name.trim().toLowerCase() === 'khác') // i18n-ignore — so với tên danh mục trong DB
 
   function fillRestWith(categoryId: string) {
     setCatByMerchant((prev) => {
@@ -461,11 +463,14 @@ export function ImportCsvPage() {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
       qc.invalidateQueries({ queryKey: ['search'] })
-      const xong = `Đã nhập ${done} giao dịch${merged > 0 ? ` · bồi tên quán cho ${merged} khoản cũ` : ''}.`
+      const xong =
+        merged > 0
+          ? tr('Đã nhập {n} giao dịch · bồi tên quán cho {merged} khoản cũ.', { n: done, merged })
+          : tr('Đã nhập {n} giao dịch.', { n: done })
       setResult(
         mergeErr === null
           ? { kind: 'ok', text: xong }
-          : { kind: 'error', text: `${xong} Bồi ghi chú dừng giữa chừng: ${mergeErr}` },
+          : { kind: 'error', text: tr('{done} Bồi ghi chú dừng giữa chừng: {error}', { done: xong, error: mergeErr }) },
       )
       setRowsPerFile([])
       setFileName('')
@@ -473,7 +478,7 @@ export function ImportCsvPage() {
       setBuffers([])
       setCatByMerchant({})
     } catch (err) {
-      setResult({ kind: 'error', text: `Nhập lỗi sau ${done} giao dịch: ${(err as Error).message}` })
+      setResult({ kind: 'error', text: tr('Nhập lỗi sau {n} giao dịch: {error}', { n: done, error: (err as Error).message }) })
     } finally {
       setBusy(false)
     }
@@ -482,12 +487,12 @@ export function ImportCsvPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Nhập giao dịch từ CSV" back="/settings/data" flush />
+      <PageHeader title={tr('Nhập giao dịch từ CSV')} back="/settings/data" flush />
 
       <Card as="section">
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-accent">
           <Upload className="h-4 w-4" />
-          {fileName || 'Chọn file CSV sao kê…'}
+          {fileName || tr('Chọn file CSV sao kê…')}
           <input
             type="file"
             multiple
@@ -500,9 +505,10 @@ export function ImportCsvPage() {
             đổi lặng lẽ là kiểu thay đổi khó chịu nhất. */}
         {format && (
           <p className="mt-2 rounded-lg bg-state-good-bg px-2.5 py-2 text-sm text-state-good-fg">
-            Đã nhận ra sao kê <b>{format.label}</b> — khoản mua ghi số dương, đã đặt sẵn chiều
-            tiền cho đúng.
-            <span className="eink-gon:hidden"> Nếu muốn đổi thì công tắc vẫn ở dưới.</span>
+            {trn('Đã nhận ra sao kê {name} — khoản mua ghi số dương, đã đặt sẵn chiều tiền cho đúng.', {
+              name: <b>{format.label}</b>,
+            })}
+            <span className="eink-gon:hidden"> {tr('Nếu muốn đổi thì công tắc vẫn ở dưới.')}</span>
           </p>
         )}
         {/* Trang trống trơn thì người chưa dùng lần nào không biết file của mình có hợp
@@ -510,21 +516,20 @@ export function ImportCsvPage() {
             thẻ Nhật phổ biến. */}
         {!fileName && (
           <Guide className="mt-2 text-sm text-fg-muted">
-            Đọc được CSV sao kê của mọi ngân hàng/thẻ — chọn file xong bạn tự trỏ cột ngày,
-            cột tiền, cột ghi chú. Chọn được <b>nhiều file một lượt</b>: phần chồng lấn giữa
-            các tháng sẽ tự bỏ. Đã dùng tốt với sao kê Rakuten Card và PayPay Card (UTF-8);
-            file ngân hàng Nhật đời cũ mở ra lỗi font thì đổi mã hóa sang Shift-JIS.
+            {trn('Đọc được CSV sao kê của mọi ngân hàng/thẻ — chọn file xong bạn tự trỏ cột ngày, cột tiền, cột ghi chú. Chọn được {multi}: phần chồng lấn giữa các tháng sẽ tự bỏ. Đã dùng tốt với sao kê Rakuten Card và PayPay Card (UTF-8); file ngân hàng Nhật đời cũ mở ra lỗi font thì đổi mã hóa sang Shift-JIS.', {
+              multi: <b>{tr('nhiều file một lượt')}</b>,
+            })}
           </Guide>
         )}
         <div className="mt-2 flex items-center gap-2 text-sm text-fg-muted">
-          <span>Mã hóa:</span>
+          <span>{tr('Mã hóa:')}</span>
           {/* "Mã hóa:" là <span> chứ không <label htmlFor>, nên tên ô phải đi qua aria-label */}
           <Select
-            aria-label="Mã hóa file"
+            aria-label={tr('Mã hóa file')}
             value={encoding}
             onChange={(e) => changeEncoding(e.target.value as Encoding)}>
             <option value="utf-8">UTF-8</option>
-            <option value="shift-jis">Shift-JIS (ngân hàng Nhật)</option>
+            <option value="shift-jis">{tr('Shift-JIS (ngân hàng Nhật)')}</option>
           </Select>
         </div>
       </Card>
@@ -533,9 +538,9 @@ export function ImportCsvPage() {
         <>
           <Card as="section" className="grid grid-cols-2 gap-2">
             <label className="col-span-2 flex flex-col gap-1 text-sm text-fg-muted">
-              Nhập vào tài khoản
+              {tr('Nhập vào tài khoản')}
               <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                <option value="">— Chọn tài khoản —</option>
+                <option value="">{tr('— Chọn tài khoản —')}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.currency})
@@ -544,7 +549,7 @@ export function ImportCsvPage() {
               </Select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-fg-muted">
-              Cột ngày
+              {tr('Cột ngày')}
               <Select value={dateCol} onChange={(e) => setDateCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
@@ -552,7 +557,7 @@ export function ImportCsvPage() {
               </Select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-fg-muted">
-              Cột số tiền
+              {tr('Cột số tiền')}
               <Select value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
@@ -560,7 +565,7 @@ export function ImportCsvPage() {
               </Select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-fg-muted">
-              Cột ghi chú
+              {tr('Cột ghi chú')}
               <Select value={noteCol} onChange={(e) => setNoteCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
@@ -568,16 +573,16 @@ export function ImportCsvPage() {
               </Select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-fg-muted">
-              Thứ tự ngày
+              {tr('Thứ tự ngày')}
               <Select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as DateOrder)}>
-                <option value="ymd">Năm/Tháng/Ngày</option>
-                <option value="dmy">Ngày/Tháng/Năm</option>
-                <option value="mdy">Tháng/Ngày/Năm</option>
+                <option value="ymd">{tr('Năm/Tháng/Ngày')}</option>
+                <option value="dmy">{tr('Ngày/Tháng/Năm')}</option>
+                <option value="mdy">{tr('Tháng/Ngày/Năm')}</option>
               </Select>
             </label>
             <label className="col-span-2 flex items-center gap-2 text-sm text-fg-secondary">
               <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
-              Dòng đầu là tiêu đề cột
+              {tr('Dòng đầu là tiêu đề cột')}
             </label>
             <label className="col-span-2 flex items-center gap-2 text-sm text-fg-secondary">
               <input
@@ -585,21 +590,22 @@ export function ImportCsvPage() {
                 checked={negativeIsExpense}
                 onChange={(e) => setNegativeIsExpense(e.target.checked)}
               />
-              Số âm là chi tiêu (số dương là thu nhập)
+              {tr('Số âm là chi tiêu (số dương là thu nhập)')}
             </label>
           </Card>
 
           {account && (
             <Card as="section">
               <p className="text-sm text-fg-secondary">
-                Sẽ nhập <strong>{toImport.length}</strong> giao dịch
-                {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
-                {skipLikely && likelyRows.length > 0 && ` · bỏ qua ${likelyRows.length} nghi trùng`}
-                {skipCross && crossRows.length > 0 && ` · bỏ qua ${crossRows.length} nghi nhầm ví`}
-                {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
-                {overlapCount > 0 && ` · gộp ${overlapCount} dòng chồng lấn giữa các sao kê`}
-                {toMerge.length > 0 && ` · bồi tên quán cho ${toMerge.length} khoản cũ`}
-                {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
+                {/* `n` chỉ để chọn số ít/số nhiều; chữ số hiện ra là `{count}`. */}
+                {trn('Sẽ nhập {count} giao dịch', { n: toImport.length, count: <strong>{toImport.length}</strong> })}
+                {dupCount > 0 && ` · ${tr('bỏ qua {n} trùng', { n: dupCount })}`}
+                {skipLikely && likelyRows.length > 0 && ` · ${tr('bỏ qua {n} nghi trùng', { n: likelyRows.length })}`}
+                {skipCross && crossRows.length > 0 && ` · ${tr('bỏ qua {n} nghi nhầm ví', { n: crossRows.length })}`}
+                {skipTransfers && transferCount > 0 && ` · ${tr('bỏ qua {n} chuyển khoản', { n: transferCount })}`}
+                {overlapCount > 0 && ` · ${tr('gộp {n} dòng chồng lấn giữa các sao kê', { n: overlapCount })}`}
+                {toMerge.length > 0 && ` · ${tr('bồi tên quán cho {n} khoản cũ', { n: toMerge.length })}`}
+                {preview.errorCount > 0 && ` · ${tr('{n} dòng lỗi', { n: preview.errorCount })}`}
               </p>
 
               {/* Soát đơn vị tiền: mượn cách permtrack ghi thẳng "số này do bên ngoài khai,
@@ -614,10 +620,10 @@ export function ImportCsvPage() {
               )}
               {amountRange && (
                 <p className="mt-1.5 text-2xs text-fg-muted eink-gon:hidden">
-                  Số tiền đọc được chạy từ <b>{formatMoney(amountRange.min, currency)}</b> tới{' '}
-                  <b>{formatMoney(amountRange.max, currency)}</b>. Nếu hai con số này trông sai
-                  cỡ (một bữa trưa thành tiền triệu) thì thường là chọn nhầm cột số tiền, hoặc
-                  file ghi tiền theo đơn vị khác — sửa ở trên rồi xem lại.
+                  {trn('Số tiền đọc được chạy từ {min} tới {max}. Nếu hai con số này trông sai cỡ (một bữa trưa thành tiền triệu) thì thường là chọn nhầm cột số tiền, hoặc file ghi tiền theo đơn vị khác — sửa ở trên rồi xem lại.', {
+                    min: <b>{formatMoney(amountRange.min, currency)}</b>,
+                    max: <b>{formatMoney(amountRange.max, currency)}</b>,
+                  })}
                 </p>
               )}
 
@@ -633,23 +639,23 @@ export function ImportCsvPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <b>{likelyRows.length} dòng có vẻ đã có trong sổ</b>
+                      <b>{tr('{n} dòng có vẻ đã có trong sổ', { n: likelyRows.length })}</b>
                       <span className="eink-gon:hidden">
-                        {' '}— cùng số tiền, lệch không quá 3 ngày, nhưng ghi chú khác (sao kê
-                        ghi tên quán, sổ ghi tay tiếng Việt)
+                        {' '}
+                        {tr('— cùng số tiền, lệch không quá 3 ngày, nhưng ghi chú khác (sao kê ghi tên quán, sổ ghi tay tiếng Việt)')}
                       </span>
-                      . Mặc định bỏ qua; bỏ tick nếu đó thật sự là khoản khác.
+                      . {tr('Mặc định bỏ qua; bỏ tick nếu đó thật sự là khoản khác.')}
                     </span>
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
                     {likelyRows.slice(0, 5).map(({ it, dup }) => (
                       <li key={`${it.key}-${dup?.matchedTxId}`} className="truncate">
-                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔ đã có
-                        “{dup?.matchedNote || 'không ghi chú'}”
-                        {dup && dup.dayGap > 0 && ` (lệch ${dup.dayGap} ngày)`}
+                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔{' '}
+                        {tr('đã có “{note}”', { note: dup?.matchedNote || tr('không ghi chú') })}
+                        {dup && dup.dayGap > 0 && ` ${tr('(lệch {n} ngày)', { n: dup.dayGap })}`}
                       </li>
                     ))}
-                    {likelyRows.length > 5 && <li>…và {likelyRows.length - 5} dòng nữa.</li>}
+                    {likelyRows.length > 5 && <li>{tr('…và {n} dòng nữa.', { n: likelyRows.length - 5 })}</li>}
                   </ul>
                   {skipLikely && (
                     <label className="mt-1.5 flex items-start gap-2 pl-6 text-2xs text-fg-warn">
@@ -660,14 +666,17 @@ export function ImportCsvPage() {
                         className="mt-0.5"
                       />
                       <span>
-                        Bồi tên quán từ sao kê vào ghi chú khoản cũ
+                        {tr('Bồi tên quán từ sao kê vào ghi chú khoản cũ')}
                         {mergeSample('likely') && (
                           <>
-                            {' '}— “{mergeSample('likely')?.from || 'không ghi chú'}” thành “
-                            {mergeSample('likely')?.to}”
+                            {' '}
+                            {tr('— “{from}” thành “{to}”', {
+                              from: mergeSample('likely')?.from || tr('không ghi chú'),
+                              to: mergeSample('likely')?.to ?? '',
+                            })}
                           </>
                         )}
-                        . Số tiền, ví và danh mục giữ nguyên.
+                        . {tr('Số tiền, ví và danh mục giữ nguyên.')}
                       </span>
                     </label>
                   )}
@@ -686,25 +695,29 @@ export function ImportCsvPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <b>{crossRows.length} dòng có vẻ đã ghi ở ví khác</b>
+                      <b>{tr('{n} dòng có vẻ đã ghi ở ví khác', { n: crossRows.length })}</b>
                       <span className="eink-gon:hidden">
-                        {' '}— cùng số tiền, cùng chiều, lệch không quá 3 ngày, nhưng khoản cũ
-                        nằm ở ví khác (quẹt thẻ mà ghi vào Tiền mặt)
+                        {' '}
+                        {tr('— cùng số tiền, cùng chiều, lệch không quá 3 ngày, nhưng khoản cũ nằm ở ví khác (quẹt thẻ mà ghi vào Tiền mặt)')}
                       </span>
-                      . Mặc định <b>vẫn nhập</b>; tick vào để bỏ qua. Ví của
-                      khoản cũ không bị đổi dù tick hay không.
+                      .{' '}
+                      {trn('Mặc định {still}; tick vào để bỏ qua. Ví của khoản cũ không bị đổi dù tick hay không.', {
+                        still: <b>{tr('vẫn nhập')}</b>,
+                      })}
                     </span>
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
                     {crossRows.slice(0, 5).map(({ it, dup }) => (
                       <li key={`${it.key}-${dup?.matchedTxId}`} className="truncate">
-                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔ “
-                        {dup?.matchedNote || 'không ghi chú'}” ở ví{' '}
-                        {dup && nameOfAccount(dup.matchedAccountId)}
-                        {dup && dup.dayGap > 0 && ` (lệch ${dup.dayGap} ngày)`}
+                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔{' '}
+                        {tr('“{note}” ở ví {account}', {
+                          note: dup?.matchedNote || tr('không ghi chú'),
+                          account: dup ? nameOfAccount(dup.matchedAccountId) : '',
+                        })}
+                        {dup && dup.dayGap > 0 && ` ${tr('(lệch {n} ngày)', { n: dup.dayGap })}`}
                       </li>
                     ))}
-                    {crossRows.length > 5 && <li>…và {crossRows.length - 5} dòng nữa.</li>}
+                    {crossRows.length > 5 && <li>{tr('…và {n} dòng nữa.', { n: crossRows.length - 5 })}</li>}
                   </ul>
                   {skipCross && (
                     <label className="mt-1.5 flex items-start gap-2 pl-6 text-2xs text-fg-warn">
@@ -715,14 +728,17 @@ export function ImportCsvPage() {
                         className="mt-0.5"
                       />
                       <span>
-                        Bồi tên quán từ sao kê vào ghi chú khoản cũ ở ví kia
+                        {tr('Bồi tên quán từ sao kê vào ghi chú khoản cũ ở ví kia')}
                         {mergeSample('cross') && (
                           <>
-                            {' '}— “{mergeSample('cross')?.from || 'không ghi chú'}” thành “
-                            {mergeSample('cross')?.to}”
+                            {' '}
+                            {tr('— “{from}” thành “{to}”', {
+                              from: mergeSample('cross')?.from || tr('không ghi chú'),
+                              to: mergeSample('cross')?.to ?? '',
+                            })}
                           </>
                         )}
-                        . Số tiền, ví và danh mục giữ nguyên.
+                        . {tr('Số tiền, ví và danh mục giữ nguyên.')}
                       </span>
                     </label>
                   )}
@@ -740,13 +756,14 @@ export function ImportCsvPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <b>{transferCount} dòng có vẻ là chuyển tiền giữa ví của bạn</b>, không phải
-                      chi tiêu thật
+                      {trn('{lead}, không phải chi tiêu thật', {
+                        lead: <b>{tr('{n} dòng có vẻ là chuyển tiền giữa ví của bạn', { n: transferCount })}</b>,
+                      })}
                       <span className="eink-gon:hidden">
-                        {' '}— mỗi dòng đều có một giao dịch ngược chiều, cùng số tiền ở tài
-                        khoản khác
+                        {' '}
+                        {tr('— mỗi dòng đều có một giao dịch ngược chiều, cùng số tiền ở tài khoản khác')}
                       </span>
-                      . Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
+                      . {tr('Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.')}
                     </span>
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
@@ -756,12 +773,12 @@ export function ImportCsvPage() {
                         <li key={c.key} className="truncate">
                           {it?.occurred_on} · {formatMoney(it?.amount ?? 0, currency)} ↔{' '}
                           {nameOfAccount(c.matchedAccountId)}
-                          {c.dayGap > 0 && ` (lệch ${c.dayGap} ngày)`}
+                          {c.dayGap > 0 && ` ${tr('(lệch {n} ngày)', { n: c.dayGap })}`}
                         </li>
                       )
                     })}
                     {transferCandidates.length > 5 && (
-                      <li>…và {transferCandidates.length - 5} dòng nữa.</li>
+                      <li>{tr('…và {n} dòng nữa.', { n: transferCandidates.length - 5 })}</li>
                     )}
                   </ul>
                 </div>
@@ -771,15 +788,16 @@ export function ImportCsvPage() {
                   không biết tiêu vào đâu. */}
               {groups.length > 0 && (
                 <div className="mt-3 rounded-lg border border-border-subtle p-2.5">
-                  <SectionTitle as="h3">Danh mục cho từng quán</SectionTitle>
+                  <SectionTitle as="h3">{tr('Danh mục cho từng quán')}</SectionTitle>
                   <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
-                    Chọn một lần cho mỗi quán, tất cả dòng của quán đó ăn theo. Ô nào đã điền
-                    sẵn là máy đoán — từ chính sổ của bạn, hoặc từ bảng quán quen. Để trống
-                    cũng được, nhưng khoản đó sẽ không hiện trong bảng “tiêu vào việc gì”.
+                    {tr('Chọn một lần cho mỗi quán, tất cả dòng của quán đó ăn theo. Ô nào đã điền sẵn là máy đoán — từ chính sổ của bạn, hoặc từ bảng quán quen. Để trống cũng được, nhưng khoản đó sẽ không hiện trong bảng “tiêu vào việc gì”.')}
                   </p>
                   <p className="mt-1.5 text-sm text-fg-secondary">
-                    <strong>{withCategory}</strong>/{toImport.length} dòng đã có danh mục
-                    {blankGroups.length > 0 && ` · ${blankGroups.length} quán chưa chọn`}
+                    {trn('{done}/{total} dòng đã có danh mục', {
+                      done: <strong>{withCategory}</strong>,
+                      total: toImport.length,
+                    })}
+                    {blankGroups.length > 0 && ` · ${tr('{n} quán chưa chọn', { n: blankGroups.length })}`}
                   </p>
                   {khac && blankGroups.length > 0 && (
                     <button
@@ -787,7 +805,10 @@ export function ImportCsvPage() {
                       onClick={() => fillRestWith(khac.id)}
                       className={actionButtonClass('outline', 'mt-1.5')}
                     >
-                      Dồn {blankGroups.length} quán còn lại vào “Khác”
+                      {tr('Dồn {n} quán còn lại vào “{name}”', {
+                        n: blankGroups.length,
+                        name: 'Khác', // i18n-ignore — tên danh mục trong DB
+                      })}
                     </button>
                   )}
                   <ul className="mt-2 max-h-64 space-y-1 overflow-auto">
@@ -809,18 +830,18 @@ export function ImportCsvPage() {
                               {g.merchant}
                             </span>
                             <span className="shrink-0 text-2xs text-fg-muted tabular-nums">
-                              {g.count} khoản · {formatMoney(g.total, currency)}
+                              {tr('{n} khoản · {amount}', { n: g.count, amount: formatMoney(g.total, currency) })}
                             </span>
                           </div>
                           <Select
-                            aria-label={`Danh mục cho ${g.merchant}`}
+                            aria-label={tr('Danh mục cho {name}', { name: g.merchant })}
                             wrapClassName="mt-1 block w-full"
                             value={value}
                             onChange={(e) =>
                               setCatByMerchant((prev) => ({ ...prev, [k]: e.target.value }))
                             }
                           >
-                            <option value="">— chưa chọn —</option>
+                            <option value="">{tr('— chưa chọn —')}</option>
                             {leaves.map((c) => (
                               <option key={c.id} value={c.id}>
                                 {labelOfCategory(c)}
@@ -830,8 +851,8 @@ export function ImportCsvPage() {
                           {guessed && (
                             <p className="mt-0.5 text-2xs text-fg-muted">
                               {guessed.source === 'history'
-                                ? 'Điền sẵn theo sổ cũ của bạn'
-                                : 'Điền sẵn theo bảng quán quen'}
+                                ? tr('Điền sẵn theo sổ cũ của bạn')
+                                : tr('Điền sẵn theo bảng quán quen')}
                             </p>
                           )}
                         </li>
@@ -845,11 +866,11 @@ export function ImportCsvPage() {
                 <table className="w-full">
                   <thead className="text-fg-muted">
                     <tr>
-                      <th className="py-1 text-left font-medium">Ngày</th>
-                      <th className="py-1 text-left font-medium">Loại</th>
-                      <th className="py-1 text-right font-medium">Số tiền</th>
-                      <th className="py-1 text-left font-medium">Ghi chú</th>
-                      <th className="py-1 text-left font-medium">Danh mục</th>
+                      <th className="py-1 text-left font-medium">{tr('Ngày')}</th>
+                      <th className="py-1 text-left font-medium">{tr('Loại')}</th>
+                      <th className="py-1 text-right font-medium">{tr('Số tiền')}</th>
+                      <th className="py-1 text-left font-medium">{tr('Ghi chú')}</th>
+                      <th className="py-1 text-left font-medium">{tr('Danh mục')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -863,13 +884,13 @@ export function ImportCsvPage() {
                         >
                           <td className="py-1 tabular-nums">{it.occurred_on}</td>
                           <td className={`py-1 ${it.type === 'expense' ? 'text-money-out' : 'text-money-in'}`}>
-                            {it.type === 'expense' ? 'Chi' : 'Thu'}
+                            {it.type === 'expense' ? tr('Chi') : tr('Thu')}
                           </td>
                           <td className="py-1 text-right tabular-nums">
                             {formatMoney(it.amount, currency)}
                             {odd && (
                               <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-2xs font-semibold text-state-bad-fg dark:bg-red-900/50">
-                                khoản lớn bất thường
+                                {tr('khoản lớn bất thường')}
                               </span>
                             )}
                           </td>
@@ -884,10 +905,10 @@ export function ImportCsvPage() {
                 </table>
                 {toImport.length > PREVIEW_ROWS && (
                   <p className="mt-1 text-center text-fg-muted">
-                    … và {toImport.length - PREVIEW_ROWS} dòng nữa
+                    {tr('… và {n} dòng nữa', { n: toImport.length - PREVIEW_ROWS })}
                     {hiddenAnomalyCount > 0 && (
                       <span className="font-semibold text-money-out">
-                        , trong đó {hiddenAnomalyCount} khoản lớn bất thường
+                        , {tr('trong đó {n} khoản lớn bất thường', { n: hiddenAnomalyCount })}
                       </span>
                     )}
                   </p>
@@ -902,12 +923,12 @@ export function ImportCsvPage() {
                 {/* Cả file có thể đã có trong sổ hết mà vẫn còn việc: bồi tên quán vào
                     khoản cũ. Để nút chết ở đó thì người dùng tưởng trang hỏng. */}
                 {busy
-                  ? 'Đang nhập…'
+                  ? tr('Đang nhập…')
                   : toImport.length > 0
-                    ? `Nhập ${toImport.length} giao dịch`
+                    ? tr('Nhập {n} giao dịch', { n: toImport.length })
                     : toMerge.length > 0
-                      ? `Bồi tên quán cho ${toMerge.length} khoản`
-                      : 'Cả file đã có trong sổ'}
+                      ? tr('Bồi tên quán cho {n} khoản', { n: toMerge.length })
+                      : tr('Cả file đã có trong sổ')}
               </button>
             </Card>
           )}

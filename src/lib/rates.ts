@@ -5,6 +5,7 @@
 
 // Nhập từ module lá ./currencies (KHÔNG phải ./money): convertToBase được bộ luật
 // thông báo gọi, mà money.ts kéo theo lib/privacy.ts (React + localStorage).
+import { tr } from '../i18n'
 import { CURRENCIES, groupThousands, type CurrencyCode } from './currencies'
 
 /** major units: 1 đơn vị base đổi được rates[X] đơn vị X */
@@ -34,7 +35,7 @@ export async function fetchRates(base: CurrencyCode): Promise<Rates> {
       rates: Record<string, number>
       time_last_update_unix?: number
     }
-    if (json.result !== 'success') throw new Error('API không trả về success')
+    if (json.result !== 'success') throw new Error(tr('API không trả về success'))
     const rates: Rates = {}
     for (const code of Object.keys(CURRENCIES) as CurrencyCode[]) {
       if (json.rates[code]) rates[code] = json.rates[code]

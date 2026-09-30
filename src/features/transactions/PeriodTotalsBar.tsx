@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { useMemo } from 'react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
@@ -41,28 +42,28 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
   return (
     <>
       <div className="hidden gap-3 lg:grid lg:grid-cols-3">
-        <StatTile label="Thu" className="bg-panel-gradient">
+        <StatTile label={tr('Thu')} className="bg-panel-gradient">
           <span className="text-money-in">{thu}</span>
         </StatTile>
-        <StatTile label="Chi" className="bg-panel-gradient">
+        <StatTile label={tr('Chi')} className="bg-panel-gradient">
           <span className="text-money-out">{chi}</span>
         </StatTile>
-        <StatTile label="Chênh lệch" className="bg-panel-gradient">
+        <StatTile label={tr('Chênh lệch')} className="bg-panel-gradient">
           <span className={netNegative ? 'text-money-out' : undefined}>{net}</span>
         </StatTile>
       </div>
       <Card className="grid grid-cols-3 gap-2 bg-panel-gradient text-center lg:hidden">
         <div>
-          <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">Thu</div>
+          <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">{tr('Thu')}</div>
           <div className="mt-1 font-mono text-sm font-semibold text-money-in">{thu}</div>
         </div>
         <div className="border-x border-border-subtle">
-          <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">Chi</div>
+          <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">{tr('Chi')}</div>
           <div className="mt-1 font-mono text-sm font-semibold text-money-out">{chi}</div>
         </div>
         <div>
           <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
-            Chênh lệch
+            {tr('Chênh lệch')}
           </div>
           <div
             className={`mt-1 font-mono text-sm font-semibold ${netNegative ? 'text-money-out' : 'text-fg-primary'}`}

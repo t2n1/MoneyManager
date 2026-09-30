@@ -7,6 +7,8 @@
 //
 // Kích thước khối phải KHỚP nội dung thật. Lệch nhiều thì lúc thay vào vẫn giật, mà giật
 // sau khi đã hứa một hình dạng còn khó chịu hơn chữ "Đang tải…".
+import { tr } from '../i18n'
+
 interface Props {
   kind: 'list' | 'cards' | 'table'
 }
@@ -19,7 +21,7 @@ export function PageSkeleton({ kind }: Props) {
   // aria-busy + nhãn: trình đọc màn hình thông báo "đang tải" thay vì đọc một đống khối
   // rỗng không tên.
   const shell = (children: React.ReactNode, className: string) => (
-    <div className={className} aria-busy="true" aria-label="Đang tải">
+    <div className={className} aria-busy="true" aria-label={tr('Đang tải')}>
       {children}
     </div>
   )

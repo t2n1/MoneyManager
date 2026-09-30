@@ -39,6 +39,9 @@ import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { useAssetsData } from './useAssetsData'
+import { groupDisplayName } from './aggregate'
+import { tr, decimalSep } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 
 interface Props {
@@ -173,7 +176,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
           snapLoad !== 'ready' ? (
             <span>{pendingText(snapLoad)}</span>
           ) : series.delta == null ? (
-            <span>chưa đủ hai mốc trong khoảng này</span>
+            <span>{tr('chưa đủ hai mốc trong khoảng này')}</span>
           ) : (
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Money
@@ -188,7 +191,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
               </span>
               <Sparkline
                 values={series.points.map((p) => p.value)}
-                label="Tài sản ròng trong khoảng đang xem"
+                label={tr('Tài sản ròng trong khoảng đang xem')}
               />
             </span>
           )
@@ -230,31 +233,33 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
       <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border-panel px-4 py-2">
           <SectionTitle role="micro">
-            Danh sách tài khoản
+            {tr('Danh sách tài khoản')}
           </SectionTitle>
           {!chuaDu && (
             <span className="text-2xs text-fg-muted">
-              {purposeGroups.length} nhóm · {accountCount} tài khoản
+              {tr('{n} nhóm', { n: purposeGroups.length })} · {tr('{n} tài khoản', { n: accountCount })}
             </span>
           )}
           <Guide as="span" className="ml-auto text-2xs text-fg-muted">
-            Mở <span className="text-fg-secondary">Hôm nay</span> để xem từng tài khoản
+            {trn('Mở {today} để xem từng tài khoản', {
+              today: <span className="text-fg-secondary">{tr('Hôm nay')}</span>,
+            })}
           </Guide>
         </div>
 
         <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted lg:flex">
-          <span className="min-w-0 flex-1">Nhóm</span>
-          <span className="w-[6.5rem] shrink-0 text-right">Tỷ trọng</span>
-          <span className="w-[8.125rem] shrink-0 text-right">Δ {DELTA_DAYS} ngày</span>
+          <span className="min-w-0 flex-1">{tr('Nhóm')}</span>
+          <span className="w-[6.5rem] shrink-0 text-right">{tr('Tỷ trọng')}</span>
+          <span className="w-[8.125rem] shrink-0 text-right">Δ {tr('{n} ngày', { n: DELTA_DAYS })}</span>
           {showRangeCol && (
             <span className="w-[8.125rem] shrink-0 text-right">Δ {RANGE_NOUN[range]}</span>
           )}
-          <span className="w-[10rem] shrink-0 text-right">Số dư</span>
+          <span className="w-[10rem] shrink-0 text-right">{tr('Số dư')}</span>
         </div>
 
         {chuaDu && (
           <p className="px-4 py-6 text-center text-sm text-fg-muted">
-            {loadFailed ? 'Chưa tải được danh sách tài khoản — thử tải lại trang.' : 'Đang tải…'}
+            {loadFailed ? tr('Chưa tải được danh sách tài khoản — thử tải lại trang.') : tr('Đang tải…')}
           </p>
         )}
         {bangNhom.map((g) => {
@@ -275,7 +280,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
                     outsideTotals ? 'text-fg-secondary' : 'text-fg-primary'
                   }`}
                 >
-                  {g.name}
+                  {groupDisplayName(g.name)}
                 </span>
                 <span className="shrink-0 text-2xs text-fg-muted">{g.accounts.length}</span>
                 {/* Dưới lg số dư đứng cuối DÒNG MỘT; từ lg nó về cột của mình. */}
@@ -289,7 +294,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
               <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-4 text-2xs text-fg-muted lg:mt-0 lg:contents">
                 <span className="flex shrink-0 items-center justify-end gap-1.5 lg:w-[6.5rem]">
                   {outsideTotals ? (
-                    'ngoài tổng'
+                    tr('ngoài tổng')
                   ) : (
                     <>
                       <span className="hidden h-1 w-14 rounded-full bg-surface-sunken lg:block">
@@ -308,7 +313,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
                 <DeltaCell
                   d={delta30.get(g.name)}
                   load={statsLoad}
-                  label={`${DELTA_DAYS} ngày`}
+                  label={tr('{n} ngày', { n: DELTA_DAYS })}
                   view={mv}
                   className="lg:w-[8.125rem]"
                 />
@@ -331,14 +336,18 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
 
         {tapTrung && (
           <p className="bg-surface-chrome px-4 py-2.5 text-2xs leading-snug text-fg-muted">
-            {tapTrung.totalDelta >= 0 ? 'Ròng tăng ' : 'Ròng sụt '}
-            <Money
-              amount={mv.view(Math.abs(tapTrung.totalDelta)).amount}
-              currency={mv.cur}
-              tone={tapTrung.totalDelta >= 0 ? 'in' : 'out'}
-            />{' '}
-            trong {DELTA_DAYS} ngày gần như hoàn toàn ở{' '}
-            <span className="text-fg-secondary">{tapTrung.groupName}</span>
+            {trn('{dir} {amount} trong {n} ngày gần như hoàn toàn ở {group}', {
+              dir: tapTrung.totalDelta >= 0 ? tr('Ròng tăng') : tr('Ròng sụt'),
+              amount: (
+                <Money
+                  amount={mv.view(Math.abs(tapTrung.totalDelta)).amount}
+                  currency={mv.cur}
+                  tone={tapTrung.totalDelta >= 0 ? 'in' : 'out'}
+                />
+              ),
+              n: DELTA_DAYS,
+              group: <span className="text-fg-secondary">{tapTrung.groupName}</span>,
+            })}
             {tapTrung.account && (
               <>
                 {' '}— {tapTrung.account.name}{' '}
@@ -351,18 +360,20 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
               </>
             )}
             {tapTrung.othersDelta !== 0 && (
-              <>
-                , các nhóm khác{' '}
-                {Math.sign(tapTrung.othersDelta) === Math.sign(tapTrung.groupDelta)
-                  ? 'cùng chiều'
-                  : 'bù lại'}{' '}
-                <Money
-                  amount={mv.view(Math.abs(tapTrung.othersDelta)).amount}
-                  currency={mv.cur}
-                  tone={tapTrung.othersDelta >= 0 ? 'in' : 'out'}
-                  showSign
-                />
-              </>
+              trn(', các nhóm khác {dir} {amount}', {
+                dir:
+                  Math.sign(tapTrung.othersDelta) === Math.sign(tapTrung.groupDelta)
+                    ? tr('cùng chiều')
+                    : tr('bù lại'),
+                amount: (
+                  <Money
+                    amount={mv.view(Math.abs(tapTrung.othersDelta)).amount}
+                    currency={mv.cur}
+                    tone={tapTrung.othersDelta >= 0 ? 'in' : 'out'}
+                    showSign
+                  />
+                ),
+              })
             )}
             .
           </p>
@@ -435,7 +446,7 @@ function SoDuNhom({
 function phanTram(share: number): string {
   const pct = share * 100
   if (pct >= 10) return `${Math.round(pct)}%`
-  if (pct >= 1) return `${pct.toFixed(1).replace('.', ',')}%`
-  return `${pct.toFixed(2).replace('.', ',')}%`
+  if (pct >= 1) return `${pct.toFixed(1).replace('.', decimalSep())}%`
+  return `${pct.toFixed(2).replace('.', decimalSep())}%`
 }
 

@@ -26,6 +26,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountType, CategoryRow, TransactionRow } from '../../types/database.types'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { tr } from '../../i18n'
 
 /**
  * Kiểu tài khoản được tính — DANH SÁCH CHO PHÉP, không phải danh sách loại trừ.
@@ -134,5 +135,5 @@ export function tongChiCoPhanChuaGhi(chiDaGhi: number, c: ChiChuaGhi): number {
 /** Dòng để bày ra bảng / màn Ngân sách. null = không có gì để nói, đừng hiện dòng nào. */
 export function dongChiChuaGhi(c: ChiChuaGhi): { nhan: string; soTien: number } | null {
   if (c.soLanDoiChieu === 0 || c.huong === null) return null
-  return { nhan: c.huong === 'chua_ghi' ? 'Chưa ghi rõ' : 'Ghi thừa', soTien: c.net }
+  return { nhan: c.huong === 'chua_ghi' ? tr('Chưa ghi rõ') : tr('Ghi thừa'), soTien: c.net }
 }

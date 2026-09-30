@@ -13,6 +13,7 @@
 // Không nhãn, không tooltip, không màu riêng: nó là HÌNH DẠNG, không phải số đọc được —
 // hai con số chính xác (TB · cao nhất) đã nằm ngay cạnh nó trong cùng dòng.
 import type { Suggestion } from './suggest'
+import { tr } from '../../i18n'
 
 /** Cột thấp nhất vẫn phải thấy được: 0 đồng vẽ ra một vạch mảnh, không phải khoảng trống. */
 const MIN_PCT = 6
@@ -31,7 +32,7 @@ export function LimitSparkline({ months, className = '' }: Props) {
   return (
     <span
       role="img"
-      aria-label={`Nhịp ${months.length} tháng, cao nhất ${max}`}
+      aria-label={tr('Nhịp {n} tháng, cao nhất {max}', { n: months.length, max })}
       className={`inline-flex h-3.5 items-end justify-end gap-px ${className}`.trim()}
     >
       {months.map((m) => (

@@ -22,6 +22,7 @@ import type {
 import { goalForecast } from '../assets/goals'
 import { buildSchedule } from '../debts/amortization'
 import { remainingOf } from '../debts/aggregate'
+import { tr, trx } from '../../i18n'
 
 // ---------------------------------------------------------------------------------
 // Khối 01 · Phần giữ lại đi đâu
@@ -114,7 +115,7 @@ export function keptFlow(input: {
   if (investGrowth > 0) {
     tiers.push({
       key: 'invest',
-      label: 'Vào đầu tư',
+      label: tr('Vào đầu tư'),
       perMonth: perMonth(investGrowth),
       note: '',
       amount: investGrowth,
@@ -124,7 +125,7 @@ export function keptFlow(input: {
   } else if (investGrowth < 0) {
     tiers.push({
       key: 'investOut',
-      label: 'Rút từ đầu tư',
+      label: tr('Rút từ đầu tư'),
       perMonth: perMonth(investGrowth),
       note: '',
       amount: investGrowth,
@@ -135,7 +136,7 @@ export function keptFlow(input: {
   if (remitTotal > 0) {
     tiers.push({
       key: 'remit',
-      label: 'Gửi về VN',
+      label: tr('Gửi về VN'),
       perMonth: perMonth(remitTotal),
       note: '',
       amount: remitTotal,
@@ -145,7 +146,7 @@ export function keptFlow(input: {
   }
   tiers.push({
     key: 'cash',
-    label: 'Tiền mặt dày thêm',
+    label: tr('Tiền mặt dày thêm'),
     perMonth: perMonth(cashGrowth),
     note: '',
     amount: cashGrowth,
@@ -157,9 +158,9 @@ export function keptFlow(input: {
     // trừ lại. Chiều ngược (chuyển ra) là phần giữ lại đã sang chỗ app không đếm.
     tiers.push({
       key: 'outside',
-      label: outsideIn > 0 ? 'Chuyển vào từ tài khoản ngoài tổng' : 'Chuyển ra tài khoản ngoài tổng',
+      label: outsideIn > 0 ? tr('Chuyển vào từ tài khoản ngoài tổng') : tr('Chuyển ra tài khoản ngoài tổng'),
       perMonth: perMonth(-outsideIn),
-      note: outsideIn > 0 ? '' : 'ẩn, lưu trữ hoặc ngoài tổng',
+      note: outsideIn > 0 ? '' : tr('ẩn, lưu trữ hoặc ngoài tổng'),
       amount: -outsideIn,
       pct: pct(-outsideIn),
       liquid: outsideIn > 0 ? 'in' : 'sell',
@@ -175,12 +176,12 @@ export function keptFlow(input: {
   if (Math.abs(other) > 1 && kept > 0) {
     tiers.push({
       key: 'other',
-      label: 'Chỗ khác',
+      label: tr('Chỗ khác'),
       perMonth: null,
       note:
         other > 0
-          ? 'trả nợ gốc, tài sản cố định…'
-          : 'tiền vào từ chỗ app chưa tách được — bán tài sản, vay thêm…',
+          ? tr('trả nợ gốc, tài sản cố định…')
+          : tr('tiền vào từ chỗ app chưa tách được — bán tài sản, vay thêm…'),
       amount: other,
       pct: pct(other),
       liquid: other > 0 ? 'sell' : 'in',
@@ -395,7 +396,7 @@ export function debtBreakdown(
 
     lines.push({
       id: d.id,
-      label: d.counterparty.trim() || 'Khoản nợ',
+      label: d.counterparty.trim() || tr('Khoản nợ'),
       currency: d.currency,
       remaining,
       remainingBase,
@@ -492,7 +493,7 @@ export function goalProgress(
       )
       return {
         id: g.id,
-        name: g.name.trim() || 'Mục tiêu',
+        name: g.name.trim() || trx('goal', 'Mục tiêu'),
         target: g.target_amount,
         current: f.current,
         currency,

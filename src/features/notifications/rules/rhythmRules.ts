@@ -7,6 +7,7 @@ import { detectRecurring, ruleKey } from '../../../lib/recurringRadar'
 // phải ra CÙNG một con số, nên phải dùng CÙNG một hàm. reports/aggregate chỉ import
 // giá trị từ lib/dates và lib/rates, cả hai đã nằm trong đồ thị thuần (purity.test.ts).
 import { expenseSign } from '../../reports/aggregate'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Bao nhiêu ngày không ghi thì nhắc. */
@@ -46,7 +47,7 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
         kind: 'info',
         type: 'stale-entry',
         severity: 'low',
-        title: `Đã ${idle} ngày chưa ghi giao dịch nào`,
+        title: tr('Đã {n} ngày chưa ghi giao dịch nào', { n: idle }),
         to: '/entry',
       })
     }
@@ -57,13 +58,21 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
     input.recurringRules.map((r) => ruleKey(r.type, r.account_id, r.category_id, r.amount)),
   )
   for (const s of detectRecurring(input.recentTxs, existingKeys, input.todayISO)) {
+    const amount = input.formatMoney(s.amount, input.currencyOf(s.account_id))
+    const weekly = s.frequency === 'weekly'
     out.push({
       key: `recurring-suggestion:${s.key}`,
       kind: 'info',
       type: 'recurring-suggestion',
       severity: 'low',
-      title: `Thấy ${input.formatMoney(s.amount, input.currencyOf(s.account_id))} trả đều ${s.frequency === 'weekly' ? 'mỗi tuần' : 'mỗi tháng'}${s.note ? ` cho "${s.note}"` : ''}`,
-      detail: 'Tạo quy tắc định kỳ để khỏi phải ghi tay mỗi kỳ?',
+      title: s.note
+        ? weekly
+          ? tr('Thấy {amount} trả đều mỗi tuần cho "{note}"', { amount, note: s.note })
+          : tr('Thấy {amount} trả đều mỗi tháng cho "{note}"', { amount, note: s.note })
+        : weekly
+          ? tr('Thấy {amount} trả đều mỗi tuần', { amount })
+          : tr('Thấy {amount} trả đều mỗi tháng', { amount }),
+      detail: tr('Tạo quy tắc định kỳ để khỏi phải ghi tay mỗi kỳ?'),
       to: '/recurring',
     })
   }
@@ -82,7 +91,7 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
       kind: 'info',
       type: 'savings-milestone',
       severity: 'low',
-      title: `${g.name} đã đạt ${top}% mục tiêu`,
+      title: tr('{name} đã đạt {pct}% mục tiêu', { name: g.name, pct: top }),
       detail: `${input.formatMoney(have, input.currencyOf(g.account_id))} / ${input.formatMoney(g.target_amount, input.currencyOf(g.account_id))}`,
       to: '/assets',
     })
@@ -102,7 +111,9 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
         kind: 'info',
         type: 'networth-record',
         severity: 'low',
-        title: `Tài sản ròng cao nhất từ trước tới nay: ${input.formatMoney(latest.net_worth, input.base)}`,
+        title: tr('Tài sản ròng cao nhất từ trước tới nay: {amount}', {
+          amount: input.formatMoney(latest.net_worth, input.base),
+        }),
         to: '/assets',
       })
     }
@@ -151,8 +162,12 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
         kind: 'info',
         type: 'monthly-summary',
         severity: 'low',
-        title: `Tháng ${prev.month}: chi ${input.formatMoney(spent, input.base)}, thu ${input.formatMoney(earned, input.base)}`,
-        detail: `Để dành ${input.formatMoney(earned - spent, input.base)}`,
+        title: tr('Tháng {month}: chi {spent}, thu {earned}', {
+          month: prev.month,
+          spent: input.formatMoney(spent, input.base),
+          earned: input.formatMoney(earned, input.base),
+        }),
+        detail: tr('Để dành {amount}', { amount: input.formatMoney(earned - spent, input.base) }),
         to: '/reports',
       })
     }

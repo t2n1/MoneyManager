@@ -20,6 +20,7 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { TagGroupRow, TagRow, TagSpendRow } from '../../types/database.types'
 import type { CurrencyOf, TransferIds } from './aggregate'
 import type { DaySpend } from './dailySpike'
+import { tr } from '../../i18n'
 
 /** Một nhãn = một HÀNG, ô vuông rời theo ngày (B44.3/B44.4). */
 export interface TagDayRow {
@@ -184,7 +185,7 @@ export function dayTagCells({
   }
   const order: { id: string | null; key: string; title: string }[] = [
     ...groups.map((g) => ({ id: g.id, key: g.id, title: g.name })),
-    { id: null, key: OTHER, title: 'Khác' },
+    { id: null, key: OTHER, title: tr('Khác') },
   ]
 
   const out: TagDayGroup[] = []

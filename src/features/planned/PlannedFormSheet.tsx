@@ -25,7 +25,7 @@ import { toISODate } from '../../lib/dates'
 // bản chép tay ở đây sẽ lệch nhau đúng lúc không ai nhìn. Bản có test là bản kia.
 import { firstOfMonth } from '../transactions/plannedFromEntry'
 import type { DuePrecision, PlannedExpenseRow } from '../../types/database.types'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 const PRECISION: readonly (readonly [DuePrecision, string, string])[] = [
   ['day', tr('Đúng ngày'), tr('Biết chắc ngày nào — vd hạn đóng phí 20/8')],
@@ -252,7 +252,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           <option value="">{tr('— Chưa chọn —')}</option>
           {expenseCats.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
+              {c.icon} {categoryLabel(c.name)}
             </option>
           ))}
         </Select>

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } from 'lucide-react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -157,7 +157,7 @@ export function TransactionItem({
           {tx.type === 'transfer'
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : tx.category_id
-              ? (cat?.name ?? '?')
+              ? (cat ? categoryLabel(cat.name) : '?')
               : tr('Chưa phân loại')}
           {tx.note && <span className="text-fg-muted"> · {tx.note}</span>}
           {tx.recurring_rule_id && (

@@ -20,7 +20,7 @@ import { shareLabel, type AxisLine, type AxisProgress } from '../budgets/axisTar
 import { BUDGET_METHODS, clampBps, resolveMethod } from '../budgets/budgetMethods'
 import { fitBadges } from '../budgets/methodFit'
 import { useMethodFit } from '../budgets/useMethodFit'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -51,7 +51,7 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
   const base = profile.base_currency
   const nameOf = (id: string): string | null => {
     const c = categories.find((x) => x.id === id)
-    return c ? `${c.icon ? `${c.icon} ` : ''}${c.name}` : null
+    return c ? `${c.icon ? `${c.icon} ` : ''}${categoryLabel(c.name)}` : null
   }
 
   function pickMethod(id: string) {

@@ -73,7 +73,7 @@ import { useAxisProgress } from './useAxisProgress'
 import { TagBudgetsCard } from '../tags/TagBudgetsCard'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const SORT_KEY = 'budget.sort'
@@ -233,7 +233,7 @@ function UnbudgetedChip({
       onClick={() => onClick(cat.id)}
       className="min-h-11 rounded-full border border-dashed border-border-strong px-3 text-sm text-fg-secondary hover:bg-surface-sunken"
     >
-      {cat.icon} {cat.name}
+      {cat.icon} {categoryLabel(cat.name)}
       {avg > 0 && (
         <>
           {' · '}
@@ -747,7 +747,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           className="flex min-h-11 w-full items-center gap-2 text-left text-sm"
         >
           <span className="min-w-0 flex-1 truncate text-fg-secondary">
-            {child.cat.icon} {child.cat.name}
+            {child.cat.icon} {categoryLabel(child.cat.name)}
           </span>
           {state === 'paid' && m ? (
             <>
@@ -812,7 +812,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         markerTotal: item.markerTotal,
         named: item.children
           .filter((k) => k.marker !== null)
-          .map((k) => ({ name: k.cat.name, marker: k.marker!.budgeted })),
+          .map((k) => ({ name: categoryLabel(k.cat.name), marker: k.marker!.budgeted })),
         childCount: item.children.length,
       },
       money,
@@ -838,7 +838,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 className="flex min-h-11 w-full items-center justify-between gap-2 text-left text-sm"
               >
                 <span className="min-w-0 truncate text-fg-on-track">
-                  {idle.length > 0 ? nameList(idle.map((k) => k.cat.name)) : tr('Chia lại cho các mục con')}
+                  {idle.length > 0 ? nameList(idle.map((k) => categoryLabel(k.cat.name))) : tr('Chia lại cho các mục con')}
                 </span>
                 <span className="shrink-0 text-2xs font-medium text-fg-on-track">
                   {unsplit > 0 ? (
@@ -906,7 +906,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           >
             <span className="min-w-0 flex-1 text-sm font-medium text-fg-primary">
               <span className="block truncate">
-                {item.cat.icon} {item.cat.name}
+                {item.cat.icon} {categoryLabel(item.cat.name)}
                 {/* Meta ("trần nhóm" / "3 mục con") chỉ từ sm: ở 375px nó tranh chỗ với
                     tên, mà tên mới là thứ phải đọc được. Chevron đã nói đây là nhóm. */}
                 {meta && (
@@ -1284,7 +1284,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         ? tr('hạn {date} — quá hạn {n} ngày, chưa ghi', { date: commitmentDueLabel(it), n: soNgay })
                         : tr('tới hạn {date} — quá hạn {n} ngày, chưa ghi', { date: commitmentDueLabel(it), n: soNgay })
                       : commitmentDueLabel(it)}
-                    {c ? ` → ${c.name}` : tr(' · chưa gắn danh mục')}
+                    {c ? ` → ${categoryLabel(c.name)}` : tr(' · chưa gắn danh mục')}
                   </p>
                 </li>
               )
@@ -1306,7 +1306,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
                       <span className="min-w-0 flex-1">
                         {tr('{name}: đã chi {spent}, còn {left} trong trần — mà còn {committed} phải trả.', {
-                          name: catOf(g.categoryId)?.name ?? tr('Danh mục'),
+                          name: categoryLabel(catOf(g.categoryId)?.name ?? '') || tr('Danh mục'),
                           spent: formatMoney(daChi, base),
                           left: formatMoney(g.budgeted, base),
                           committed: formatMoney(g.committed, base),
@@ -1482,7 +1482,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           key={editing.categoryId}
           monthKey={monthKeyStr}
           categoryId={editing.categoryId}
-          categoryLabel={`${catOf(editing.categoryId)?.icon ?? '📦'} ${catOf(editing.categoryId)?.name ?? ''}`}
+          categoryLabel={`${catOf(editing.categoryId)?.icon ?? '📦'} ${categoryLabel(catOf(editing.categoryId)?.name ?? '')}`}
           current={editing.current}
           currentRollover={editing.rollover}
           budgetId={editing.budgetId}

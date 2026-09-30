@@ -9,7 +9,7 @@
 // Sự khác nhau đó nằm ở tầng repo (setTransactionsCategory vs addTagToTransactions), ở
 // đây chỉ nói ra bằng chữ trên nút.
 import { useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { ActionButton, EmptyState, SectionTitle } from '../../components/ui'
 import { showToast } from '../../lib/dialog'
 import { useAddTagToTransactions, useSetTransactionsCategory } from '../../hooks/queries'
@@ -36,8 +36,10 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
   const leaves = categories.filter(
     (c) => c.type !== 'income' && !c.is_archived && !categories.some((x) => x.parent_id === c.id),
   )
-  const parentName = (c: CategoryRow) =>
-    c.parent_id ? (categories.find((p) => p.id === c.parent_id)?.name ?? '') : ''
+  const parentName = (c: CategoryRow) => {
+    const p = c.parent_id ? categories.find((x) => x.id === c.parent_id) : undefined
+    return p ? categoryLabel(p.name) : ''
+  }
 
   async function apply(fn: () => Promise<unknown>, msg: string) {
     await fn()
@@ -89,14 +91,14 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                     onClick={() =>
                       apply(
                         () => setCategory.mutateAsync({ ids, categoryId: c.id }),
-                        tr('Đã chuyển {n} khoản sang {name}', { n: ids.length, name: c.name }),
+                        tr('Đã chuyển {n} khoản sang {name}', { n: ids.length, name: categoryLabel(c.name) }),
                       )
                     }
                     className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-2.5 py-2 text-left text-sm text-fg-secondary transition hover:bg-surface-sunken disabled:opacity-50"
                   >
                     <span aria-hidden>{c.icon}</span>
                     <span className="min-w-0 flex-1 truncate">
-                      {c.name}
+                      {categoryLabel(c.name)}
                       {parentName(c) && (
                         <span className="block truncate text-2xs text-fg-muted">
                           {parentName(c)}

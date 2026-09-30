@@ -49,7 +49,7 @@ import {
   phieuLoi,
   type KhoanNeo,
 } from './nhap'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const TEN_YUCHO = /yucho/i
@@ -249,7 +249,7 @@ export function ImportPhieuLuongPage() {
       await createCategory.mutateAsync({
         name: DANH_MUC_PHU_CAP, type: 'income', icon: '🚉', parent_id: null,
       })
-      showToast(tr('Đã tạo danh mục {name}', { name: DANH_MUC_PHU_CAP }))
+      showToast(tr('Đã tạo danh mục {name}', { name: categoryLabel(DANH_MUC_PHU_CAP) }))
     } catch (e) {
       showToast(e instanceof Error ? e.message : tr('Không tạo được danh mục, thử lại.'), 'error')
     }
@@ -470,7 +470,7 @@ export function ImportPhieuLuongPage() {
           </p>
           <ul className="mt-1 text-sm text-fg-secondary">
             {!dmPhuCap && (
-              <li className="text-money-out">· {tr('thiếu danh mục thu “{name}”', { name: DANH_MUC_PHU_CAP })}</li>
+              <li className="text-money-out">· {tr('thiếu danh mục thu “{name}”', { name: categoryLabel(DANH_MUC_PHU_CAP) })}</li>
             )}
             {!tkHuu && <li className="text-money-out">· {tr('thiếu tài khoản “{name}”', { name: TEN_TK_HUU })}</li>}
           </ul>
@@ -481,7 +481,7 @@ export function ImportPhieuLuongPage() {
               disabled={createCategory.isPending}
               className="mt-2 mr-2"
             >
-              {createCategory.isPending ? tr('Đang tạo…') : tr('Tạo danh mục {name}', { name: DANH_MUC_PHU_CAP })}
+              {createCategory.isPending ? tr('Đang tạo…') : tr('Tạo danh mục {name}', { name: categoryLabel(DANH_MUC_PHU_CAP) })}
             </ActionButton>
           )}
           {!tkHuu && (
@@ -542,10 +542,10 @@ export function ImportPhieuLuongPage() {
       {thieuDanhMuc.length > 0 && (
         <Card>
           <p className="text-sm text-money-out">
-            {tr('Thiếu {n} danh mục {group}. Phải tạo trước khi nhập.', { n: thieuDanhMuc.length, group: DANH_MUC_THUE_CHA })}
+            {tr('Thiếu {n} danh mục {group}. Phải tạo trước khi nhập.', { n: thieuDanhMuc.length, group: categoryLabel(DANH_MUC_THUE_CHA) })}
           </p>
           <ul className="mt-1 text-sm text-fg-secondary">
-            {thieuDanhMuc.map((n) => <li key={n}>· {n}</li>)}
+            {thieuDanhMuc.map((n) => <li key={n}>· {categoryLabel(n)}</li>)}
           </ul>
           <button
             type="button"

@@ -70,7 +70,7 @@ import { SplitGroupSheet } from './SplitGroupSheet'
 import { useLastYearSpend } from './useLastYearSpend'
 import { useSyncedBudget } from './useSyncedBudget'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-import { tr, trx } from '../../i18n'
+import { categoryLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Chế độ xem panel hạn mức. Sở thích XEM nên ở máy (localStorage), không vào hồ sơ. */
@@ -636,7 +636,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                           {nameList(
                             l.slices.map(
                               (s) =>
-                                `${catOf(s.categoryId)?.name ?? tr('Chưa rõ')} ${money(Math.round(s.amount))}`,
+                                `${categoryLabel(catOf(s.categoryId)?.name ?? '') || tr('Chưa rõ')} ${money(Math.round(s.amount))}`,
                             ),
                           )}
                         </p>
@@ -697,7 +697,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       <p className="text-2xs text-fg-muted">
                         {it.kind === 'recurring' ? tr('định kỳ') : tr('sắp chi')}
                         {it.times > 1 && ` ×${it.times}`}
-                        {c ? ` → ${c.name}` : tr(' · chưa gắn danh mục')}
+                        {c ? ` → ${categoryLabel(c.name)}` : tr(' · chưa gắn danh mục')}
                       </p>
                     </li>
                   )
@@ -818,7 +818,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       <DecisionRow
                         key={`gap-${g.categoryId}`}
                         icon={cat?.icon ?? '📦'}
-                        name={cat?.name ?? tr('Danh mục')}
+                        name={cat ? categoryLabel(cat.name) : tr('Danh mục')}
                         note={laNhom ? tr('· nhóm {axis}', { axis: axisNote(g.categoryId) }) : `· ${axisNote(g.categoryId)}`}
                         // Vì sao in CÂU chứ chỉ con số: y nguyên lý do đã ghi trong
                         // capOverflow.ts — in một con số mà không nói nó ở đâu ra thì
@@ -860,7 +860,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     allocated={summary.allocated}
                     floor={projection.savingsFloor}
                     money={money}
-                    nameOf={(id) => catOf(id)?.name ?? tr('Danh mục')}
+                    nameOf={(id) => categoryLabel(catOf(id)?.name ?? '') || tr('Danh mục')}
                   />
                 )}
               </>
@@ -903,7 +903,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <DecisionRow
                           key={`unset-${r.cat.id}`}
                           icon={r.cat.icon}
-                          name={r.cat.name}
+                          name={categoryLabel(r.cat.name)}
                           note={`· ${axisNote(r.cat.id)}`}
                           // ĐÂY là chỗ duy nhất `quen tiêu · cao nhất` còn đáng in ở dạng
                           // câu (B34.1): hai con số đó dùng để CHỌN một hạn mức, mà đây là
@@ -983,7 +983,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           key={editing}
           monthKey={monthKeyStr}
           categoryId={editing}
-          categoryLabel={`${catOf(editing)?.icon ?? '📦'} ${catOf(editing)?.name ?? ''}`}
+          categoryLabel={`${catOf(editing)?.icon ?? '📦'} ${categoryLabel(catOf(editing)?.name ?? '')}`}
           current={data.budgetedByCat.get(editing) ?? 0}
           /* Hai prop dưới đây từng thiếu, mỗi cái một lỗi thật:
              · currentRollover — thiếu thì checkbox khởi tạo về unticked, bấm Lưu là ghi
@@ -1505,7 +1505,7 @@ function BlockBody({
                 {tr('{n} mục dưới {amount} — {names}', {
                   n: block.tail.length,
                   amount: money(TAIL_LIMIT),
-                  names: nameList(block.tail.map((r) => r.cat.name)),
+                  names: nameList(block.tail.map((r) => categoryLabel(r.cat.name))),
                 })}
               </span>
               <Money amount={block.tailTotal} currency={base} className="shrink-0 text-2xs !text-fg-muted" />
@@ -1567,7 +1567,7 @@ function groupMismatch(row: PlanRow, money: (v: number) => string) {
       capped: true,
       cap: row.limit,
       markerTotal: row.markers.reduce((t, m) => t + m.limit, 0),
-      named: row.markers.map((m) => ({ name: m.cat.name, marker: m.limit })),
+      named: row.markers.map((m) => ({ name: categoryLabel(m.cat.name), marker: m.limit })),
       childCount: row.childCount,
     },
     money,
@@ -1652,12 +1652,12 @@ function ListRow({
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm text-fg-primary">
               {row.groupCap && <span aria-hidden>{row.cat.icon} </span>}
-              {row.cat.name}
+              {categoryLabel(row.cat.name)}
               {row.groupCap && (
                 <span className="text-2xs text-fg-muted">{tr(' trần nhóm · {n} mục con', { n: row.childCount })}</span>
               )}
               {row.parentName && (
-                <span className="text-2xs text-fg-muted">{tr(' trong {parent}', { parent: row.parentName })}</span>
+                <span className="text-2xs text-fg-muted">{tr(' trong {parent}', { parent: categoryLabel(row.parentName) })}</span>
               )}
             </span>
             {note && (
@@ -1688,7 +1688,7 @@ function ListRow({
                 className="flex min-h-9 w-full items-center justify-between gap-2 text-left text-sm"
               >
                 <span className="min-w-0 truncate text-fg-secondary">
-                  {m.cat.icon} {m.cat.name}
+                  {m.cat.icon} {categoryLabel(m.cat.name)}
                   <span className="ml-1 text-2xs text-fg-on-track">{tr('mốc')}</span>
                 </span>
                 <Money amount={m.limit} currency={base} className="shrink-0 text-2xs !text-fg-on-track" />
@@ -1738,7 +1738,7 @@ function TableRow({
         <span aria-hidden className="text-center text-sm">
           {row.cat.icon}
         </span>
-        <span className="min-w-0 truncate text-sm text-fg-primary">{row.cat.name}</span>
+        <span className="min-w-0 truncate text-sm text-fg-primary">{categoryLabel(row.cat.name)}</span>
         {avg > 0 ? (
           <Money
             amount={avg}

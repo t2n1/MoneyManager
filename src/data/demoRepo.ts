@@ -395,98 +395,98 @@ function seed(): DemoDB {
   accounts[5].payment_account_id = accounts[1].id
 
   // Danh mục cha + con — bộ chuẩn hoá kiểu "Money Manager" (dịch tiếng Việt).
-  const nhaO = category(tr('Nhà ở'), 'expense', '🏠')
-  const anUong = category(tr('Ăn uống'), 'expense', '🍜')
-  const giaoTe = category(tr('Giao tế'), 'expense', '👫')
-  const diLai = category(tr('Đi lại'), 'expense', '🚆')
-  const thoiTrang = category(tr('Thời trang'), 'expense', '🧥')
-  const soThich = category(tr('Sở thích'), 'expense', '🌱')
-  const sucKhoe = category(tr('Sức khỏe'), 'expense', '🧘')
+  const nhaO = category('Nhà ở', 'expense', '🏠') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const anUong = category('Ăn uống', 'expense', '🍜') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const giaoTe = category('Giao tế', 'expense', '👫') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const diLai = category('Đi lại', 'expense', '🚆') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const thoiTrang = category('Thời trang', 'expense', '🧥') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const soThich = category('Sở thích', 'expense', '🌱') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const sucKhoe = category('Sức khỏe', 'expense', '🧘') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
   // "Tài chính" không có con -> tự nó là danh mục lá, nên có nhãn 2 trục. Chỉ chứa
   // PHÍ tài chính; mua đầu tư là chuyển khoản sang tài khoản đầu tư, không phải chi.
-  const taiChinh = category('Tài chính', 'expense', '🏦', null, 'essential', 'variable') // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
-  const giaoDuc = category(tr('Giáo dục'), 'expense', '📔')
-  const duLich = category(tr('Du lịch'), 'expense', '🧳')
-  const giayTo = category(tr('Giấy tờ & Pháp lý'), 'expense', '📄')
-  const quaTang = category(tr('Quà tặng'), 'expense', '🎁')
-  const khacChi = category(tr('Khác'), 'expense', '📦')
+  const taiChinh = category('Tài chính', 'expense', '🏦', null, 'essential', 'variable') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const giaoDuc = category('Giáo dục', 'expense', '📔') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const duLich = category('Du lịch', 'expense', '🧳') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const giayTo = category('Giấy tờ & Pháp lý', 'expense', '📄') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const quaTang = category('Quà tặng', 'expense', '🎁') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+  const khacChi = category('Khác', 'expense', '📦') // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
   // ふるさと納税 (mục Quyền lợi, migration 0056): khoản quyên góp trừ vào thuế cư trú năm
   // sau — không phải "cho không", nên cần lộ diện trong danh mục demo để màn Quyền lợi có
   // gì mà đếm.
   const furusato = category('ふるさと納税 (寄附)', 'expense', '🎁', null, 'flexible', 'variable')
   const categories = [
     nhaO,
-    category(tr('Tiền nhà'), 'expense', '🔑', nhaO.id, 'essential', 'fixed'),
-    category(tr('Nội thất'), 'expense', '🛋️', nhaO.id),
-    category(tr('Đồ bếp'), 'expense', '🍳', nhaO.id),
-    category(tr('Đồ vệ sinh cá nhân'), 'expense', '🧴', nhaO.id),
-    category(tr('Điện'), 'expense', '💡', nhaO.id, 'essential', 'variable'),
-    category(tr('Nước'), 'expense', '🚰', nhaO.id),
+    category('Tiền nhà', 'expense', '🔑', nhaO.id, 'essential', 'fixed'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Nội thất', 'expense', '🛋️', nhaO.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đồ bếp', 'expense', '🍳', nhaO.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đồ vệ sinh cá nhân', 'expense', '🧴', nhaO.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Điện', 'expense', '💡', nhaO.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Nước', 'expense', '🚰', nhaO.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     category('Gas', 'expense', '🔥', nhaO.id),
-    category(tr('Điện thoại'), 'expense', '📱', nhaO.id, 'essential', 'fixed'),
+    category('Điện thoại', 'expense', '📱', nhaO.id, 'essential', 'fixed'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     anUong,
-    category(tr('Bữa sáng'), 'expense', '🥐', anUong.id),
-    category(tr('Bữa trưa'), 'expense', '🍱', anUong.id, 'essential', 'variable'),
-    category(tr('Bữa tối'), 'expense', '🍚', anUong.id),
-    category(tr('Ăn ngoài'), 'expense', '🍽️', anUong.id, 'flexible', 'variable'),
-    category(tr('Đồ uống'), 'expense', '🥤', anUong.id),
-    category(tr('Đi chợ'), 'expense', '🛒', anUong.id, 'essential', 'variable'),
+    category('Bữa sáng', 'expense', '🥐', anUong.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Bữa trưa', 'expense', '🍱', anUong.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Bữa tối', 'expense', '🍚', anUong.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Ăn ngoài', 'expense', '🍽️', anUong.id, 'flexible', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đồ uống', 'expense', '🥤', anUong.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đi chợ', 'expense', '🛒', anUong.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     giaoTe,
-    category(tr('Bạn bè'), 'expense', '🧑‍🤝‍🧑', giaoTe.id),
-    category(tr('Tình cảm'), 'expense', '💑', giaoTe.id),
+    category('Bạn bè', 'expense', '🧑‍🤝‍🧑', giaoTe.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Tình cảm', 'expense', '💑', giaoTe.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     diLai,
-    category(tr('Xe buýt'), 'expense', '🚌', diLai.id),
-    category(tr('Tàu điện'), 'expense', '🚉', diLai.id, 'essential', 'variable'),
+    category('Xe buýt', 'expense', '🚌', diLai.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Tàu điện', 'expense', '🚉', diLai.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     category('Taxi', 'expense', '🚕', diLai.id),
-    category(tr('Ô tô'), 'expense', '🚗', diLai.id),
-    category(tr('Bãi đỗ xe'), 'expense', '🅿️', diLai.id, 'essential', 'fixed'),
+    category('Ô tô', 'expense', '🚗', diLai.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Bãi đỗ xe', 'expense', '🅿️', diLai.id, 'essential', 'fixed'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     category('Luup', 'expense', '🛴', diLai.id),
     thoiTrang,
-    category(tr('Quần áo'), 'expense', '👕', thoiTrang.id, 'flexible', 'variable'),
-    category(tr('Giày dép'), 'expense', '👟', thoiTrang.id),
-    category(tr('Phụ kiện'), 'expense', '👜', thoiTrang.id),
-    category(tr('Mỹ phẩm'), 'expense', '💄', thoiTrang.id),
-    category(tr('Giặt là'), 'expense', '🧺', thoiTrang.id),
+    category('Quần áo', 'expense', '👕', thoiTrang.id, 'flexible', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Giày dép', 'expense', '👟', thoiTrang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Phụ kiện', 'expense', '👜', thoiTrang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Mỹ phẩm', 'expense', '💄', thoiTrang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Giặt là', 'expense', '🧺', thoiTrang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     soThich,
-    category(tr('Cây cối'), 'expense', '🪴', soThich.id),
-    category(tr('Nhiếp ảnh'), 'expense', '📷', soThich.id),
-    category(tr('Đăng ký'), 'expense', '📺', soThich.id, 'flexible', 'fixed'),
-    category(tr('Thể thao'), 'expense', '⚽', soThich.id),
+    category('Cây cối', 'expense', '🪴', soThich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Nhiếp ảnh', 'expense', '📷', soThich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đăng ký', 'expense', '📺', soThich.id, 'flexible', 'fixed'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Thể thao', 'expense', '⚽', soThich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     sucKhoe,
     category('Gym', 'expense', '🏋️', sucKhoe.id),
-    category('Bệnh viện', 'expense', '🏥', sucKhoe.id), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
-    category('Thuốc', 'expense', '💊', sucKhoe.id, 'essential', 'variable'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
-    category(tr('Thuốc lá'), 'expense', '🚬', sucKhoe.id),
+    category('Bệnh viện', 'expense', '🏥', sucKhoe.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Thuốc', 'expense', '💊', sucKhoe.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Thuốc lá', 'expense', '🚬', sucKhoe.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     taiChinh,
     // `kind: 'transfer'` — cùng quy ước với backfill của migration 0046. Có nó thì demo
     // mới chạy qua đúng nhánh "tầng chuyển tài sản" của khối 01, và mới thấy được chi tiêu
     // KHÔNG gồm ¥30.000 gửi về nhà.
-    category('Gửi tiền về VN', 'expense', '🧧', taiChinh.id, null, null, 'transfer'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+    category('Gửi tiền về VN', 'expense', '🧧', taiChinh.id, null, null, 'transfer'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     giaoDuc,
-    category(tr('Thi cử'), 'expense', '📝', giaoDuc.id),
-    category(tr('Học phí'), 'expense', '🏫', giaoDuc.id),
-    category(tr('Sách vở'), 'expense', '📚', giaoDuc.id),
+    category('Thi cử', 'expense', '📝', giaoDuc.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Học phí', 'expense', '🏫', giaoDuc.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Sách vở', 'expense', '📚', giaoDuc.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     duLich,
-    category(tr('Vé máy bay'), 'expense', '✈️', duLich.id, 'flexible', 'variable'),
-    category(tr('Khách sạn'), 'expense', '🏨', duLich.id),
-    category(tr('Tham quan & ăn chơi'), 'expense', '🎡', duLich.id),
-    category(tr('Quà mang về'), 'expense', '🍡', duLich.id),
+    category('Vé máy bay', 'expense', '✈️', duLich.id, 'flexible', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Khách sạn', 'expense', '🏨', duLich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Tham quan & ăn chơi', 'expense', '🎡', duLich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Quà mang về', 'expense', '🍡', duLich.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     giayTo,
-    category(tr('Visa & lưu trú'), 'expense', '🛂', giayTo.id, 'essential', 'variable'),
-    category(tr('Hộ chiếu & lãnh sự'), 'expense', '🛃', giayTo.id),
-    category(tr('Dịch thuật & công chứng'), 'expense', '✍️', giayTo.id),
+    category('Visa & lưu trú', 'expense', '🛂', giayTo.id, 'essential', 'variable'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Hộ chiếu & lãnh sự', 'expense', '🛃', giayTo.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Dịch thuật & công chứng', 'expense', '✍️', giayTo.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     quaTang,
-    category(tr('Quà'), 'expense', '🎀', quaTang.id),
-    category(tr('Hỗ trợ gia đình'), 'expense', '👪', quaTang.id),
+    category('Quà', 'expense', '🎀', quaTang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Hỗ trợ gia đình', 'expense', '👪', quaTang.id), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     khacChi,
     furusato,
     // Thu
-    category(tr('Lương'), 'income', '💰'),
-    category(tr('Thưởng'), 'income', '🎉'),
-    category(tr('Được tặng'), 'income', '🧧'),
-    category(tr('Đầu tư'), 'income', '📈'),
-    category(tr('Bán đồ cũ'), 'income', '♻️'),
-    category('Khác', 'income', '💵'), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+    category('Lương', 'income', '💰'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Thưởng', 'income', '🎉'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Được tặng', 'income', '🧧'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Đầu tư', 'income', '📈'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Bán đồ cũ', 'income', '♻️'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    category('Khác', 'income', '💵'), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
   ]
 
   const cat = (name: string, type: CategoryType) =>
@@ -522,7 +522,7 @@ function seed(): DemoDB {
     type: 'income',
     amount: 280_000,
     to_amount: null,
-    category_id: cat(tr('Lương'), 'income').id,
+    category_id: cat('Lương', 'income').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     account_id: bank.id,
     to_account_id: null,
     note: tr('Lương tháng'),
@@ -546,24 +546,24 @@ function seed(): DemoDB {
 
   const transactions = [
     // Chi tiêu hàng ngày bằng JPY
-    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: tr('Cơm trưa'), category_id: cat(tr('Bữa trưa'), 'expense').id }),
-    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: tr('Tàu điện'), category_id: cat(tr('Tàu điện'), 'expense').id }),
-    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: tr('Ăn tối cùng bạn'), category_id: cat(tr('Ăn ngoài'), 'expense').id }),
-    tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: tr('Áo khoác Uniqlo'), category_id: cat(tr('Quần áo'), 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: tr('Tiền điện + gas'), category_id: cat(tr('Điện'), 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: tr('Thuốc cảm'), category_id: cat('Thuốc', 'expense').id }), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
-    tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(0), note: tr('Tiền thuê nhà tháng này'), category_id: cat(tr('Tiền nhà'), 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: tr('Cơm trưa'), category_id: cat('Bữa trưa', 'expense').id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: tr('Tàu điện'), category_id: cat('Tàu điện', 'expense').id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: tr('Ăn tối cùng bạn'), category_id: cat('Ăn ngoài', 'expense').id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: tr('Áo khoác Uniqlo'), category_id: cat('Quần áo', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: tr('Tiền điện + gas'), category_id: cat('Điện', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: tr('Thuốc cảm'), category_id: cat('Thuốc', 'expense').id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(0), note: tr('Tiền thuê nhà tháng này'), category_id: cat('Tiền nhà', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     // GẮN quy tắc lương: không gắn thì khối "thu định kỳ vs một lần" của tháng đang chạy
     // không có tín hiệu nào và tự ẩn — tức khối mới dựng không bao giờ thấy được trong demo.
     {
-      ...tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: tr('Lương tháng'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
+      ...tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: tr('Lương tháng'), category_id: cat('Lương', 'income').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
       recurring_rule_id: luongRule.id,
     },
     // Thưởng nhỏ KHÔNG gắn quy tắc → cột "một lần", để hai cột đều có số.
-    tx({ type: 'income', amount: 9_181, occurred_on: daysAgo(2), note: tr('Thưởng nhỏ'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
+    tx({ type: 'income', amount: 9_181, occurred_on: daysAgo(2), note: tr('Thưởng nhỏ'), category_id: cat('Lương', 'income').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     // Gửi về VN của tháng đang chạy — để tầng "chuyển tài sản" của khối 01 khác 0.
     {
-      ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: tr('Gửi tiền về nhà'), category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+      ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: tr('Gửi tiền về nhà'), category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
       is_remittance: true,
       remit_service: 'Wise',
       remit_fee_jpy: 500,
@@ -575,11 +575,11 @@ function seed(): DemoDB {
     // Chuyển khoản XUYÊN TỆ: ¥50.000 → Đầu tư VN nhận 8.250.000 ₫
     tx({ type: 'transfer', amount: 50_000, to_amount: 8_250_000, occurred_on: daysAgo(7), note: tr('Nạp tài khoản đầu tư'), account_id: bank.id, to_account_id: invest.id }),
     // Thu nhập đầu tư bằng VND
-    tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: tr('Cổ tức'), category_id: cat(tr('Đầu tư'), 'income').id, account_id: invest.id }),
+    tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: tr('Cổ tức'), category_id: cat('Đầu tư', 'income').id, account_id: invest.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     // Tháng trước
-    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: tr('Xem phim'), category_id: cat(tr('Đăng ký'), 'expense').id }),
-    tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: tr('Siêu thị'), category_id: cat(tr('Đi chợ'), 'expense').id, account_id: bank.id }),
-    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: tr('Lương tháng'), category_id: cat(tr('Lương'), 'income').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: tr('Xem phim'), category_id: cat('Đăng ký', 'expense').id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: tr('Siêu thị'), category_id: cat('Đi chợ', 'expense').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: tr('Lương tháng'), category_id: cat('Lương', 'income').id, account_id: bank.id }), // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
     tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(40), note: 'ふるさと納税', category_id: cat('ふるさと納税 (寄附)', 'expense').id, account_id: bank.id }),
     // ---------------------------------------------------------------- 24 THÁNG LỊCH SỬ
     //
@@ -621,7 +621,7 @@ function seed(): DemoDB {
           amount: 280_000 + wobble * 1_000,
           occurred_on: monthsAgoISO(i, 25),
           note: tr('Lương tháng'),
-          category_id: cat(tr('Lương'), 'income').id,
+          category_id: cat('Lương', 'income').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
           account_id: bank.id,
         }),
         recurring_rule_id: luongRule.id,
@@ -635,7 +635,7 @@ function seed(): DemoDB {
             amount: 80_000,
             occurred_on: monthsAgoISO(i, 15),
             note: tr('Thưởng hè'),
-            category_id: cat(tr('Lương'), 'income').id,
+            category_id: cat('Lương', 'income').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
             account_id: bank.id,
           }),
         )
@@ -648,7 +648,7 @@ function seed(): DemoDB {
           amount: cuNep ? 112_000 : 68_000,
           occurred_on: monthsAgoISO(i, 1),
           note: tr('Tiền thuê nhà'),
-          category_id: cat(tr('Tiền nhà'), 'expense').id,
+          category_id: cat('Tiền nhà', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
           account_id: bank.id,
         }),
       )
@@ -661,7 +661,7 @@ function seed(): DemoDB {
           amount: Math.round(bienDoi * 0.45),
           occurred_on: monthsAgoISO(i, 6),
           note: tr('Đi chợ'),
-          category_id: cat(tr('Đi chợ'), 'expense').id,
+          category_id: cat('Đi chợ', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
           account_id: bank.id,
         }),
         tx({
@@ -669,14 +669,14 @@ function seed(): DemoDB {
           amount: Math.round(bienDoi * 0.4),
           occurred_on: monthsAgoISO(i, 12),
           note: tr('Ăn ngoài'),
-          category_id: cat(tr('Ăn ngoài'), 'expense').id,
+          category_id: cat('Ăn ngoài', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
         }),
         tx({
           type: 'expense',
           amount: Math.round(bienDoi * 0.15),
           occurred_on: monthsAgoISO(i, 18),
           note: tr('Tàu điện'),
-          category_id: cat(tr('Tàu điện'), 'expense').id,
+          category_id: cat('Tàu điện', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
         }),
       )
 
@@ -689,7 +689,7 @@ function seed(): DemoDB {
             amount: 90_000,
             occurred_on: monthsAgoISO(i, 20),
             note: tr('Vé máy bay về nhà'),
-            category_id: cat(tr('Vé máy bay'), 'expense').id,
+            category_id: cat('Vé máy bay', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
             account_id: bank.id,
           }),
         )
@@ -703,7 +703,7 @@ function seed(): DemoDB {
             amount: idx === 15 ? 40_000 : 30_000,
             occurred_on: monthsAgoISO(i, 26),
             note: tr('Gửi tiền về nhà'),
-            category_id: cat('Gửi tiền về VN', 'expense').id, // i18n-ignore — tên danh mục app khớp theo tên (roleSave/flowCategories/iryohi), giữ nguyên
+            category_id: cat('Gửi tiền về VN', 'expense').id, // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
             account_id: bank.id,
           }),
           is_remittance: true,
@@ -746,10 +746,10 @@ function seed(): DemoDB {
     updated_at: nowISO(),
   })
   const budgets = [
-    budget(tr('Ăn uống'), 40_000), // trần nhóm ở cha — gộp chi của mọi con
-    budget(tr('Bữa trưa'), 15_000), // mốc theo dõi ở con (không cộng vào tổng)
-    budget(tr('Đi lại'), 8_000), // trần nhóm ở cha
-    budget(tr('Quần áo'), 20_000), // con của nhóm chưa có trần → tính độc lập (tương thích)
+    budget('Ăn uống', 40_000), // trần nhóm ở cha — gộp chi của mọi con // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    budget('Bữa trưa', 15_000), // mốc theo dõi ở con (không cộng vào tổng) // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    budget('Đi lại', 8_000), // trần nhóm ở cha // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
+    budget('Quần áo', 20_000), // con của nhóm chưa có trần → tính độc lập (tương thích) // i18n-ignore — tên danh mục là dữ liệu; hiển thị qua categoryLabel()
   ]
 
   // Cài đặt nhóm mặc định: giữ đúng thứ tự đã seed cho 3 nhóm.

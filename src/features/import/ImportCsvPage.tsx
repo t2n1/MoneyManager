@@ -27,7 +27,7 @@ import {
 } from './merchantCategory'
 import { detectStatementFormat, type StatementFormat } from './statementFormat'
 import { Card, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 type Encoding = 'utf-8' | 'shift-jis'
@@ -359,7 +359,7 @@ export function ImportCsvPage() {
   const labelOfCategory = useCallback(
     (c: CategoryRow) => {
       const parent = c.parent_id ? categories.find((x) => x.id === c.parent_id)?.name : null
-      return parent ? `${parent} › ${c.name}` : c.name
+      return parent ? `${categoryLabel(parent)} › ${categoryLabel(c.name)}` : categoryLabel(c.name)
     },
     [categories],
   )
@@ -896,7 +896,7 @@ export function ImportCsvPage() {
                           </td>
                           <td className="py-1">{it.note}</td>
                           <td className="py-1 text-fg-muted">
-                            {leaves.find((c) => c.id === categoryOf(it.note))?.name ?? '—'}
+                            {categoryLabel(leaves.find((c) => c.id === categoryOf(it.note))?.name ?? '') || '—'}
                           </td>
                         </tr>
                       )

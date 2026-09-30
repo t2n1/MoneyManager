@@ -28,7 +28,7 @@ import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
-import { numLocale, tr, trx } from '../../i18n'
+import { categoryLabel, numLocale, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
@@ -193,7 +193,7 @@ function labelOf(t: DayTopExpense, categoryOf: Props['categoryOf']): string {
   const note = t.note?.trim()
   if (note) return note
   const cat = categoryOf(t.categoryId)
-  return cat ? `${cat.icon} ${cat.name}` : tr('Chưa phân loại')
+  return cat ? `${cat.icon} ${categoryLabel(cat.name)}` : tr('Chưa phân loại')
 }
 
 /**

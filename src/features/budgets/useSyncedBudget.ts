@@ -19,6 +19,7 @@ import {
 } from './capSplit'
 import type { SplitGroupSheetProps } from './SplitGroupSheet'
 import { useSuggestions } from './useSuggestions'
+import { categoryLabel } from '../../i18n'
 
 export interface SyncedBudget {
   /**
@@ -97,12 +98,12 @@ export function useSyncedBudget(monthKey: string): SyncedBudget {
   const splitSheetProps: SplitGroupSheetProps | null =
     parent && kids.length > 0
       ? {
-          parentLabel: `${parent.icon} ${parent.name}`,
+          parentLabel: `${parent.icon} ${categoryLabel(parent.name)}`,
           cap,
           base,
           rows: kids.map((k) => ({
             categoryId: k.id,
-            label: `${k.icon} ${k.name}`,
+            label: `${k.icon} ${categoryLabel(k.name)}`,
             amount: preset.get(k.id) ?? 0,
             average: suggestions.get(k.id)?.average ?? 0,
           })),

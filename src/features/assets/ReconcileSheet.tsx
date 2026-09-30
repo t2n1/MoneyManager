@@ -23,7 +23,7 @@ import {
   findAdjustCategory,
   reconcilePlan,
 } from './reconcile'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -316,8 +316,8 @@ export function ReconcileSheet({
                 : tr('Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.')
               : isCard
                 ? diff > 0
-                  ? tr('Nợ thật ít hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: ADJUST_CATEGORY_NAME })
-                  : tr('Nợ thật nhiều hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: ADJUST_CATEGORY_NAME })
+                  ? tr('Nợ thật ít hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
+                  : tr('Nợ thật nhiều hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
                 : // Ví/tài khoản thường: khoản bù KHÔNG còn vô hình khi người dùng chọn
                   // "đã tiêu, quên ghi" — Báo cáo tháng kể nó vào tổng Chi ở dòng
                   // "Chưa ghi rõ" / "Ghi thừa" (xem chiChuaGhi.ts). Câu này phải nói ra,
@@ -326,8 +326,8 @@ export function ReconcileSheet({
                   // định của ngân hàng — im lặng ở nhánh đó là để người dùng tự đoán.
                   `${
                     diff > 0
-                      ? tr('Sổ đang ghi ít hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: ADJUST_CATEGORY_NAME })
-                      : tr('Sổ đang ghi nhiều hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: ADJUST_CATEGORY_NAME })
+                      ? tr('Sổ đang ghi ít hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
+                      : tr('Sổ đang ghi nhiều hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
                   } ${
                     anhHuongChi && laChiTieu
                       ? diff > 0

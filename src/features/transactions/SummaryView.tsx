@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { useTransferCategoryIds } from '../../hooks/queries'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
@@ -82,7 +82,7 @@ export function SummaryView({
     const cat = categoryOf(s.categoryId)
     return {
       id: s.categoryId,
-      name: cat?.name ?? '?',
+      name: cat ? categoryLabel(cat.name) : '?',
       icon: cat?.icon ?? '📦',
       amount: s.amount,
       color: PALETTE[i % PALETTE.length],

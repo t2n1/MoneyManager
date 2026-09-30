@@ -30,7 +30,7 @@
 //     của DragList sai ngay, mà để nó nở hết 1090px thì sinh ra đúng khoảng trống 800px
 //     ở trên. §Phần I cho phép bó với màn một-cột (Nhập đã bó `max-w-2xl lg:max-w-5xl`).
 //     Chỗ trống còn lại bên phải là ĐÁNH ĐỔI CÓ CHỦ Ý, không phải bỏ quên.
-import { tr, trx } from '../../i18n'
+import { categoryLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 import {
   useMemo,
@@ -190,7 +190,7 @@ export function CategoriesPage() {
       <button
         type="button"
         onClick={() => openFor(cat)}
-        aria-label={tr('Phân loại {name} — hiện là {label}', { name: cat.name, label: summaryLabel(eff) })}
+        aria-label={tr('Phân loại {name} — hiện là {label}', { name: categoryLabel(cat.name), label: summaryLabel(eff) })}
         className="inline-flex min-h-11 shrink-0 items-center rounded-full"
       >
         <StatusChip tone={done ? 'good' : 'warn'}>{summaryLabel(eff)}</StatusChip>
@@ -213,7 +213,7 @@ export function CategoriesPage() {
       >
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span aria-hidden>{c.icon}</span>
-          <span className="min-w-0 truncate text-sm text-fg-primary">{c.name}</span>
+          <span className="min-w-0 truncate text-sm text-fg-primary">{categoryLabel(c.name)}</span>
           {/* Chỉ "· cả nhóm", KHÔNG kèm số mục con: header nhóm ngay phía trên đã in
               "N mục con", và ở cỡ chữ 1,25×/375px cái đuôi dài đó (shrink-0) ép tên danh
               mục xuống 0 — dòng cha hiện ra chỉ còn mỗi icon. */}
@@ -303,7 +303,7 @@ export function CategoriesPage() {
     const members = membersOf(parent.id)
     const overwrite = members.filter((c) => !isTodo(c)).length
     const ok = await confirmDialog({
-      title: tr('Gán “{label}” cho nhóm {name}?', { label, name: parent.name }),
+      title: tr('Gán “{label}” cho nhóm {name}?', { label, name: categoryLabel(parent.name) }),
       message:
         tr('{n} danh mục (cả nhóm cha).', { n: members.length }) +
         (overwrite > 0 ? ' ' + tr('{n} mục đã có phân loại sẽ bị ghi đè.', { n: overwrite }) : ''),
@@ -634,7 +634,7 @@ export function CategoriesPage() {
             type="button"
             {...handle}
             className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-            aria-label={tr('Kéo để sắp thứ tự {name}', { name: p.name })}
+            aria-label={tr('Kéo để sắp thứ tự {name}', { name: categoryLabel(p.name) })}
           >
             <GripVertical className="h-5 w-5" />
           </button>
@@ -647,8 +647,8 @@ export function CategoriesPage() {
               aria-expanded={isOpen}
               aria-label={
                 isOpen
-                  ? tr('Thu gọn danh mục con của {name}', { name: p.name })
-                  : tr('Mở danh mục con của {name}', { name: p.name })
+                  ? tr('Thu gọn danh mục con của {name}', { name: categoryLabel(p.name) })
+                  : tr('Mở danh mục con của {name}', { name: categoryLabel(p.name) })
               }
               className="inline-flex min-h-11 w-5 shrink-0 items-center justify-center text-fg-muted"
             >
@@ -685,7 +685,7 @@ export function CategoriesPage() {
               className="-my-1 min-w-0 py-1 text-left"
             >
               <span className="block truncate text-sm font-semibold text-fg-primary">
-                {p.name}
+                {categoryLabel(p.name)}
               </span>
               {kids.length > 0 && (
                 <span className="text-2xs text-fg-muted">
@@ -699,7 +699,7 @@ export function CategoriesPage() {
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
             className={iconButtonClass('accent')}
-            aria-label={tr('Thêm danh mục con cho {name}', { name: p.name })}
+            aria-label={tr('Thêm danh mục con cho {name}', { name: categoryLabel(p.name) })}
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -708,7 +708,7 @@ export function CategoriesPage() {
           <IconButton
             variant="ghost"
             onClick={() => archive(p)}
-            aria-label={tr('Lưu trữ {name}', { name: p.name })}
+            aria-label={tr('Lưu trữ {name}', { name: categoryLabel(p.name) })}
             title={tr('Lưu trữ')}
           >
             <Archive className="h-4 w-4" />
@@ -735,7 +735,7 @@ export function CategoriesPage() {
                     onPointerDown={(e) => childDrag.start(cid, e)}
                     style={{ touchAction: 'none' }}
                     className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-                    aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: ch.name })}
+                    aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: categoryLabel(ch.name) })}
                   >
                     <GripVertical className="h-4 w-4" />
                   </button>
@@ -746,14 +746,14 @@ export function CategoriesPage() {
                       onClick={() => setForm({ category: ch, parent: p })}
                       className="flex min-h-11 min-w-0 items-center text-left"
                     >
-                      <span className="min-w-0 truncate text-sm text-fg-secondary">{ch.name}</span>
+                      <span className="min-w-0 truncate text-sm text-fg-secondary">{categoryLabel(ch.name)}</span>
                     </button>
                     <ClassifyChip cat={ch} />
                   </div>
                   <IconButton
                     variant="ghost"
                     onClick={() => archive(ch)}
-                    aria-label={tr('Lưu trữ {name}', { name: ch.name })}
+                    aria-label={tr('Lưu trữ {name}', { name: categoryLabel(ch.name) })}
                     title={tr('Lưu trữ')}
                   >
                     <Archive className="h-4 w-4" />
@@ -935,7 +935,7 @@ export function CategoriesPage() {
                           nhóm bị bóp về 0 TRƯỚC khi nút shrink-0 chịu xuống dòng — ở cỡ
                           chữ 1,25×/375px header hiện ra chỉ còn "🏠 N…". */}
                       <SectionTitle role="micro" className="min-w-0 flex-1 basis-24 truncate">
-                        <span aria-hidden>{parent.icon}</span> {parent.name}
+                        <span aria-hidden>{parent.icon}</span> {categoryLabel(parent.name)}
                       </SectionTitle>
                       <span className="shrink-0 text-2xs text-fg-muted">
                         {trn('{n} mục con', { n: <Num tone="muted">{childCount(parent.id)}</Num> })}
@@ -982,12 +982,12 @@ export function CategoriesPage() {
               onClick={() => setForm({ category: c, parent: parentById(c.parent_id) })}
               className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-fg-secondary"
             >
-              {c.name}
+              {categoryLabel(c.name)}
             </button>
             <IconButton
               variant="ghost"
               onClick={() => archive(c)}
-              aria-label={tr('Lưu trữ {name}', { name: c.name })}
+              aria-label={tr('Lưu trữ {name}', { name: categoryLabel(c.name) })}
               title={tr('Lưu trữ')}
             >
               <Archive className="h-4 w-4" />
@@ -1025,7 +1025,7 @@ export function CategoriesPage() {
                 <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-60">
                   {c.parent_id && <span className="text-fg-muted">↳</span>}
                   <span className="text-xl">{c.icon}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{c.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{categoryLabel(c.name)}</span>
                   <button
                     type="button"
                     onClick={() => restore(c)}
@@ -1124,7 +1124,7 @@ function CategoryForm({
   async function handleDelete() {
     if (!category) return
     const ok = await confirmDialog({
-      title: tr('Xóa danh mục «{name}»?', { name: category.name }),
+      title: tr('Xóa danh mục «{name}»?', { name: categoryLabel(category.name) }),
       message: hasChildren
         ? tr('Không thể hoàn tác. Xóa cả các danh mục con bên trong (nếu tất cả đều trống).')
         : tr('Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.'),
@@ -1166,6 +1166,7 @@ function CategoryForm({
   )
 
   const canSave = name.trim().length > 0 && !saving
+  const displayLabel = categoryLabel(name.trim())
 
   async function handleSubmit() {
     if (!canSave) return
@@ -1223,6 +1224,13 @@ function CategoryForm({
             className="flex-1 rounded-md border border-border-strong px-3 py-2 text-sm"
           />
         </div>
+        {/* Tên lưu DB giữ nguyên (app khớp theo tên); chế độ Anh chỉ ĐỔI CHỮ HIỂN THỊ của
+            tên mặc định — nói ra để người sửa không tưởng tên mình gõ bị đổi mất. */}
+        {displayLabel !== name.trim() && (
+          <p className="-mt-2 mb-3 text-2xs text-fg-muted">
+            {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: displayLabel })}
+          </p>
+        )}
 
         {/* Danh mục cha */}
         {hasChildren ? (
@@ -1238,7 +1246,7 @@ function CategoryForm({
               <option value="">{tr('— Danh mục chính —')}</option>
               {availableParents.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.icon} {p.name}
+                  {p.icon} {categoryLabel(p.name)}
                 </option>
               ))}
             </Select>

@@ -11,7 +11,7 @@
 //
 // Hàm ở đây chỉ tính TOẠ ĐỘ; màu và chữ là việc của SankeyCard.tsx.
 
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 
 /** Vai trò của một nút/dải — quyết định màu ở tầng vẽ. */
@@ -192,7 +192,7 @@ export function groupSlicesByParent(
     const parent = leaf?.parent_id ? byId.get(leaf.parent_id) : undefined
     const node = parent ?? leaf
     const id = node?.id ?? `mat:${s.categoryId}`
-    const label = node ? `${node.icon} ${node.name}`.trim() : tr('Danh mục đã xoá')
+    const label = node ? `${node.icon} ${categoryLabel(node.name)}`.trim() : tr('Danh mục đã xoá')
     const cur = out.get(id)
     if (cur) cur.amount += s.amount
     else out.set(id, { id, label, amount: s.amount })
@@ -231,7 +231,7 @@ export function groupSlicesWithChildren(
     const parent = leaf?.parent_id ? byId.get(leaf.parent_id) : undefined
     const node = parent ?? leaf
     const id = node?.id ?? `mat:${s.categoryId}`
-    const label = node ? `${node.icon} ${node.name}`.trim() : tr('Danh mục đã xoá')
+    const label = node ? `${node.icon} ${categoryLabel(node.name)}`.trim() : tr('Danh mục đã xoá')
     let g = out.get(id)
     if (!g) {
       g = { id, label, amount: 0, direct: 0, kids: new Map() }
@@ -241,7 +241,7 @@ export function groupSlicesWithChildren(
     if (parent && leaf) {
       const cur = g.kids.get(leaf.id)
       if (cur) cur.amount += s.amount
-      else g.kids.set(leaf.id, { id: leaf.id, label: `${leaf.icon} ${leaf.name}`.trim(), amount: s.amount })
+      else g.kids.set(leaf.id, { id: leaf.id, label: `${leaf.icon} ${categoryLabel(leaf.name)}`.trim(), amount: s.amount })
     } else {
       g.direct += s.amount
     }

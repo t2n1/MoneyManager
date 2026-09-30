@@ -81,7 +81,7 @@ import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } fro
 import { KpiRow } from './KpiRow'
 import { HomNayPanel } from './HomNayPanel'
 import type { TransactionRow } from '../../types/database.types'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 /** Số dòng ở khối Giao dịch gần đây. */
 const RECENT = 6
@@ -417,7 +417,7 @@ export function BulletinPage() {
     [dailySpend.days, tagSpendRows, tags, tagGroups, accounts, base, rates, transferIds, excludeIds],
   )
 
-  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? tr('Chưa rõ')
+  const nameOf = (id: string) => categoryLabel(categories.find((c) => c.id === id)?.name ?? '') || tr('Chưa rõ')
 
   const {
     netWorth,

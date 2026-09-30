@@ -87,3 +87,17 @@ export function trx(ctx: string, vi: string, vars?: Vars): string {
   if (hit === undefined) return fill(pick(vi, vars), vars)
   return fill(typeof hit === 'string' ? hit : vars?.n === 1 ? hit.one : hit.other, vars)
 }
+
+/**
+ * Tên danh mục ĐỂ HIỂN THỊ. Tên danh mục là dữ liệu trong DB, và app so khớp đúng chuỗi tiếng
+ * Việt đó ở nhiều nơi (thuế, gửi tiền về VN, trả nợ…) — nên DB giữ nguyên, chỉ lúc in ra màn
+ * ở chế độ Anh mới đổi các tên MẶC ĐỊNH sang tiếng Anh (bảng `cat|…` ở src/i18n/en/categories.ts).
+ * Tên người dùng tự đặt không có trong bảng → in đúng như đã gõ.
+ *
+ * Chỉ dùng ở chỗ HIỂN THỊ. So sánh, tìm theo tên, ghi DB, sao lưu thì dùng tên gốc.
+ */
+export function categoryLabel(name: string): string {
+  if (lang === 'vi') return name
+  const hit = dict[`cat|${name}`]
+  return typeof hit === 'string' ? hit : name
+}

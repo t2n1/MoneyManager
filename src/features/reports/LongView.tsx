@@ -125,7 +125,7 @@ export function LongView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [months, monthStartDay, anchor.year, anchor.month],
   )
-  const { data: txs = [], isFetched } = useRangeTransactions(range, !!profile)
+  const { data: txs = [], isFetched } = useRangeTransactions(range, !!profile, { perspective: 'report' })
 
   const series = useMemo(
     () => monthlySeries(txs, months, monthStartDay, currencyOf, base, r, transferIds),

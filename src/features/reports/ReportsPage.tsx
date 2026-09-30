@@ -148,6 +148,7 @@ export function ReportsPage() {
   const { data: rangeTxs = [], isFetched: rangeFetched } = useRangeTransactions(
     sixMonthRange,
     !!profile && view === 'month',
+    { perspective: 'report' },
   )
   const stripSeries = useMemo(
     () => monthlySeries(rangeTxs, sixMonths, monthStartDay, currencyOf, base, rates ?? {}, transferIds),

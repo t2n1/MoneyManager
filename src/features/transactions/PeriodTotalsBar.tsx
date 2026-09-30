@@ -7,6 +7,9 @@ import type { TransactionRow } from '../../types/database.types'
 import { approxLabel, splitExpense, sumInBase, sumPerCurrency, type CurrencyOf } from './ledgerShared'
 import { Card, Money, StatTile } from '../../components/ui'
 import { useTransferCategoryIds } from '../../hooks/queries'
+import { useProfile } from '../../hooks/useProfile'
+import { usePerspective } from '../../hooks/usePerspective'
+import { contributionsOf } from '../sharedFund/perspective'
 
 interface Props {
   transactions: TransactionRow[]
@@ -28,10 +31,22 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
     return { income: sumInBase(transactions, 'income', currencyOf, base, rates), expense: spending, moved }
   }, [transactions, currencyOf, base, rates, transferIds])
 
-  const outflow = expense && moved ? expense.value + moved.value : null
+  // Góc riêng (Mình / người kia): Sổ giữ khoản góp quỹ là chuyển khoản — dòng thật, bấm vào
+  // là sửa — nên nó không nằm trong ô Chi. Báo cáo thì tính nó là chi của phần đã góp. Nói
+  // ra thành dòng phụ và trừ vào Chênh lệch, để Chi + góp ở đây bằng Chi của Báo cáo.
+  const { view } = usePerspective()
+  const { data: profile } = useProfile()
+  const fundId = profile?.shared_fund_account_id ?? null
+  const gop = useMemo(() => {
+    if (view === 'all') return null
+    const rows = contributionsOf(transactions, fundId).map((t) => ({ ...t, type: 'expense' as const, is_refund: false }))
+    return rows.length ? sumInBase(rows, 'expense', currencyOf, base, rates) : null
+  }, [view, transactions, fundId, currencyOf, base, rates])
+
+  const outflow = expense && moved ? expense.value + moved.value + (gop?.value ?? 0) : null
   const net =
     income && outflow !== null
-      ? `${income.hasForeign || expense?.hasForeign || moved?.hasForeign ? '≈ ' : ''}${formatMoney(income.value - outflow, base)}`
+      ? `${income.hasForeign || expense?.hasForeign || moved?.hasForeign || gop?.hasForeign ? '≈ ' : ''}${formatMoney(income.value - outflow, base)}`
       : '—'
   const netNegative = !!(income && outflow !== null && income.value - outflow < 0)
 
@@ -49,6 +64,14 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
         })}
       </span>
     ) : null
+  const gopLine =
+    gop && gop.value !== 0 ? (
+      <span className="block text-2xs font-normal text-fg-muted">
+        {trn('+ {amount} góp quỹ chung', {
+          amount: <Money amount={gop.value} currency={base} approx={gop.hasForeign} className="!text-2xs !text-fg-muted" />,
+        })}
+      </span>
+    ) : null
 
   // HAI dáng theo cỡ màn (redesign 2): desktop là ba thẻ gradient rời, nhãn chữ hoa +
   // số 22px mono (đúng khuôn <StatTile>); mobile giữ MỘT thẻ ba cột — 390px không có
@@ -62,6 +85,7 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
         <StatTile label={tr('Chi')} className="bg-panel-gradient">
           <span className="text-money-out">{chi}</span>
           {movedLine}
+          {gopLine}
         </StatTile>
         <StatTile label={tr('Chênh lệch')} className="bg-panel-gradient">
           <span className={netNegative ? 'text-money-out' : undefined}>{net}</span>
@@ -76,6 +100,7 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
           <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">{tr('Chi')}</div>
           <div className="mt-1 font-mono text-sm font-semibold text-money-out">{chi}</div>
           {movedLine}
+          {gopLine}
         </div>
         <div>
           <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">

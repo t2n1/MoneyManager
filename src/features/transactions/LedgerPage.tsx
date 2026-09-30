@@ -91,7 +91,7 @@ export function LedgerPage() {
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey)
+  const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey, { perspective: 'ledger' })
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
@@ -291,6 +291,7 @@ export function LedgerPage() {
   const { data: yearTxs = [], isLoading: yearLoading } = useRangeTransactions(
     yearRange,
     !!profile && yearNav,
+    { perspective: 'ledger' },
   )
   const yearSeries = useMemo(
     () => monthlySeries(yearTxs, months, monthStartDay, currencyOf, base, rates ?? {}, transferIds),

@@ -79,7 +79,7 @@ export function useSuggestions(): SuggestionsData {
   )
   // Cùng khoá truy vấn với mọi nơi gọi khác → react-query trả bản đã có trong bộ nhớ,
   // nên hai mặt cùng dùng hook này không thành hai lượt tải.
-  const { data: histTxs = [] } = useRangeTransactions(histRange, !!profile)
+  const { data: histTxs = [] } = useRangeTransactions(histRange, !!profile, { perspective: 'report' })
 
   return useMemo(() => {
     if (!profile) return EMPTY

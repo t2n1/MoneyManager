@@ -98,6 +98,7 @@ export function CategoryDetailPage() {
   const { data: windowTxs = [], isFetched: txsFetched } = useRangeTransactions(
     windowRange,
     !!profile && !!category,
+    { perspective: 'report' },
   )
 
   const trend = useMemo(

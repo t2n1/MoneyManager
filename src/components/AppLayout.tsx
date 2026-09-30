@@ -5,6 +5,8 @@ import { AppRail } from './AppRail'
 import { AppTopBar } from './AppTopBar'
 import { BottomNav } from './BottomNav'
 import { MonthKeyProvider } from '../hooks/useMonthKey'
+import { PerspectiveProvider } from '../hooks/usePerspective'
+import { PerspectiveBar } from './PerspectiveBar'
 import { pageTitle } from './navItems'
 import { LoadProgress } from './LoadProgress'
 import { QueryErrorBanner } from './QueryErrorBanner'
@@ -191,6 +193,7 @@ export function AppLayout() {
     // sẵn, không cần `position:sticky` — và cách cuộn vẫn y như cũ (cuộn nằm trong
     // <main>, không phải cả trang), tức iOS vẫn không rubber-band kéo theo thanh dưới.
     <MonthKeyProvider>
+      <PerspectiveProvider>
       <div className="flex h-dvh overflow-hidden bg-surface-page">
         <AppRail />
 
@@ -257,6 +260,7 @@ export function AppLayout() {
           >
             {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
             <QueryErrorBanner />
+            <PerspectiveBar />
             <Outlet />
             {/* Chân trang nằm TRONG <main>: nó cuộn cùng nội dung và đứng ở cuối mỗi
                 trang. Để ngoài <main> thì nó thành dải cố định, chen chỗ với nav dưới. */}
@@ -358,6 +362,7 @@ export function AppLayout() {
         {/* Hộp thoại confirm/prompt + toast thông báo dùng chung (thay window.*) */}
         <DialogHost />
       </div>
+      </PerspectiveProvider>
     </MonthKeyProvider>
   )
 }

@@ -42,6 +42,12 @@ const d: Dict = {
     'Surplus 3 months in a row, {amount} built up. Lower the contribution or move the surplus to shared savings.',
   'Chưa đặt quỹ chung. Vào {link}, chọn “Hai người” rồi chọn tài khoản quỹ chung.':
     'No shared fund yet. Go to {link}, choose “Two people”, then pick the shared fund account.',
+  // Công tắc góc nhìn (PerspectiveBar) + dòng phụ ô Chi của Sổ
+  'Cả nhà': 'Household',
+  'Xem sổ của ai': 'Whose books to view',
+  'Góp quỹ chung tính là chi của phần đã góp; chi từ quỹ và khoản “chung” chỉ có ở Cả nhà. Hạn mức ngân sách vẫn là của cả nhà.':
+    'Shared-fund contributions count as spending in the part they fund; fund spending and “shared” entries only appear under Household. Budget limits are still the household’s.',
+  '+ {amount} góp quỹ chung': '+ {amount} to shared fund',
 }
 
 export default d

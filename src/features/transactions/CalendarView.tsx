@@ -182,7 +182,7 @@ export function CalendarView({
   // `useCalendarMarks` cho cam kết chưa ra, `dailyAllowance` chia. Hai màn in hai con số
   // "mỗi ngày còn tiêu được" khác nhau là lỗi tệ nhất khối này có thể mắc.
   const pace = useMonthPace(monthKey)
-  const { report } = useBudgetReport(monthKey)
+  const { report } = useBudgetReport(monthKey, { perspective: 'report' })
   const spendable = useMemo((): SpendableInfo => {
     const budgeted = report?.totalBudgeted ?? 0
     const spent = report?.totalSpent ?? 0

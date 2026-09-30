@@ -312,7 +312,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { visual } = useDensity()
   const monthKeyStr = monthKeyString(monthKey)
   const { base } = useRates()
-  const { report, isLoading } = useBudgetReport(monthKey)
+  const { report, isLoading } = useBudgetReport(monthKey, { perspective: 'report' })
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: categories = [] } = useCategories()
   // Dùng chung hook với màn Báo cáo — hai màn phải ra CÙNG một con số cho cùng một tháng.

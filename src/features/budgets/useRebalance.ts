@@ -34,10 +34,10 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
   const { data: accounts = [] } = useAccounts()
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const { data: monthTxs = [] } = useMonthTransactions(monthKey, { perspective: 'report' })
   const { data: categories = [] } = useCategories()
   const { data: budgets = [] } = useBudgets(monthKeyString(monthKey))
-  const { report } = useBudgetReport(monthKey)
+  const { report } = useBudgetReport(monthKey, { perspective: 'report' })
   // CÙNG nguồn với khối "Còn phải trả" ngay dưới đề nghị. Hai khối đọc hai nguồn thì
   // một khối bảo nhóm còn dư, khối kia bảo nhóm còn nợ — đúng lỗi đã gặp với Nhà ở.
   const commitments = useCommitments(monthKey)

@@ -51,7 +51,7 @@ export function useMethodFit(): MethodFitData | null | undefined {
       end: getMonthRange(addMonths(current, -1), monthStartDay).end,
     }
   }, [monthStartDay])
-  const { data: txs, isPending } = useRangeTransactions(range, !!profile)
+  const { data: txs, isPending } = useRangeTransactions(range, !!profile, { perspective: 'report' })
 
   return useMemo(() => {
     if (!profile || isPending || txs === undefined) return undefined

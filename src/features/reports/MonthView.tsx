@@ -172,8 +172,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     [months, monthStartDay, range.end],
   )
 
-  const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(monthKey)
-  const { data: rangeTxs = [], isSuccess: rangeReady } = useRangeTransactions(windowRange, !!profile)
+  const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(monthKey, { perspective: 'report' })
+  const { data: rangeTxs = [], isSuccess: rangeReady } = useRangeTransactions(windowRange, !!profile, { perspective: 'report' })
 
   // ---------------------------------------------------------------- số của kỳ
   const sums = useMemo(
@@ -222,7 +222,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     [rangeTxs, monthKey, monthStartDay, todayISO, accounts, base, rates, transferIds, vang],
   )
 
-  const { report: budgetReport } = useBudgetReport(monthKey)
+  const { report: budgetReport } = useBudgetReport(monthKey, { perspective: 'report' })
   const pace = useMonthPace(monthKey)
 
   // ---------------------------------------------------------------- khối 01

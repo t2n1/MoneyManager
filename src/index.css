@@ -521,6 +521,8 @@
      Dài hơn --motion-drag (120ms) vì quãng dời là cả một thẻ trăm pixel chứ không phải
      một dòng 44px — 120ms trên quãng đó đọc ra như GIẬT chứ không phải trượt. */
   --motion-board: 200ms;
+  /* Tay nắm / tay đổi cỡ của module Bản tin hiện ra khi trỏ chuột vào module. */
+  --motion-handle: 120ms;
 }
 
 /* Keyframes là CSS thường, để ngoài @theme: chỉ có TÊN animation cần thành token để
@@ -747,6 +749,60 @@
   width: 1rem;
   height: 0;
   border-right: 0;
+}
+
+/* Tay nắm kéo module: một viên nhỏ ĐÈ lên giữa mép trên thẻ, nửa trên nằm trong khe
+   giữa hai hàng (GAP = 10px) — hiện/ẩn không làm thẻ nhích. Máy có chuột: chỉ hiện khi
+   trỏ vào module (cùng hai tay đổi cỡ). Máy cảm ứng không có "trỏ vào": hiện mờ thường
+   trực, không thì không ai biết kéo được ở đâu. */
+.board .board-drag {
+  position: absolute;
+  top: -0.625rem;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 1.25rem;
+  margin-left: -1.375rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--fg-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: opacity var(--motion-handle) var(--ease-out);
+}
+.board .board-drag:active,
+.board .react-draggable-dragging .board-drag {
+  cursor: grabbing;
+  color: var(--fg-accent);
+  border-color: var(--accent);
+}
+.board .react-grid-item > .react-resizable-handle {
+  transition: opacity var(--motion-handle) var(--ease-out);
+}
+@media (hover: hover) {
+  .board .board-drag,
+  .board .react-grid-item > .react-resizable-handle {
+    opacity: 0;
+  }
+  .board .react-grid-item:hover .board-drag,
+  .board .react-grid-item:hover > .react-resizable-handle,
+  .board .react-grid-item.resizing > .react-resizable-handle,
+  .board .react-draggable-dragging .board-drag {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .board .board-drag {
+    opacity: 0.7;
+  }
+  .board .react-grid-item > .react-resizable-handle {
+    opacity: 0.45;
+  }
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */

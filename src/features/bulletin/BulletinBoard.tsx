@@ -1,4 +1,4 @@
-// Bảng module của Bản tin — phần VẼ: dải trang, chế độ "Sắp xếp", lưới kéo–thả.
+// Bảng module của Bản tin — phần VẼ: dải trang, bảng "Tùy chỉnh trang", lưới kéo–thả.
 //
 // Mô hình và mọi phép biến đổi ở board.ts (thuần, có test). BulletinPage.tsx vẫn là nơi
 // tính MỌI con số và dựng từng khối; nó đưa vào đây một bảng `slots` "loại module → cách
@@ -6,9 +6,13 @@
 //
 // Ba quyết định đáng nhớ:
 //
-//  1. Chỉ kéo được ở chế độ Sắp xếp, và chỉ kéo bằng THANH trên đầu module. Kéo cả thân
-//     module thì ở điện thoại không cuộn trang được nữa (mọi cú vuốt thành cú kéo), và bấm
-//     vào một cột biểu đồ thành nhấc cả thẻ lên.
+//  1. Kéo được LUÔN — không có chế độ Sắp xếp (người dùng bỏ 2026-09-30: phải bấm một nút
+//     rồi nhìn cả trang bọc khung xanh chỉ để dời một thẻ là quá nhiều nghi thức). Nhưng chỉ
+//     kéo bằng TAY NẮM nhỏ giữa mép trên module: kéo cả thân thì ở điện thoại không cuộn
+//     trang được nữa (mọi cú vuốt thành cú kéo), và bấm vào một cột biểu đồ thành nhấc cả
+//     thẻ lên. Tay nắm và tay đổi cỡ chỉ hiện khi trỏ chuột vào module (máy có chuột); máy
+//     cảm ứng không có "trỏ vào" nên chúng hiện mờ thường trực — xem `.board-drag` ở index.css.
+//     Bỏ module, đổi tên / xoá / khôi phục trang nằm trong bảng Tùy chỉnh trang.
 //  2. Panel chữ (Việc cần làm, Ngân sách…) tự đo chiều cao nội dung và giữ ô cao đúng
 //     chừng đó — cắt bớt là mất thông tin, còn dư là một khoảng trống giữa trang. Biểu đồ
 //     thì người dùng kéo giãn cả hai chiều. Xem `fit` ở board.ts.
@@ -18,8 +22,8 @@
 //     sheet thì dựng sheet ngoài lưới, hoặc đổi `positionStrategy` sang `absoluteStrategy`.
 import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Responsive, useContainerWidth, type Layout, type LayoutItem } from 'react-grid-layout'
-import { Check, GripVertical, LayoutGrid, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react'
-import { ActionButton, Card, EmptyState, IconButton, SectionTitle, SegmentedControl, Select } from '../../components/ui'
+import { Check, GripHorizontal, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { ActionButton, Card, EmptyState, IconButton, SectionTitle, SegmentedControl } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { useEscClose } from '../../hooks/useEscClose'
 import { confirmDialog, promptDialog, showToast } from '../../lib/dialog'
@@ -80,7 +84,7 @@ function useBoard() {
 export function BulletinBoard({ slots }: { slots: Slots }) {
   const [board, update] = useBoard()
   const page = board.pages.find((p) => p.id === board.activeId) ?? board.pages[0]
-  const [editing, setEditing] = useState(false)
+  const [tools, setTools] = useState(false)
   const [picker, setPicker] = useState(false)
   const [newPage, setNewPage] = useState(false)
 
@@ -131,15 +135,13 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
           maxH: auto ? h : undefined,
           // Panel tự-cao chỉ giãn NGANG — nên ở lưới một cột thì không có gì để giãn;
           // biểu đồ giãn cả hai chiều (một cột: chỉ còn chiều dọc).
-          // Cờ của TỪNG Ô thắng cờ của lưới (`resizeConfig.enabled`) — thiếu `editing` ở
-          // đây là tay nắm hiện cả lúc xem thường.
-          isResizable: editing && !(auto && cols === 1),
+          isResizable: !(auto && cols === 1),
           resizeHandles: auto ? ['e'] : cols === 1 ? ['s'] : ['se', 'e', 's'],
         }
       })
     }
     return out
-  }, [page, measured, bp, editing])
+  }, [page, measured, bp])
 
   const saveLayout = useCallback(
     (layout: Layout) => update((s) => setLayout(s, page.id, bp, layout)),
@@ -182,10 +184,7 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
     update((s) => addPage(s, { name: name.trim() || null, preset }))
     setNewPage(false)
     // Trang trống thì mở luôn bảng module — trang trống không có gì để xem cả.
-    if (!preset) {
-      setEditing(true)
-      setPicker(true)
-    }
+    if (!preset) setPicker(true)
   }
 
   return (
@@ -206,41 +205,16 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
         <IconButton variant="ghost" className="ml-auto" aria-label={tr('Thêm trang')} title={tr('Thêm trang')} onClick={() => setNewPage(true)}>
           <Plus className="h-5 w-5" />
         </IconButton>
-        <ActionButton variant={editing ? 'primary' : 'outline'} onClick={() => setEditing((e) => !e)} aria-pressed={editing}>
-          {editing ? <Check className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-          {editing ? tr('Xong') : tr('Sắp xếp')}
-        </ActionButton>
+        <IconButton variant="ghost" aria-label={tr('Tùy chỉnh trang')} title={tr('Tùy chỉnh trang')} onClick={() => setTools(true)}>
+          <SlidersHorizontal className="h-5 w-5" />
+        </IconButton>
       </div>
-
-      {editing && (
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-accent bg-accent-soft px-3 py-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <ActionButton variant="primary" onClick={() => setPicker(true)}>
-              <Plus className="h-4 w-4" /> {tr('Thêm module')}
-            </ActionButton>
-            <ActionButton onClick={rename}>
-              <Pencil className="h-4 w-4" /> {tr('Đổi tên')}
-            </ActionButton>
-            <ActionButton onClick={reset}>
-              <RotateCcw className="h-4 w-4" /> {page.preset ? tr('Khôi phục mặc định') : tr('Xếp lại')}
-            </ActionButton>
-            {board.pages.length > 1 && (
-              <ActionButton variant="danger" onClick={remove}>
-                <Trash2 className="h-4 w-4" /> {tr('Xoá trang')}
-              </ActionButton>
-            )}
-          </div>
-          <Guide className="text-sm text-fg-secondary">
-            {tr('Kéo thanh trên đầu mỗi module để đổi chỗ, kéo mép phải hoặc góc dưới để đổi cỡ. Bố cục điện thoại và máy tính được nhớ riêng.')}
-          </Guide>
-        </div>
-      )}
 
       <div ref={containerRef} className="min-w-0">
         {page.modules.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-strong px-4 py-10 text-center">
             <p className="text-sm text-fg-muted">{tr('Trang này chưa có module nào.')}</p>
-            <ActionButton variant="primary" onClick={() => { setEditing(true); setPicker(true) }}>
+            <ActionButton variant="primary" onClick={() => setPicker(true)}>
               <Plus className="h-4 w-4" /> {tr('Thêm module')}
             </ActionButton>
           </div>
@@ -255,21 +229,15 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
               rowHeight={ROW_H}
               margin={MARGIN}
               containerPadding={PADDING}
-              className={`board ${settled ? 'board-settled' : ''} ${editing ? 'board-editing' : ''}`}
-              dragConfig={{ enabled: editing, handle: DRAG_HANDLE, cancel: 'button, select, input', threshold: 4 }}
-              resizeConfig={{ enabled: editing }}
+              className={`board ${settled ? 'board-settled' : ''}`}
+              dragConfig={{ enabled: true, handle: DRAG_HANDLE, threshold: 4 }}
+              resizeConfig={{ enabled: true }}
               onDragStop={(layout) => saveLayout(layout)}
               onResizeStop={(layout) => saveLayout(layout)}
             >
               {page.modules.map((m) => (
                 <div key={m.id}>
-                  <ModuleFrame
-                    m={m}
-                    editing={editing}
-                    onMeasure={onMeasure}
-                    onView={onView(m.id)}
-                    onRemove={() => update((s) => removeModule(s, page.id, m.id))}
-                  >
+                  <ModuleFrame m={m} onMeasure={onMeasure}>
                     {slots[m.type](viewOf(m), onView(m.id))}
                   </ModuleFrame>
                 </div>
@@ -279,6 +247,35 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
         )}
       </div>
 
+      {tools && (
+        <PageToolsSheet
+          pageTitle={pageName(page)}
+          modules={page.modules}
+          canRemovePage={board.pages.length > 1}
+          resetLabel={page.preset ? tr('Khôi phục mặc định') : tr('Xếp lại')}
+          onAddModule={() => {
+            setTools(false)
+            setPicker(true)
+          }}
+          onRemoveModule={(m) => {
+            update((s) => removeModule(s, page.id, m.id))
+            showToast(tr('Đã bỏ “{title}”', { title: moduleDef(m.type).title }), 'success', 1800)
+          }}
+          onRename={() => {
+            setTools(false)
+            void rename()
+          }}
+          onReset={() => {
+            setTools(false)
+            void reset()
+          }}
+          onRemovePage={() => {
+            setTools(false)
+            void remove()
+          }}
+          onClose={() => setTools(false)}
+        />
+      )}
       {picker && (
         <AddModuleSheet
           pageTitle={pageName(page)}
@@ -299,14 +296,11 @@ export function BulletinBoard({ slots }: { slots: Slots }) {
 
 interface FrameProps {
   m: BoardModule
-  editing: boolean
   onMeasure: (id: string, rows: number) => void
-  onView: (v: string) => void
-  onRemove: () => void
   children: ReactNode
 }
 
-function ModuleFrame({ m, editing, onMeasure, onView, onRemove, children }: FrameProps) {
+function ModuleFrame({ m, onMeasure, children }: FrameProps) {
   const d = moduleDef(m.type)
   const ref = useRef<HTMLDivElement>(null)
   const auto = d.fit === 'auto'
@@ -324,38 +318,15 @@ function ModuleFrame({ m, editing, onMeasure, onView, onRemove, children }: Fram
     return () => ro.disconnect()
   }, [auto, m.id, onMeasure])
 
-  const strip = editing && (
-    <div className="board-drag mb-1.5 flex cursor-grab touch-none items-center gap-1.5 rounded-lg border border-dashed border-accent bg-accent-soft py-0.5 pr-0.5 pl-2 select-none active:cursor-grabbing">
-      <GripVertical className="h-4 w-4 shrink-0 text-fg-accent" aria-hidden />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-primary">{d.title}</span>
-      {d.views && (
-        <Select
-          aria-label={tr('Cách xem {title}', { title: d.title })}
-          value={viewOf(m)}
-          onChange={(e) => onView(e.target.value)}
-          className="text-sm"
-          wrapClassName="shrink-0"
-        >
-          {d.views.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.label}
-            </option>
-          ))}
-        </Select>
-      )}
-      <IconButton variant="ghost" aria-label={tr('Bỏ “{title}” khỏi trang', { title: d.title })} onClick={onRemove}>
-        <X className="h-5 w-5" />
-      </IconButton>
-    </div>
-  )
-
-  // Ở chế độ Sắp xếp, nội dung `inert`: không bấm nhầm vào cột biểu đồ hay dòng giao
-  // dịch khi đang định nhấc module lên, và Tab không lạc vào bên trong.
-  const lock = editing ? 'pointer-events-none select-none' : ''
   return (
-    <div ref={auto ? ref : undefined} className={auto ? 'min-w-0' : 'flex h-full min-w-0 flex-col'}>
-      {strip}
-      <div inert={editing} className={`${auto ? '' : 'min-h-0 flex-1'} ${lock}`.trim() || undefined}>
+    <div ref={auto ? ref : undefined} className={auto ? 'relative min-w-0' : 'relative flex h-full min-w-0 flex-col'}>
+      {/* Tay nắm nằm ĐÈ lên mép trên thẻ (nửa trên rơi vào khe giữa hai hàng), không chiếm
+          một dòng riêng — nên hiện hay ẩn nó thì thẻ không nhích một pixel nào. Chỉ chuột
+          kéo được, không có đường bàn phím: lối đó chưa bao giờ có ở bảng này. */}
+      <div className="board-drag" title={tr('Kéo để dời “{title}”', { title: d.title })} aria-hidden>
+        <GripHorizontal className="h-4 w-4" />
+      </div>
+      <div className={auto ? undefined : 'min-h-0 flex-1'}>
         {/* Module biểu đồ tải lười (xem BulletinPage) — chờ trong đúng khung của nó. */}
         <Suspense
           fallback={
@@ -368,6 +339,78 @@ function ModuleFrame({ m, editing, onMeasure, onView, onRemove, children }: Fram
         </Suspense>
       </div>
     </div>
+  )
+}
+
+// ---- Bảng tùy chỉnh trang ------------------------------------------------------------
+
+function PageToolsSheet({
+  pageTitle,
+  modules,
+  canRemovePage,
+  resetLabel,
+  onAddModule,
+  onRemoveModule,
+  onRename,
+  onReset,
+  onRemovePage,
+  onClose,
+}: {
+  pageTitle: string
+  modules: BoardModule[]
+  canRemovePage: boolean
+  resetLabel: string
+  onAddModule: () => void
+  onRemoveModule: (m: BoardModule) => void
+  onRename: () => void
+  onReset: () => void
+  onRemovePage: () => void
+  onClose: () => void
+}) {
+  return (
+    <Sheet title={tr('Tùy chỉnh “{page}”', { page: pageTitle })} onClose={onClose}>
+      <div className="-mx-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-1">
+        <Guide className="text-sm text-fg-secondary">
+          {tr('Trỏ vào một module rồi kéo tay nắm giữa mép trên để đổi chỗ, kéo mép phải hoặc góc dưới để đổi cỡ. Bố cục điện thoại và máy tính được nhớ riêng.')}
+        </Guide>
+        <div className="flex flex-wrap items-center gap-2">
+          <ActionButton variant="primary" onClick={onAddModule}>
+            <Plus className="h-4 w-4" /> {tr('Thêm module')}
+          </ActionButton>
+          <ActionButton onClick={onRename}>
+            <Pencil className="h-4 w-4" /> {tr('Đổi tên')}
+          </ActionButton>
+          <ActionButton onClick={onReset}>
+            <RotateCcw className="h-4 w-4" /> {resetLabel}
+          </ActionButton>
+          {canRemovePage && (
+            <ActionButton variant="danger" onClick={onRemovePage}>
+              <Trash2 className="h-4 w-4" /> {tr('Xoá trang')}
+            </ActionButton>
+          )}
+        </div>
+        <section className="flex flex-col gap-1.5">
+          <SectionTitle role="micro" as="h3">{tr('Module trên trang')}</SectionTitle>
+          {modules.length === 0 ? (
+            <p className="text-sm text-fg-muted">{tr('Trang này chưa có module nào.')}</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border-subtle rounded-lg border border-border-panel">
+              {modules.map((m) => {
+                const title = moduleDef(m.type).title
+                return (
+                  <li key={m.id} className="flex items-center gap-2 py-0.5 pr-0.5 pl-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-primary">{title}</span>
+                    <IconButton variant="ghost" aria-label={tr('Bỏ “{title}” khỏi trang', { title })} onClick={() => onRemoveModule(m)}>
+                      <X className="h-5 w-5" />
+                    </IconButton>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+    </Sheet>
   )
 }
 

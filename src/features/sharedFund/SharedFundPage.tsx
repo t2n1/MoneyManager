@@ -3,64 +3,21 @@
 //
 // "Còn lại" là LUỸ KẾ từ đầu (xem sharedFund.ts) và nhãn cột phải nói ra điều đó: đứng cạnh
 // cột "góp tháng này" mà không nói thì người đọc cộng trừ hai cột và ra một số khác.
-import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, EmptyState, IconButton, Money, Num, PageHeader, SectionTitle, StatTile } from '../../components/ui'
-import { VerdictNote } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
-import { useAccounts, useCategories, useProfile, useSearchTransactions } from '../../hooks/queries'
 import { useMonthKey } from '../../hooks/useMonthKey'
-import { addMonths, formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
-import { categoryLabel, tr } from '../../i18n'
+import { formatMonthLabel } from '../../lib/dates'
+import { tr } from '../../i18n'
 import { trn } from '../../i18n/react'
-import type { CurrencyCode } from '../../lib/money'
-import { partnerLabel } from './labels'
-import { STREAK_MONTHS, fundAlertsFor, mineSharePct, summarizeFund, total, type FundAlert } from './sharedFund'
-
-/** Đầu sổ — mọi giao dịch của quỹ đều sau mốc này. */
-const DAU_SO = '1900-01-01'
+import { mineSharePct, total } from './sharedFund'
+import { useSharedFund } from './useSharedFund'
+import { FundAlertLine } from './FundAlertLine'
 
 export function SharedFundPage() {
   const { activeMonthKey, stepMonth } = useMonthKey()
-  const { data: profile } = useProfile()
-  const { data: accounts = [] } = useAccounts()
-  const { data: categories = [] } = useCategories()
-  const monthStartDay = profile?.month_start_day ?? 1
-  const fundId = profile?.couple_mode ? (profile.shared_fund_account_id ?? null) : null
-  const fund = accounts.find((a) => a.id === fundId)
-  const currency: CurrencyCode = fund?.currency ?? profile?.base_currency ?? 'JPY'
-  const partner = partnerLabel(profile)
-  const range = useMemo(() => getMonthRange(activeMonthKey, monthStartDay), [activeMonthKey, monthStartDay])
-
-  // Mọi giao dịch chạm quỹ từ đầu tới hết kỳ đang xem — cần cả quá khứ cho cột luỹ kế.
-  const q = useSearchTransactions({ start: DAU_SO, end: range.end, accountIds: fundId ? [fundId] : [] }, !!fundId)
-  const txs = useMemo(() => q.data ?? [], [q.data])
-
-  const summary = useMemo(
-    () => (fundId ? summarizeFund(txs, fundId, range, categories) : null),
-    [txs, fundId, range, categories],
-  )
-
-  // Nhắc chỉnh mức góp: chỉ nhìn các tháng ĐÃ XONG (xem fundAlerts). Kỳ đang xem chưa hết
-  // thì lùi một tháng làm mốc.
-  // Nhắc chỉnh mức góp: chuỗi 3 tháng chỉ nhìn các tháng ĐÃ XONG — kỳ đang xem chưa hết thì
-  // lùi một tháng làm mốc. Cùng hàm với chuông/Bản tin (fundAlertsFor).
-  const alerts = useMemo<FundAlert[]>(() => {
-    if (!fundId) return []
-    const today = toISODate(new Date())
-    const lastDone = range.end <= today ? activeMonthKey : addMonths(activeMonthKey, -1)
-    const done = Array.from({ length: STREAK_MONTHS }, (_, i) =>
-      getMonthRange(addMonths(lastDone, i - (STREAK_MONTHS - 1)), monthStartDay),
-    )
-    return fundAlertsFor(txs, fundId, categories, range, done)
-  }, [txs, fundId, activeMonthKey, range, monthStartDay, categories])
-
-  const catName = (id: string | null) => {
-    if (id === null) return tr('Chưa gán phần')
-    const c = categories.find((x) => x.id === id)
-    return c ? categoryLabel(c.name) : tr('Danh mục đã xoá')
-  }
+  const { fundId, currency, partner, summary, alerts, catName, isPending, isError } = useSharedFund(activeMonthKey)
 
   const header = (
     // Không `mobileOnly`: đây là trang con (vào từ Cài đặt) nên cần nút quay lại, mà chế độ
@@ -80,7 +37,7 @@ export function SharedFundPage() {
     </PageHeader>
   )
 
-  if (!fundId || !fund) {
+  if (!fundId) {
     return (
       <div className="flex flex-col gap-4 p-3 lg:p-6">
         {header}
@@ -97,7 +54,7 @@ export function SharedFundPage() {
     )
   }
 
-  if (q.isError) {
+  if (isError) {
     return (
       <div className="flex flex-col gap-4 p-3 lg:p-6">
         {header}
@@ -106,7 +63,7 @@ export function SharedFundPage() {
     )
   }
 
-  if (!summary || q.isPending) {
+  if (!summary || isPending) {
     return (
       <div className="flex flex-col gap-4 p-3 lg:p-6">
         {header}
@@ -161,7 +118,7 @@ export function SharedFundPage() {
       {alerts.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {alerts.map((a) => (
-            <AlertLine key={a.partId} alert={a} name={catName(a.partId)} currency={currency} />
+            <FundAlertLine key={a.partId} alert={a} name={catName(a.partId)} currency={currency} />
           ))}
         </div>
       )}
@@ -215,28 +172,5 @@ export function SharedFundPage() {
         )}
       </Guide>
     </div>
-  )
-}
-
-function AlertLine({ alert, name, currency }: { alert: FundAlert; name: string; currency: CurrencyCode }) {
-  const amount = <Money amount={Math.abs(alert.balance)} currency={currency} />
-  if (alert.kind === 'negative')
-    return (
-      <VerdictNote tone="bad" label={name} short={trn('{name} thiếu {amount}', { name, amount })}>
-        {trn('đang thiếu {amount} — quỹ đang lấy tiền phần khác bù. Góp thêm cho phần này.', { amount })}
-      </VerdictNote>
-    )
-  if (alert.kind === 'short-streak')
-    return (
-      <VerdictNote tone="warn" label={name} short={tr('{name}: nên tăng mức góp', { name })}>
-        {tr('3 tháng liền chi nhiều hơn góp. Nên tăng mức góp hằng tháng.')}
-      </VerdictNote>
-    )
-  return (
-    <VerdictNote tone="info" label={name} short={trn('{name} dư {amount}', { name, amount })}>
-      {trn('3 tháng liền góp dư, đã tích {amount}. Có thể giảm mức góp hoặc chuyển phần dư sang tiết kiệm chung.', {
-        amount,
-      })}
-    </VerdictNote>
   )
 }

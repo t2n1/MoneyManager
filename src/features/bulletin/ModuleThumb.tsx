@@ -157,6 +157,107 @@ const DRAW: Record<ModuleType, ReactNode> = {
       {line(28, 11, 'fill-border-strong', 38, 4)}
     </>
   ),
+  sharedFund: (
+    <>
+      {line(7, 52, 'fill-border-strong', 6, 4)}
+      {line(7, 30, 'fill-accent', 6, 4)}
+      {[17, 24, 31].map((y, i) => (
+        <g key={y}>
+          {line(y, 22, 'fill-fg-muted', 6)}
+          {line(y, 10, i === 2 ? 'fill-money-out' : 'fill-money-in', 48)}
+        </g>
+      ))}
+    </>
+  ),
+  tagBudgets: (
+    <>
+      {[8, 19, 30].map((y, i) => (
+        <g key={y}>
+          <rect x={6} y={y - 1} width={8} height={5} rx={2.5} className={['fill-accent', 'fill-fg-warn', 'fill-money-in'][i]} />
+          {line(y, 40, 'fill-border-strong', 18, 3)}
+          {line(y, [30, 14, 22][i], i === 0 ? 'fill-money-out' : 'fill-accent', 18, 3)}
+        </g>
+      ))}
+    </>
+  ),
+  bigSpend: (
+    <>
+      {[48, 34, 24, 16].map((w, i) => (
+        <g key={w}>{line(7 + i * 7, w, i === 0 ? 'fill-money-out' : 'fill-border-strong', 6, 4)}</g>
+      ))}
+    </>
+  ),
+  heatmap: (
+    <>
+      {Array.from({ length: 28 }, (_, i) => {
+        const lv = [0, 1, 2, 1, 3, 0, 4, 2, 1, 0, 2, 3, 1, 2, 0, 1, 4, 2, 1, 3, 0, 2, 1, 1, 3, 2, 0, 1][i]
+        const cls = ['fill-surface stroke-border-strong', 'fill-money-out opacity-25', 'fill-money-out opacity-50', 'fill-money-out opacity-75', 'fill-money-out'][lv]
+        return <rect key={i} x={8 + (i % 7) * 7} y={6 + Math.floor(i / 7) * 7.5} width={5.5} height={5.5} rx={1} className={cls} strokeWidth={0.6} />
+      })}
+    </>
+  ),
+  bills: (
+    <>
+      {Array.from({ length: 21 }, (_, i) => (
+        <rect key={i} x={8 + (i % 7) * 7} y={8 + Math.floor(i / 7) * 9} width={5.5} height={7} rx={1} className="fill-surface stroke-border-strong" strokeWidth={0.6} />
+      ))}
+      <circle cx={17.7} cy={11.5} r={1.6} className="fill-money-in" />
+      <circle cx={38.7} cy={20.5} r={1.6} className="fill-money-out" />
+      <circle cx={52.7} cy={29.5} r={1.6} className="fill-accent" />
+    </>
+  ),
+  planned: (
+    <>
+      {[8, 18, 28].map((y, i) => (
+        <g key={y}>
+          <rect x={6} y={y - 1.5} width={6} height={6} rx={1} className={i === 0 ? 'fill-fg-warn' : 'fill-none stroke-border-strong'} strokeWidth={1} />
+          {line(y, 24, 'fill-fg-muted', 16)}
+          {line(y, 10, 'fill-border-strong', 48)}
+        </g>
+      ))}
+    </>
+  ),
+  debts: (
+    <>
+      <rect x={6} y={7} width={24} height={12} rx={2} className="fill-state-bad-bg" />
+      {line(11.5, 14, 'fill-money-out', 10, 3)}
+      <rect x={34} y={7} width={24} height={12} rx={2} className="fill-state-good-bg" />
+      {line(11.5, 14, 'fill-money-in', 38, 3)}
+      {line(25, 26, 'fill-fg-muted', 6)}
+      {line(25, 10, 'fill-money-out', 48)}
+      {line(31, 22, 'fill-border-strong', 6)}
+      {line(31, 10, 'fill-money-in', 48)}
+    </>
+  ),
+  goals: (
+    <>
+      <circle cx={13} cy={14} r={5.5} className="fill-none stroke-accent" strokeWidth={1.6} />
+      <circle cx={13} cy={14} r={2} className="fill-accent" />
+      {line(10, 30, 'fill-fg-muted', 24)}
+      {line(24, 52, 'fill-border-strong', 6, 4)}
+      {line(24, 34, 'fill-accent', 6, 4)}
+      {line(31, 20, 'fill-border-strong', 6, 2)}
+    </>
+  ),
+  remittance: (
+    <>
+      <rect x={6} y={10} width={16} height={20} rx={2} className="fill-surface stroke-border-strong" strokeWidth={0.8} />
+      {line(18, 8, 'fill-fg-muted', 10, 3)}
+      <path d="M26 20 H40 M36 16 L40 20 L36 24" className="fill-none stroke-accent" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <rect x={42} y={10} width={16} height={20} rx={2} className="fill-state-good-bg" />
+      {line(18, 8, 'fill-money-in', 46, 3)}
+    </>
+  ),
+  health: (
+    <>
+      {line(9, 16, 'fill-fg-primary', 6, 8)}
+      {line(24, 52, 'fill-border-strong', 6, 4)}
+      {line(24, 22, 'fill-money-out', 6, 4)}
+      {line(24, 12, 'fill-fg-warn', 28, 4)}
+      {line(24, 18, 'fill-accent', 40, 4)}
+      <polyline points="30,15 36,12 42,13 48,9 56,7" className="fill-none stroke-accent" strokeWidth={1.6} strokeLinecap="round" />
+    </>
+  ),
 }
 
 /** Hình sơ đồ 64×40 của một loại module. Trang trí — `aria-hidden`, chữ bên cạnh đã nói đủ. */

@@ -4,9 +4,11 @@
 // phần lấy dữ liệu (VND vs JPY, useInvestData vs useFundInvestData) chứ không phải ở
 // cách hiển thị phần trăm, ngày, hay nhãn loại lệnh.
 
+import { tr, decimalSep } from '../../i18n'
+
 export const pct = (v: number) =>
-  `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
-export const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
+  `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', decimalSep())}%`
+export const share = (v: number) => `${(v * 100).toFixed(1).replace('.', decimalSep())}%`
 /**
  * Một HỆ SỐ (beta, Sharpe) — không phải tiền, không phải phần trăm.
  *
@@ -20,7 +22,7 @@ export const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
  */
 export const heSo = (v: number | null, soChuSo = 2): string => {
   if (v === null) return '—'
-  const s = Math.abs(v).toFixed(soChuSo).replace('.', ',')
+  const s = Math.abs(v).toFixed(soChuSo).replace('.', decimalSep())
   // So sau khi LÀM TRÒN, không so `v < 0`: −0,001 làm tròn hai chữ số ra "0,00", mà
   // "−0,00" là một con số không tồn tại.
   return Number(Math.abs(v).toFixed(soChuSo)) === 0 || v > 0 ? s : `−${s}`
@@ -34,9 +36,9 @@ export const ngay = (iso: string) => `${iso.slice(2, 4)}/${iso.slice(5, 7)}/${is
 export type TradeKind = 'buy' | 'sell' | 'adjust'
 
 export const KIND_LABEL: Record<TradeKind, string> = {
-  buy: 'Mua',
-  sell: 'Bán',
-  adjust: 'Điều chỉnh',
+  buy: tr('Mua'),
+  sell: tr('Bán'),
+  adjust: tr('Điều chỉnh'),
 }
 export const KIND_CLASS: Record<TradeKind, string> = {
   buy: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',

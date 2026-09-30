@@ -17,6 +17,7 @@ import { confirmDialog } from '../../lib/dialog'
 import { ageLabel } from '../../lib/freshness'
 import { ActionButton, Card, PanelHeader } from '../../components/ui'
 import { BACKUP_STALE_DAYS, readLastBackup, writeLastBackup } from './lastBackup'
+import { tr } from '../../i18n'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
 
@@ -58,9 +59,9 @@ export function BackupSection() {
       // tên file phải nói cùng một ngày.
       writeLastBackup(data.exported_at)
       setLastBackup(data.exported_at)
-      setStatus({ kind: 'ok', message: `Đã xuất ${count} bản ghi chính.` })
+      setStatus({ kind: 'ok', message: tr('Đã xuất {n} bản ghi chính.', { n: count }) })
     } catch (e) {
-      setStatus({ kind: 'error', message: `Xuất lỗi: ${(e as Error).message}` })
+      setStatus({ kind: 'error', message: tr('Xuất lỗi: {error}', { error: (e as Error).message }) })
     } finally {
       setBusy(false)
     }
@@ -75,26 +76,26 @@ export function BackupSection() {
     try {
       parsed = JSON.parse(await file.text())
     } catch {
-      setStatus({ kind: 'error', message: 'File không phải JSON hợp lệ.' })
+      setStatus({ kind: 'error', message: tr('File không phải JSON hợp lệ.') })
       return
     }
     if (!isBackup(parsed)) {
-      setStatus({ kind: 'error', message: 'File không đúng định dạng sao lưu.' })
+      setStatus({ kind: 'error', message: tr('File không đúng định dạng sao lưu.') })
       return
     }
     if (parsed.version > BACKUP_VERSION) {
       setStatus({
         kind: 'error',
-        message: `File tạo từ phiên bản mới hơn (v${parsed.version}). Hãy cập nhật app.`,
+        message: tr('File tạo từ phiên bản mới hơn (v{version}). Hãy cập nhật app.', { version: parsed.version }),
       })
       return
     }
     if (
       !(await confirmDialog({
-        title: 'Khôi phục & GHI ĐÈ dữ liệu?',
-        message: 'Toàn bộ dữ liệu hiện tại sẽ bị thay bằng dữ liệu trong file.',
+        title: tr('Khôi phục & GHI ĐÈ dữ liệu?'),
+        message: tr('Toàn bộ dữ liệu hiện tại sẽ bị thay bằng dữ liệu trong file.'),
         danger: true,
-        confirmLabel: 'Khôi phục',
+        confirmLabel: tr('Khôi phục'),
       }))
     )
       return
@@ -102,17 +103,17 @@ export function BackupSection() {
     try {
       await repo.importAll(parsed)
       qc.clear()
-      setStatus({ kind: 'ok', message: 'Đã khôi phục xong. Đang tải lại…' })
+      setStatus({ kind: 'ok', message: tr('Đã khôi phục xong. Đang tải lại…') })
       setTimeout(() => window.location.reload(), 600)
     } catch (err) {
-      setStatus({ kind: 'error', message: `Khôi phục lỗi: ${(err as Error).message}` })
+      setStatus({ kind: 'error', message: tr('Khôi phục lỗi: {error}', { error: (err as Error).message }) })
       setBusy(false)
     }
   }
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader>Cất giữ</PanelHeader>
+      <PanelHeader>{tr('Cất giữ')}</PanelHeader>
 
       <div className="flex flex-col gap-3 p-3">
         {/* Trạng thái đứng TRƯỚC hai cái nút: nó là câu trả lời, nút là việc làm sau đó. */}
@@ -134,14 +135,13 @@ export function BackupSection() {
               <Check className="h-4 w-4 shrink-0" aria-hidden />
             )}
             {ageMs === null
-              ? 'Chưa sao lưu trên máy này'
-              : `Sao lưu ${ageLabel(ageMs)} · trên máy này`}
+              ? tr('Chưa sao lưu trên máy này')
+              : tr('Sao lưu {age} · trên máy này', { age: ageLabel(ageMs) })}
           </p>
         </div>
 
         <Guide className="text-2xs leading-snug text-fg-muted">
-          Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu.
-          Khôi phục sẽ GHI ĐÈ mọi thứ đang có.
+          {tr('Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu. Khôi phục sẽ GHI ĐÈ mọi thứ đang có.')}
         </Guide>
 
         {/* Xếp dọc chứ không cạnh nhau: thẻ này nằm trong một cột của lưới ba cột, ở
@@ -149,18 +149,18 @@ export function BackupSection() {
         <div className="flex flex-col gap-1.5">
           <ActionButton variant="primary" disabled={busy} onClick={handleExport}>
             <Download className="h-4 w-4" />
-            Xuất file sao lưu
+            {tr('Xuất file sao lưu')}
           </ActionButton>
           <ActionButton disabled={busy} onClick={() => fileRef.current?.click()}>
             <Upload className="h-4 w-4" />
-            Khôi phục từ file
+            {tr('Khôi phục từ file')}
           </ActionButton>
           {/* Ô ẩn, chỉ mở qua nút "Khôi phục" — vẫn cần tên: `class="hidden"` không lấy nó
               ra khỏi cây trợ năng ở mọi trình đọc, và khi hộp thoại chọn file bật lên thì
               đây là control đang được nhắm tới. */}
           <input
             ref={fileRef}
-            aria-label="Chọn file sao lưu để khôi phục"
+            aria-label={tr('Chọn file sao lưu để khôi phục')}
             type="file"
             accept="application/json,.json"
             className="hidden"

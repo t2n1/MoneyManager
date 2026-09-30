@@ -18,6 +18,7 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import { expenseSign, type CurrencyOf, type TransferIds } from './aggregate'
 import { median } from './insights'
+import { tr } from '../../i18n'
 
 export type MonthFinding =
   | {
@@ -165,7 +166,7 @@ export function monthStory({
 
   const catById = new Map(categories.map((c) => [c.id, c]))
   const groupIdOf = (categoryId: string) => catById.get(categoryId)?.parent_id ?? categoryId
-  const nameOf = (groupId: string) => catById.get(groupId)?.name ?? 'Khác'
+  const nameOf = (groupId: string) => catById.get(groupId)?.name ?? tr('Khác')
 
   const byGroup = new Map<string, Map<string, GroupMonth>>()
   let hasMissingRate = false

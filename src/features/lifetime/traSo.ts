@@ -1,3 +1,4 @@
+// i18n-ignore-file — câu hỏi gửi cho model (không phải chữ giao diện) và bảng tra khớp với chữ người dùng gõ.
 // Dựng câu hỏi gửi cho model — THUẦN, không React, không mạng, không đồng hồ.
 //
 // VÌ SAO CÓ FILE NÀY. Cái làm một câu trả lời về chi phí cưới ĐÚNG không phải model
@@ -11,6 +12,7 @@
 // đường nào lọt vào câu hỏi gửi ra ngoài. Đây là ràng buộc ở tầng KIỂU DỮ LIỆU, và
 // `traSo.test.ts` khoá lại bằng phép thử. Thêm trường tiền vào đây là phá lời hứa đó.
 import type { CurrencyCode } from '../../lib/currencies'
+import { getLang, tr } from '../../i18n'
 
 /** Mốc cần tra. Không mang tiền — xem khối chú thích đầu file. */
 export interface MocDeTra {
@@ -48,21 +50,21 @@ export interface CauHoi {
  * kể cả gạch nối dài (–, U+2013) trong "Nuôi con 0–6 tuổi".
  */
 export const LUAT_HOI: Record<string, string> = {
-  'Chi phí cưới':
+  [tr('Chi phí cưới')]:
     'Lấy TỔNG chi phí (総額) trung bình rồi TRỪ tiền mừng (ご祝儀) ước tính, để ra số tiền ' +
     'người ta THỰC MÓC RA. Nói rõ giả định bao nhiêu khách. Nếu khảo sát đổi cách đo giữa ' +
     'các năm thì phải cảnh báo là không so trực tiếp được.',
-  'Trợ cấp trẻ em (児童手当)':
+  [tr('Trợ cấp trẻ em (児童手当)')]:
     'Tra LUẬT hiện hành, không tra bài báo cũ — mức này đổi theo luật. Nói rõ mức theo độ ' +
     'tuổi và theo thứ tự con, và ngưỡng thu nhập nếu còn áp dụng.',
-  'Nuôi con 0–6 tuổi':
+  [tr('Nuôi con 0–6 tuổi')]:
     'Nói rõ có gồm tiền nhà trẻ / mẫu giáo không, và chính sách miễn học phí mầm non ' +
     '(幼保無償化) đã được trừ chưa.',
-  'Nuôi con 7–15 tuổi':
+  [tr('Nuôi con 7–15 tuổi')]:
     'Tách trường công và trường tư. Nói rõ có gồm tiền học thêm (塾) không.',
-  'Nuôi con 16–17 tuổi':
+  [tr('Nuôi con 16–17 tuổi')]:
     'Tách cấp ba công và tư. Nói rõ trợ cấp học phí cấp ba (高等学校等就学支援金) đã trừ chưa.',
-  'Con vào đại học':
+  [tr('Con vào đại học')]:
     'TÁCH ba mức: quốc lập, tư thục thường, và y/nha khoa — chênh nhau nhiều lần. Tách ' +
     'tiền nhập học năm đầu (入学金) ra khỏi học phí hằng năm.',
   'Trả trước mua nhà':
@@ -73,12 +75,12 @@ export const LUAT_HOI: Record<string, string> = {
   'Trả vay mua nhà':
     'Nói rõ lãi suất giả định, kỳ hạn bao nhiêu năm, và đây là số MỖI NĂM. Nếu nguồn cho ' +
     'số theo tháng thì phải quy sang số mỗi năm và nói rõ là đã quy.',
-  'Lương hưu':
+  [tr('Lương hưu')]:
     'TÁCH 老齢基礎年金 (phần quốc dân) và 老齢厚生年金 (phần công ty) thành hai khoản, đừng ' +
     'gộp. Nói rõ số 満額 của phần cơ bản đổi HÀNG NĂM và đang lấy của năm nào.',
-  'Chi phí chuyển nhà, thủ tục':
+  [tr('Chi phí chuyển nhà, thủ tục')]:
     'Khoản một lần. Nói rõ gồm những gì — vận chuyển, visa/thủ tục, đặt cọc nhà mới.',
-  'Hỗ trợ bố mẹ':
+  [tr('Hỗ trợ bố mẹ')]:
     'Số theo mức sống ở Việt Nam, tra nguồn Việt Nam. KHÔNG quy từ số của Nhật sang.',
 }
 
@@ -146,6 +148,7 @@ function khuonTraLoi(tien: CurrencyCode): string {
     '   "khong_biet": true và nói lý do ở "dien_giai" — trả lời "không biết" là ĐÚNG,',
     '   không phải thất bại.',
     '3. "thap"/"cao" là dải thật của khoản này, không phải ±10% quanh "giua".',
+    ...(getLang() === 'en' ? ['', 'Write "dien_giai" and "canh_bao" in English.'] : []),
   ].join('\n')
 }
 

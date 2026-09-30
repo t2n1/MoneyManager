@@ -6,6 +6,7 @@
 // Tên file logic là `sparklinePath.ts`, KHÔNG phải `sparkline.ts`: trên Windows tên file
 // chỉ khác hoa/thường bị coi là cùng một file, nên `sparkline.ts` sẽ đụng `Sparkline.tsx`.
 import { sparklinePath } from './sparklinePath'
+import { tr } from '../../i18n'
 
 interface Props {
   values: number[]
@@ -14,7 +15,7 @@ interface Props {
   className?: string
 }
 
-export function Sparkline({ values, label = 'Xu hướng gần đây', className = '' }: Props) {
+export function Sparkline({ values, label = tr('Xu hướng gần đây'), className = '' }: Props) {
   const W = 60
   const H = 20
   const d = sparklinePath(values, W, H)

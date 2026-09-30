@@ -29,6 +29,8 @@ import {
   PanelHeader,
   Select,
 } from '../../components/ui'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Công tắc dùng lại cho cả danh sách loại và khối đẩy thông báo. */
 function Switch({
@@ -122,11 +124,11 @@ function PushSection() {
       if (turningOn) await subscribeThisDevice()
       else await unsubscribeThisDevice()
       showToast(
-        turningOn ? 'Đã bật thông báo cho máy này' : 'Đã tắt thông báo cho máy này',
+        turningOn ? tr('Đã bật thông báo cho máy này') : tr('Đã tắt thông báo cho máy này'),
         'success',
       )
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không đổi được cài đặt thông báo', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không đổi được cài đặt thông báo'), 'error')
     } finally {
       // Đọc lại trạng thái THẬT từ trình duyệt dù thành công hay lỗi: bấm xong mà công
       // tắc hiện sai là người dùng tưởng đã bật rồi ngồi chờ thông báo không bao giờ tới.
@@ -137,7 +139,7 @@ function PushSection() {
 
   function saveSchedule(patch: { push_hour?: number; push_tz?: string }) {
     updateProfile.mutate(patch, {
-      onError: (e) => showToast(e instanceof Error ? e.message : 'Không lưu được giờ gửi', 'error'),
+      onError: (e) => showToast(e instanceof Error ? e.message : tr('Không lưu được giờ gửi'), 'error'),
     })
   }
 
@@ -146,17 +148,16 @@ function PushSection() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader right={state?.subscribed ? 'đang bật' : 'đang tắt'}>Đẩy ra ngoài app</PanelHeader>
+      <PanelHeader right={state?.subscribed ? tr('đang bật') : tr('đang tắt')}>{tr('Đẩy ra ngoài app')}</PanelHeader>
 
       <div className="flex items-start gap-3 px-3 py-2">
         <div className="min-w-0 flex-1">
           <p id="push-toggle-label" className="text-sm font-medium text-fg-primary">
-            Nhận thông báo trên máy này
+            {tr('Nhận thông báo trên máy này')}
           </p>
           {!visual && (
             <p id="push-toggle-hint" className="mt-0.5 text-sm text-fg-muted">
-              Chỉ đẩy nhóm “Việc cần làm”, mỗi ngày một lần, mỗi việc chỉ một lần. Bật/tắt
-              riêng cho từng máy.
+              {tr('Chỉ đẩy nhóm “Việc cần làm”, mỗi ngày một lần, mỗi việc chỉ một lần. Bật/tắt riêng cho từng máy.')}
             </p>
           )}
         </div>
@@ -182,7 +183,7 @@ function PushSection() {
       {profile && (
         <div className="border-t border-border-subtle px-3 py-3">
           <label htmlFor="push-hour" className="block text-sm font-medium text-fg-muted">
-            Giờ gửi mỗi ngày
+            {tr('Giờ gửi mỗi ngày')}
           </label>
           <Select
             id="push-hour"
@@ -198,7 +199,7 @@ function PushSection() {
           </Select>
 
           <label htmlFor="push-tz" className="mt-3 block text-sm font-medium text-fg-muted">
-            Giờ ở đâu
+            {tr('Giờ ở đâu')}
           </label>
           <Select
             id="push-tz"
@@ -215,8 +216,7 @@ function PushSection() {
             ))}
           </Select>
           <Guide className="mt-1 text-sm text-fg-muted">
-            Giờ gửi tính theo nơi này, không phải theo máy — đổi nước thì sửa ở đây một lần,
-            không phải sửa lại giờ.
+            {tr('Giờ gửi tính theo nơi này, không phải theo máy — đổi nước thì sửa ở đây một lần, không phải sửa lại giờ.')}
           </Guide>
         </div>
       )}
@@ -249,7 +249,10 @@ function Group({
       <PanelHeader
         right={
           <>
-            <Num tone="muted">{onCount}</Num>/<Num tone="muted">{types.length}</Num> đang bật
+            {trn('{on}/{total} đang bật', {
+              on: <Num tone="muted">{onCount}</Num>,
+              total: <Num tone="muted">{types.length}</Num>,
+            })}
           </>
         }
       >
@@ -296,7 +299,7 @@ function Group({
           trước. Nhãn nói ra việc sắp làm ("Tắt hết") chứ không nói trạng thái. */}
       <div className="border-t border-border-subtle px-3 py-2">
         <ActionButton onClick={() => onSetAll(types, !allOn)}>
-          {allOn ? 'Tắt hết nhóm này' : 'Bật hết nhóm này'}
+          {allOn ? tr('Tắt hết nhóm này') : tr('Bật hết nhóm này')}
         </ActionButton>
       </div>
     </Card>
@@ -321,7 +324,7 @@ export function NotificationSettingsPage() {
       { notif_off: nextArr },
       {
         onError: (e) =>
-          showToast(e instanceof Error ? e.message : 'Không lưu được cài đặt thông báo', 'error'),
+          showToast(e instanceof Error ? e.message : tr('Không lưu được cài đặt thông báo'), 'error'),
         onSettled: () =>
           // Nếu đã có lần bấm mới hơn ghi đè bản nháp thì để lần đó tự dọn,
           // tránh xoá nhầm thay đổi chưa kịp lưu.
@@ -355,17 +358,17 @@ export function NotificationSettingsPage() {
       {/* Hàng đầu giống mọi trang con khác của Cài đặt: nút lùi + tên trang. Thiếu nút
           này thì trên điện thoại lối ra duy nhất là thanh tab dưới — mà nó nhả về gốc
           Cài đặt, không phải chỗ vừa đến. */}
-      <PageHeader title="Thông báo" back="/settings" flush />
+      <PageHeader title={tr('Thông báo')} back="/settings" flush />
       <Guide className="text-sm text-fg-muted">
-        Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.
+        {tr('Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.')}
       </Guide>
 
       {/* Lưới tự chia — xem chú thích đầu file. `items-start` để thẻ ngắn (Đẩy ra ngoài
           app) không bị kéo cao bằng thẻ 12 dòng cạnh nó. */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] items-start gap-3">
         <PushSection />
-        <Group title="Việc cần làm" types={actions} off={off} onToggle={toggle} onSetAll={setAll} />
-        <Group title="Tin để biết" types={infos} off={off} onToggle={toggle} onSetAll={setAll} />
+        <Group title={tr('Việc cần làm')} types={actions} off={off} onToggle={toggle} onSetAll={setAll} />
+        <Group title={tr('Tin để biết')} types={infos} off={off} onToggle={toggle} onSetAll={setAll} />
       </div>
     </div>
   )

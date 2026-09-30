@@ -16,10 +16,11 @@ import type { LucideIcon } from 'lucide-react'
 import { Card, PanelHeader } from '../../components/ui'
 import { useDensityControl } from '../../hooks/useDensity'
 import type { DensityPref } from '../../lib/density'
+import { tr } from '../../i18n'
 
 const OPTIONS: { value: DensityPref; label: string; hint: string; Icon: LucideIcon }[] = [
-  { value: 'visual', label: 'Gọn', hint: 'Ít chữ, nhìn hình là hiểu', Icon: LayoutGrid },
-  { value: 'full', label: 'Đầy đủ', hint: 'Có câu kết luận và cách tính', Icon: Text },
+  { value: 'visual', label: tr('Gọn'), hint: tr('Ít chữ, nhìn hình là hiểu'), Icon: LayoutGrid },
+  { value: 'full', label: tr('Đầy đủ'), hint: tr('Có câu kết luận và cách tính'), Icon: Text },
 ]
 
 export function DensityToggle() {
@@ -27,7 +28,7 @@ export function DensityToggle() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader right="dùng chung mọi thiết bị">Cách trình bày</PanelHeader>
+      <PanelHeader right={tr('dùng chung mọi thiết bị')}>{tr('Cách trình bày')}</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value

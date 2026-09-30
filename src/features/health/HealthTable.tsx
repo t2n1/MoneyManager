@@ -16,6 +16,7 @@ import { Card, Num, StatusChip } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 import { Guide } from '../../components/Guide'
 import { scaleGeometry, type Verdict, type Zone } from './health'
+import { numLocale, tr } from '../../i18n'
 
 const VERDICT_TONE: Record<Verdict, 'good' | 'warn' | 'bad' | 'info'> = {
   good: 'good',
@@ -25,10 +26,10 @@ const VERDICT_TONE: Record<Verdict, 'good' | 'warn' | 'bad' | 'info'> = {
 }
 
 const VERDICT_LABEL: Record<Verdict, string> = {
-  good: 'Tốt',
-  warn: 'Cần chú ý',
-  bad: 'Rủi ro',
-  unknown: 'Chưa đủ dữ liệu',
+  good: tr('Tốt'),
+  warn: tr('Cần chú ý'),
+  bad: tr('Rủi ro'),
+  unknown: tr('Chưa đủ dữ liệu'),
 }
 
 export interface HealthRow {
@@ -88,7 +89,9 @@ function Scale({ value, zones, label }: { value: number | null; zones: readonly 
 /** Mốc in gọn: thang phần trăm (max ≤ 1) in "%", còn lại in số. */
 function formatTick(upTo: number, max: number): string {
   if (max <= 1) return `${Math.round(upTo * 100)}%`
-  return upTo % 1 === 0 ? String(upTo) : upTo.toFixed(1).replace('.', ',')
+  return upTo % 1 === 0
+    ? String(upTo)
+    : upTo.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })
 }
 
 export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
@@ -102,20 +105,20 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
 
   return (
     <Card as="section" elevation="panel" padding="none">
-      <div role="table" aria-label="Sáu chỉ số sức khỏe tài chính">
+      <div role="table" aria-label={tr('Sáu chỉ số sức khỏe tài chính')}>
         <div
           role="row"
           className={`${GRID} border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-label text-fg-muted`}
         >
-          <span role="columnheader">Chỉ số</span>
+          <span role="columnheader">{tr('Chỉ số')}</span>
           <span role="columnheader" className="text-right">
-            Hiện tại
+            {tr('Hiện tại')}
           </span>
           <span role="columnheader" className="hidden lg:block">
-            Thang · xấu → tốt
+            {tr('Thang · xấu → tốt')}
           </span>
           <span role="columnheader" className="text-right">
-            Trạng thái
+            {tr('Trạng thái')}
           </span>
         </div>
         <ul>
@@ -135,7 +138,7 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
                   <Scale
                     value={row.value}
                     zones={row.zones}
-                    label={`${row.label}: ${row.display}, thang trái xấu phải tốt`}
+                    label={tr('{label}: {value}, thang trái xấu phải tốt', { label: row.label, value: row.display })}
                   />
                 </span>
                 <span role="cell" className="flex justify-end">
@@ -150,7 +153,7 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
                 <Scale
                   value={row.value}
                   zones={row.zones}
-                  label={`${row.label}: ${row.display}, thang trái xấu phải tốt`}
+                  label={tr('{label}: {value}, thang trái xấu phải tốt', { label: row.label, value: row.display })}
                 />
               </div>
               <Guide className="px-4 pb-2 text-2xs text-fg-muted">{row.meaning}</Guide>
@@ -163,12 +166,12 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
           trông ít quan trọng vì nó chỉ nặng 10% — trong khi nó là chỉ số duy nhất đang đỏ. */}
       {/* E-ink + Gọn: bỏ ghi chú phương pháp (trọng số). */}
       <p className="border-t border-border-panel px-4 py-2.5 text-2xs text-fg-muted eink-gon:hidden">
-        Trọng số trong điểm tổng:{' '}
-        {[...rows]
-          .sort((a, b) => b.weight - a.weight)
-          .map((row) => `${row.label.toLowerCase()} ${row.weight}%`)
-          .join(' · ')}
-        .
+        {tr('Trọng số trong điểm tổng: {list}.', {
+          list: [...rows]
+            .sort((a, b) => b.weight - a.weight)
+            .map((row) => `${row.label.toLowerCase()} ${row.weight}%`)
+            .join(' · '),
+        })}
       </p>
     </Card>
   )

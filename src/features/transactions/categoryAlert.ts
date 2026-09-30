@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { CapBase } from './entryShape'
 
@@ -37,16 +38,22 @@ export function categoryAlert(i: AlertInput): string | null {
   // nên caller chuyền thẳng qua. Mặc định 0 → phần mình = toàn bộ, đúng cho chín dạng kia.
   const myShare = i.amount - (i.othersShare ?? 0)
   const add = i.capBase === 'myShare' ? myShare : i.amount
-  const suffix = i.capBase === 'myShare' ? ' phần mình chịu' : ''
+  const mine = i.capBase === 'myShare'
   const m = (v: number) => formatMoney(v, i.currency)
 
   if (i.spent > i.cap) {
     const over = i.spent - i.cap
-    return `${i.categoryName} đã vượt trần ${m(over)}. Cộng ${m(add)}${suffix} thì thành ${m(over + add)}.`
+    const vars = { name: i.categoryName, over: m(over), add: m(add), total: m(over + add) }
+    return mine
+      ? tr('{name} đã vượt trần {over}. Cộng {add} phần mình chịu thì thành {total}.', vars)
+      : tr('{name} đã vượt trần {over}. Cộng {add} thì thành {total}.', vars)
   }
   const left = i.cap - i.spent
   if (add > left) {
-    return `${i.categoryName} còn ${m(left)} trong trần. Khoản ${m(add)}${suffix} này làm vượt ${m(add - left)}.`
+    const vars = { name: i.categoryName, left: m(left), add: m(add), over: m(add - left) }
+    return mine
+      ? tr('{name} còn {left} trong trần. Khoản {add} phần mình chịu này làm vượt {over}.', vars)
+      : tr('{name} còn {left} trong trần. Khoản {add} này làm vượt {over}.', vars)
   }
   return null
 }

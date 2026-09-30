@@ -8,6 +8,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
+import { tr } from '../i18n'
 
 // Chèn nút "+" vào GIỮA dãy tab: ngón cái với tới đó dễ nhất trên màn dọc.
 const PLUS_AFTER = 2
@@ -21,7 +22,7 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
     // (hai thanh cùng dính đáy thì chúng chồng lên nhau).
     <nav
       data-bottom-nav
-      aria-label="Điều hướng chính"
+      aria-label={tr('Điều hướng chính')}
       className={`shrink-0 items-stretch border-t border-border-panel bg-surface-chrome pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden ${
         hidden ? 'hidden' : 'flex'
       }`}
@@ -58,7 +59,7 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
             key="plus"
             type="button"
             onClick={() => navigate('/entry')}
-            aria-label="Nhập giao dịch"
+            aria-label={tr('Nhập giao dịch')}
             // rounded-full chứ không 16px của bản vẽ: guardrail cấm cứng bán kính panel
             // trên <button>, và pill cũng đúng ngôn ngữ nút của redesign 2 hơn.
             className="mx-1.5 flex h-[2.875rem] w-[3.25rem] shrink-0 items-center justify-center self-center rounded-full bg-accent text-fg-on-accent transition active:scale-95"

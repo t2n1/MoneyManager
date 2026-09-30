@@ -88,6 +88,7 @@ export function MonthKeyProvider({ children }: { children: ReactNode }) {
  */
 export function useMonthKey(): MonthKeyValue {
   const v = useContext(Ctx)
+  // i18n-ignore — lỗi lập trình, không phải chữ cho người dùng
   if (!v) throw new Error('useMonthKey phải nằm trong <MonthKeyProvider> (AppLayout dựng nó)')
   return v
 }

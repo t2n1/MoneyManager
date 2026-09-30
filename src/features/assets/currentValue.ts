@@ -11,6 +11,7 @@
 import type { AccountRow } from '../../types/database.types'
 import { depreciate } from './depreciation'
 import type { AccountPortfolioState } from './useAccountPortfolio'
+import { tr } from '../../i18n'
 
 /**
  * - `balance`      — tài khoản thường: số dư.
@@ -85,8 +86,8 @@ export function valueBasisLabel(
   basis: ValueBasis,
 ): string | null {
   if (type !== 'investment') return null
-  if (basis === 'market') return 'giá thị trường'
-  if (basis === 'valuation') return 'giá cập nhật gần nhất'
-  if (basis === 'ledger') return 'số dư sổ'
+  if (basis === 'market') return tr('giá thị trường')
+  if (basis === 'valuation') return tr('giá cập nhật gần nhất')
+  if (basis === 'ledger') return tr('số dư sổ')
   return null
 }

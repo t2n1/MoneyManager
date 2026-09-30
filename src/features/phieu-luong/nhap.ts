@@ -3,6 +3,8 @@
 // Xem docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md
 
 import type { Phieu } from './boc'
+// `.ts` có đuôi: CLI scripts/nhap-phieu-luong.mjs nạp thẳng file này bằng Node.
+import { categoryLabel, tr } from '../../i18n/index.ts'
 
 export interface DongMoi {
   type: 'income' | 'expense'
@@ -46,14 +48,15 @@ export function phieuLoi(file: string, thongDiepLoi: string): Phieu {
  * Nhan phieu -> danh muc app. Ten phai DUNG TUNG KY TU: taxCategoryIds
  * (src/features/tax/categories.ts) nhan nhom theo TEN, sai mot ky tu la khong tinh.
  */
+// i18n-ignore — tên danh mục trong DB, khớp đúng từng ký tự
 export const MAP_THUE: Record<string, string> = {
-  所得税: 'Thuế thu nhập (所得税)',
-  過不足税額: 'Thuế thu nhập (所得税)',
-  雇用保険料: 'Bảo hiểm việc làm (雇用保険)',
-  住民税: 'Thuế cư trú (住民税)',
-  健康保険料: 'Bảo hiểm y tế (健康保険)',
-  厚生年金保険: 'Hưu trí (年金)',
-  厚生年金基金: 'Hưu trí (年金)',
+  所得税: 'Thuế thu nhập (所得税)', // i18n-ignore — tên danh mục trong DB
+  過不足税額: 'Thuế thu nhập (所得税)', // i18n-ignore — tên danh mục trong DB
+  雇用保険料: 'Bảo hiểm việc làm (雇用保険)', // i18n-ignore — tên danh mục trong DB
+  住民税: 'Thuế cư trú (住民税)', // i18n-ignore — tên danh mục trong DB
+  健康保険料: 'Bảo hiểm y tế (健康保険)', // i18n-ignore — tên danh mục trong DB
+  厚生年金保険: 'Hưu trí (年金)', // i18n-ignore — tên danh mục trong DB
+  厚生年金基金: 'Hưu trí (年金)', // i18n-ignore — tên danh mục trong DB
 }
 
 /**
@@ -67,7 +70,7 @@ export const MAP_THUE: Record<string, string> = {
  * do. 'Đi chợ' (essential + variable) khong doi chi co dinh nen khong dung so thang
  * du phong — cho it tac dung phu nhat.
  */
-export const MAP_KHAC: Record<string, string> = { 社内販売精算: 'Đi chợ' }
+export const MAP_KHAC: Record<string, string> = { 社内販売精算: 'Đi chợ' } // i18n-ignore — tên danh mục trong DB
 
 /** Nhãn 支給 có dựng bút toán. Xem `dungDong` để biết vì sao mỗi cái một cách. */
 export const NHAN_DI_LAI = '通勤手当'
@@ -108,7 +111,7 @@ export interface TraNo {
  * Danh mục THU nhận 通勤手当. Tên đúng từng ký tự (như MAP_THUE). KHÔNG tra qua
  * `idTheoTen` — map đó chỉ chứa danh mục CHI; trang phải tra riêng trong nhóm type='income'.
  */
-export const DANH_MUC_PHU_CAP = 'Phụ cấp đi lại'
+export const DANH_MUC_PHU_CAP = 'Phụ cấp đi lại' // i18n-ignore — tên danh mục trong DB
 /** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
 export const TEN_TK_HUU = '退職金'
 /**
@@ -120,7 +123,7 @@ export const TK_HUU_MOI = {
   name: TEN_TK_HUU,
   type: 'investment' as const,
   initial_balance: 0,
-  asset_group: 'Tiết kiệm',
+  asset_group: 'Tiết kiệm', // i18n-ignore — tên nhóm tài sản lưu DB
   is_hidden: false,
   include_in_totals: true,
   // Tiền hưu KHÔNG rút ra tiêu ngay được. `is_liquid` null là để app tự SUY từ `type`,
@@ -132,18 +135,19 @@ export const TK_HUU_MOI = {
 /** Khong biet la gi -> tu choi ca file, khong doan. Trong o ca 55 phieu. */
 export const TU_CHOI = new Set(['その他'])
 
-export const DANH_MUC_THUE_CHA = 'Thuế & An sinh'
+export const DANH_MUC_THUE_CHA = 'Thuế & An sinh' // i18n-ignore — tên danh mục trong DB
 export const DANH_MUC_THUE_CON: {
   name: string
   icon: string
   need_level: 'essential'
   cost_type: 'fixed' | 'variable'
 }[] = [
+  // i18n-ignore — tên danh mục trong DB (5 dòng dưới)
   { name: 'Thuế thu nhập (所得税)', icon: '🧾', need_level: 'essential', cost_type: 'variable' },
-  { name: 'Bảo hiểm việc làm (雇用保険)', icon: '💼', need_level: 'essential', cost_type: 'variable' },
-  { name: 'Thuế cư trú (住民税)', icon: '🏙️', need_level: 'essential', cost_type: 'fixed' },
-  { name: 'Bảo hiểm y tế (健康保険)', icon: '🏥', need_level: 'essential', cost_type: 'fixed' },
-  { name: 'Hưu trí (年金)', icon: '👴', need_level: 'essential', cost_type: 'fixed' },
+  { name: 'Bảo hiểm việc làm (雇用保険)', icon: '💼', need_level: 'essential', cost_type: 'variable' }, // i18n-ignore — tên danh mục trong DB
+  { name: 'Thuế cư trú (住民税)', icon: '🏙️', need_level: 'essential', cost_type: 'fixed' }, // i18n-ignore — tên danh mục trong DB
+  { name: 'Bảo hiểm y tế (健康保険)', icon: '🏥', need_level: 'essential', cost_type: 'fixed' }, // i18n-ignore — tên danh mục trong DB
+  { name: 'Hưu trí (年金)', icon: '👴', need_level: 'essential', cost_type: 'fixed' }, // i18n-ignore — tên danh mục trong DB
 ]
 
 /**
@@ -158,10 +162,10 @@ export const DANH_MUC_THUE_CON: {
 
 /** Nhan -> {nhom, danhMuc}. Nem loi khi khong map duoc: khong bao gio bo im lang. */
 export function mapNhan(nhan: string): { nhom: 'thue' | 'khac'; danhMuc: string } {
-  if (TU_CHOI.has(nhan)) throw new Error(`nhan '${nhan}' khong ro la gi — tu choi`)
+  if (TU_CHOI.has(nhan)) throw new Error(tr("nhan '{label}' khong ro la gi — tu choi", { label: nhan }))
   if (MAP_THUE[nhan]) return { nhom: 'thue', danhMuc: MAP_THUE[nhan] }
   if (MAP_KHAC[nhan]) return { nhom: 'khac', danhMuc: MAP_KHAC[nhan] }
-  throw new Error(`nhan '${nhan}' khong co trong bang map`)
+  throw new Error(tr("nhan '{label}' khong co trong bang map", { label: nhan }))
 }
 
 /**
@@ -209,7 +213,7 @@ export function timNeo(
   // `p.loi.length` truoc, va bocPhieu day 'khong doc duoc ky/loai' vao `loi` khi period
   // null). Dua vao caller ma khong kiem la mong manh — va neu bat bien vo, ta muon no
   // no ON AO ngay day, khong phai lang le troi xuong.
-  if (!phieu.period) throw new Error(`phieu '${phieu.file}' thieu ky (period) — khong neo duoc`)
+  if (!phieu.period) throw new Error(tr("phieu '{file}' thieu ky (period) — khong neo duoc", { file: phieu.file }))
   const { tu, den } = cuaSoNeo(phieu.period)
   const ung = khoanThu.filter(
     (t) =>
@@ -219,8 +223,8 @@ export function timNeo(
       t.occurred_on <= den &&
       !daDung.has(t.id),
   )
-  if (ung.length === 0) return { ok: false, lyDo: `khong thay khoan thu Yucho = ${phieu.net} trong ${tu}..${den}` }
-  if (ung.length > 1) return { ok: false, lyDo: `${ung.length} khoan thu cung khop (mo ho): ${ung.map((t) => t.occurred_on).join(', ')}` }
+  if (ung.length === 0) return { ok: false, lyDo: tr('khong thay khoan thu Yucho = {net} trong {from}..{to}', { net: String(phieu.net), from: tu, to: den }) }
+  if (ung.length > 1) return { ok: false, lyDo: tr('{n} khoan thu cung khop (mo ho): {dates}', { n: ung.length, dates: ung.map((t) => t.occurred_on).join(', ') }) }
   return { ok: true, row: ung[0] }
 }
 
@@ -252,7 +256,7 @@ export function dungDong(
   // `給与 2026/08null` roi ghi am tham vao `note` giao dich that. Ma `note` la tay cam
   // DUY NHAT de go lo nhap (khong co cot import_batch), nen mot dau ghi chu sai la mot
   // dong khong go duoc. Du lieu sai lang le te hon loi on ao.
-  if (!phieu.kind) throw new Error(`phieu '${phieu.file}' thieu loai (K/S) — khong dung duoc dau ghi chu`)
+  if (!phieu.kind) throw new Error(tr("phieu '{file}' thieu loai (K/S) — khong dung duoc dau ghi chu", { file: phieu.file }))
   const dau = dauGhiChu(neo.occurred_on, phieu.kind)
   const muc = { ...phieu.tru, ...phieu.ngoaiTong }
   const chi: DongMoi[] = []
@@ -260,7 +264,7 @@ export function dungDong(
     if (so === 0) continue
     const { nhom, danhMuc } = mapNhan(nhan)
     const id = idTheoTen.get(danhMuc)
-    if (!id) throw new Error(`thieu danh muc '${danhMuc}' (cho nhan '${nhan}')`)
+    if (!id) throw new Error(tr("thieu danh muc '{category}' (cho nhan '{label}')", { category: categoryLabel(danhMuc), label: nhan }))
     chi.push({
       type: 'expense',
       amount: Math.abs(so),
@@ -315,7 +319,7 @@ export function dungDong(
       account_id: neo.account_id,
       to_account_id: null,
       occurred_on: neo.occurred_on,
-      note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'} (hoàn vượt khấu trừ)`,
+      note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'} (hoàn vượt khấu trừ)`, // i18n-ignore — ghi chú giao dịch lưu DB
       is_refund: false,
       exclude_from_stats: ngoai,
     }
@@ -329,7 +333,7 @@ export function dungDong(
     account_id: neo.account_id,
     to_account_id: null,
     occurred_on: neo.occurred_on,
-    note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'}`,
+    note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'}`, // i18n-ignore — ghi chú giao dịch lưu DB
     // PHAI ghi ro false, khong duoc bo trong: PostgREST insert mot MANG thi HOP NHAT
     // tap khoa cua moi phan tu, nen khoa nao thieu o mot dong se thanh NULL thay vi
     // lay DEFAULT. Cac dong chi co is_refund, dong thu khong -> gui NULL -> vi pham
@@ -431,30 +435,34 @@ function dungCap(
   const duongNo = laTheo > 0 && no !== null
   if (duongNo && no.conLai < laTheo) {
     throw new Error(
-      `nợ '${no.ten ?? TEN_NO_CONG_TY}' còn ${no.conLai} < ${NHAN_LA_THEO} ${laTheo} — ` +
-        `có lần ứng chưa ghi vào khoản nợ`,
+      tr("nợ '{name}' còn {left} < {label} {amount} — có lần ứng chưa ghi vào khoản nợ", {
+        name: no.ten ?? TEN_NO_CONG_TY,
+        left: no.conLai,
+        label: NHAN_LA_THEO,
+        amount: laTheo,
+      }),
     )
   }
   const suaNeo = tachKhoiLuong > 0
   if (suaNeo) {
     if (neo.category_id === null) {
-      throw new Error(`dòng neo '${neo.id}' không có danh mục — không dựng được dòng trung hoà`)
+      throw new Error(tr("dòng neo '{id}' không có danh mục — không dựng được dòng trung hoà", { id: neo.id }))
     }
     cap.push({
       ...chung, type: 'income', amount: neo.amount - tachKhoiLuong,
       category_id: neo.category_id, account_id: neo.account_id,
-      note: `${dau} · lương thực nhận`,
+      note: `${dau} · lương thực nhận`, // i18n-ignore — ghi chú giao dịch lưu DB
     })
     // CHỈ cho 通勤手当. 立替経費精算 không có dòng này: nó đi bằng dòng trả nợ (traNo) hoặc
     // bị rút hẳn khỏi Thu, chứ không bao giờ là một khoản thu nhập mới.
     if (diLai > 0) {
       if (!idPhuCap) {
-        throw new Error(`thiếu danh mục thu '${DANH_MUC_PHU_CAP}' (cho ${NHAN_DI_LAI})`)
+        throw new Error(tr("thiếu danh mục thu '{category}' (cho {label})", { category: categoryLabel(DANH_MUC_PHU_CAP), label: NHAN_DI_LAI }))
       }
       cap.push({
         ...chung, type: 'income', amount: diLai, exclude_from_stats: true,
         category_id: idPhuCap, account_id: neo.account_id,
-        note: `${dau} · phụ cấp đi lại (${NHAN_DI_LAI})`,
+        note: `${dau} · phụ cấp đi lại (${NHAN_DI_LAI})`, // i18n-ignore — ghi chú giao dịch lưu DB
       })
     }
     /**
@@ -480,13 +488,13 @@ function dungCap(
       ...chung, type: 'expense', amount: duongNo ? neo.amount : neo.amount - laTheo,
       exclude_from_stats: true,
       category_id: neo.category_id, account_id: neo.account_id,
-      note: `${dau} · trung hoà dòng neo`,
+      note: `${dau} · trung hoà dòng neo`, // i18n-ignore — ghi chú giao dịch lưu DB
     })
   }
 
   const huu = phieu.cap[NHAN_HUU] ?? 0
   if (huu !== 0) {
-    if (!tkHuuId) throw new Error(`thiếu tài khoản '${TEN_TK_HUU}' (cho ${NHAN_HUU})`)
+    if (!tkHuuId) throw new Error(tr("thiếu tài khoản '{account}' (cho {label})", { account: TEN_TK_HUU, label: NHAN_HUU }))
     cap.push({
       ...chung, type: 'income', amount: Math.abs(huu),
       category_id: neo.category_id, account_id: tkHuuId,
@@ -500,7 +508,7 @@ function dungCap(
         dong: {
           ...chung, type: 'income', amount: laTheo,
           category_id: neo.category_id, account_id: neo.account_id,
-          note: `${dau} · ${NHAN_LA_THEO} → trả nợ ${no.ten ?? TEN_NO_CONG_TY}`,
+          note: `${dau} · ${NHAN_LA_THEO} → trả nợ ${no.ten ?? TEN_NO_CONG_TY}`, // i18n-ignore — ghi chú giao dịch lưu DB
         },
       }
     : null
@@ -571,7 +579,7 @@ export function gomTrung(phieuList: Phieu[]): {
       boQua.push({
         key,
         files: ds.map((p) => p.file),
-        lyDo: `${ds.length} file cung ky ${key} nhung NOI DUNG KHAC NHAU — khong doan ban nao that`,
+        lyDo: tr('{n} file cung ky {key} nhung NOI DUNG KHAC NHAU — khong doan ban nao that', { n: ds.length, key }),
         // Mot phieu THAT thuoc dung nhom nay (period/kind/empno khop key) — de dong
         // tu-choi mang dung ky cua nhom bi tu choi, khong phai cua mot phieu bat ky
         // khac trong toan bo lo.
@@ -655,17 +663,17 @@ function kiemCap(
   const loi: string[] = []
   const moi = [...cap, ...(traNo ? [traNo.dong] : [])]
   if (moi.some((r) => r.amount <= 0)) {
-    loi.push(`có dòng 支給 amount <= 0 (${NHAN_DI_LAI} lớn hơn ròng?) — xử tay`)
+    loi.push(tr('có dòng 支給 amount <= 0 ({label} lớn hơn ròng?) — xử tay', { label: NHAN_DI_LAI }))
   }
   if (traNo && traNo.dong.amount !== traNo.amount) {
-    loi.push(`dòng trả nợ ${traNo.dong.amount} != số trừ vào nợ ${traNo.amount}`)
+    loi.push(tr('dòng trả nợ {line} != số trừ vào nợ {debt}', { line: traNo.dong.amount, debt: traNo.amount }))
   }
   // Ràng buộc DB, không phải luật nghiệp vụ: `check (type <> 'transfer' ... and
   // category_id is not null)` (0001_init.sql:89). Vi phạm thì Postgres từ chối insert và
   // CẢ LÔ dừng giữa đường — đã xảy ra thật với dòng "trung hoà dòng neo". Chốt ở đây vì
   // tầng thuần không có CHECK của Postgres để tự bắt.
   if (moi.some((r) => r.category_id === null)) {
-    loi.push('có dòng 支給 thiếu category_id — DB từ chối (0001_init.sql:89)')
+    loi.push(tr('có dòng 支給 thiếu category_id — DB từ chối (0001_init.sql:89)'))
   }
   if (!neo) return loi
   // Dong tra no PHAI nam trong phep can bang: no la mot dong that trong tai khoan neo.
@@ -677,7 +685,7 @@ function kiemCap(
     (t, r) => t + r.amount * (r.type === 'income' ? 1 : r.is_refund ? 1 : -1),
     0,
   )
-  if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
+  if (soDu !== 0) loi.push(tr('khối 支給 làm số dư tài khoản neo lệch {diff} (phải bằng 0)', { diff: soDu }))
   /**
    * Thu PHẢI giảm đúng cả 通勤手当 lẫn 立替経費精算, không hơn không kém — cả hai đều
    * không phải thu nhập (một là tiền đi lại công ty trả, một là tiền của chính mình được
@@ -692,7 +700,7 @@ function kiemCap(
     .filter((r) => r.account_id === neo.account_id && r.type === 'income' && !r.exclude_from_stats)
     .reduce((t, r) => t + r.amount, 0)
   if (tachKhoiLuong > 0 && thuMoi - neo.amount !== -tachKhoiLuong) {
-    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-tachKhoiLuong}`)
+    loi.push(tr('Thu đổi {got}, phải là {want}', { got: thuMoi - neo.amount, want: -tachKhoiLuong }))
   }
   return loi
 }
@@ -749,7 +757,7 @@ export function dungKeHoach(
     const neo = timNeo(khoanThu, p, yuchoId, daDung)
     if (!neo.ok) { out.push(rong(p, 'tu-choi', neo.lyDo)); continue }
     const dau = dauGhiChu(neo.row.occurred_on, p.kind as 'K' | 'S')
-    if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', `đã nhập rồi (${dau})`), dau }); continue }
+    if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', tr('đã nhập rồi ({mark})', { mark: dau })), dau }); continue }
     let d
     try { d = dungDong(p, neo.row, idTheoTen, tkHuuId, no, idPhuCap) } catch (e) {
       out.push(rong(p, 'tu-choi', (e as Error).message)); continue

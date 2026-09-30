@@ -253,7 +253,9 @@ export function sessionNavs(
   // lỗi "quỹ không ai giữ chen vào mốc phiên" mà hàm này sinh ra để chữa, và IM LẶNG.
   if (heldFundCds == null)
     throw new TypeError(
+      // i18n-ignore — lỗi cho lập trình viên, không hiện cho người dùng
       'sessionNavs: thiếu tham số heldFundCds (danh sách quỹ ĐANG GIỮ). Truyền ' +
+        // i18n-ignore — lỗi cho lập trình viên
         'holdings.map(h => h.assocFundCd) — không được bỏ trống, xem chú thích trên hàm.',
     )
 

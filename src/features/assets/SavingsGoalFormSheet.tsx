@@ -7,6 +7,7 @@ import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   accounts: AccountRow[]
@@ -54,7 +55,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
   async function handleDelete() {
     if (!goal) return
-    if (!(await confirmDialog({ title: 'Xóa mục tiêu này?', danger: true, confirmLabel: 'Xóa' }))) return
+    if (!(await confirmDialog({ title: tr('Xóa mục tiêu này?'), danger: true, confirmLabel: tr('Xóa') }))) return
     setSaving(true)
     try {
       await del.mutateAsync(goal.id)
@@ -76,29 +77,29 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-3">
-          {goal ? 'Sửa mục tiêu' : 'Mục tiêu tiết kiệm mới'}
+          {goal ? tr('Sửa mục tiêu') : tr('Mục tiêu tiết kiệm mới')}
         </SectionTitle>
 
-        <label htmlFor={`${uid}-name`} className="mb-1 block text-sm font-medium text-fg-muted">Tên mục tiêu</label>
-        <input id={`${uid}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Quỹ du lịch" className={`mb-3 ${field}`} />
+        <label htmlFor={`${uid}-name`} className="mb-1 block text-sm font-medium text-fg-muted">{tr('Tên mục tiêu')}</label>
+        <input id={`${uid}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('Ví dụ: Quỹ du lịch')} className={`mb-3 ${field}`} />
 
-        <label htmlFor={`${uid}-acc`} className="mb-1 block text-sm font-medium text-fg-muted">Theo dõi qua tài khoản</label>
+        <label htmlFor={`${uid}-acc`} className="mb-1 block text-sm font-medium text-fg-muted">{tr('Theo dõi qua tài khoản')}</label>
         <Select id={`${uid}-acc`} value={accountId} onChange={(e) => setAccountId(e.target.value)} wrapClassName="mb-3 w-full">
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.name} ({a.currency})
+              {accountLabel(a.name)} ({a.currency})
             </option>
           ))}
         </Select>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Số tiền đích</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Số tiền đích')}</span>
         <div className="mb-3">
           <MoneyField
             value={target}
             onChange={setTarget}
             currency={currency}
-            ariaLabel="Số tiền đích"
+            ariaLabel={tr('Số tiền đích')}
             onEnter={handleSubmit}
             className={`text-right font-semibold ${field}`}
           />
@@ -106,10 +107,10 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Hạn hoàn thành <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Hạn hoàn thành')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </span>
         <DateField
-          ariaLabel="Hạn hoàn thành"
+          ariaLabel={tr('Hạn hoàn thành')}
           value={targetDate}
           onChange={setTargetDate}
           clearable
@@ -117,24 +118,24 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         />
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Ghi chú')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </label>
         <input id={`${uid}-note`} value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (
             <button type="button" onClick={handleDelete} disabled={saving} className={actionButtonClass('danger')}>
-              Xóa
+              {tr('Xóa')}
             </button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken">
-              Hủy
+              {tr('Hủy')}
             </button>
             <button type="button" onClick={handleSubmit} disabled={!canSave} className={actionButtonClass('primary')}>
-              {saving ? 'Đang lưu…' : 'Lưu'}
+              {saving ? tr('Đang lưu…') : tr('Lưu')}
             </button>
           </div>
         </div>

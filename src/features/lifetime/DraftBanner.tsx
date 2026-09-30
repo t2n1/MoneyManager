@@ -43,6 +43,8 @@ import { ActionButton } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import type { DraftChange } from './draft'
 import { changeParts } from './draftText'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /**
@@ -107,19 +109,21 @@ export function DraftBanner({
       >
         {dirty ? (
           <>
-            <b>Đang thử trên bản nháp</b>
+            <b>{tr('Đang thử trên bản nháp')}</b>
             {/* E-ink + Gọn: bỏ câu trấn an / hướng dẫn, giữ trạng thái và phần đang đổi. */}
             <span className="eink-gon:hidden">
-              {' '}— kịch bản "{scenarioName}" gốc chưa bị đụng.
+              {' '}{tr('— kịch bản "{name}" gốc chưa bị đụng.', { name: scenarioName })}
             </span>
-            {parts.length > 0 && ` Đang đổi: ${parts.join(' · ')}.`}
+            {parts.length > 0 && ` ${tr('Đang đổi: {parts}.', { parts: parts.join(' · ') })}`}
           </>
         ) : (
           <>
-            <b>Đã lưu</b> — kịch bản "{scenarioName}" đang chiếu đúng bản đã lưu.
+            {trn('{saved} — kịch bản "{name}" đang chiếu đúng bản đã lưu.', {
+              saved: <b>{tr('Đã lưu')}</b>,
+              name: scenarioName,
+            })}
             <span className="eink-gon:hidden">
-              {' '}Kéo mốc trên đồ thị, kéo khối chặng, hoặc sửa số ở bảng bên phải để thử một
-              hướng khác; bản gốc chỉ đổi khi bạn bấm Lưu.
+              {' '}{tr('Kéo mốc trên đồ thị, kéo khối chặng, hoặc sửa số ở bảng bên phải để thử một hướng khác; bản gốc chỉ đổi khi bạn bấm Lưu.')}
             </span>
           </>
         )}
@@ -130,13 +134,13 @@ export function DraftBanner({
           cặp Lưu/Bỏ của `QuickTuneRow`. */}
       <div className="flex shrink-0 gap-2">
         <ActionButton variant="primary" onClick={onCommit} disabled={!dirty || saving}>
-          {saving ? 'Đang lưu…' : 'Lưu vào kịch bản'}
+          {saving ? tr('Đang lưu…') : tr('Lưu vào kịch bản')}
         </ActionButton>
         <ActionButton onClick={onSaveAsNew} disabled={!dirty || saving} className="bg-surface">
-          Lưu thành kịch bản mới
+          {tr('Lưu thành kịch bản mới')}
         </ActionButton>
         <ActionButton onClick={onDiscard} disabled={!dirty || saving}>
-          Bỏ
+          {tr('Bỏ')}
         </ActionButton>
       </div>
     </div>

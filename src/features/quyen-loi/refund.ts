@@ -7,6 +7,7 @@ import { calendarYearOf } from '../../lib/dates'
 import type { KetLuan } from './ketLuan'
 import { tinhFuyo, type FuyoInput, type FuyoNguoi } from './fuyo'
 import { luatChoNam } from './rules/luat'
+import { tr } from '../../i18n'
 
 export const SO_NAM_HOAN_THUE = 5
 
@@ -55,10 +56,10 @@ export function tinhRefund(input: RefundInput): RefundKetQua {
   const tong = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null
   const hetHanNamNay = nam.find((n) => n.han.startsWith(String(namNay)))
   const ly_do = [
-    'Đây là lần đầu tự khai với sở thuế; nộp 確定申告 thì ワンストップ của ふるさと納税 năm đó vô hiệu, phải khai lại trong cùng tờ khai.',
+    tr('Đây là lần đầu tự khai với sở thuế; nộp 確定申告 thì ワンストップ của ふるさと納税 năm đó vô hiệu, phải khai lại trong cùng tờ khai.'),
     input.suatBien === null
-      ? 'Chưa ước được tiền vì thiếu phiếu lương.'
-      : 'Tiền ước theo thuế suất biên HIỆN TẠI; năm cũ lương khác thì số khác.',
+      ? tr('Chưa ước được tiền vì thiếu phiếu lương.')
+      : tr('Tiền ước theo thuế suất biên HIỆN TẠI; năm cũ lương khác thì số khác.'),
   ]
 
   let ketLuan: KetLuan
@@ -74,16 +75,25 @@ export function tinhRefund(input: RefundInput): RefundKetQua {
       muc: 'medium',
       tiet_kiem_uoc: null,
       han: null,
-      viec: `${soLanTong.toLocaleString('en-US')} lần gửi của ${namText} chưa gán người nhận — gán để biết còn đòi lại được không`,
+      // `n` chỉ để chọn số ít/số nhiều; `count` là chữ số đã định dạng.
+      viec: tr('{count} lần gửi của {years} chưa gán người nhận — gán để biết còn đòi lại được không', {
+        n: soLanTong,
+        count: soLanTong.toLocaleString('en-US'),
+        years: namText,
+      }),
       ly_do,
     }
   } else if (nam.length === 0) {
-    ketLuan = { id: 'refund', year: namNay, trang_thai: 'du', muc: 'low', tiet_kiem_uoc: null, han: null, viec: 'Không có năm cũ nào còn đòi lại được', ly_do }
+    ketLuan = { id: 'refund', year: namNay, trang_thai: 'du', muc: 'low', tiet_kiem_uoc: null, han: null, viec: tr('Không có năm cũ nào còn đòi lại được'), ly_do }
   } else {
     const lyDoDay = chua_gan.length > 0
       ? [
           ...ly_do,
-          `Còn ${chua_gan.reduce((s, c) => s + c.so_lan, 0).toLocaleString('en-US')} lần gửi năm ${chua_gan.map((c) => c.year).join(', ')} chưa gán — số trên có thể còn cao hơn.`,
+          tr('Còn {count} lần gửi năm {years} chưa gán — số trên có thể còn cao hơn.', {
+            n: chua_gan.reduce((s, c) => s + c.so_lan, 0),
+            count: chua_gan.reduce((s, c) => s + c.so_lan, 0).toLocaleString('en-US'),
+            years: chua_gan.map((c) => c.year).join(', '),
+          }),
         ]
       : ly_do
     ketLuan = {
@@ -93,7 +103,13 @@ export function tinhRefund(input: RefundInput): RefundKetQua {
       muc: hetHanNamNay ? 'high' : 'medium',
       tiet_kiem_uoc: tong,
       han: nam[0].han,
-      viec: `${nam.length} năm cũ đủ điều kiện nộp 還付申告 (${nam.map((n) => n.year).join(', ')})${hetHanNamNay ? ` · năm ${hetHanNamNay.year} hết hạn 31/12` : ''}`,
+      viec: hetHanNamNay
+        ? tr('{n} năm cũ đủ điều kiện nộp 還付申告 ({years}) · năm {year} hết hạn 31/12', {
+            n: nam.length,
+            years: nam.map((n) => n.year).join(', '),
+            year: hetHanNamNay.year,
+          })
+        : tr('{n} năm cũ đủ điều kiện nộp 還付申告 ({years})', { n: nam.length, years: nam.map((n) => n.year).join(', ') }),
       ly_do: lyDoDay,
     }
   }

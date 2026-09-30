@@ -8,8 +8,10 @@ import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { SubscriptionSummary } from './behavior'
 import { hoursOfWork } from './behavior'
+import { getLang, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
-const FREQ_LABEL = { weekly: 'hàng tuần', monthly: 'hàng tháng', yearly: 'hàng năm' } as const
+const FREQ_LABEL = { weekly: tr('hàng tuần'), monthly: tr('hàng tháng'), yearly: tr('hàng năm') } as const
 
 interface Props {
   data: SubscriptionSummary
@@ -29,25 +31,29 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <SectionTitle>
-          Tiền tự động trừ mỗi tháng
+          {tr('Tiền tự động trừ mỗi tháng')}
         </SectionTitle>
         <Link
           to="/recurring"
           className="shrink-0 inline-flex items-center gap-0.5 text-sm font-medium text-fg-accent"
         >
-          {data.count} khoản
+          {tr('{n} khoản', { n: data.count })}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
 
       <p className="text-kpi font-mono font-medium tracking-number tabular-nums text-fg-primary">
         {money(data.monthly)}
-        <span className="ml-1 text-sm font-normal text-fg-muted">/tháng</span>
+        <span className="ml-1 text-sm font-normal text-fg-muted">{tr('/tháng')}</span>
       </p>
       <p className="mt-0.5 text-sm text-fg-secondary">
-        Tức <b>{money(data.yearly)}</b> mỗi năm
-        {shareOfIncome !== null && <> · {Math.round(shareOfIncome * 100)}% thu nhập</>}
-        {hours !== null && <> · ≈ {hours.toFixed(1).replace('.', ',')} giờ làm mỗi tháng</>}.
+        {trn('Tức {amount} mỗi năm', { amount: <b>{money(data.yearly)}</b> })}
+        {shareOfIncome !== null && tr(' · {pct}% thu nhập', { pct: Math.round(shareOfIncome * 100) })}
+        {hours !== null &&
+          tr(' · ≈ {hours} giờ làm mỗi tháng', {
+            hours: hours.toFixed(1).replace('.', getLang() === 'en' ? '.' : ','),
+          })}
+        .
       </p>
 
       <ul className="mt-2 space-y-1">
@@ -57,7 +63,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
             className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-sm"
           >
             <span className="min-w-0 flex-1 truncate text-fg-primary">
-              {item.note || 'Khoản định kỳ'}
+              {item.note || tr('Khoản định kỳ')}
             </span>
             <span className="shrink-0 text-2xs text-fg-muted">
               {FREQ_LABEL[item.frequency]}
@@ -72,24 +78,22 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
       </ul>
       {data.items.length > 6 && (
         <p className="mt-1 text-2xs text-fg-muted">
-          …và {data.items.length - 6} khoản nhỏ hơn.
+          {tr('…và {n} khoản nhỏ hơn.', { n: data.items.length - 6 })}
         </p>
       )}
 
       {data.hasMissingRate && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          Một khoản ngoại tệ chưa quy đổi được nên tổng có thể thiếu.
+          {tr('Một khoản ngoại tệ chưa quy đổi được nên tổng có thể thiếu.')}
         </p>
       )}
 
-      <ExplainBox label="Cách tính">
+      <ExplainBox label={tr('Cách tính')}>
         <p>
-          Lấy mọi quy tắc định kỳ loại Chi đang chạy (bỏ khoản tạm dừng và khoản đã hết hạn), quy về
-          cùng đơn vị mỗi tháng: hàng tuần × 52/12, hàng năm ÷ 12.
+          {tr('Lấy mọi quy tắc định kỳ loại Chi đang chạy (bỏ khoản tạm dừng và khoản đã hết hạn), quy về cùng đơn vị mỗi tháng: hàng tuần × 52/12, hàng năm ÷ 12.')}
         </p>
         <p>
-          Đây là tiền chắc chắn ra đi kể cả tháng bạn không mua gì. Rà lại danh sách này mỗi vài
-          tháng thường là cách cắt chi nhanh nhất mà không phải thay đổi thói quen nào.
+          {tr('Đây là tiền chắc chắn ra đi kể cả tháng bạn không mua gì. Rà lại danh sách này mỗi vài tháng thường là cách cắt chi nhanh nhất mà không phải thay đổi thói quen nào.')}
         </p>
       </ExplainBox>
     </Card>

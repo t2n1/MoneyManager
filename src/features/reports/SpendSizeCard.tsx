@@ -8,6 +8,8 @@ import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { hoursOfWork, type SpendPercentiles } from './behavior'
 import { spendHistogram } from './histogram'
+import { getLang, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   data: SpendPercentiles | null
@@ -19,8 +21,8 @@ interface Props {
 
 /** "2,5 giờ" / "45 phút" — dưới 1 giờ thì đọc theo phút cho dễ hình dung. */
 function hoursLabel(hours: number): string {
-  if (hours < 1) return `${Math.round(hours * 60)} phút làm việc`
-  return `${hours.toFixed(1).replace('.', ',')} giờ làm việc`
+  if (hours < 1) return tr('{n} phút làm việc', { n: Math.round(hours * 60) })
+  return tr('{hours} giờ làm việc', { hours: hours.toFixed(1).replace('.', getLang() === 'en' ? '.' : ',') })
 }
 
 export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
@@ -32,20 +34,20 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
 
   // `note` là chữ CHỈ ĐỂ DẠY: nhãn bên cạnh ("top 25%") đã đủ để đọc con số.
   const rows: { label: string; value: number; note: string }[] = [
-    { label: 'Điển hình (trung vị)', value: data.median, note: 'một nửa số lần chi ít hơn mức này' },
-    { label: 'Khá to (top 25%)', value: data.p75, note: 'cứ 4 lần chi thì có 1 lần vượt mức này' },
-    { label: 'To (top 10%)', value: data.p90, note: 'cứ 10 lần chi thì có 1 lần vượt mức này' },
-    { label: 'Lớn nhất', value: data.max, note: 'khoản đắt nhất trong kỳ' },
+    { label: tr('Điển hình (trung vị)'), value: data.median, note: tr('một nửa số lần chi ít hơn mức này') },
+    { label: tr('Khá to (top 25%)'), value: data.p75, note: tr('cứ 4 lần chi thì có 1 lần vượt mức này') },
+    { label: tr('To (top 10%)'), value: data.p90, note: tr('cứ 10 lần chi thì có 1 lần vượt mức này') },
+    { label: tr('Lớn nhất'), value: data.max, note: tr('khoản đắt nhất trong kỳ') },
   ]
 
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <SectionTitle>
-          Một lần chi to cỡ nào
+          {tr('Một lần chi to cỡ nào')}
         </SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
-          {data.count} lần chi {periodNoun}
+          {tr('{n} lần chi {period}', { n: data.count, period: periodNoun })}
         </span>
       </div>
 
@@ -87,14 +89,14 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
       {bins.length > 1 && (
         <div className="mt-3">
           <p className="mb-1 text-2xs font-semibold uppercase tracking-label text-fg-muted">
-            Các lần chi rải thế nào
+            {tr('Các lần chi rải thế nào')}
           </p>
           <svg
             viewBox={`0 0 ${bins.length * 10} 40`}
             preserveAspectRatio="none"
             className="h-12 w-full"
             role="img"
-            aria-label={`Phân bố ${data.count} lần chi theo khoảng tiền`}
+            aria-label={tr('Phân bố {n} lần chi theo khoảng tiền', { n: data.count })}
           >
             {bins.map((b, i) => {
               const h = maxCount > 0 ? (b.count / maxCount) * 36 : 0
@@ -116,44 +118,48 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
             <span>{money(bins[bins.length - 1].to)}</span>
           </div>
           <p className="mt-1 text-2xs text-fg-muted">
-            90% số lần chi nằm trong khoảng <b>{money(data.p5)}</b> – <b>{money(data.p95)}</b>.
+            {trn('90% số lần chi nằm trong khoảng {low} – {high}.', {
+              low: <b>{money(data.p5)}</b>,
+              high: <b>{money(data.p95)}</b>,
+            })}
           </p>
         </div>
       )}
 
       {skewed && (
         <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-2xs">
-          Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}).
+          {tr('Trung bình ({mean}) cao hơn hẳn mức điển hình ({median}).', {
+            mean: money(data.mean),
+            median: money(data.median),
+          })}
           <Guide as="span">
             {' '}
-            Vài khoản lớn đang kéo con số trung bình lên — nhìn trung vị sẽ sát đời thực hơn.
+            {tr('Vài khoản lớn đang kéo con số trung bình lên — nhìn trung vị sẽ sát đời thực hơn.')}
           </Guide>
         </p>
       )}
 
       {hourlyWage === null && (
         <Guide className="mt-2 text-2xs text-fg-muted">
-          Muốn thấy “món này = mấy giờ làm”?{' '}
-          <Link to="/settings" className="font-medium text-fg-accent">
-            Khai lương theo giờ trong Cài đặt
-          </Link>
-          .
+          {trn('Muốn thấy “món này = mấy giờ làm”? {link}.', {
+            link: (
+              <Link to="/settings" className="font-medium text-fg-accent">
+                {tr('Khai lương theo giờ trong Cài đặt')}
+              </Link>
+            ),
+          })}
         </Guide>
       )}
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          Trung vị là mức nằm chính giữa khi xếp mọi khoản chi từ nhỏ đến lớn. Khác với trung bình,
-          nó không bị một lần mua điện thoại kéo lệch, nên phản ánh đúng “một lần rút ví bình thường
-          của bạn”.
+          {tr('Trung vị là mức nằm chính giữa khi xếp mọi khoản chi từ nhỏ đến lớn. Khác với trung bình, nó không bị một lần mua điện thoại kéo lệch, nên phản ánh đúng “một lần rút ví bình thường của bạn”.')}
         </p>
         <p>
-          Hoàn tiền, chuyển khoản và dòng tiền nợ không tính vào đây — chỉ những lần thực sự tiêu.
+          {tr('Hoàn tiền, chuyển khoản và dòng tiền nợ không tính vào đây — chỉ những lần thực sự tiêu.')}
         </p>
         <p>
-          Cột phân bố cho biết các lần chi rơi vào khoảng tiền nào nhiều nhất — cột càng cao thì
-          càng nhiều lần chi ở mức đó. Khoảng 90% bỏ đi 5% nhỏ nhất và 5% lớn nhất, nên nó mô tả
-          những lần chi thường ngày chứ không bị một lần mua lớn kéo rộng ra.
+          {tr('Cột phân bố cho biết các lần chi rơi vào khoảng tiền nào nhiều nhất — cột càng cao thì càng nhiều lần chi ở mức đó. Khoảng 90% bỏ đi 5% nhỏ nhất và 5% lớn nhất, nên nó mô tả những lần chi thường ngày chứ không bị một lần mua lớn kéo rộng ra.')}
         </p>
       </ExplainBox>
     </Card>

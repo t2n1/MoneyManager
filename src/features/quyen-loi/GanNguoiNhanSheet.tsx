@@ -7,6 +7,7 @@ import { useAccounts, useUpdateTransaction } from '../../hooks/queries'
 import { formatDateLabel } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import type { RelativeRow, TransactionRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 interface Props {
   /** Lần gửi CHƯA gán (is_remittance, remit_recipient_id null) của năm đang xem. */
@@ -54,10 +55,10 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
           return n
         })
       }
-      showToast(`Đã gán ${daXong} lần gửi`)
+      showToast(tr('Đã gán {n} lần gửi', { n: daXong }))
       onClose()
     } catch {
-      showToast(`Đã gán ${daXong} lần, lỗi ở lần còn lại — thử lại.`, 'error')
+      showToast(tr('Đã gán {n} lần, lỗi ở lần còn lại — thử lại.', { n: daXong }), 'error')
       setSaving(false)
     }
   }
@@ -71,9 +72,9 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
         className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <SectionTitle role="block" className="mb-3">Gán người nhận</SectionTitle>
+        <SectionTitle role="block" className="mb-3">{tr('Gán người nhận')}</SectionTitle>
 
-        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="gan-nguoi">Gửi cho</label>
+        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="gan-nguoi">{tr('Gửi cho')}</label>
         <Select id="gan-nguoi" value={nguoi} onChange={(e) => setNguoi(e.target.value)} wrapClassName="w-full">
           {relatives.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
@@ -86,7 +87,7 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
               <label className="flex items-center gap-3 py-2">
                 <input type="checkbox" checked={chon.has(t.id)} onChange={() => toggle(t.id)} className="h-4 w-4" />
                 <span className="w-24 shrink-0 font-mono text-sm text-fg-muted">{formatDateLabel(t.occurred_on)}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{t.note || '(không ghi chú)'}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{t.note || tr('(không ghi chú)')}</span>
                 <Money amount={t.amount - (t.remit_fee_jpy ?? 0)} currency={currencyOf.get(t.account_id) ?? 'JPY'} />
               </label>
             </li>
@@ -94,9 +95,9 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
         </ul>
 
         <div className="mt-4 flex justify-end gap-2">
-          <ActionButton variant="outline" onClick={onClose}>Đóng</ActionButton>
+          <ActionButton variant="outline" onClick={onClose}>{tr('Đóng')}</ActionButton>
           <ActionButton variant="primary" onClick={handleSave} disabled={!nguoi || chonHienTai.length === 0 || saving}>
-            Gán {chonHienTai.length} lần
+            {tr('Gán {n} lần', { n: chonHienTai.length })}
           </ActionButton>
         </div>
       </div>

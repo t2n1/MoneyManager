@@ -3,6 +3,46 @@
 // Sinh lại: npm run bundle:rules
 // Sửa tay ở đây sẽ bị lần chạy sau ghi đè, và tests/pushBundle.test.ts sẽ đỏ.
 
+// src/i18n/index.ts
+var lang = "vi";
+var dict = {};
+function fill(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, k) => k in vars ? String(vars[k]) : m);
+}
+function pick(vi, vars) {
+  if (lang === "vi") return vi;
+  const hit = dict[vi];
+  if (hit === void 0) return vi;
+  if (typeof hit === "string") return hit;
+  return vars?.n === 1 ? hit.one : hit.other;
+}
+function tr(vi, vars) {
+  return fill(pick(vi, vars), vars);
+}
+function trx(ctx, vi, vars) {
+  if (lang === "vi") return fill(vi, vars);
+  const hit = dict[`${ctx}|${vi}`];
+  if (hit === void 0) return fill(pick(vi, vars), vars);
+  return fill(typeof hit === "string" ? hit : vars?.n === 1 ? hit.one : hit.other, vars);
+}
+function categoryLabel(name) {
+  if (lang === "vi") return name;
+  const hit = dict[`cat|${name}`];
+  return typeof hit === "string" ? hit : name;
+}
+function accountLabel(name) {
+  return dataLabel("acc", name);
+}
+function tagLabel(name) {
+  return dataLabel("tag", name);
+}
+function dataLabel(prefix, name) {
+  if (lang === "vi") return name;
+  const hit = dict[`${prefix}|${name}`];
+  return typeof hit === "string" ? hit : name;
+}
+
 // src/features/notifications/types.ts
 var RECENT_TXS_DAYS = 90;
 var NOTIFICATION_TYPES = [
@@ -58,228 +98,237 @@ var NOTIFICATION_TYPES = [
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
-    cta: "Xem th\u1EBB",
-    badge: "THI\u1EBEU TI\u1EC0N",
-    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
+    cta: tr("Xem th\u1EBB"),
+    badge: tr("THI\u1EBEU TI\u1EC0N"),
+    source: tr("T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng"),
     kind: "action",
-    label: "T\xE0i kho\u1EA3n s\u1EAFp kh\xF4ng \u0111\u1EE7 ti\u1EC1n",
-    hint: "Nh\xECn tr\u01B0\u1EDBc 14 ng\xE0y: ti\u1EC1n trong v\xED c\xF3 \u0111\u1EE7 tr\u1EA3 th\u1EBB v\xE0 c\xE1c kho\u1EA3n \u0111\u1ECBnh k\u1EF3 kh\xF4ng."
+    label: tr("T\xE0i kho\u1EA3n s\u1EAFp kh\xF4ng \u0111\u1EE7 ti\u1EC1n"),
+    hint: tr("Nh\xECn tr\u01B0\u1EDBc 14 ng\xE0y: ti\u1EC1n trong v\xED c\xF3 \u0111\u1EE7 tr\u1EA3 th\u1EBB v\xE0 c\xE1c kho\u1EA3n \u0111\u1ECBnh k\u1EF3 kh\xF4ng.")
   },
   "account-negative": {
-    cta: "M\u1EDF t\xE0i kho\u1EA3n",
-    badge: "S\u1ED0 D\u01AF",
-    source: "T\xE0i s\u1EA3n",
+    cta: tr("M\u1EDF t\xE0i kho\u1EA3n"),
+    badge: tr("S\u1ED0 D\u01AF"),
+    source: tr("T\xE0i s\u1EA3n"),
     kind: "action",
-    label: "T\xE0i kho\u1EA3n \u0111ang \xE2m",
-    hint: "S\u1ED1 d\u01B0 xu\u1ED1ng d\u01B0\u1EDBi 0 \u2014 th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu."
+    label: tr("T\xE0i kho\u1EA3n \u0111ang \xE2m"),
+    hint: tr("S\u1ED1 d\u01B0 xu\u1ED1ng d\u01B0\u1EDBi 0 \u2014 th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu.")
   },
   "debt-overdue": {
-    cta: "Xem kho\u1EA3n n\u1EE3",
-    badge: "QU\xC1 H\u1EA0N",
-    source: "N\u1EE3 / cho vay",
+    cta: tr("Xem kho\u1EA3n n\u1EE3"),
+    badge: tr("QU\xC1 H\u1EA0N"),
+    source: tr("N\u1EE3 / cho vay"),
     kind: "action",
-    label: "N\u1EE3 / cho vay qu\xE1 h\u1EA1n",
-    hint: "\u0110\xE3 qua ng\xE0y h\u1EB9n m\xE0 kho\u1EA3n \u0111\xF3 ch\u01B0a t\u1EA5t to\xE1n."
+    label: tr("N\u1EE3 / cho vay qu\xE1 h\u1EA1n"),
+    hint: tr("\u0110\xE3 qua ng\xE0y h\u1EB9n m\xE0 kho\u1EA3n \u0111\xF3 ch\u01B0a t\u1EA5t to\xE1n.")
   },
   "debt-due-soon": {
-    cta: "Xem kho\u1EA3n n\u1EE3",
-    badge: "N\u1EE2",
-    source: "N\u1EE3 / cho vay",
+    cta: tr("Xem kho\u1EA3n n\u1EE3"),
+    badge: tr("N\u1EE2"),
+    source: tr("N\u1EE3 / cho vay"),
     kind: "action",
-    label: "N\u1EE3 / cho vay s\u1EAFp \u0111\u1EBFn h\u1EA1n",
-    hint: "C\xF2n 7 ng\xE0y ho\u1EB7c \xEDt h\u01A1n l\xE0 t\u1EDBi ng\xE0y h\u1EB9n."
+    label: tr("N\u1EE3 / cho vay s\u1EAFp \u0111\u1EBFn h\u1EA1n"),
+    hint: tr("C\xF2n 7 ng\xE0y ho\u1EB7c \xEDt h\u01A1n l\xE0 t\u1EDBi ng\xE0y h\u1EB9n.")
   },
   "bill-due": {
-    cta: "Ghi ngay",
-    badge: "\u0110\u1ECANH K\u1EF2",
-    source: "\u0110\u1ECBnh k\u1EF3",
+    cta: tr("Ghi ngay"),
+    badge: tr("\u0110\u1ECANH K\u1EF2"),
+    source: tr("\u0110\u1ECBnh k\u1EF3"),
     kind: "action",
-    label: "Kho\u1EA3n c\u1EA7n thanh to\xE1n",
-    hint: "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
+    label: tr("Kho\u1EA3n c\u1EA7n thanh to\xE1n"),
+    hint: tr(
+      "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
+    )
   },
   "planned-due": {
-    cta: "Xem kho\u1EA3n s\u1EAFp chi",
-    badge: "S\u1EAEP CHI",
-    source: "S\u1EAFp chi",
+    cta: tr("Xem kho\u1EA3n s\u1EAFp chi"),
+    badge: tr("S\u1EAEP CHI"),
+    source: tr("S\u1EAFp chi"),
     kind: "action",
-    label: "Kho\u1EA3n s\u1EAFp chi t\u1EDBi h\u1EA1n",
-    hint: "M\u1ED9t kho\u1EA3n trong danh s\xE1ch S\u1EAFp chi \u0111\xE3 t\u1EDBi h\u1EA1n (ho\u1EB7c s\u1EAFp t\u1EDBi, tu\u1EF3 b\u1EA1n \u0111\u1EB7t nh\u1EAFc tr\u01B0\u1EDBc m\u1EA5y ng\xE0y). B\xE1m t\u1EDBi khi b\u1EA1n \u0111\xE1nh d\u1EA5u \u0111\xE3 chi ho\u1EB7c b\u1ECF."
+    label: tr("Kho\u1EA3n s\u1EAFp chi t\u1EDBi h\u1EA1n"),
+    hint: tr(
+      "M\u1ED9t kho\u1EA3n trong danh s\xE1ch S\u1EAFp chi \u0111\xE3 t\u1EDBi h\u1EA1n (ho\u1EB7c s\u1EAFp t\u1EDBi, tu\u1EF3 b\u1EA1n \u0111\u1EB7t nh\u1EAFc tr\u01B0\u1EDBc m\u1EA5y ng\xE0y). B\xE1m t\u1EDBi khi b\u1EA1n \u0111\xE1nh d\u1EA5u \u0111\xE3 chi ho\u1EB7c b\u1ECF."
+    )
   },
   "budget-over": {
-    cta: "Xem ng\xE2n s\xE1ch",
-    badge: "H\u1EA0N M\u1EE8C",
-    source: "Ng\xE2n s\xE1ch",
+    cta: tr("Xem ng\xE2n s\xE1ch"),
+    badge: tr("H\u1EA0N M\u1EE8C"),
+    source: tr("Ng\xE2n s\xE1ch"),
     kind: "action",
-    label: "V\u01B0\u1EE3t ng\xE2n s\xE1ch th\xE1ng",
-    hint: "M\u1ED9t m\u1EE5c \u0111\xE3 ti\xEAu qu\xE1 h\u1EA1n m\u1EE9c \u0111\u1EB7t cho th\xE1ng n\xE0y."
+    label: tr("V\u01B0\u1EE3t ng\xE2n s\xE1ch th\xE1ng"),
+    hint: tr("M\u1ED9t m\u1EE5c \u0111\xE3 ti\xEAu qu\xE1 h\u1EA1n m\u1EE9c \u0111\u1EB7t cho th\xE1ng n\xE0y.")
   },
   "budget-pace": {
-    cta: "Xem ng\xE2n s\xE1ch",
-    badge: "NH\u1ECAP",
-    source: "Ng\xE2n s\xE1ch",
+    cta: tr("Xem ng\xE2n s\xE1ch"),
+    badge: tr("NH\u1ECAP"),
+    source: tr("Ng\xE2n s\xE1ch"),
     kind: "action",
-    label: "Ti\xEAu nhanh h\u01A1n nh\u1ECBp",
-    hint: "M\u1EDBi qua m\u1ED9t ph\u1EA7n ba th\xE1ng \u0111\xE3 d\xF9ng g\u1EA7n h\u1EBFt h\u1EA1n m\u1EE9c \u2014 b\xE1o s\u1EDBm \u0111\u1EC3 c\xF2n k\u1ECBp gh\xECm l\u1EA1i."
+    label: tr("Ti\xEAu nhanh h\u01A1n nh\u1ECBp"),
+    hint: tr("M\u1EDBi qua m\u1ED9t ph\u1EA7n ba th\xE1ng \u0111\xE3 d\xF9ng g\u1EA7n h\u1EBFt h\u1EA1n m\u1EE9c \u2014 b\xE1o s\u1EDBm \u0111\u1EC3 c\xF2n k\u1ECBp gh\xECm l\u1EA1i.")
   },
   "budget-parent-over": {
-    cta: "Xem ng\xE2n s\xE1ch",
-    badge: "TR\u1EA6N NH\xD3M",
-    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xF3m",
+    cta: tr("Xem ng\xE2n s\xE1ch"),
+    badge: tr("TR\u1EA6N NH\xD3M"),
+    source: tr("Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xF3m"),
     kind: "action",
-    label: "Nh\xF3m v\u01B0\u1EE3t tr\u1EA7n",
-    hint: "C\u1EA3 nh\xF3m \u0111\xE3 ti\xEAu qu\xE1 tr\u1EA7n \u0111\u1EB7t \u1EDF m\u1EE5c cha; k\xE8m t\u1ED1i \u0111a 2 m\u1EE5c con \u0111ang ti\xEAu nhi\u1EC1u nh\u1EA5t."
+    label: tr("Nh\xF3m v\u01B0\u1EE3t tr\u1EA7n"),
+    hint: tr("C\u1EA3 nh\xF3m \u0111\xE3 ti\xEAu qu\xE1 tr\u1EA7n \u0111\u1EB7t \u1EDF m\u1EE5c cha; k\xE8m t\u1ED1i \u0111a 2 m\u1EE5c con \u0111ang ti\xEAu nhi\u1EC1u nh\u1EA5t.")
   },
   "tag-budget-over": {
-    cta: "Xem ng\xE2n s\xE1ch",
-    badge: "TR\u1EA6N NH\xC3N",
-    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xE3n",
+    cta: tr("Xem ng\xE2n s\xE1ch"),
+    badge: tr("TR\u1EA6N NH\xC3N"),
+    source: tr("Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xE3n"),
     kind: "action",
-    label: "Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n",
-    hint: "Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n)."
+    label: tr("Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n"),
+    hint: tr("Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n).")
   },
   "card-statement-day": {
-    badge: "CH\u1ED0T SAO K\xCA",
-    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
+    badge: tr("CH\u1ED0T SAO K\xCA"),
+    source: tr("T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng"),
     kind: "info",
-    label: "Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB",
-    hint: "H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau."
+    label: tr("Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB"),
+    hint: tr("H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau.")
   },
   "price-step": {
-    badge: "\u0110\u1ED4I GI\xC1",
-    source: "B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n",
+    badge: tr("\u0110\u1ED4I GI\xC1"),
+    source: tr("B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n"),
     kind: "info",
-    label: "Kho\u1EA3n l\u1EB7p \u0111\u1EC1u v\u1EEBa \u0111\u1ED5i gi\xE1",
-    hint: "M\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n v\u1EEBa chuy\u1EC3n sang m\u1EE9c gi\xE1 m\u1EDBi \u2014 t\u0103ng hay gi\u1EA3m \u0111\u1EC1u b\xE1o, m\u1ED7i b\u1EADc \u0111\xFAng m\u1ED9t l\u1EA7n."
+    label: tr("Kho\u1EA3n l\u1EB7p \u0111\u1EC1u v\u1EEBa \u0111\u1ED5i gi\xE1"),
+    hint: tr("M\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n v\u1EEBa chuy\u1EC3n sang m\u1EE9c gi\xE1 m\u1EDBi \u2014 t\u0103ng hay gi\u1EA3m \u0111\u1EC1u b\xE1o, m\u1ED7i b\u1EADc \u0111\xFAng m\u1ED9t l\u1EA7n.")
   },
   "benefit-iryohi": {
-    cta: "Xem quy\u1EC1n l\u1EE3i",
-    badge: "Y T\u1EBE",
-    source: "Quy\u1EC1n l\u1EE3i",
+    cta: tr("Xem quy\u1EC1n l\u1EE3i"),
+    badge: tr("Y T\u1EBE"),
+    source: tr("Quy\u1EC1n l\u1EE3i"),
     kind: "action",
-    label: "Chi y t\u1EBF v\u01B0\u1EE3t ng\u01B0\u1EE1ng kh\u1EA5u tr\u1EEB",
-    hint: "Chi y t\u1EBF trong n\u0103m \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n v\xE0 khai \u533B\u7642\u8CBB\u63A7\u9664 trong \u78BA\u5B9A\u7533\u544A."
+    label: tr("Chi y t\u1EBF v\u01B0\u1EE3t ng\u01B0\u1EE1ng kh\u1EA5u tr\u1EEB"),
+    hint: tr("Chi y t\u1EBF trong n\u0103m \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n v\xE0 khai \u533B\u7642\u8CBB\u63A7\u9664 trong \u78BA\u5B9A\u7533\u544A.")
   },
   "trip-gap": {
-    cta: "Xem l\u1EA1i",
-    badge: "\u0110I V\u1EAENG?",
-    source: "S\u1ED5 \xB7 d\u1EA3i ng\xE0y tr\u1ED1ng",
+    cta: tr("Xem l\u1EA1i"),
+    badge: tr("\u0110I V\u1EAENG?"),
+    source: tr("S\u1ED5 \xB7 d\u1EA3i ng\xE0y tr\u1ED1ng"),
     kind: "action",
-    label: "D\u1EA3i ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o",
-    hint: "\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra \u2014 th\xE1ng \u0111\xF3 th\xF4i tr\xF4ng r\u1EBB gi\u1EA3."
+    label: tr("D\u1EA3i ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o"),
+    hint: tr("\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra \u2014 th\xE1ng \u0111\xF3 th\xF4i tr\xF4ng r\u1EBB gi\u1EA3.")
   },
   "recurring-suggestion": {
-    cta: "T\u1EA1o quy t\u1EAFc",
-    badge: "\u0110\u1ECANH K\u1EF2",
-    source: "S\u1ED5",
+    cta: tr("T\u1EA1o quy t\u1EAFc"),
+    badge: tr("\u0110\u1ECANH K\u1EF2"),
+    source: tr("S\u1ED5"),
     kind: "info",
-    label: "G\u1EE3i \xFD t\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3",
-    hint: "Ph\xE1t hi\u1EC7n m\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n m\xE0 ch\u01B0a c\xF3 quy t\u1EAFc."
+    label: tr("G\u1EE3i \xFD t\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3"),
+    hint: tr("Ph\xE1t hi\u1EC7n m\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n m\xE0 ch\u01B0a c\xF3 quy t\u1EAFc.")
   },
   "stale-entry": {
-    cta: "Ghi giao d\u1ECBch",
-    badge: "GHI S\u1ED4",
-    source: "S\u1ED5",
+    cta: tr("Ghi giao d\u1ECBch"),
+    badge: tr("GHI S\u1ED4"),
+    source: tr("S\u1ED5"),
     kind: "info",
-    label: "L\xE2u ch\u01B0a ghi s\u1ED5",
-    hint: "T\u1EEB 3 ng\xE0y kh\xF4ng ghi giao d\u1ECBch n\xE0o; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i tu\u1EA7n."
+    label: tr("L\xE2u ch\u01B0a ghi s\u1ED5"),
+    hint: tr("T\u1EEB 3 ng\xE0y kh\xF4ng ghi giao d\u1ECBch n\xE0o; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i tu\u1EA7n.")
   },
   "savings-milestone": {
-    badge: "M\u1EE4C TI\xCAU",
-    source: "T\xE0i s\u1EA3n \xB7 m\u1EE5c ti\xEAu",
+    badge: tr("M\u1EE4C TI\xCAU"),
+    source: tr("T\xE0i s\u1EA3n \xB7 m\u1EE5c ti\xEAu"),
     kind: "info",
-    label: "M\u1EE5c ti\xEAu ti\u1EBFt ki\u1EC7m ch\u1EA1m m\u1ED1c",
-    hint: "\u0110\u1EA1t 25%, 50%, 75% ho\u1EB7c 100% m\u1EE5c ti\xEAu."
+    label: tr("M\u1EE5c ti\xEAu ti\u1EBFt ki\u1EC7m ch\u1EA1m m\u1ED1c"),
+    hint: tr("\u0110\u1EA1t 25%, 50%, 75% ho\u1EB7c 100% m\u1EE5c ti\xEAu.")
   },
   "networth-record": {
-    badge: "K\u1EF6 L\u1EE4C",
-    source: "T\xE0i s\u1EA3n",
+    badge: tr("K\u1EF6 L\u1EE4C"),
+    source: tr("T\xE0i s\u1EA3n"),
     kind: "info",
-    label: "T\xE0i s\u1EA3n r\xF2ng l\u1EADp k\u1EF7 l\u1EE5c",
-    hint: "Cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i th\xE1ng."
+    label: tr("T\xE0i s\u1EA3n r\xF2ng l\u1EADp k\u1EF7 l\u1EE5c"),
+    hint: tr("Cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i th\xE1ng.")
   },
   "monthly-summary": {
-    badge: "T\u1ED4NG K\u1EBET",
-    source: "B\xE1o c\xE1o \xB7 th\xE1ng n\xE0y",
+    badge: tr("T\u1ED4NG K\u1EBET"),
+    source: tr("B\xE1o c\xE1o \xB7 th\xE1ng n\xE0y"),
     kind: "info",
-    label: "T\u1ED5ng k\u1EBFt th\xE1ng",
-    hint: "V\xE0o ng\xE0y \u0111\u1EA7u k\u1EF3 m\u1EDBi: th\xE1ng v\u1EEBa r\u1ED3i chi bao nhi\xEAu, thu bao nhi\xEAu, \u0111\u1EC3 d\xE0nh bao nhi\xEAu."
+    label: tr("T\u1ED5ng k\u1EBFt th\xE1ng"),
+    hint: tr("V\xE0o ng\xE0y \u0111\u1EA7u k\u1EF3 m\u1EDBi: th\xE1ng v\u1EEBa r\u1ED3i chi bao nhi\xEAu, thu bao nhi\xEAu, \u0111\u1EC3 d\xE0nh bao nhi\xEAu.")
   },
   "lifetime-drift": {
-    cta: "Xem k\u1EBF ho\u1EA1ch",
-    badge: "K\u1EBE HO\u1EA0CH",
-    source: "T\xE0i s\u1EA3n \xB7 T\u01B0\u01A1ng lai",
+    cta: tr("Xem k\u1EBF ho\u1EA1ch"),
+    badge: tr("K\u1EBE HO\u1EA0CH"),
+    source: tr("T\xE0i s\u1EA3n \xB7 T\u01B0\u01A1ng lai"),
     kind: "action",
-    label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
-    hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
+    label: tr("Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime"),
+    hint: tr(
+      "Thu ho\u1EB7c chi th\u1EF1c t\u1EBF {n} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.",
+      { n: RECENT_TXS_DAYS }
+    )
   },
   "benefit-fuyo-shortfall": {
-    cta: "Xem",
-    badge: "QUY\u1EC0N L\u1EE2I",
-    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    cta: tr("Xem"),
+    badge: tr("QUY\u1EC0N L\u1EE2I"),
+    source: tr("Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay"),
     kind: "action",
-    label: "Ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c ch\u01B0a \u0111\u1EE7 38\u4E07",
-    hint: "Ng\u01B0\u1EDDi th\xE2n 30\u201369 tu\u1ED5i \u1EDF VN c\u1EA7n nh\u1EADn \u0111\u1EE7 \xA5380.000/n\u0103m \u0111\u1EC3 \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB \u2014 nh\u1EAFc khi c\xF2n thi\u1EBFu."
+    label: tr("Ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c ch\u01B0a \u0111\u1EE7 38\u4E07"),
+    hint: tr("Ng\u01B0\u1EDDi th\xE2n 30\u201369 tu\u1ED5i \u1EDF VN c\u1EA7n nh\u1EADn \u0111\u1EE7 \xA5380.000/n\u0103m \u0111\u1EC3 \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB \u2014 nh\u1EAFc khi c\xF2n thi\u1EBFu.")
   },
   "benefit-remit-unassigned": {
-    cta: "G\xE1n ng\u01B0\u1EDDi",
-    badge: "QUY\u1EC0N L\u1EE2I",
-    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    cta: tr("G\xE1n ng\u01B0\u1EDDi"),
+    badge: tr("QUY\u1EC0N L\u1EE2I"),
+    source: tr("Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay"),
     kind: "action",
-    label: "L\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn",
-    hint: "Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu."
+    label: tr("L\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn"),
+    hint: tr("Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu.")
   },
   "benefit-refund-years": {
-    cta: "Xem n\u0103m c\u0169",
-    badge: "QUY\u1EC0N L\u1EE2I",
-    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m c\u0169",
+    cta: tr("Xem n\u0103m c\u0169"),
+    badge: tr("QUY\u1EC0N L\u1EE2I"),
+    source: tr("Quy\u1EC1n l\u1EE3i \xB7 n\u0103m c\u0169"),
     kind: "action",
-    label: "N\u0103m c\u0169 c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c",
-    hint: "N\u1ED9p \u9084\u4ED8\u7533\u544A trong 5 n\u0103m cho kh\u1EA5u tr\u1EEB ch\u01B0a khai \u2014 nh\u1EAFc khi c\xF3 n\u0103m \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n."
+    label: tr("N\u0103m c\u0169 c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c"),
+    hint: tr("N\u1ED9p \u9084\u4ED8\u7533\u544A trong 5 n\u0103m cho kh\u1EA5u tr\u1EEB ch\u01B0a khai \u2014 nh\u1EAFc khi c\xF3 n\u0103m \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n.")
   },
   "benefit-year-end": {
-    badge: "CU\u1ED0I N\u0102M",
-    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    badge: tr("CU\u1ED0I N\u0102M"),
+    source: tr("Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay"),
     kind: "info",
-    label: "Furusato / NISA c\xF2n h\u1EA1n m\u1EE9c",
-    hint: "T\u1EEB th\xE1ng 10: ph\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E v\xE0 NISA ch\u01B0a d\xF9ng, m\u1EA5t khi h\u1EBFt 31/12."
+    label: tr("Furusato / NISA c\xF2n h\u1EA1n m\u1EE9c"),
+    hint: tr("T\u1EEB th\xE1ng 10: ph\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E v\xE0 NISA ch\u01B0a d\xF9ng, m\u1EA5t khi h\u1EBFt 31/12.")
   },
   "data-uncategorized": {
-    cta: "Ph\xE2n lo\u1EA1i",
-    badge: "PH\xC2N LO\u1EA0I",
-    source: "S\u1ED5",
+    cta: trx("categorize", "Ph\xE2n lo\u1EA1i"),
+    badge: tr("PH\xC2N LO\u1EA0I"),
+    source: tr("S\u1ED5"),
     kind: "action",
-    label: "Giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c",
-    hint: "Kho\u1EA3n ch\u01B0a c\xF3 danh m\u1EE5c kh\xF4ng v\xE0o \u0111\u01B0\u1EE3c b\xE1o c\xE1o hay ng\xE2n s\xE1ch \u2014 nh\u1EAFc khi d\u1ED3n l\u1EA1i."
+    label: tr("Giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c"),
+    hint: tr("Kho\u1EA3n ch\u01B0a c\xF3 danh m\u1EE5c kh\xF4ng v\xE0o \u0111\u01B0\u1EE3c b\xE1o c\xE1o hay ng\xE2n s\xE1ch \u2014 nh\u1EAFc khi d\u1ED3n l\u1EA1i.")
   },
   "data-reconcile": {
-    cta: "\u0110\u1ED1i chi\u1EBFu",
-    badge: "\u0110\u1ED0I CHI\u1EBEU",
-    source: "T\xE0i s\u1EA3n",
+    cta: tr("\u0110\u1ED1i chi\u1EBFu"),
+    badge: tr("\u0110\u1ED0I CHI\u1EBEU"),
+    source: tr("T\xE0i s\u1EA3n"),
     kind: "action",
-    label: "T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu",
-    hint: "Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch."
+    label: tr("T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu"),
+    hint: tr("Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch.")
   },
   "trend-level-shift": {
-    cta: "Xem h\u1EA1n m\u1EE9c",
-    badge: "M\u1EE8C CHI",
-    source: "B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n",
+    cta: tr("Xem h\u1EA1n m\u1EE9c"),
+    badge: tr("M\u1EE8C CHI"),
+    source: tr("B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n"),
     kind: "action",
-    label: "M\u1EE9c chi \u0111\u1ED5i h\u1EB3n so v\u1EDBi tr\u01B0\u1EDBc",
-    hint: "Khi m\u1EE9c chi h\u1EB1ng th\xE1ng b\u01B0\u1EDBc sang m\u1ED9t b\u1EADc kh\xE1c v\xE0 \u1EDF y\xEAn \u0111\xF3 v\xE0i th\xE1ng \u2014 d\u1EA5u hi\u1EC7u h\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp s\u1ED1ng c\u0169. Kh\xF4ng b\xE1o cho dao \u0111\u1ED9ng v\u1EB7t c\u1EE7a m\u1ED9t th\xE1ng."
+    label: tr("M\u1EE9c chi \u0111\u1ED5i h\u1EB3n so v\u1EDBi tr\u01B0\u1EDBc"),
+    hint: tr(
+      "Khi m\u1EE9c chi h\u1EB1ng th\xE1ng b\u01B0\u1EDBc sang m\u1ED9t b\u1EADc kh\xE1c v\xE0 \u1EDF y\xEAn \u0111\xF3 v\xE0i th\xE1ng \u2014 d\u1EA5u hi\u1EC7u h\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp s\u1ED1ng c\u0169. Kh\xF4ng b\xE1o cho dao \u0111\u1ED9ng v\u1EB7t c\u1EE7a m\u1ED9t th\xE1ng."
+    )
   }
 };
 
 // src/lib/currencies.ts
 var CURRENCIES = {
-  JPY: { symbol: "\xA5", decimals: 0, label: "Y\xEAn Nh\u1EADt", position: "prefix", group: ",", decimal: "." },
-  VND: { symbol: "\u20AB", decimals: 0, label: "\u0110\u1ED3ng Vi\u1EC7t Nam", position: "suffix", group: ".", decimal: "," },
+  JPY: { symbol: "\xA5", decimals: 0, label: tr("Y\xEAn Nh\u1EADt"), position: "prefix", group: ",", decimal: "." },
+  VND: { symbol: "\u20AB", decimals: 0, label: tr("\u0110\u1ED3ng Vi\u1EC7t Nam"), position: "suffix", group: ".", decimal: "," },
   // USD theo chuẩn Mỹ ($2,000.00), đổi 2026-08-11. Trước đây là group '.' / decimal ','
   // kiểu Việt ($2.000,00) — mà màn Tài khoản hiện "¥1,187,910 · $2.000,00" cạnh nhau,
   // tức dấu ',' vừa là hàng nghìn (JPY) vừa là thập phân (USD) trong CÙNG một danh sách:
   // $2.000,00 rất dễ đọc thành hai nghìn hoặc hai triệu. Việc đổi này chỉ ảnh hưởng
   // HIỂN THỊ — parseAmountToMinor (nhập CSV) đoán dấu thập phân bằng heuristic "dấu cuối
   // theo sau 1–2 chữ số" nên đọc được cả hai kiểu, còn parseMoney chỉ giữ chữ số.
-  USD: { symbol: "$", decimals: 2, label: "\u0110\xF4 la M\u1EF9", position: "prefix", group: ",", decimal: "." }
+  USD: { symbol: "$", decimals: 2, label: tr("\u0110\xF4 la M\u1EF9"), position: "prefix", group: ",", decimal: "." }
 };
 
 // src/lib/rates.ts
@@ -390,6 +439,7 @@ function getMonthRange(key, monthStartDay = 1) {
   const end = new Date(key.year, key.month, monthStartDay);
   return { start: toISODate(start), end: toISODate(end) };
 }
+var KE_CA_HOM_NAY = tr("(k\u1EC3 c\u1EA3 h\xF4m nay)");
 function monthKeyForDate(dateISO, monthStartDay = 1) {
   const [year, month, day] = dateISO.split("-").map(Number);
   if (day >= monthStartDay) return { year, month };
@@ -421,6 +471,7 @@ function addDaysISO2(iso2, delta) {
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
+var WEEKDAY_VI = [tr("CN"), tr("T2"), tr("T3"), tr("T4"), tr("T5"), tr("T6"), tr("T7")];
 function nextCardDueDate(dueDay, todayISO) {
   return nextCardDuePeriod(dueDay, todayISO).payISO;
 }
@@ -452,6 +503,15 @@ function calendarYearOf(iso2) {
 var DAYS_PER_MONTH = 365.25 / 12;
 
 // src/features/assets/aggregate.ts
+var ACCOUNT_TYPE_LABELS = {
+  cash: tr("Ti\u1EC1n m\u1EB7t"),
+  bank: tr("Ng\xE2n h\xE0ng"),
+  card: tr("Th\u1EBB t\xEDn d\u1EE5ng"),
+  ic: tr("IC giao th\xF4ng"),
+  ewallet: tr("V\xED \u0111i\u1EC7n t\u1EED"),
+  investment: tr("\u0110\u1EA7u t\u01B0"),
+  fixed: tr("T\xE0i s\u1EA3n c\u1ED1 \u0111\u1ECBnh")
+};
 function cardFunding(cards, sourceById, owedById) {
   const owedOf = (c) => owedById?.get(c.id) ?? (c.balance < 0 ? -c.balance : 0);
   const bySource = /* @__PURE__ */ new Map();
@@ -584,7 +644,7 @@ function recurringImpact(input, accountId, untilISO) {
     if (r.type === "expense") {
       outgoing += r.amount * hits;
       labels.push(
-        `${r.note || "Kho\u1EA3n \u0111\u1ECBnh k\u1EF3"} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`
+        `${r.note || tr("Kho\u1EA3n \u0111\u1ECBnh k\u1EF3")} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`
       );
     } else {
       incoming += r.amount * hits;
@@ -602,7 +662,7 @@ function shortfallFacts(input, account, owedBase, extraLabels, untilISO) {
   return {
     owe,
     have,
-    detail: `${SHORTFALL_HORIZON_DAYS} ng\xE0y t\u1EDBi ph\u1EA3i tr\u1EA3 ${input.formatMoney(owe, account.currency)}${listed}`
+    detail: `${tr("{n} ng\xE0y t\u1EDBi ph\u1EA3i tr\u1EA3 {amount}", { n: SHORTFALL_HORIZON_DAYS, amount: input.formatMoney(owe, account.currency) })}${listed}`
   };
 }
 function pushShortfallIfNeeded(out, input, account, owedBase, extraLabels, untilISO) {
@@ -613,7 +673,10 @@ function pushShortfallIfNeeded(out, input, account, owedBase, extraLabels, until
     kind: "action",
     type: "account-shortfall",
     severity: "high",
-    title: `${account.name} thi\u1EBFu ${input.formatMoney(facts.owe - facts.have, account.currency)}`,
+    title: tr("{name} thi\u1EBFu {amount}", {
+      name: accountLabel(account.name),
+      amount: input.formatMoney(facts.owe - facts.have, account.currency)
+    }),
     detail: facts.detail,
     onISO: untilISO,
     to: `/assets/account/${account.id}`
@@ -631,8 +694,8 @@ function accountRules(input) {
       kind: "action",
       type: "account-negative",
       severity: "high",
-      title: `${a.name} \u0111ang \xE2m ${input.formatMoney(-a.balance, a.currency)}`,
-      detail: "Th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu.",
+      title: tr("{name} \u0111ang \xE2m {amount}", { name: accountLabel(a.name), amount: input.formatMoney(-a.balance, a.currency) }),
+      detail: tr("Th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu."),
       to: `/assets/account/${a.id}`
     });
   }
@@ -657,7 +720,7 @@ function accountRules(input) {
   const sourcesSeen = /* @__PURE__ */ new Set();
   for (const g of groups) {
     sourcesSeen.add(g.sourceId);
-    const cardNames = cards.filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency).map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`);
+    const cardNames = cards.filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency).map((c) => `${accountLabel(c.name)} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`);
     const source = {
       id: g.sourceId,
       name: g.sourceName,
@@ -687,8 +750,8 @@ function accountRules(input) {
 var DUE_SOON_DAYS = 7;
 var GROUP_FROM = 3;
 var DEBTS_ROUTE = "/debts";
-function label(d) {
-  return d.direction === "i_owe" ? `M\xECnh n\u1EE3 ${d.counterparty}` : `${d.counterparty} n\u1EE3 m\xECnh`;
+function label(d, amount) {
+  return d.direction === "i_owe" ? tr("M\xECnh n\u1EE3 {name} {amount}", { name: d.counterparty, amount }) : tr("{name} n\u1EE3 m\xECnh {amount}", { name: d.counterparty, amount });
 }
 function lines(list, type, severity, one, many) {
   if (list.length === 0) return [];
@@ -728,8 +791,11 @@ function debtRules(input) {
       overdue,
       "debt-overdue",
       "high",
-      (d) => `${label(d)} ${input.formatMoney(d.principal, d.currency)} \u2014 qu\xE1 h\u1EA1n ${-daysBetween(input.todayISO, d.due_on)} ng\xE0y`,
-      (n) => `${n} kho\u1EA3n n\u1EE3 \u0111\xE3 qu\xE1 h\u1EA1n`
+      (d) => tr("{who} \u2014 qu\xE1 h\u1EA1n {n} ng\xE0y", {
+        who: label(d, input.formatMoney(d.principal, d.currency)),
+        n: -daysBetween(input.todayISO, d.due_on)
+      }),
+      (n) => tr("{n} kho\u1EA3n n\u1EE3 \u0111\xE3 qu\xE1 h\u1EA1n", { n })
     ),
     ...lines(
       dueSoon,
@@ -737,10 +803,10 @@ function debtRules(input) {
       "medium",
       (d) => {
         const days = daysBetween(input.todayISO, d.due_on);
-        const when = days === 0 ? "h\xF4m nay" : `trong ${days} ng\xE0y`;
-        return `${label(d)} ${input.formatMoney(d.principal, d.currency)} \u2014 \u0111\u1EBFn h\u1EA1n ${when}`;
+        const who = label(d, input.formatMoney(d.principal, d.currency));
+        return days === 0 ? tr("{who} \u2014 \u0111\u1EBFn h\u1EA1n h\xF4m nay", { who }) : tr("{who} \u2014 \u0111\u1EBFn h\u1EA1n trong {n} ng\xE0y", { who, n: days });
       },
-      (n) => `${n} kho\u1EA3n n\u1EE3 s\u1EAFp \u0111\u1EBFn h\u1EA1n`
+      (n) => tr("{n} kho\u1EA3n n\u1EE3 s\u1EAFp \u0111\u1EBFn h\u1EA1n", { n })
     )
   ];
 }
@@ -753,7 +819,7 @@ function billRules(input) {
     const rule = ruleById.get(b.ruleId);
     if (!rule) continue;
     const money = input.formatMoney(rule.amount, input.currencyOf(rule.account_id));
-    const ten = rule.note.trim() || "Kho\u1EA3n \u0111\u1ECBnh k\u1EF3";
+    const ten = rule.note.trim() || tr("Kho\u1EA3n \u0111\u1ECBnh k\u1EF3");
     out.push({
       // dueISO trong mã: xác nhận xong kỳ này thì kỳ sau là một tin MỚI, không bị
       // "đã đọc" của kỳ trước làm im.
@@ -763,7 +829,7 @@ function billRules(input) {
       // Quá hạn là mức đỏ: nó nổi lên cả dải nhắc ở đầu Sổ, vì quên gửi tiền về nhà
       // không phải thứ chờ tới lúc mở chuông mới biết.
       severity: b.daysLeft < 0 ? "high" : b.daysLeft === 0 ? "medium" : "low",
-      title: b.daysLeft < 0 ? `Ch\u01B0a ghi "${ten}" ${money}` : b.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${ten}" ${money}` : `${b.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${ten}" ${money}`,
+      title: b.daysLeft < 0 ? tr('Ch\u01B0a ghi "{name}" {amount}', { name: ten, amount: money }) : b.daysLeft === 0 ? tr('H\xF4m nay t\u1EDBi h\u1EA1n "{name}" {amount}', { name: ten, amount: money }) : tr('{n} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "{name}" {amount}', { n: b.daysLeft, name: ten, amount: money }),
       detail: detailOf(b.daysLeft, b.overdueCount),
       onISO: b.dueISO,
       // Mở thẳng form đã điền sẵn theo quy tắc + đúng kỳ đang nợ. Dẫn về danh sách
@@ -774,10 +840,10 @@ function billRules(input) {
   return out;
 }
 function detailOf(daysLeft, overdueCount) {
-  if (daysLeft > 0) return "Ghi tr\u01B0\u1EDBc c\u0169ng \u0111\u01B0\u1EE3c \u2014 b\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.";
-  if (overdueCount > 1) return `\u0110ang n\u1EE3 ${overdueCount} k\u1EF3 ch\u01B0a ghi. B\u1EA5m \u0111\u1EC3 ghi k\u1EF3 c\u0169 nh\u1EA5t.`;
-  if (daysLeft === 0) return "B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n, s\u1EEDa s\u1ED1 ti\u1EC1n r\u1ED3i l\u01B0u.";
-  return `Qu\xE1 h\u1EA1n ${-daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.`;
+  if (daysLeft > 0) return tr("Ghi tr\u01B0\u1EDBc c\u0169ng \u0111\u01B0\u1EE3c \u2014 b\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.");
+  if (overdueCount > 1) return tr("\u0110ang n\u1EE3 {n} k\u1EF3 ch\u01B0a ghi. B\u1EA5m \u0111\u1EC3 ghi k\u1EF3 c\u0169 nh\u1EA5t.", { n: overdueCount });
+  if (daysLeft === 0) return tr("B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n, s\u1EEDa s\u1ED1 ti\u1EC1n r\u1ED3i l\u01B0u.");
+  return tr("Qu\xE1 h\u1EA1n {n} ng\xE0y. B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.", { n: -daysLeft });
 }
 
 // src/features/planned/planned.ts
@@ -826,8 +892,12 @@ function plannedRules(input) {
       severity: d.daysLeft < 0 ? "high" : d.daysLeft === 0 ? "medium" : "low",
       // Khoản chỉ biết tháng: `dueISO` là ngày 1 do quy ước lưu, nói "N ngày nữa tới hạn"
       // là bịa ra một ngày hạn. Nói đúng điều người dùng đã ghi: "trong tháng 9".
-      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.duePrecision === "month" ? `Trong th\xE1ng ${Number(d.dueISO.slice(5, 7))} c\u1EA7n chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
-      detail: d.daysLeft < 0 ? `Qu\xE1 h\u1EA1n ${-d.daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.` : "B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa.",
+      title: d.daysLeft < 0 ? tr('Ch\u01B0a chi "{name}"{amount}', { name: d.title, amount: money }) : d.duePrecision === "month" ? tr('Trong th\xE1ng {month} c\u1EA7n chi "{name}"{amount}', {
+        month: Number(d.dueISO.slice(5, 7)),
+        name: d.title,
+        amount: money
+      }) : d.daysLeft === 0 ? tr('H\xF4m nay t\u1EDBi h\u1EA1n "{name}"{amount}', { name: d.title, amount: money }) : tr('{n} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "{name}"{amount}', { n: d.daysLeft, name: d.title, amount: money }),
+      detail: d.daysLeft < 0 ? tr("Qu\xE1 h\u1EA1n {n} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.", { n: -d.daysLeft }) : tr("B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa."),
       // Khoản chỉ biết tháng: đưa HẠN CHÓT (ngày cuối tháng) chứ không phải ngày 1 đang
       // lưu — Việc cần làm tính nhãn và "có hạn trong tuần" từ đây, đưa ngày 1 là cả
       // tháng 9 hiện đỏ "QUÁ HẠN" dưới tiêu đề "Trong tháng 9…".
@@ -848,7 +918,7 @@ function budgetRules(input) {
   if (!report) return [];
   if (report.hasMissingRate) return [];
   const out = [];
-  const nameOf = (id) => input.categories.find((c) => c.id === id)?.name ?? "Danh m\u1EE5c \u0111\xE3 x\xF3a";
+  const nameOf = (id) => categoryLabel(input.categories.find((c) => c.id === id)?.name ?? "") || tr("Danh m\u1EE5c \u0111\xE3 x\xF3a");
   const monthKey = monthKeyForDate(input.todayISO, input.monthStartDay);
   const range = getMonthRange(monthKey, input.monthStartDay);
   const totalDays = daysBetween(range.start, range.end);
@@ -862,10 +932,13 @@ function budgetRules(input) {
     );
     if (l.spent > l.budgeted) {
       const over = input.formatMoney(l.spent - l.budgeted, input.base);
-      const usage = `\u0110\xE3 ti\xEAu ${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)}`;
+      const usage = tr("\u0110\xE3 ti\xEAu {spent} / {budget}", {
+        spent: input.formatMoney(l.spent, input.base),
+        budget: input.formatMoney(l.budgeted, input.base)
+      });
       if (children.length > 0) {
-        const topChildren = children.map((c) => ({ name: c.name, spent: report.spentByCategory.get(c.id) ?? 0 })).filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 2);
-        const blame = topChildren.length > 0 ? ` \u2014 ch\u1EE7 y\u1EBFu do ${topChildren.map((c) => c.name).join(" v\xE0 ")}` : "";
+        const topChildren = children.map((c) => ({ name: categoryLabel(c.name), spent: report.spentByCategory.get(c.id) ?? 0 })).filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 2);
+        const blame = topChildren.length > 1 ? tr(" \u2014 ch\u1EE7 y\u1EBFu do {a} v\xE0 {b}", { a: topChildren[0].name, b: topChildren[1].name }) : topChildren.length > 0 ? tr(" \u2014 ch\u1EE7 y\u1EBFu do {a}", { a: topChildren[0].name }) : "";
         out.push({
           key: `budget-parent-over:${l.categoryId}`,
           kind: "action",
@@ -874,7 +947,7 @@ function budgetRules(input) {
           // Hai nhánh này LOẠI TRỪ NHAU cho cùng một dòng ngân sách, nên chúng phải
           // cùng mức: để lệch là cùng một sự việc lúc đỏ lúc vàng tuỳ mục có con hay không.
           severity: "medium",
-          title: `Nh\xF3m ${nameOf(l.categoryId)} v\u01B0\u1EE3t tr\u1EA7n ${over}${blame}`,
+          title: tr("Nh\xF3m {name} v\u01B0\u1EE3t tr\u1EA7n {amount}{blame}", { name: nameOf(l.categoryId), amount: over, blame }),
           detail: usage,
           to: BUDGET_ROUTE
         });
@@ -891,7 +964,7 @@ function budgetRules(input) {
           // nhịp, mức 'medium') — dòng DUY NHẤT của nhóm ngân sách đến lúc còn ghìm
           // lại được — luôn bị đẩy xuống dưới chính cái dòng nói rằng đã quá muộn.
           severity: "medium",
-          title: `${nameOf(l.categoryId)} \u0111\xE3 v\u01B0\u1EE3t ng\xE2n s\xE1ch ${over}`,
+          title: tr("{name} \u0111\xE3 v\u01B0\u1EE3t ng\xE2n s\xE1ch {amount}", { name: nameOf(l.categoryId), amount: over }),
           detail: usage,
           to: BUDGET_ROUTE
         });
@@ -910,8 +983,13 @@ function budgetRules(input) {
       severity: "medium",
       // Gọi tên y như nhánh "đã vượt" ở trên: cùng một danh mục mà lúc thì "Nhóm Sinh
       // hoạt", lúc thì "Sinh hoạt" thì người dùng tưởng là hai chỗ khác nhau.
-      title: `${children.length > 0 ? "Nh\xF3m " : ""}${nameOf(l.categoryId)} ti\xEAu nhanh h\u01A1n nh\u1ECBp`,
-      detail: `M\u1EDBi qua ${Math.round(elapsed * 100)}% th\xE1ng \u0111\xE3 d\xF9ng ${Math.round(spentRatio * 100)}% h\u1EA1n m\u1EE9c (${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)})`,
+      title: children.length > 0 ? tr("Nh\xF3m {name} ti\xEAu nhanh h\u01A1n nh\u1ECBp", { name: nameOf(l.categoryId) }) : tr("{name} ti\xEAu nhanh h\u01A1n nh\u1ECBp", { name: nameOf(l.categoryId) }),
+      detail: tr("M\u1EDBi qua {elapsed}% th\xE1ng \u0111\xE3 d\xF9ng {used}% h\u1EA1n m\u1EE9c ({spent} / {budget})", {
+        elapsed: Math.round(elapsed * 100),
+        used: Math.round(spentRatio * 100),
+        spent: input.formatMoney(l.spent, input.base),
+        budget: input.formatMoney(l.budgeted, input.base)
+      }),
       to: BUDGET_ROUTE
     });
   }
@@ -933,8 +1011,14 @@ function tagRules(input) {
       kind: "action",
       type: "tag-budget-over",
       severity: "medium",
-      title: `Nh\xE3n "${l.name}" v\u01B0\u1EE3t tr\u1EA7n ${input.formatMoney(over, input.base)}`,
-      detail: l.period === "monthly" ? `Th\xE1ng n\xE0y ${input.formatMoney(Math.round(l.spent), input.base)} / tr\u1EA7n ${input.formatMoney(l.budget, input.base)}.` : `C\u1EA3 \u0111\u1EE3t ${input.formatMoney(Math.round(l.spent), input.base)} / d\u1EF1 tr\xF9 ${input.formatMoney(l.budget, input.base)}.`,
+      title: tr('Nh\xE3n "{name}" v\u01B0\u1EE3t tr\u1EA7n {amount}', { name: tagLabel(l.name), amount: input.formatMoney(over, input.base) }),
+      detail: l.period === "monthly" ? tr("Th\xE1ng n\xE0y {spent} / tr\u1EA7n {budget}.", {
+        spent: input.formatMoney(Math.round(l.spent), input.base),
+        budget: input.formatMoney(l.budget, input.base)
+      }) : tr("C\u1EA3 \u0111\u1EE3t {spent} / d\u1EF1 tr\xF9 {budget}.", {
+        spent: input.formatMoney(Math.round(l.spent), input.base),
+        budget: input.formatMoney(l.budget, input.base)
+      }),
       to: "/budget"
     });
   }
@@ -966,8 +1050,8 @@ function cardRules(input) {
       kind: "info",
       type: "card-statement-day",
       severity: "low",
-      title: `H\xF4m nay ${a.name} ch\u1ED1t sao k\xEA`,
-      detail: "Mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o k\u1EF3 th\xE1ng sau.",
+      title: tr("H\xF4m nay {name} ch\u1ED1t sao k\xEA", { name: accountLabel(a.name) }),
+      detail: tr("Mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o k\u1EF3 th\xE1ng sau."),
       onISO: input.todayISO,
       to: `/assets/account/${a.id}`
     });
@@ -1113,7 +1197,7 @@ function rhythmRules(input) {
         kind: "info",
         type: "stale-entry",
         severity: "low",
-        title: `\u0110\xE3 ${idle} ng\xE0y ch\u01B0a ghi giao d\u1ECBch n\xE0o`,
+        title: tr("\u0110\xE3 {n} ng\xE0y ch\u01B0a ghi giao d\u1ECBch n\xE0o", { n: idle }),
         to: "/entry"
       });
     }
@@ -1122,13 +1206,15 @@ function rhythmRules(input) {
     input.recurringRules.map((r) => ruleKey(r.type, r.account_id, r.category_id, r.amount))
   );
   for (const s of detectRecurring(input.recentTxs, existingKeys, input.todayISO)) {
+    const amount = input.formatMoney(s.amount, input.currencyOf(s.account_id));
+    const weekly = s.frequency === "weekly";
     out.push({
       key: `recurring-suggestion:${s.key}`,
       kind: "info",
       type: "recurring-suggestion",
       severity: "low",
-      title: `Th\u1EA5y ${input.formatMoney(s.amount, input.currencyOf(s.account_id))} tr\u1EA3 \u0111\u1EC1u ${s.frequency === "weekly" ? "m\u1ED7i tu\u1EA7n" : "m\u1ED7i th\xE1ng"}${s.note ? ` cho "${s.note}"` : ""}`,
-      detail: "T\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 \u0111\u1EC3 kh\u1ECFi ph\u1EA3i ghi tay m\u1ED7i k\u1EF3?",
+      title: s.note ? weekly ? tr('Th\u1EA5y {amount} tr\u1EA3 \u0111\u1EC1u m\u1ED7i tu\u1EA7n cho "{note}"', { amount, note: s.note }) : tr('Th\u1EA5y {amount} tr\u1EA3 \u0111\u1EC1u m\u1ED7i th\xE1ng cho "{note}"', { amount, note: s.note }) : weekly ? tr("Th\u1EA5y {amount} tr\u1EA3 \u0111\u1EC1u m\u1ED7i tu\u1EA7n", { amount }) : tr("Th\u1EA5y {amount} tr\u1EA3 \u0111\u1EC1u m\u1ED7i th\xE1ng", { amount }),
+      detail: tr("T\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 \u0111\u1EC3 kh\u1ECFi ph\u1EA3i ghi tay m\u1ED7i k\u1EF3?"),
       to: "/recurring"
     });
   }
@@ -1145,7 +1231,7 @@ function rhythmRules(input) {
       kind: "info",
       type: "savings-milestone",
       severity: "low",
-      title: `${g.name} \u0111\xE3 \u0111\u1EA1t ${top}% m\u1EE5c ti\xEAu`,
+      title: tr("{name} \u0111\xE3 \u0111\u1EA1t {pct}% m\u1EE5c ti\xEAu", { name: g.name, pct: top }),
       detail: `${input.formatMoney(have, input.currencyOf(g.account_id))} / ${input.formatMoney(g.target_amount, input.currencyOf(g.account_id))}`,
       to: "/assets"
     });
@@ -1163,7 +1249,9 @@ function rhythmRules(input) {
         kind: "info",
         type: "networth-record",
         severity: "low",
-        title: `T\xE0i s\u1EA3n r\xF2ng cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay: ${input.formatMoney(latest.net_worth, input.base)}`,
+        title: tr("T\xE0i s\u1EA3n r\xF2ng cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay: {amount}", {
+          amount: input.formatMoney(latest.net_worth, input.base)
+        }),
         to: "/assets"
       });
     }
@@ -1196,8 +1284,12 @@ function rhythmRules(input) {
         kind: "info",
         type: "monthly-summary",
         severity: "low",
-        title: `Th\xE1ng ${prev.month}: chi ${input.formatMoney(spent, input.base)}, thu ${input.formatMoney(earned, input.base)}`,
-        detail: `\u0110\u1EC3 d\xE0nh ${input.formatMoney(earned - spent, input.base)}`,
+        title: tr("Th\xE1ng {month}: chi {spent}, thu {earned}", {
+          month: prev.month,
+          spent: input.formatMoney(spent, input.base),
+          earned: input.formatMoney(earned, input.base)
+        }),
+        detail: tr("\u0110\u1EC3 d\xE0nh {amount}", { amount: input.formatMoney(earned - spent, input.base) }),
         to: "/reports"
       });
     }
@@ -1480,7 +1572,7 @@ function projectLifetime(input) {
       if (tien.downMinor > 0) {
         yearEvents.push({
           id: `${e.id}:tratruoc`,
-          label: `${e.label} \u2014 tr\u1EA3 tr\u01B0\u1EDBc`,
+          label: tr("{label} \u2014 tr\u1EA3 tr\u01B0\u1EDBc", { label: e.label }),
           kind: "expense",
           amountDisplayMinor: doi(tien.downMinor)
         });
@@ -1488,7 +1580,7 @@ function projectLifetime(input) {
       if (tien.loanMinor > 0) {
         yearEvents.push({
           id: `${e.id}:trano`,
-          label: `${e.label} \u2014 tr\u1EA3 n\u1EE3`,
+          label: tr("{label} \u2014 tr\u1EA3 n\u1EE3", { label: e.label }),
           kind: "expense",
           amountDisplayMinor: doi(tien.loanMinor)
         });
@@ -1497,7 +1589,7 @@ function projectLifetime(input) {
     if (stress?.illness.on && year === stress.illness.year) {
       yearEvents.push({
         id: STRESS_ILLNESS_EVENT_ID,
-        label: "B\u1EC7nh n\u1EB7ng (stress test)",
+        label: tr("B\u1EC7nh n\u1EB7ng (stress test)"),
         kind: "expense",
         amountDisplayMinor: Math.round(stress.illness.amountDisplayMinor * infl)
       });
@@ -1580,11 +1672,11 @@ function lifetimeRules(input) {
   function consequenceOf(actualRows) {
     const planNeg = firstNegativeYear(planRows(), "low");
     const actualNeg = firstNegativeYear(actualRows, "low");
-    if (actualNeg === null && planNeg !== null) return `M\u1ED1c \xE2m ${planNeg} bi\u1EBFn m\u1EA5t.`;
-    if (actualNeg === null) return `B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m t\u1EDBi tu\u1ED5i ${endAge}.`;
-    if (planNeg === null) return `V\u1EDBi m\u1EE9c n\xE0y, t\xE0i s\u1EA3n c\xF3 th\u1EC3 \xE2m t\u1EEB ${actualNeg}.`;
-    if (actualNeg !== planNeg) return `M\u1ED1c \xE2m d\u1ECBch t\u1EEB ${planNeg} sang ${actualNeg}.`;
-    return `M\u1ED1c \xE2m v\u1EABn \u1EDF ${actualNeg}.`;
+    if (actualNeg === null && planNeg !== null) return tr("M\u1ED1c \xE2m {year} bi\u1EBFn m\u1EA5t.", { year: planNeg });
+    if (actualNeg === null) return tr("B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m t\u1EDBi tu\u1ED5i {age}.", { age: endAge });
+    if (planNeg === null) return tr("V\u1EDBi m\u1EE9c n\xE0y, t\xE0i s\u1EA3n c\xF3 th\u1EC3 \xE2m t\u1EEB {year}.", { year: actualNeg });
+    if (actualNeg !== planNeg) return tr("M\u1ED1c \xE2m d\u1ECBch t\u1EEB {from} sang {to}.", { from: planNeg, to: actualNeg });
+    return tr("M\u1ED1c \xE2m v\u1EABn \u1EDF {year}.", { year: actualNeg });
   }
   const out = [];
   const expenseSum = windowTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount * expenseSign(t), 0);
@@ -1603,18 +1695,21 @@ function lifetimeRules(input) {
         phases: lt.phases.map((p) => p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)
       });
       const pct2 = Math.abs(Math.round(drift * 100));
-      const direction = drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n";
       out.push({
         // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
         key: "lifetime-drift:current",
         kind: "action",
         type: "lifetime-drift",
         severity: "low",
-        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct2}%`,
+        title: drift > 0 ? tr("Chi th\u1EF1c t\u1EBF cao h\u01A1n k\u1EBF ho\u1EA1ch {pct}%", { pct: pct2 }) : tr("Chi th\u1EF1c t\u1EBF th\u1EA5p h\u01A1n k\u1EBF ho\u1EA1ch {pct}%", { pct: pct2 }),
         // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
         // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
         // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
-        detail: `Quy n\u0103m ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ng\xE0y g\u1EA7n \u0111\xE2y. ` + consequenceOf(actualRows),
+        detail: tr("Quy n\u0103m {amount} theo {n} ng\xE0y g\u1EA7n \u0111\xE2y. {consequence}", {
+          amount: input.formatMoney(actualAnnual, phase.currency),
+          n: days,
+          consequence: consequenceOf(actualRows)
+        }),
         to: "/assets?view=future"
       });
     }
@@ -1628,10 +1723,10 @@ function lifetimeRules(input) {
       const drift = (actualAnnual - planned) / planned;
       if (Math.abs(drift) >= DRIFT_THRESHOLD) {
         const pct2 = Math.abs(Math.round(drift * 100));
-        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct2}%`;
+        title = drift > 0 ? tr("Thu th\u1EF1c t\u1EBF cao h\u01A1n k\u1EBF ho\u1EA1ch {pct}%", { pct: pct2 }) : tr("Thu th\u1EF1c t\u1EBF th\u1EA5p h\u01A1n k\u1EBF ho\u1EA1ch {pct}%", { pct: pct2 });
       }
     } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
-      title = "S\u1ED5 c\xF3 thu nh\u1EADp, k\u1EBF ho\u1EA1ch \u0111ang \u0111\u1EC3 thu 0";
+      title = tr("S\u1ED5 c\xF3 thu nh\u1EADp, k\u1EBF ho\u1EA1ch \u0111ang \u0111\u1EC3 thu 0");
     }
     if (title !== null) {
       const actualRows = projectLifetime({
@@ -1644,7 +1739,11 @@ function lifetimeRules(input) {
         type: "lifetime-drift",
         severity: "low",
         title,
-        detail: `Quy n\u0103m ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ng\xE0y g\u1EA7n \u0111\xE2y. ` + consequenceOf(actualRows),
+        detail: tr("Quy n\u0103m {amount} theo {n} ng\xE0y g\u1EA7n \u0111\xE2y. {consequence}", {
+          amount: input.formatMoney(actualAnnual, phase.currency),
+          n: days,
+          consequence: consequenceOf(actualRows)
+        }),
         to: "/assets?view=future"
       });
     }
@@ -1727,12 +1826,16 @@ function benefitRules(input) {
 var DEBT_FLOW_CATEGORY_NAMES = {
   /** chi — mình cho người khác vay */
   lend: "Cho vay",
+  // i18n-ignore — category name matched against DB
   /** thu — mình đi vay */
   borrow: "\u0110i vay",
+  // i18n-ignore — category name matched against DB
   /** thu — người ta trả lại mình */
   collect: "Thu n\u1EE3",
+  // i18n-ignore — category name matched against DB
   /** chi — mình trả nợ */
   repay: "Tr\u1EA3 n\u1EE3"
+  // i18n-ignore — category name matched against DB
 };
 var ADJUST_CATEGORY_NAME = "\u0110i\u1EC1u ch\u1EC9nh s\u1ED1 d\u01B0";
 var FLOW_NAMES = /* @__PURE__ */ new Set([
@@ -1773,8 +1876,8 @@ function uncategorizedRule(input) {
       kind: "action",
       type: "data-uncategorized",
       severity: "medium",
-      title: `${chua.length} giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c`,
-      detail: "B\xE1o c\xE1o v\xE0 ng\xE2n s\xE1ch \u0111ang t\xEDnh thi\u1EBFu ch\u1ED7 n\xE0y.",
+      title: tr("{n} giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c", { n: chua.length }),
+      detail: tr("B\xE1o c\xE1o v\xE0 ng\xE2n s\xE1ch \u0111ang t\xEDnh thi\u1EBFu ch\u1ED7 n\xE0y."),
       to: "/so"
     }
   ];
@@ -1792,8 +1895,8 @@ function reconcileStaleRule(input) {
       kind: "action",
       type: "data-reconcile",
       severity: "low",
-      title: cu.length === 1 ? `${cu[0].name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y` : `${cu.length} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y`,
-      detail: "S\u1ED1 d\u01B0 tr\xEAn m\xE0n c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch s\u1ED1 th\u1EADt.",
+      title: cu.length === 1 ? tr("{name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { name: accountLabel(cu[0].name), days: RECONCILE_STALE_DAYS }) : tr("{n} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { n: cu.length, days: RECONCILE_STALE_DAYS }),
+      detail: tr("S\u1ED1 d\u01B0 tr\xEAn m\xE0n c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch s\u1ED1 th\u1EADt."),
       to: "/assets"
     }
   ];
@@ -1818,8 +1921,12 @@ function tripRules(input) {
     kind: "action",
     type: "trip-gap",
     severity: "low",
-    title: `${g.soNgay} ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o (${nhanNgayVang(g.startISO)} \u2192 ${nhanNgayVang(g.endISO)}) \u2014 \u0111i v\u1EAFng?`,
-    detail: "\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra.",
+    title: tr("{n} ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o ({from} \u2192 {to}) \u2014 \u0111i v\u1EAFng?", {
+      n: g.soNgay,
+      from: nhanNgayVang(g.startISO),
+      to: nhanNgayVang(g.endISO)
+    }),
+    detail: tr("\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra."),
     onISO: g.startISO,
     to: "/reports?view=long"
   }));
@@ -1904,7 +2011,7 @@ function doBacGia(txs, rules, categories, currencyOf, base, rates) {
     if (!bac) continue;
     const r = ruleById.get(ruleId);
     const kyMoiThang = r ? PERIODS_PER_MONTH[r.frequency] : 1;
-    const nhan = r?.note || arr[0].note || "(kh\xF4ng t\xEAn)";
+    const nhan = r?.note || arr[0].note || tr("(kh\xF4ng t\xEAn)");
     them(bac, nhan, arr[0].account_id, r?.category_id ?? arr[0].category_id, kyMoiThang);
   }
   for (const [, arr] of theoNote) {
@@ -1931,8 +2038,12 @@ function priceStepRules(input) {
     kind: "info",
     type: "price-step",
     severity: "low",
-    title: `${b.nhan} \u0111\u1ED5i gi\xE1: ${formatMoney(b.giaCu, b.currency)} \u2192 ${formatMoney(b.giaMoi, b.currency)}`,
-    detail: `${b.chenhMoiNam > 0 ? "N\u1EB7ng th\xEAm" : "Nh\u1EB9 \u0111i"} ${formatMoney(Math.abs(b.chenhMoiNam), b.currency)}/n\u0103m n\u1EBFu gi\u1EEF gi\xE1 n\xE0y.`,
+    title: tr("{name} \u0111\u1ED5i gi\xE1: {from} \u2192 {to}", {
+      name: b.nhan,
+      from: formatMoney(b.giaCu, b.currency),
+      to: formatMoney(b.giaMoi, b.currency)
+    }),
+    detail: b.chenhMoiNam > 0 ? tr("N\u1EB7ng th\xEAm {amount}/n\u0103m n\u1EBFu gi\u1EEF gi\xE1 n\xE0y.", { amount: formatMoney(Math.abs(b.chenhMoiNam), b.currency) }) : tr("Nh\u1EB9 \u0111i {amount}/n\u0103m n\u1EBFu gi\u1EEF gi\xE1 n\xE0y.", { amount: formatMoney(Math.abs(b.chenhMoiNam), b.currency) }),
     onISO: b.tuNgayISO,
     to: "/reports?view=long"
   }));
@@ -1972,6 +2083,7 @@ function detectChangePoints(values, opts = {}) {
   search(0, values.length);
   return found.sort((a, b) => a.index - b.index);
 }
+var BASKET_COST_CAVEAT = tr("G\u1ED3m c\u1EA3 vi\u1EC7c mua \xEDt h\u01A1n \u2014 kh\xF4ng ph\u1EA3i ch\u1EC9 s\u1ED1 gi\xE1.");
 
 // src/features/notifications/rules/trendRules.ts
 var LEVEL_SHIFT_MIN_MONTHS = 12;
@@ -1999,7 +2111,14 @@ function levelShiftRule(input) {
   const soThang = values.length - cp.index;
   const tran = input.budgetReport?.totalBudgeted;
   const vuotTran = tran != null && tran > 0 && cp.after > tran;
-  const detail = vuotTran ? `M\u1EE9c m\u1EDBi ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, cao h\u01A1n t\u1ED5ng h\u1EA1n m\u1EE9c ${input.formatMoney(tran, input.base)}. H\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp c\u0169.` : `Trung b\xECnh ${soThang} th\xE1ng g\u1EA7n \u0111\xE2y ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, tr\u01B0\u1EDBc \u0111\xF3 ${input.formatMoney(Math.round(cp.before), input.base)}.`;
+  const detail = vuotTran ? tr("M\u1EE9c m\u1EDBi {amount}/th\xE1ng, cao h\u01A1n t\u1ED5ng h\u1EA1n m\u1EE9c {budget}. H\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp c\u0169.", {
+    amount: input.formatMoney(Math.round(cp.after), input.base),
+    budget: input.formatMoney(tran, input.base)
+  }) : tr("Trung b\xECnh {n} th\xE1ng g\u1EA7n \u0111\xE2y {amount}/th\xE1ng, tr\u01B0\u1EDBc \u0111\xF3 {before}.", {
+    n: soThang,
+    amount: input.formatMoney(Math.round(cp.after), input.base),
+    before: input.formatMoney(Math.round(cp.before), input.base)
+  });
   return [
     {
       key: `trend-level-shift:${thangGay}`,
@@ -2008,7 +2127,7 @@ function levelShiftRule(input) {
       // Không bao giờ 'high': không có hạn chót nào, và một việc "ngồi xuống rồi sửa
       // ngân sách" mà xếp ngang với "mai bị trừ tiền thẻ" là làm hỏng cả thang mức độ.
       severity: "medium",
-      title: `M\u1EE9c chi \u0111\u1ED5i h\u1EB3n t\u1EEB ${thangGay} \u2014 ${len ? "t\u0103ng" : "gi\u1EA3m"} ${Math.abs(doi)}%`,
+      title: len ? tr("M\u1EE9c chi \u0111\u1ED5i h\u1EB3n t\u1EEB {month} \u2014 t\u0103ng {pct}%", { month: thangGay, pct: Math.abs(doi) }) : tr("M\u1EE9c chi \u0111\u1ED5i h\u1EB3n t\u1EEB {month} \u2014 gi\u1EA3m {pct}%", { month: thangGay, pct: Math.abs(doi) }),
       detail,
       to: "/budget"
     }
@@ -2123,9 +2242,9 @@ function planPush(actions, stateRows) {
   }
   const named = fresh.slice(0, PUSH_BODY_ITEMS).map((n) => n.title);
   const rest = fresh.length - named.length;
-  const parts = rest > 0 ? [...named, `v\xE0 ${rest} vi\u1EC7c n\u1EEFa`] : named;
+  const parts = rest > 0 ? [...named, tr("v\xE0 {n} vi\u1EC7c n\u1EEFa", { n: rest })] : named;
   return {
-    title: `${fresh.length} vi\u1EC7c c\u1EA7n \u0111\u1EC3 \xFD`,
+    title: tr("{n} vi\u1EC7c c\u1EA7n \u0111\u1EC3 \xFD", { n: fresh.length }),
     body: parts.join(" \xB7 "),
     to: PUSH_LIST_ROUTE,
     severity,
@@ -2413,7 +2532,7 @@ async function fetchAllPages(page, opts = {}) {
     i += soTrang;
   }
   throw new Error(
-    `\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> ${maxPages * PAGE_SIZE} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.`
+    tr("\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> {n} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.", { n: maxPages * PAGE_SIZE })
   );
 }
 
@@ -2578,11 +2697,11 @@ function tinhFuyo(input) {
   }
   const ly_do = [];
   if (input.suatBien === null)
-    ly_do.push("Ch\u01B0a \u0111\u1EE7 12 th\xE1ng phi\u1EBFu l\u01B0\u01A1ng \u0111\u1EC3 \u01B0\u1EDBc thu\u1EBF su\u1EA5t \u2014 nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng th\xEC m\u1EDBi c\xF3 s\u1ED1 ti\u1EC1n ti\u1EBFt ki\u1EC7m.");
-  else ly_do.push("Ti\u1EC1n ti\u1EBFt ki\u1EC7m l\xE0 s\u1ED1 \u01B0\u1EDBc t\u1EEB thu\u1EBF su\u1EA5t bi\xEAn tr\xEAn phi\u1EBFu l\u01B0\u01A1ng; c\xF4ng ty/s\u1EDF thu\u1EBF ra s\u1ED1 cu\u1ED1i.");
-  if (thieu_ty_gia) ly_do.push("C\xF3 l\u1EA7n g\u1EEDi t\u1EEB t\xE0i kho\u1EA3n ngo\u1EA1i t\u1EC7 thi\u1EBFu t\u1EF7 gi\xE1, \u0111\xE3 lo\u1EA1i kh\u1ECFi t\u1ED5ng.");
-  if (bo_qua.length) ly_do.push(`${bo_qua.join(", ")} \u0111ang c\u01B0 tr\xFA \u1EDF Nh\u1EADt \u2014 theo lu\u1EADt ng\u01B0\u1EDDi c\u01B0 tr\xFA, ngo\xE0i ph\u1EA1m vi kho\u1EA3n n\xE0y.`);
-  ly_do.push(`Ng\u01B0\u1EDDi th\xE2n ph\u1EA3i c\xF3 \u5408\u8A08\u6240\u5F97\u91D1\u984D \u2264 ${input.fmt(luat.fuyo.thuNhapToiDa)}/n\u0103m \u2014 app kh\xF4ng ki\u1EC3m \u0111\u01B0\u1EE3c \u0111i\u1EC1u n\xE0y.`);
+    ly_do.push(tr("Ch\u01B0a \u0111\u1EE7 12 th\xE1ng phi\u1EBFu l\u01B0\u01A1ng \u0111\u1EC3 \u01B0\u1EDBc thu\u1EBF su\u1EA5t \u2014 nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng th\xEC m\u1EDBi c\xF3 s\u1ED1 ti\u1EC1n ti\u1EBFt ki\u1EC7m."));
+  else ly_do.push(tr("Ti\u1EC1n ti\u1EBFt ki\u1EC7m l\xE0 s\u1ED1 \u01B0\u1EDBc t\u1EEB thu\u1EBF su\u1EA5t bi\xEAn tr\xEAn phi\u1EBFu l\u01B0\u01A1ng; c\xF4ng ty/s\u1EDF thu\u1EBF ra s\u1ED1 cu\u1ED1i."));
+  if (thieu_ty_gia) ly_do.push(tr("C\xF3 l\u1EA7n g\u1EEDi t\u1EEB t\xE0i kho\u1EA3n ngo\u1EA1i t\u1EC7 thi\u1EBFu t\u1EF7 gi\xE1, \u0111\xE3 lo\u1EA1i kh\u1ECFi t\u1ED5ng."));
+  if (bo_qua.length) ly_do.push(tr("{names} \u0111ang c\u01B0 tr\xFA \u1EDF Nh\u1EADt \u2014 theo lu\u1EADt ng\u01B0\u1EDDi c\u01B0 tr\xFA, ngo\xE0i ph\u1EA1m vi kho\u1EA3n n\xE0y.", { names: bo_qua.join(", ") }));
+  ly_do.push(tr("Ng\u01B0\u1EDDi th\xE2n ph\u1EA3i c\xF3 \u5408\u8A08\u6240\u5F97\u91D1\u984D \u2264 {amount}/n\u0103m \u2014 app kh\xF4ng ki\u1EC3m \u0111\u01B0\u1EE3c \u0111i\u1EC1u n\xE0y.", { amount: input.fmt(luat.fuyo.thuNhapToiDa) }));
   const tongTietKiem = nguoi.some((n) => n.tiet_kiem_uoc !== null) ? nguoi.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
   const han = `${input.year}-12-31`;
   const thieu = nguoi.filter((n) => n.nhom === "30-69" && !n.du);
@@ -2591,28 +2710,28 @@ function tinhFuyo(input) {
   let viec;
   if (nguoi.length === 0 && bo_qua.length === 0) {
     trang_thai = "thieu-du-lieu";
-    viec = "Th\xEAm ng\u01B0\u1EDDi th\xE2n nh\u1EADn ti\u1EC1n \u0111\u1EC3 app t\xEDnh \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c";
+    viec = tr("Th\xEAm ng\u01B0\u1EDDi th\xE2n nh\u1EADn ti\u1EC1n \u0111\u1EC3 app t\xEDnh \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c");
   } else if (chua_gan.so_lan > 0) {
     trang_thai = "thieu-du-lieu";
-    viec = `G\xE1n ng\u01B0\u1EDDi nh\u1EADn cho ${chua_gan.so_lan} l\u1EA7n g\u1EEDi (${input.fmt(chua_gan.tong)}) \u2014 ch\u01B0a g\xE1n th\xEC s\u1ED1 d\u01B0\u1EDBi \u0111\xE2y \u0111ang thi\u1EBFu`;
+    viec = tr("G\xE1n ng\u01B0\u1EDDi nh\u1EADn cho {n} l\u1EA7n g\u1EEDi ({amount}) \u2014 ch\u01B0a g\xE1n th\xEC s\u1ED1 d\u01B0\u1EDBi \u0111\xE2y \u0111ang thi\u1EBFu", { n: chua_gan.so_lan, amount: input.fmt(chua_gan.tong) });
   } else if (thieu.length > 0 && input.year < namHomNay) {
     trang_thai = "het-han";
-    viec = `${thieu.map((n) => n.name).join(", ")} kh\xF4ng \u0111\u1EE7 38\u4E07 n\u0103m ${input.year}`;
+    viec = tr("{names} kh\xF4ng \u0111\u1EE7 38\u4E07 n\u0103m {year}", { names: thieu.map((n) => n.name).join(", "), year: input.year });
   } else if (thieu.length > 0) {
     trang_thai = "thieu";
     const n = thieu[0];
-    const hanText = thang_con_lai === 0 ? "h\u1EBFt 31/12" : `${thang_con_lai} th\xE1ng n\u1EEFa`;
-    viec = thieu.length === 1 ? `C\xF2n ${input.fmt(n.con_thieu)} \u0111\u1EC3 ${n.name} \u0111\u1EE7 38\u4E07 \xB7 ${hanText}` : `${thieu.length} ng\u01B0\u1EDDi c\xF2n thi\u1EBFu \u0111\u1EC3 \u0111\u1EE7 38\u4E07 \xB7 ${hanText}`;
+    const hanText = thang_con_lai === 0 ? tr("h\u1EBFt 31/12") : tr("{n} th\xE1ng n\u1EEFa", { n: thang_con_lai });
+    viec = thieu.length === 1 ? tr("C\xF2n {amount} \u0111\u1EC3 {name} \u0111\u1EE7 38\u4E07 \xB7 {deadline}", { amount: input.fmt(n.con_thieu), name: n.name, deadline: hanText }) : tr("{n} ng\u01B0\u1EDDi c\xF2n thi\u1EBFu \u0111\u1EC3 \u0111\u1EE7 38\u4E07 \xB7 {deadline}", { n: thieu.length, deadline: hanText });
   } else if (nguoi.some((n) => n.du)) {
     trang_thai = "du";
     if (input.year < namHomNay) {
-      viec = `N\u0103m ${input.year} \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n kh\u1EA5u tr\u1EEB \u2014 ch\u01B0a khai th\xEC xem kho\u1EA3n "\u0110\xF2i l\u1EA1i n\u0103m c\u0169"`;
+      viec = tr('N\u0103m {year} \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n kh\u1EA5u tr\u1EEB \u2014 ch\u01B0a khai th\xEC xem kho\u1EA3n "\u0110\xF2i l\u1EA1i n\u0103m c\u0169"', { year: input.year });
     } else {
-      viec = `N\u1ED9p ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(" + ")} cho c\xF4ng ty tr\u01B0\u1EDBc \u5E74\u672B\u8ABF\u6574`;
+      viec = tr("N\u1ED9p {docs} cho c\xF4ng ty tr\u01B0\u1EDBc \u5E74\u672B\u8ABF\u6574", { docs: [...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(" + ") });
     }
   } else {
     trang_thai = "thieu-du-lieu";
-    viec = "Ch\u01B0a c\xF3 l\u1EA7n g\u1EEDi n\xE0o trong n\u0103m \u0111\u01B0\u1EE3c g\xE1n cho ng\u01B0\u1EDDi th\xE2n";
+    viec = tr("Ch\u01B0a c\xF3 l\u1EA7n g\u1EEDi n\xE0o trong n\u0103m \u0111\u01B0\u1EE3c g\xE1n cho ng\u01B0\u1EDDi th\xE2n");
   }
   return {
     ketLuan: { id: "fuyo", year: input.year, trang_thai, muc, tiet_kiem_uoc: tongTietKiem, han, viec, ly_do },
@@ -2662,38 +2781,38 @@ function tinhFurusato(input) {
   const con_lai = tran === null ? null : Math.max(0, tran - da_gui);
   const onestop_rui_ro = input.deXuatKhaiThue && da_gui > 0;
   const ly_do = [
-    "Tr\u1EA7n \u01B0\u1EDBc t\u1EEB \u4F4F\u6C11\u7A0E tr\xEAn phi\u1EBFu l\u01B0\u01A1ng 12 th\xE1ng g\u1EA7n nh\u1EA5t, t\u1EE9c thu nh\u1EADp N\u0102M TR\u01AF\u1EDAC; l\u01B0\u01A1ng t\u0103ng th\xEC tr\u1EA7n th\u1EADt cao h\u01A1n."
+    tr("Tr\u1EA7n \u01B0\u1EDBc t\u1EEB \u4F4F\u6C11\u7A0E tr\xEAn phi\u1EBFu l\u01B0\u01A1ng 12 th\xE1ng g\u1EA7n nh\u1EA5t, t\u1EE9c thu nh\u1EADp N\u0102M TR\u01AF\u1EDAC; l\u01B0\u01A1ng t\u0103ng th\xEC tr\u1EA7n th\u1EADt cao h\u01A1n.")
   ];
-  if (!co_danh_muc) ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${FURUSATO_CATEGORY_NAME}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu.`);
-  if (input.suatBien === null) ly_do.push("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c thu\u1EBF su\u1EA5t (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E).");
+  if (!co_danh_muc) ly_do.push(tr('Ch\u01B0a c\xF3 danh m\u1EE5c "{name}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu.', { name: FURUSATO_CATEGORY_NAME }));
+  if (input.suatBien === null) ly_do.push(tr("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c thu\u1EBF su\u1EA5t (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E)."));
   const thang = Number(input.todayISO.slice(5, 7));
   const muaNhac = input.year === namNay && thang >= THANG_NHAC_CUOI_NAM;
   let trang_thai;
   let viec;
   if (onestop_rui_ro) {
     trang_thai = "thieu";
-    viec = `N\u1EBFu n\u1ED9p \u78BA\u5B9A\u7533\u544A cho kho\u1EA3n ph\u1EE5 thu\u1ED9c th\xEC khai c\u1EA3 ${input.fmt(da_gui)} furusato v\xE0o \u0111\xF3 \u2014 \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 s\u1EBD v\xF4 hi\u1EC7u`;
+    viec = tr("N\u1EBFu n\u1ED9p \u78BA\u5B9A\u7533\u544A cho kho\u1EA3n ph\u1EE5 thu\u1ED9c th\xEC khai c\u1EA3 {amount} furusato v\xE0o \u0111\xF3 \u2014 \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 s\u1EBD v\xF4 hi\u1EC7u", { amount: input.fmt(da_gui) });
   } else if (shotoku_wari === null) {
     trang_thai = "thieu-du-lieu";
-    viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u4F4F\u6C11\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
+    viec = tr("Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u4F4F\u6C11\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E");
   } else if (tran === null) {
     trang_thai = "thieu-du-lieu";
-    viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u6240\u5F97\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
+    viec = tr("Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u6240\u5F97\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E");
   } else if (!co_danh_muc) {
     trang_thai = "thieu-du-lieu";
-    viec = `Tr\u1EA7n \u2248 ${input.fmt(tran)} \xB7 t\u1EA1o danh m\u1EE5c "${FURUSATO_CATEGORY_NAME}" \u0111\u1EC3 app \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu`;
+    viec = tr('Tr\u1EA7n \u2248 {cap} \xB7 t\u1EA1o danh m\u1EE5c "{name}" \u0111\u1EC3 app \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu', { cap: input.fmt(tran), name: FURUSATO_CATEGORY_NAME });
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = "thieu";
-    viec = `C\xF2n \u2248 ${input.fmt(con_lai)} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+    viec = tr("C\xF2n \u2248 {amount} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12", { amount: input.fmt(con_lai) });
   } else if (da_gui <= 0) {
     trang_thai = "chua-dung";
-    viec = input.year < namNay ? `N\u0103m ${input.year} ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o \xB7 tr\u1EA7n khi \u0111\xF3 \u2248 ${input.fmt(tran)}` : `Ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o n\u0103m nay \xB7 tr\u1EA7n \u2248 ${input.fmt(tran)}, h\u1EBFt 31/12`;
+    viec = input.year < namNay ? tr("N\u0103m {year} ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o \xB7 tr\u1EA7n khi \u0111\xF3 \u2248 {cap}", { year: input.year, cap: input.fmt(tran) }) : tr("Ch\u01B0a g\u1EEDi \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\xE0o n\u0103m nay \xB7 tr\u1EA7n \u2248 {cap}, h\u1EBFt 31/12", { cap: input.fmt(tran) });
   } else if (input.year < namNay) {
     trang_thai = "het-han";
-    viec = `N\u0103m ${input.year} \u0111\xE3 g\u1EEDi ${input.fmt(da_gui)} tr\xEAn tr\u1EA7n \u2248 ${input.fmt(tran)}`;
+    viec = tr("N\u0103m {year} \u0111\xE3 g\u1EEDi {sent} tr\xEAn tr\u1EA7n \u2248 {cap}", { year: input.year, sent: input.fmt(da_gui), cap: input.fmt(tran) });
   } else {
     trang_thai = "du";
-    viec = `Tr\u1EA7n \u2248 ${input.fmt(tran)} \xB7 \u0111\xE3 g\u1EEDi ${input.fmt(da_gui)}`;
+    viec = tr("Tr\u1EA7n \u2248 {cap} \xB7 \u0111\xE3 g\u1EEDi {sent}", { cap: input.fmt(tran), sent: input.fmt(da_gui) });
   }
   return {
     ketLuan: {
@@ -2734,8 +2853,8 @@ function tinhRefund(input) {
   const tong3 = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
   const hetHanNamNay = nam.find((n) => n.han.startsWith(String(namNay)));
   const ly_do = [
-    "\u0110\xE2y l\xE0 l\u1EA7n \u0111\u1EA7u t\u1EF1 khai v\u1EDBi s\u1EDF thu\u1EBF; n\u1ED9p \u78BA\u5B9A\u7533\u544A th\xEC \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 c\u1EE7a \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\u0103m \u0111\xF3 v\xF4 hi\u1EC7u, ph\u1EA3i khai l\u1EA1i trong c\xF9ng t\u1EDD khai.",
-    input.suatBien === null ? "Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n v\xEC thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng." : "Ti\u1EC1n \u01B0\u1EDBc theo thu\u1EBF su\u1EA5t bi\xEAn HI\u1EC6N T\u1EA0I; n\u0103m c\u0169 l\u01B0\u01A1ng kh\xE1c th\xEC s\u1ED1 kh\xE1c."
+    tr("\u0110\xE2y l\xE0 l\u1EA7n \u0111\u1EA7u t\u1EF1 khai v\u1EDBi s\u1EDF thu\u1EBF; n\u1ED9p \u78BA\u5B9A\u7533\u544A th\xEC \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 c\u1EE7a \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\u0103m \u0111\xF3 v\xF4 hi\u1EC7u, ph\u1EA3i khai l\u1EA1i trong c\xF9ng t\u1EDD khai."),
+    input.suatBien === null ? tr("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n v\xEC thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng.") : tr("Ti\u1EC1n \u01B0\u1EDBc theo thu\u1EBF su\u1EA5t bi\xEAn HI\u1EC6N T\u1EA0I; n\u0103m c\u0169 l\u01B0\u01A1ng kh\xE1c th\xEC s\u1ED1 kh\xE1c.")
   ];
   let ketLuan;
   if (nam.length === 0 && chua_gan.length > 0) {
@@ -2750,15 +2869,24 @@ function tinhRefund(input) {
       muc: "medium",
       tiet_kiem_uoc: null,
       han: null,
-      viec: `${soLanTong.toLocaleString("en-US")} l\u1EA7n g\u1EEDi c\u1EE7a ${namText} ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn \u2014 g\xE1n \u0111\u1EC3 bi\u1EBFt c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c kh\xF4ng`,
+      // `n` chỉ để chọn số ít/số nhiều; `count` là chữ số đã định dạng.
+      viec: tr("{count} l\u1EA7n g\u1EEDi c\u1EE7a {years} ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn \u2014 g\xE1n \u0111\u1EC3 bi\u1EBFt c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c kh\xF4ng", {
+        n: soLanTong,
+        count: soLanTong.toLocaleString("en-US"),
+        years: namText
+      }),
       ly_do
     };
   } else if (nam.length === 0) {
-    ketLuan = { id: "refund", year: namNay, trang_thai: "du", muc: "low", tiet_kiem_uoc: null, han: null, viec: "Kh\xF4ng c\xF3 n\u0103m c\u0169 n\xE0o c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c", ly_do };
+    ketLuan = { id: "refund", year: namNay, trang_thai: "du", muc: "low", tiet_kiem_uoc: null, han: null, viec: tr("Kh\xF4ng c\xF3 n\u0103m c\u0169 n\xE0o c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c"), ly_do };
   } else {
     const lyDoDay = chua_gan.length > 0 ? [
       ...ly_do,
-      `C\xF2n ${chua_gan.reduce((s, c) => s + c.so_lan, 0).toLocaleString("en-US")} l\u1EA7n g\u1EEDi n\u0103m ${chua_gan.map((c) => c.year).join(", ")} ch\u01B0a g\xE1n \u2014 s\u1ED1 tr\xEAn c\xF3 th\u1EC3 c\xF2n cao h\u01A1n.`
+      tr("C\xF2n {count} l\u1EA7n g\u1EEDi n\u0103m {years} ch\u01B0a g\xE1n \u2014 s\u1ED1 tr\xEAn c\xF3 th\u1EC3 c\xF2n cao h\u01A1n.", {
+        n: chua_gan.reduce((s, c) => s + c.so_lan, 0),
+        count: chua_gan.reduce((s, c) => s + c.so_lan, 0).toLocaleString("en-US"),
+        years: chua_gan.map((c) => c.year).join(", ")
+      })
     ] : ly_do;
     ketLuan = {
       id: "refund",
@@ -2767,7 +2895,11 @@ function tinhRefund(input) {
       muc: hetHanNamNay ? "high" : "medium",
       tiet_kiem_uoc: tong3,
       han: nam[0].han,
-      viec: `${nam.length} n\u0103m c\u0169 \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n n\u1ED9p \u9084\u4ED8\u7533\u544A (${nam.map((n) => n.year).join(", ")})${hetHanNamNay ? ` \xB7 n\u0103m ${hetHanNamNay.year} h\u1EBFt h\u1EA1n 31/12` : ""}`,
+      viec: hetHanNamNay ? tr("{n} n\u0103m c\u0169 \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n n\u1ED9p \u9084\u4ED8\u7533\u544A ({years}) \xB7 n\u0103m {year} h\u1EBFt h\u1EA1n 31/12", {
+        n: nam.length,
+        years: nam.map((n) => n.year).join(", "),
+        year: hetHanNamNay.year
+      }) : tr("{n} n\u0103m c\u0169 \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n n\u1ED9p \u9084\u4ED8\u7533\u544A ({years})", { n: nam.length, years: nam.map((n) => n.year).join(", ") }),
       ly_do: lyDoDay
     };
   }
@@ -2775,6 +2907,11 @@ function tinhRefund(input) {
 }
 
 // src/features/assets/shelter.ts
+var TAX_SHELTER_LABELS = {
+  nisa_tsumitate: tr("NISA t\xEDch l\u0169y (\u3064\u307F\u305F\u3066\u6295\u8CC7\u67A0)"),
+  nisa_growth: tr("NISA t\u0103ng tr\u01B0\u1EDFng (\u6210\u9577\u6295\u8CC7\u67A0)"),
+  ideco: "iDeCo (\u500B\u4EBA\u578B\u78BA\u5B9A\u62E0\u51FA\u5E74\u91D1)"
+};
 function shelterUsage(accountId, txs, year, limit) {
   let used = 0;
   let count = 0;
@@ -2803,21 +2940,21 @@ function tinhShelterYearEnd(input) {
   const con_lai = tai_khoan.reduce((s, t) => s + (t.remaining ?? 0), 0);
   const namNay = calendarYearOf(input.todayISO);
   const muaNhac = input.year === namNay && Number(input.todayISO.slice(5, 7)) >= THANG_NHAC_CUOI_NAM;
-  const ly_do = ["H\u1EA1n m\u1EE9c NISA kh\xF4ng d\xF9ng l\xE0 m\u1EA5t, kh\xF4ng d\u1ED3n sang n\u0103m sau (\u91D1\u878D\u5E81)."];
-  if (tai_khoan.some((t) => t.limit === null)) ly_do.push("C\xF3 t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1EB7t h\u1EA1n m\u1EE9c n\u0103m \u2014 s\u1EEDa \u1EDF C\xE0i \u0111\u1EB7t \u203A T\xE0i kho\u1EA3n.");
+  const ly_do = [tr("H\u1EA1n m\u1EE9c NISA kh\xF4ng d\xF9ng l\xE0 m\u1EA5t, kh\xF4ng d\u1ED3n sang n\u0103m sau (\u91D1\u878D\u5E81).")];
+  if (tai_khoan.some((t) => t.limit === null)) ly_do.push(tr("C\xF3 t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1EB7t h\u1EA1n m\u1EE9c n\u0103m \u2014 s\u1EEDa \u1EDF C\xE0i \u0111\u1EB7t \u203A T\xE0i kho\u1EA3n."));
   const da_nap = tai_khoan.reduce((s, t) => s + t.used, 0);
-  const nam = input.year === namNay ? "n\u0103m nay" : `n\u0103m ${input.year}`;
+  const nam = input.year === namNay ? tr("n\u0103m nay") : trx("in", "n\u0103m {year}", { year: input.year });
   let trang_thai = "du";
-  let viec = `\u0110\xE3 n\u1EA1p ${input.fmt(da_nap)} v\xE0o NISA/iDeCo ${nam}`;
+  let viec = tr("\u0110\xE3 n\u1EA1p {amount} v\xE0o NISA/iDeCo {year}", { amount: input.fmt(da_nap), year: nam });
   if (tai_khoan.length === 0) {
     trang_thai = "thieu-du-lieu";
-    viec = "Ch\u01B0a t\xE0i kho\u1EA3n n\xE0o \u0111\u01B0\u1EE3c \u0111\xE1nh d\u1EA5u NISA/iDeCo";
+    viec = tr("Ch\u01B0a t\xE0i kho\u1EA3n n\xE0o \u0111\u01B0\u1EE3c \u0111\xE1nh d\u1EA5u NISA/iDeCo");
   } else if (muaNhac && con_lai > 0) {
     trang_thai = "thieu";
-    viec = `C\xF2n ${input.fmt(con_lai)} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+    viec = tr("C\xF2n {amount} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12", { amount: input.fmt(con_lai) });
   } else if (da_nap <= 0) {
     trang_thai = "chua-dung";
-    viec = `Ch\u01B0a n\u1EA1p \u0111\u1ED3ng n\xE0o v\xE0o NISA/iDeCo ${nam}`;
+    viec = tr("Ch\u01B0a n\u1EA1p \u0111\u1ED3ng n\xE0o v\xE0o NISA/iDeCo {year}", { year: nam });
   }
   return {
     ketLuan: { id: "shelter", year: input.year, trang_thai, muc: "low", tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },
@@ -2849,7 +2986,7 @@ function tinhIryohi(input) {
   const namNay = calendarYearOf(input.todayISO);
   const nam = calendarYearRange(input.year);
   const idsY = idsTheoTen2(input.categories, IRYOHI_CATEGORY_NAMES);
-  const idsThuoc = idsTheoTen2(input.categories, ["Thu\u1ED1c"]);
+  const idsThuoc = idsTheoTen2(input.categories, [IRYOHI_CATEGORY_NAMES[0]]);
   const co_danh_muc = idsY.size > 0;
   const chi_y = tong2(input.txs, idsY, nam.start, nam.end);
   const chi_thuoc = tong2(input.txs, idsThuoc, nam.start, nam.end);
@@ -2860,37 +2997,42 @@ function tinhIryohi(input) {
   const nhanh = khau_tru === 0 ? null : khau_tru_chinh >= khau_tru_self ? "chinh" : "self";
   const tiet_kiem_uoc = khau_tru > 0 && input.suatBien !== null ? tienTietKiem(khau_tru, khau_tru, input.suatBien, luat) : null;
   const ly_do = [
-    "S\u1ED1 c\xF3 th\u1EC3 cao h\u01A1n th\u1EF1c t\u1EBF: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026) v\xE0 ch\u01B0a tr\u1EEB ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9.",
-    "Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF T\xE0u \u0111i\u1EC7n) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100,000."
+    tr("S\u1ED1 c\xF3 th\u1EC3 cao h\u01A1n th\u1EF1c t\u1EBF: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026) v\xE0 ch\u01B0a tr\u1EEB ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9."),
+    tr("Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF {cat}) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100,000.", {
+      cat: categoryLabel("T\xE0u \u0111i\u1EC7n")
+      // i18n-ignore — tên danh mục trong DB, in qua categoryLabel()
+    })
   ];
   if (!co_danh_muc)
-    ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${IRYOHI_CATEGORY_NAMES.join('" / "')}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.`);
+    ly_do.push(tr('Ch\u01B0a c\xF3 danh m\u1EE5c "{names}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.', { names: IRYOHI_CATEGORY_NAMES.map(categoryLabel).join('" / "') }));
   if (nhanh === "self")
     ly_do.push(
-      "Nh\xE1nh \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ch\u1EC9 t\xEDnh thu\u1ED1c OTC c\xF3 d\u1EA5u \u2605 v\xE0 c\u1EA7n \u5065\u5EB7\u8A3A\u65AD trong n\u0103m \u2014 app \u0111\u1EBFm c\u1EA3 danh m\u1EE5c Thu\u1ED1c n\xEAn s\u1ED1 th\u1EADt th\u1EA5p h\u01A1n."
+      tr("Nh\xE1nh \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ch\u1EC9 t\xEDnh thu\u1ED1c OTC c\xF3 d\u1EA5u \u2605 v\xE0 c\u1EA7n \u5065\u5EB7\u8A3A\u65AD trong n\u0103m \u2014 app \u0111\u1EBFm c\u1EA3 danh m\u1EE5c {cat} n\xEAn s\u1ED1 th\u1EADt th\u1EA5p h\u01A1n.", {
+        cat: categoryLabel(IRYOHI_CATEGORY_NAMES[0])
+      })
     );
   if (nhanh === "chinh" && khau_tru_self > 0)
-    ly_do.push(`Nh\xE1nh OTC \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru_self)} nh\u01B0ng nh\xE1nh ch\xEDnh l\u1EE3i h\u01A1n \u2014 ch\u1EC9 \u0111\u01B0\u1EE3c ch\u1ECDn m\u1ED9t.`);
+    ly_do.push(tr("Nh\xE1nh OTC \u0111\u01B0\u1EE3c \u2248 {amount} nh\u01B0ng nh\xE1nh ch\xEDnh l\u1EE3i h\u01A1n \u2014 ch\u1EC9 \u0111\u01B0\u1EE3c ch\u1ECDn m\u1ED9t.", { amount: input.fmt(khau_tru_self) }));
   if (khau_tru > 0 && input.suatBien === null)
-    ly_do.push("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n thu\u1EBF b\u1EDBt (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E) \u2014 kh\u1EA5u tr\u1EEB th\xEC v\u1EABn ch\u1EAFc.");
+    ly_do.push(tr("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n thu\u1EBF b\u1EDBt (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E) \u2014 kh\u1EA5u tr\u1EEB th\xEC v\u1EABn ch\u1EAFc."));
   let trang_thai;
   let viec;
   let han = null;
-  const toKhai = input.deXuatKhaiThue ? "c\xF9ng t\u1EDD \u78BA\u5B9A\u7533\u544A c\u1EE7a kho\u1EA3n ph\u1EE5 thu\u1ED9c" : "trong \u78BA\u5B9A\u7533\u544A";
+  const toKhai = input.deXuatKhaiThue ? tr("c\xF9ng t\u1EDD \u78BA\u5B9A\u7533\u544A c\u1EE7a kho\u1EA3n ph\u1EE5 thu\u1ED9c") : tr("trong \u78BA\u5B9A\u7533\u544A");
   if (nhanh === "chinh" && input.year === namNay) {
     trang_thai = "thieu";
     han = `${input.year + 1}-03-15`;
-    viec = `Chi y t\u1EBF ${input.fmt(chi_y)} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.nguong)} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n, khai \u533B\u7642\u8CBB\u63A7\u9664 ${toKhai} tr\u01B0\u1EDBc 15/3`;
+    viec = tr("Chi y t\u1EBF {spent} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng {threshold} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n, khai \u533B\u7642\u8CBB\u63A7\u9664 {filing} tr\u01B0\u1EDBc 15/3", { spent: input.fmt(chi_y), threshold: input.fmt(luat.iryohi.nguong), filing: toKhai });
   } else if (nhanh === "self" && input.year === namNay) {
     trang_thai = "thieu";
     han = `${input.year + 1}-03-15`;
-    viec = `Chi thu\u1ED1c ${input.fmt(chi_thuoc)} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.selfMed.nguong)} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n thu\u1ED1c \u2605, khai \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ${toKhai} tr\u01B0\u1EDBc 15/3`;
+    viec = tr("Chi thu\u1ED1c {spent} \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng {threshold} \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n thu\u1ED1c \u2605, khai \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 {filing} tr\u01B0\u1EDBc 15/3", { spent: input.fmt(chi_thuoc), threshold: input.fmt(luat.iryohi.selfMed.nguong), filing: toKhai });
   } else if (nhanh !== null) {
     trang_thai = "het-han";
-    viec = nhanh === "chinh" ? `N\u0103m ${input.year} chi y t\u1EBF ${input.fmt(chi_y)}, \u533B\u7642\u8CBB\u63A7\u9664 \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}` : `N\u0103m ${input.year} chi thu\u1ED1c ${input.fmt(chi_thuoc)}, \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}`;
+    viec = nhanh === "chinh" ? tr("N\u0103m {year} chi y t\u1EBF {spent}, \u533B\u7642\u8CBB\u63A7\u9664 \u0111\u01B0\u1EE3c \u2248 {deduction}", { year: input.year, spent: input.fmt(chi_y), deduction: input.fmt(khau_tru) }) : tr("N\u0103m {year} chi thu\u1ED1c {spent}, \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 \u0111\u01B0\u1EE3c \u2248 {deduction}", { year: input.year, spent: input.fmt(chi_thuoc), deduction: input.fmt(khau_tru) });
   } else {
     trang_thai = "du";
-    viec = `Chi y t\u1EBF ${input.fmt(chi_y)} / ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.nguong)} \u2014 ch\u01B0a t\u1EDBi m\u1EE9c kh\u1EA5u tr\u1EEB`;
+    viec = tr("Chi y t\u1EBF {spent} / ng\u01B0\u1EE1ng {threshold} \u2014 ch\u01B0a t\u1EDBi m\u1EE9c kh\u1EA5u tr\u1EEB", { spent: input.fmt(chi_y), threshold: input.fmt(luat.iryohi.nguong) });
   }
   return {
     ketLuan: {
@@ -2955,8 +3097,8 @@ function tinhQuyenLoi(input) {
     muc: "low",
     tiet_kiem_uoc: null,
     han: null,
-    viec: fuyo.chua_gan.so_lan > 0 ? `${fuyo.chua_gan.so_lan} l\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn` : "M\u1ECDi l\u1EA7n g\u1EEDi \u0111\xE3 c\xF3 ng\u01B0\u1EDDi nh\u1EADn",
-    ly_do: ["Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu."]
+    viec: fuyo.chua_gan.so_lan > 0 ? tr("{n} l\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn", { n: fuyo.chua_gan.so_lan }) : tr("M\u1ECDi l\u1EA7n g\u1EEDi \u0111\xE3 c\xF3 ng\u01B0\u1EDDi nh\u1EADn"),
+    ly_do: [tr("Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu.")]
   };
   return {
     fuyo,

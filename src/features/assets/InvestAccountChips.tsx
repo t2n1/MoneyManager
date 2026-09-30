@@ -4,6 +4,7 @@
 // cùng một thứ — một hàng chip đúng với mọi lần mở là một hàng nhiễu.
 import type { AccountRow } from '../../types/database.types'
 import { FilterChip } from '../../components/ui'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   accounts: AccountRow[]
@@ -23,8 +24,8 @@ export function InvestAccountChips({ accounts, activeId, onPick }: Props) {
 
   return (
     <div className="flex flex-wrap gap-1.5">
-      {chip('all', 'Tất cả', activeId === null, null)}
-      {accounts.map((a) => chip(a.id, a.name, activeId === a.id, a.id))}
+      {chip('all', tr('Tất cả'), activeId === null, null)}
+      {accounts.map((a) => chip(a.id, accountLabel(a.name), activeId === a.id, a.id))}
     </div>
   )
 }

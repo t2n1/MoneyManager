@@ -11,6 +11,7 @@ import type { PlannedExpenseRow, RecurringRuleRow } from '../../types/database.t
 import { addDaysISO, dayMonthLabel, daysBetween } from '../../lib/dates'
 import { nthDueDate } from '../../lib/recurring'
 import type { CurrencyCode } from '../../lib/money'
+import { tr } from '../../i18n'
 
 export interface Commitment {
   /** khoá dựng cho React; không phải id của bảng nào (một rule gộp nhiều kỳ) */
@@ -106,7 +107,7 @@ export function collectCommitments(
     items.push({
       key: `rule:${r.id}`,
       kind: 'recurring',
-      title: r.note.trim() || 'Khoản định kỳ',
+      title: r.note.trim() || tr('Khoản định kỳ'),
       categoryId: r.category_id,
       amount: one * dues.length,
       times: dues.length,
@@ -227,7 +228,7 @@ export function commitmentOverdueDays(
 
 /** "9/15", hoặc "trong tháng 9" — in "9/1" cho khoản chỉ biết tháng là bịa độ chính xác. */
 export function commitmentDueLabel(c: Pick<Commitment, 'dueISO' | 'duePrecision'>): string {
-  if (c.duePrecision === 'month') return `trong tháng ${Number(c.dueISO.slice(5, 7))}`
+  if (c.duePrecision === 'month') return tr('trong tháng {m}', { m: Number(c.dueISO.slice(5, 7)) })
   return dayMonthLabel(c.dueISO)
 }
 

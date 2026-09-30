@@ -25,6 +25,8 @@ import { accountMonthlyGrowth, goalForecast, goalSpeedMonths } from './goals'
 import { useAccountCurrentValues } from './useAccountCurrentValues'
 import type { MoneyView } from './moneyView'
 import { SavingsGoalFormSheet } from './SavingsGoalFormSheet'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Số ngày còn lại tới hạn (âm = quá hạn); null nếu không đặt hạn. */
 function daysLeft(targetDate: string | null, todayISO: string): number | null {
@@ -87,7 +89,7 @@ export function SavingsGoalsSection({ view }: Props) {
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-money-in" />
         <SectionTitle className="flex-1">
-          Mục tiêu tiết kiệm
+          {tr('Mục tiêu tiết kiệm')}
         </SectionTitle>
         <button
           type="button"
@@ -95,20 +97,20 @@ export function SavingsGoalsSection({ view }: Props) {
           disabled={selectableAccounts.length === 0}
           className={actionButtonClass('primary')}
         >
-          <Plus className="h-4 w-4" /> Thêm
+          <Plus className="h-4 w-4" /> {tr('Thêm')}
         </button>
       </div>
 
       {dangTai ? (
-        <p className="mt-3 text-center text-sm text-fg-muted">Đang tải…</p>
+        <p className="mt-3 text-center text-sm text-fg-muted">{tr('Đang tải…')}</p>
       ) : loiMucTieu && goals.length === 0 ? (
         <p className="mt-3 text-center text-sm text-fg-muted">
-          Chưa tải được mục tiêu — thử tải lại trang.
+          {tr('Chưa tải được mục tiêu — thử tải lại trang.')}
         </p>
       ) : goals.length === 0 ? (
         <p className="mt-3 text-center text-sm text-fg-muted">
-          Chưa có mục tiêu nào.
-          <Guide as="span"> Đặt một đích tiết kiệm để theo dõi tiến độ.</Guide>
+          {tr('Chưa có mục tiêu nào.')}
+          <Guide as="span">{tr(' Đặt một đích tiết kiệm để theo dõi tiến độ.')}</Guide>
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
@@ -158,7 +160,11 @@ export function SavingsGoalsSection({ view }: Props) {
                   </span>
                   {dl != null && (
                     <span className={dl < 0 ? 'text-money-out' : ''}>
-                      {dl < 0 ? `Quá hạn ${-dl} ngày` : dl === 0 ? 'Đến hạn hôm nay' : `Còn ${dl} ngày`}
+                      {dl < 0
+                        ? tr('Quá hạn {n} ngày', { n: -dl })
+                        : dl === 0
+                          ? tr('Đến hạn hôm nay')
+                          : tr('Còn {n} ngày', { n: dl })}
                     </span>
                   )}
                 </div>
@@ -169,8 +175,10 @@ export function SavingsGoalsSection({ view }: Props) {
                     {f.etaMonth === null ? (
                       <span className="text-fg-muted">
                         {f.monthlyGrowth < 0
-                          ? `Số dư đang giảm ${view.fmt(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
-                          : 'Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.'}
+                          ? tr('Số dư đang giảm {amount}/tháng — chưa tiến về đích.', {
+                              amount: view.fmt(-f.monthlyGrowth, currency),
+                            })
+                          : tr('Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.')}
                       </span>
                     ) : (
                       <span
@@ -180,11 +188,13 @@ export function SavingsGoalsSection({ view }: Props) {
                             : 'text-fg-muted'
                         }
                       >
-                        Đang thêm {view.fmt(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
-                        <b>{formatMonthLabel(f.etaMonth).toLowerCase()}</b>
-                        <EstimateMark reason="Suy ra từ tốc độ để dành gần đây; để dành nhanh hay chậm hơn thì tháng này đổi theo." />
-                        {f.vsDeadline === 'behind' && ' — trễ hơn hạn bạn đặt'}
-                        {f.vsDeadline === 'ahead' && ' — kịp hạn'}.
+                        {trn('Đang thêm {amount}/tháng → dự kiến đạt {month}', {
+                          amount: view.fmt(f.monthlyGrowth, currency),
+                          month: <b>{formatMonthLabel(f.etaMonth).toLowerCase()}</b>,
+                        })}
+                        <EstimateMark reason={tr('Suy ra từ tốc độ để dành gần đây; để dành nhanh hay chậm hơn thì tháng này đổi theo.')} />
+                        {f.vsDeadline === 'behind' && tr(' — trễ hơn hạn bạn đặt')}
+                        {f.vsDeadline === 'ahead' && tr(' — kịp hạn')}.
                       </span>
                     )}
                   </p>
@@ -200,16 +210,16 @@ export function SavingsGoalsSection({ view }: Props) {
           <b className="tabular-nums text-fg-primary">
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}
-          trong số dư đang có chủ cho các mục tiêu trên.{' '}
+          {tr('trong số dư đang có chủ cho các mục tiêu trên.')}{' '}
           {/* E-ink + Gọn: giữ con số và link, bỏ lời giải thích trang kia dùng số này ra sao. */}
-          <span className="eink-gon:hidden">Trang </span>
+          <span className="eink-gon:hidden">{tr('Trang ')}</span>
           <Link to="/reports?view=health" className="font-medium text-fg-accent">
-            Sức khỏe tài chính
+            {tr('Sức khỏe tài chính')}
             <span className="hidden eink-gon:inline"> →</span>
           </Link>
           <span className="eink-gon:hidden">
             {' '}
-            trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.
+            {tr('trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.')}
           </span>
         </p>
       )}

@@ -7,10 +7,11 @@
 // lấy từ sổ: nó không đi qua chế độ che số nên không được là tiền thật của người dùng.
 import { Card, PanelHeader } from '../../components/ui'
 import { setCompactStyle, useCompactStyle, type CompactStyle } from '../../lib/compactStyle'
+import { tr } from '../../i18n'
 
 const OPTIONS: { value: CompactStyle; label: string; hint: string }[] = [
   { value: 'ja', label: '万 / 億', hint: '¥123,456 → 12.3万' },
-  { value: 'vi', label: 'nghìn / triệu', hint: '¥123,456 → 123k' },
+  { value: 'vi', label: tr('nghìn / triệu'), hint: '¥123,456 → 123k' },
 ]
 
 export function CompactNumberToggle() {
@@ -18,7 +19,7 @@ export function CompactNumberToggle() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader>Số rút gọn</PanelHeader>
+      <PanelHeader>{tr('Số rút gọn')}</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = style === opt.value

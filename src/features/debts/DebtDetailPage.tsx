@@ -20,6 +20,7 @@ import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
 import { Card, EmptyState, Money, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
 import { formatDateLabel } from '../../lib/dates'
+import { tr } from '../../i18n'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -49,11 +50,11 @@ export function DebtDetailPage() {
     const waiting = load === 'pending'
     return (
       <div className="p-6 text-center text-sm text-fg-muted">
-        {load !== 'ready' ? pendingText(load) : 'Không tìm thấy khoản nợ.'}
+        {load !== 'ready' ? pendingText(load) : tr('Không tìm thấy khoản nợ.')}
         {!waiting && (
           <div className="mt-3">
             <Link to="/debts" className="text-fg-accent underline">
-              Về danh sách
+              {tr('Về danh sách')}
             </Link>
           </div>
         )}
@@ -65,16 +66,16 @@ export function DebtDetailPage() {
   const paid = repaidOf(debt.id, allPayments)
   const disbursed = disbursedOf(debt, allPayments)
   const isMine = debt.direction === 'i_owe'
-  const dirLabel = isMine ? 'Mình nợ' : 'Cho vay'
+  const dirLabel = isMine ? tr('Mình nợ') : tr('Cho vay')
   const fullyPaid = paidOff
 
   async function handleDelete() {
     if (
       !(await confirmDialog({
-        title: `Xóa khoản nợ "${debt!.counterparty}"?`,
-        message: 'Mọi lần trả liên kết cũng bị xóa.',
+        title: tr('Xóa khoản nợ "{name}"?', { name: debt!.counterparty }),
+        message: tr('Mọi lần trả liên kết cũng bị xóa.'),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
@@ -100,14 +101,14 @@ export function DebtDetailPage() {
 
   async function handleDeletePayment(id: string, hasTx: boolean) {
     const msg = hasTx
-      ? 'Giao dịch liên kết cũng bị xóa (số dư tài khoản sẽ hoàn lại).'
+      ? tr('Giao dịch liên kết cũng bị xóa (số dư tài khoản sẽ hoàn lại).')
       : undefined
     if (
       !(await confirmDialog({
-        title: 'Xóa lần trả này?',
+        title: tr('Xóa lần trả này?'),
         message: msg,
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
@@ -122,7 +123,7 @@ export function DebtDetailPage() {
           onClick={() => setEditing(true)}
           className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
-          Sửa
+          {tr('Sửa')}
         </button>
       </PageHeader>
 
@@ -137,11 +138,11 @@ export function DebtDetailPage() {
       <Card as="section" padding="lg">
         <SectionTitle role="micro">
           {dirLabel}
-          {debt.status === 'settled' && ' · đã tất toán'}
+          {debt.status === 'settled' && tr(' · đã tất toán')}
         </SectionTitle>
         {overpaid > 0 ? (
           <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-            <span className="text-base font-medium text-fg-warn">Trả thừa</span>
+            <span className="text-base font-medium text-fg-warn">{tr('Trả thừa')}</span>
             <Money amount={overpaid} currency={debt.currency} tone="warn" className="text-hero font-medium tracking-number" />
           </p>
         ) : (
@@ -154,10 +155,17 @@ export function DebtDetailPage() {
           </p>
         )}
         <p className="mt-2 text-sm text-fg-muted">
-          {overpaid > 0 ? 'đã trả nhiều hơn số nợ' : 'còn lại'} · gốc {formatMoney(disbursed, debt.currency)} · đã trả{' '}
-          {formatMoney(paid, debt.currency)}
+          {overpaid > 0
+            ? tr('đã trả nhiều hơn số nợ · gốc {principal} · đã trả {paid}', {
+                principal: formatMoney(disbursed, debt.currency),
+                paid: formatMoney(paid, debt.currency),
+              })
+            : tr('còn lại · gốc {principal} · đã trả {paid}', {
+                principal: formatMoney(disbursed, debt.currency),
+                paid: formatMoney(paid, debt.currency),
+              })}
         </p>
-        {debt.due_on && <p className="mt-1 text-sm text-fg-muted">Hạn: {formatDateLabel(debt.due_on)}</p>}
+        {debt.due_on && <p className="mt-1 text-sm text-fg-muted">{tr('Hạn: {date}', { date: formatDateLabel(debt.due_on) })}</p>}
         {debt.note && <p className="mt-1 text-sm text-fg-secondary">{debt.note}</p>}
       </Card>
 
@@ -171,14 +179,14 @@ export function DebtDetailPage() {
           aria-describedby={paidOff ? 'debt-paid-off-note' : undefined}
           className={actionButtonClass('primary')}
         >
-          + Ghi nhận trả
+          {tr('+ Ghi nhận trả')}
         </button>
         <button
           type="button"
           onClick={toggleSettled}
           className={actionButtonClass('outline')}
         >
-          {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
+          {debt.status === 'open' ? tr('Đánh dấu tất toán') : tr('Mở lại')}
         </button>
       </div>
 
@@ -189,19 +197,19 @@ export function DebtDetailPage() {
           onClick={handleDelete}
           className={actionButtonClass('danger')}
         >
-          Xóa khoản nợ
+          {tr('Xóa khoản nợ')}
         </button>
       </div>
 
       {paidOff && (
         <p id="debt-paid-off-note" className="mt-2 text-sm text-fg-muted">
-          {overpaid > 0 ? 'Đã trả thừa' : 'Đã trả hết'} — không còn gì để ghi trả.
+          {overpaid > 0 ? tr('Đã trả thừa — không còn gì để ghi trả.') : tr('Đã trả hết — không còn gì để ghi trả.')}
         </p>
       )}
 
       {debt.status === 'open' && fullyPaid && (
         <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-3 text-sm">
-          Đã trả đủ. Bạn có thể "Đánh dấu tất toán" để đưa khoản này ra khỏi tổng nợ.
+          {tr('Đã trả đủ. Bạn có thể "Đánh dấu tất toán" để đưa khoản này ra khỏi tổng nợ.')}
         </p>
       )}
 
@@ -210,13 +218,13 @@ export function DebtDetailPage() {
 
       {/* Lịch sử trả / cho vay thêm */}
       <SectionTitle role="micro" className="mb-2 mt-5 px-1">
-        Lịch sử ({payments.length})
+        {tr('Lịch sử ({n})', { n: payments.length })}
       </SectionTitle>
       <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {payments.map((p) => {
           // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
           const isAdvance = p.amount < 0
-          const advanceLabel = isMine ? 'Vay thêm' : 'Cho vay thêm'
+          const advanceLabel = isMine ? tr('Vay thêm') : tr('Cho vay thêm')
           const info = (
             <>
               {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
@@ -231,7 +239,7 @@ export function DebtDetailPage() {
                     formatMoney(p.amount, debt.currency)
                   )}
                   {!p.transaction_id && (
-                    <span className="ml-1 text-2xs font-normal text-fg-muted">(ghi nhận suông)</span>
+                    <span className="ml-1 text-2xs font-normal text-fg-muted">{tr('(ghi nhận suông)')}</span>
                   )}
                 </p>
                 <p className="truncate text-sm text-fg-muted">
@@ -249,7 +257,7 @@ export function DebtDetailPage() {
                   type="button"
                   onClick={() => setViewingTxId(p.transaction_id)}
                   className="flex min-w-0 flex-1 items-center gap-2 rounded-md -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
-                  aria-label="Xem giao dịch liên kết"
+                  aria-label={tr('Xem giao dịch liên kết')}
                 >
                   {info}
                 </button>
@@ -261,13 +269,13 @@ export function DebtDetailPage() {
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
                 className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-sm text-fg-muted hover:bg-surface-sunken"
               >
-                Xóa
+                {tr('Xóa')}
               </button>
             </div>
           )
         })}
         {payments.length === 0 && (
-          <EmptyState compact>Chưa có lần trả nào</EmptyState>
+          <EmptyState compact>{tr('Chưa có lần trả nào')}</EmptyState>
         )}
       </Card>
 
@@ -289,7 +297,7 @@ function PaymentTxSheet({ txId, onClose }: { txId: string; onClose: () => void }
   const missing = !isLoading && !tx
   useEffect(() => {
     if (missing) {
-      showToast('Giao dịch liên kết không còn tồn tại (có thể đã bị xóa).', 'error')
+      showToast(tr('Giao dịch liên kết không còn tồn tại (có thể đã bị xóa).'), 'error')
       onClose()
     }
   }, [missing, onClose])
@@ -315,33 +323,33 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
   return (
     <div className="mt-5">
       <SectionTitle role="micro" className="mb-2 px-1">
-        Lịch trả dự kiến
+        {tr('Lịch trả dự kiến')}
       </SectionTitle>
       <Card padding="lg">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-2xs text-fg-muted">Mỗi kỳ</p>
+            <p className="text-2xs text-fg-muted">{tr('Mỗi kỳ')}</p>
             <p className="text-sm font-semibold text-fg-primary">
               {formatMoney(schedule.monthly, cur)}
             </p>
           </div>
           <div>
-            <p className="text-2xs text-fg-muted">Tổng lãi</p>
+            <p className="text-2xs text-fg-muted">{tr('Tổng lãi')}</p>
             <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
               {formatMoney(schedule.totalInterest, cur)}
             </p>
           </div>
           <div>
-            <p className="text-2xs text-fg-muted">Tổng phải trả</p>
+            <p className="text-2xs text-fg-muted">{tr('Tổng phải trả')}</p>
             <p className="text-sm font-semibold text-fg-primary">
               {formatMoney(schedule.totalPaid, cur)}
             </p>
           </div>
         </div>
         <p className="mt-2 text-2xs text-fg-muted">
-          {(bps! / 100).toString()}%/năm · {term} kỳ
+          {tr('{rate}%/năm · {n} kỳ', { rate: (bps! / 100).toString(), n: term! })}
           {/* E-ink + Gọn: bỏ ghi chú phương pháp, giữ lãi suất và số kỳ. */}
-          <span className="eink-gon:hidden"> · ước tính theo niên kim (thực tế có thể lệch chút)</span>
+          <span className="eink-gon:hidden">{tr(' · ước tính theo niên kim (thực tế có thể lệch chút)')}</span>
         </p>
 
         <button
@@ -349,7 +357,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
           onClick={() => setOpen((v) => !v)}
           className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-fg-accent"
         >
-          {open ? 'Ẩn chi tiết từng kỳ' : 'Xem chi tiết từng kỳ'}
+          {open ? tr('Ẩn chi tiết từng kỳ') : tr('Xem chi tiết từng kỳ')}
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
@@ -358,11 +366,11 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
             <table className="w-full text-right text-sm tabular-nums">
               <thead>
                 <tr className="text-fg-muted">
-                  <th className="py-1 pr-2 text-left font-medium">Kỳ</th>
-                  <th className="py-1 px-2 font-medium">Ngày</th>
-                  <th className="py-1 px-2 font-medium">Trả</th>
-                  <th className="py-1 px-2 font-medium">Lãi</th>
-                  <th className="py-1 pl-2 font-medium">Dư nợ</th>
+                  <th className="py-1 pr-2 text-left font-medium">{tr('Kỳ')}</th>
+                  <th className="py-1 px-2 font-medium">{tr('Ngày')}</th>
+                  <th className="py-1 px-2 font-medium">{tr('Trả')}</th>
+                  <th className="py-1 px-2 font-medium">{tr('Lãi')}</th>
+                  <th className="py-1 pl-2 font-medium">{tr('Dư nợ')}</th>
                 </tr>
               </thead>
               <tbody className="text-fg-secondary">

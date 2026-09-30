@@ -16,6 +16,8 @@
 import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { sharePct } from './axisTargets'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export interface LimitSliderProps {
   base: CurrencyCode
@@ -89,7 +91,7 @@ export function LimitSlider({
       {/* `min-h-11` cho vùng chạm 44px, `accent-[var(--accent)]` cho màu — cùng khuôn với
           các thanh trượt ở màn Sức khỏe và Kịch bản cả đời. */}
       <label className="block">
-        <span className="sr-only">Hạn mức</span>
+        <span className="sr-only">{tr('Hạn mức')}</span>
         <span className="relative block">
           <input
             type="range"
@@ -122,17 +124,19 @@ export function LimitSlider({
             }}
             className="min-h-11 -my-2.5 text-fg-accent underline"
           >
-            về vạch gợi ý {formatMoney(suggest, base)}
+            {tr('về vạch gợi ý {amount}', { amount: formatMoney(suggest, base) })}
           </button>
         ) : (
           <span className="text-fg-muted">
             {axisLabel
-              ? `${axisLabel} đang trong trần`
-              : (emptyHint ?? 'chưa gắn nhóm nên không vào trần nào')}
+              ? tr('{axis} đang trong trần', { axis: axisLabel })
+              : (emptyHint ?? tr('chưa gắn nhóm nên không vào trần nào'))}
           </span>
         )}
         <span className="shrink-0 text-fg-muted">
-          tối đa <Money amount={max} currency={base} className="!text-2xs !text-fg-muted" />
+          {trn('tối đa {amount}', {
+            amount: <Money amount={max} currency={base} className="!text-2xs !text-fg-muted" />,
+          })}
         </span>
       </div>
 
@@ -143,7 +147,7 @@ export function LimitSlider({
           <span className={axisOk ? 'text-money-in' : 'text-fg-warn'}>
             {sharePct(axisShareNow)}%
           </span>{' '}
-          · tối đa {Math.round(axisTargetShare * 100)}%
+          {tr('· tối đa {pct}%', { pct: Math.round(axisTargetShare * 100) })}
         </p>
       )}
 
@@ -152,7 +156,7 @@ export function LimitSlider({
         onClick={onDetail}
         className="min-h-11 -my-2.5 mt-0.5 text-2xs font-medium text-fg-accent underline"
       >
-        Sửa chi tiết
+        {tr('Sửa chi tiết')}
       </button>
     </div>
   )

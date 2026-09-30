@@ -18,6 +18,7 @@ import type { AccountRow, RelativeRow, TransactionRow } from '../../types/databa
 import type { KetLuan } from './ketLuan'
 import { tienTietKiem } from './marginalRate'
 import { luatChoNam } from './rules/luat'
+import { tr } from '../../i18n'
 
 export type NhomTuoi = '<16' | '16-29' | '30-69' | '70+'
 
@@ -163,11 +164,11 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
 
   const ly_do: string[] = []
   if (input.suatBien === null)
-    ly_do.push('Chưa đủ 12 tháng phiếu lương để ước thuế suất — nhập phiếu lương thì mới có số tiền tiết kiệm.')
-  else ly_do.push('Tiền tiết kiệm là số ước từ thuế suất biên trên phiếu lương; công ty/sở thuế ra số cuối.')
-  if (thieu_ty_gia) ly_do.push('Có lần gửi từ tài khoản ngoại tệ thiếu tỷ giá, đã loại khỏi tổng.')
-  if (bo_qua.length) ly_do.push(`${bo_qua.join(', ')} đang cư trú ở Nhật — theo luật người cư trú, ngoài phạm vi khoản này.`)
-  ly_do.push(`Người thân phải có 合計所得金額 ≤ ${input.fmt(luat.fuyo.thuNhapToiDa)}/năm — app không kiểm được điều này.`)
+    ly_do.push(tr('Chưa đủ 12 tháng phiếu lương để ước thuế suất — nhập phiếu lương thì mới có số tiền tiết kiệm.'))
+  else ly_do.push(tr('Tiền tiết kiệm là số ước từ thuế suất biên trên phiếu lương; công ty/sở thuế ra số cuối.'))
+  if (thieu_ty_gia) ly_do.push(tr('Có lần gửi từ tài khoản ngoại tệ thiếu tỷ giá, đã loại khỏi tổng.'))
+  if (bo_qua.length) ly_do.push(tr('{names} đang cư trú ở Nhật — theo luật người cư trú, ngoài phạm vi khoản này.', { names: bo_qua.join(', ') }))
+  ly_do.push(tr('Người thân phải có 合計所得金額 ≤ {amount}/năm — app không kiểm được điều này.', { amount: input.fmt(luat.fuyo.thuNhapToiDa) }))
 
   const tongTietKiem = nguoi.some((n) => n.tiet_kiem_uoc !== null)
     ? nguoi.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0)
@@ -180,32 +181,32 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
   let viec: string
   if (nguoi.length === 0 && bo_qua.length === 0) {
     trang_thai = 'thieu-du-lieu'
-    viec = 'Thêm người thân nhận tiền để app tính được khấu trừ người phụ thuộc'
+    viec = tr('Thêm người thân nhận tiền để app tính được khấu trừ người phụ thuộc')
   } else if (chua_gan.so_lan > 0) {
     trang_thai = 'thieu-du-lieu'
-    viec = `Gán người nhận cho ${chua_gan.so_lan} lần gửi (${input.fmt(chua_gan.tong)}) — chưa gán thì số dưới đây đang thiếu`
+    viec = tr('Gán người nhận cho {n} lần gửi ({amount}) — chưa gán thì số dưới đây đang thiếu', { n: chua_gan.so_lan, amount: input.fmt(chua_gan.tong) })
   } else if (thieu.length > 0 && input.year < namHomNay) {
     trang_thai = 'het-han'
-    viec = `${thieu.map((n) => n.name).join(', ')} không đủ 38万 năm ${input.year}`
+    viec = tr('{names} không đủ 38万 năm {year}', { names: thieu.map((n) => n.name).join(', '), year: input.year })
   } else if (thieu.length > 0) {
     trang_thai = 'thieu'
     const n = thieu[0]
     // 0 tháng nữa (tháng 12) đọc lên như "hết hạn mà chưa nói": nói thẳng mốc 31/12.
-    const hanText = thang_con_lai === 0 ? 'hết 31/12' : `${thang_con_lai} tháng nữa`
+    const hanText = thang_con_lai === 0 ? tr('hết 31/12') : tr('{n} tháng nữa', { n: thang_con_lai })
     viec =
       thieu.length === 1
-        ? `Còn ${input.fmt(n.con_thieu)} để ${n.name} đủ 38万 · ${hanText}`
-        : `${thieu.length} người còn thiếu để đủ 38万 · ${hanText}`
+        ? tr('Còn {amount} để {name} đủ 38万 · {deadline}', { amount: input.fmt(n.con_thieu), name: n.name, deadline: hanText })
+        : tr('{n} người còn thiếu để đủ 38万 · {deadline}', { n: thieu.length, deadline: hanText })
   } else if (nguoi.some((n) => n.du)) {
     trang_thai = 'du'
     if (input.year < namHomNay) {
-      viec = `Năm ${input.year} đủ điều kiện khấu trừ — chưa khai thì xem khoản "Đòi lại năm cũ"`
+      viec = tr('Năm {year} đủ điều kiện khấu trừ — chưa khai thì xem khoản "Đòi lại năm cũ"', { year: input.year })
     } else {
-      viec = `Nộp ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ')} cho công ty trước 年末調整`
+      viec = tr('Nộp {docs} cho công ty trước 年末調整', { docs: [...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ') })
     }
   } else {
     trang_thai = 'thieu-du-lieu'
-    viec = 'Chưa có lần gửi nào trong năm được gán cho người thân'
+    viec = tr('Chưa có lần gửi nào trong năm được gán cho người thân')
   }
 
   return {

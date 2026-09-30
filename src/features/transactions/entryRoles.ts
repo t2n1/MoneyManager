@@ -61,7 +61,7 @@ export interface RemitValue {
   recipientId: string
 }
 
-export const SERVICES = ['Wise', 'SBI Remit', 'Brastel', 'DCOM', 'Khác'] as const
+export const SERVICES = ['Wise', 'SBI Remit', 'Brastel', 'DCOM', 'Khác'] as const // i18n-ignore — stored in DB (remit_service)
 
 // Mặc định 'now': ca thường ngày là người kia đưa lại tiền tại chỗ, lúc đó không
 // có món nợ nào để theo dõi. Chọn 'later' khi tiền về sau.

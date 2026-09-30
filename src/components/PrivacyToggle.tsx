@@ -1,10 +1,11 @@
 import { Eye, EyeOff } from 'lucide-react'
 import { togglePrivacy, usePrivacyMode } from '../lib/privacy'
+import { tr } from '../i18n'
 
 /** Nút mắt bật/tắt chế độ riêng tư (ẩn số tiền). Icon-only, dùng ở header/sidebar. */
 export function PrivacyToggle({ className }: { className?: string }) {
   const on = usePrivacyMode()
-  const label = on ? 'Hiện số tiền' : 'Ẩn số tiền'
+  const label = on ? tr('Hiện số tiền') : tr('Ẩn số tiền')
   return (
     <button
       type="button"

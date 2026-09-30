@@ -6,6 +6,7 @@ import type {
   DebtRow,
   TransactionRow,
 } from '../../types/database.types'
+import { tr } from '../../i18n'
 import type { CurrencyCode } from '../../lib/money'
 import { DEBT_FLOW_CATEGORY_NAMES, REMIT_CATEGORY_NAME } from '../categories/flowCategories'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
@@ -44,11 +45,11 @@ export interface RoleBase {
 const GUI_TIEN_CAT = REMIT_CATEGORY_NAME
 
 /** Danh mục nhận mọi khoản PHÍ tài chính (phí chuyển khoản, phí cho vay…). */
-const PHI_CAT = 'Tài chính'
+const PHI_CAT = 'Tài chính' // i18n-ignore — category name matched against DB
 /** Tên cũ trước migration 0030 — người dùng chưa áp migration vẫn dùng lại được. */
-const PHI_CAT_LEGACY = 'Tài chính & Đầu tư'
+const PHI_CAT_LEGACY = 'Tài chính & Đầu tư' // i18n-ignore — category name matched against DB
 /** Danh mục THU nhận phần đưa dư của Trả hộ (seed có sẵn "Khác" 💵). */
-const THU_KHAC_CAT = 'Khác'
+const THU_KHAC_CAT = 'Khác' // i18n-ignore — category name matched against DB
 
 export interface RoleSaveDeps {
   createTransaction: (input: NewTransaction) => Promise<TransactionRow>
@@ -164,7 +165,7 @@ async function createFeeTx(
  */
 function requireAccount(base: RoleBase): string {
   if (!base.accountId)
-    throw new Error('Thiếu tài khoản: dạng này ghi bút toán nên phải có ví. (cổng Lưu hở?)')
+    throw new Error(tr('Thiếu tài khoản: dạng này ghi bút toán nên phải có ví. (cổng Lưu hở?)'))
   return base.accountId
 }
 
@@ -221,7 +222,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
         account_id: requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
-        note: base.note.trim() || `Trả hộ · ${counterparty}`,
+        note: base.note.trim() || `Trả hộ · ${counterparty}`, // i18n-ignore — auto note stored in DB
         tag_ids: base.tagIds,
       }
       const row = await deps.createTransaction(ownTx)
@@ -249,7 +250,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
       account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
-      note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
+      note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`, // i18n-ignore — auto note stored in DB
       tag_ids: base.tagIds,
     }
     if (target) {
@@ -325,7 +326,7 @@ async function saveSplitSettled(
         account_id: requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
-        note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
+        note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'), // i18n-ignore — auto note stored in DB
         tag_ids: base.tagIds,
       })
       createdIds.push(row.id)
@@ -341,7 +342,7 @@ async function saveSplitSettled(
         account_id: requireAccount(base),
         to_account_id: backTo,
         occurred_on: base.occurredOn,
-        note: who ? `Hoàn phần trả hộ · ${who}` : 'Hoàn phần trả hộ',
+        note: who ? `Hoàn phần trả hộ · ${who}` : 'Hoàn phần trả hộ', // i18n-ignore — auto note stored in DB
       })
       createdIds.push(row.id)
     }
@@ -354,7 +355,7 @@ async function saveSplitSettled(
         account_id: backTo ?? requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
-        note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư',
+        note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư', // i18n-ignore — auto note stored in DB
         tag_ids: base.tagIds,
       })
     }
@@ -394,7 +395,7 @@ export async function saveDebtEntry(
         v.fee,
         base.accountId!,
         base.occurredOn,
-        who ? `Phí · ${who}` : 'Phí giao dịch',
+        who ? `Phí · ${who}` : 'Phí giao dịch', // i18n-ignore — auto note stored in DB
         deps,
       )
   try {
@@ -453,7 +454,7 @@ async function saveDebtCore(
         occurred_on: base.occurredOn,
         note:
           base.note.trim() ||
-          `${txType === 'expense' ? 'Cho vay thêm' : 'Vay thêm'} · ${target.counterparty}`,
+          `${txType === 'expense' ? 'Cho vay thêm' : 'Vay thêm'} · ${target.counterparty}`, // i18n-ignore — auto note stored in DB
         tag_ids: base.tagIds,
       }
     }
@@ -478,7 +479,7 @@ async function saveDebtCore(
       account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
-      note: base.note.trim() || `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty}`,
+      note: base.note.trim() || `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty}`, // i18n-ignore — auto note stored in DB
       tag_ids: base.tagIds,
     }
   }
@@ -550,7 +551,7 @@ export async function saveDebtPayment(
   const debt = deps.debts.find((d) => d.id === v.debtId && d.status === 'open')
   // Ném chứ không lặng lẽ bỏ: ghi một lần trả vào hư không thì sổ nợ và số dư
   // lệch nhau mà không ai biết.
-  if (!debt) throw new Error('Không tìm thấy khoản nợ đang mở này.')
+  if (!debt) throw new Error(tr('Không tìm thấy khoản nợ đang mở này.'))
 
   const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
   // Hai số, hai chỗ: `debt_payments.amount` theo tệ KHOẢN NỢ, `transactions.amount`
@@ -567,7 +568,7 @@ export async function saveDebtPayment(
       account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
-      note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
+      note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`, // i18n-ignore — auto note stored in DB
       tag_ids: base.tagIds,
     }
   }
@@ -586,7 +587,7 @@ export async function saveDebtPayment(
  */
 export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDeps): Promise<void> {
   const amount = base.amount + v.fee
-  const trimmedNote = base.note.trim() || 'Gửi tiền về VN'
+  const trimmedNote = base.note.trim() || 'Gửi tiền về VN' // i18n-ignore — auto note stored in DB
   let input: NewTransaction
   if (v.kind === 'transfer') {
     input = {

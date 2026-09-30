@@ -12,6 +12,8 @@ import { dayMonthLabel, toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import type { AssetAccount } from './aggregate'
 import { decomposeFxReturn, FX_DECOMPOSE_WINDOW_DAYS, type FxDecomposition } from './fxDecompose'
+import { accountLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** Tài khoản đầu tư đang tính vào tổng — cùng tập với hai khu đầu tư phía trên. */
@@ -70,38 +72,39 @@ export function FxSplitSection({ accounts, base }: Props) {
 
   return (
     <Card as="section" elevation="panel" padding="lg">
-      <SectionTitle>Lãi do giá hay do tỷ giá</SectionTitle>
+      <SectionTitle>{tr('Lãi do giá hay do tỷ giá')}</SectionTitle>
       <div className="mt-2 flex flex-col gap-3">
         {splits.map((s) => (
           <div key={s.id} className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="min-w-0 truncate text-sm font-medium text-fg-primary">
-                {s.name}
+                {accountLabel(s.name)}
               </span>
               <span className="shrink-0 text-2xs text-fg-muted">
                 {dayMonthLabel(s.d.from)} → {dayMonthLabel(s.d.to)} ·{' '}
-                <Num tone="muted">{s.d.spanDays} ngày</Num>
+                <Num tone="muted">{tr('{n} ngày', { n: s.d.spanDays })}</Num>
               </span>
             </div>
-            <SplitRow label={`Giá tài sản (${s.currency})`} value={s.d.rAsset} />
-            <SplitRow label={`Tỷ giá ${s.currency}/${base}`} value={s.d.rFx} />
+            <SplitRow label={tr('Giá tài sản ({currency})', { currency: s.currency })} value={s.d.rAsset} />
+            <SplitRow label={tr('Tỷ giá {currency}/{base}', { currency: s.currency, base })} value={s.d.rFx} />
             <div className="border-t border-border-subtle pt-1">
-              <SplitRow label={`Bạn thấy trên đồ thị (${base})`} value={s.d.rBase} tone="plain" />
+              <SplitRow label={tr('Bạn thấy trên đồ thị ({base})', { base })} value={s.d.rBase} tone="plain" />
             </div>
           </div>
         ))}
       </div>
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          <b>Giá tài sản</b> là chuyện của thị trường; <b>tỷ giá</b> là chuyện của đồng
-          tiền. Con số bạn thấy hằng ngày là TÍCH của cả hai: (1 + giá) × (1 + tỷ giá) − 1
-          — nên có kỳ tài sản giảm mà đồ thị gần như đứng yên, chỉ vì tỷ giá che mất.
+          {trn(
+            '{price} là chuyện của thị trường; {fx} là chuyện của đồng tiền. Con số bạn thấy hằng ngày là TÍCH của cả hai: (1 + giá) × (1 + tỷ giá) − 1 — nên có kỳ tài sản giảm mà đồ thị gần như đứng yên, chỉ vì tỷ giá che mất.',
+            { price: <b>{tr('Giá tài sản')}</b>, fx: <b>{tr('tỷ giá')}</b> },
+          )}
         </p>
         <p>
-          Tỷ giá lấy từ lịch sử app tự ghi mỗi phiên (từ cuối 07/2026). Kỳ so là hai mốc
-          định giá gần nhau khoảng một tháng; thiếu tỷ giá quanh mốc thì khu này tự ẩn
-          thay vì đoán.
+          {tr(
+            'Tỷ giá lấy từ lịch sử app tự ghi mỗi phiên (từ cuối 07/2026). Kỳ so là hai mốc định giá gần nhau khoảng một tháng; thiếu tỷ giá quanh mốc thì khu này tự ẩn thay vì đoán.',
+          )}
         </p>
       </ExplainBox>
     </Card>

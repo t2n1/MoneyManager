@@ -51087,6 +51087,24 @@ function taoClient(c) {
   });
 }
 
+// src/i18n/index.ts
+var lang = "vi";
+var dict = {};
+function fill(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, k) => k in vars ? String(vars[k]) : m);
+}
+function pick2(vi, vars) {
+  if (lang === "vi") return vi;
+  const hit = dict[vi];
+  if (hit === void 0) return vi;
+  if (typeof hit === "string") return hit;
+  return vars?.n === 1 ? hit.one : hit.other;
+}
+function tr(vi, vars) {
+  return fill(pick2(vi, vars), vars);
+}
+
 // src/data/paging.ts
 var PAGE_SIZE = 1e3;
 var DEFAULT_MAX_PAGES = 200;
@@ -51116,7 +51134,7 @@ async function fetchAllPages(page, opts = {}) {
     i += soTrang;
   }
   throw new Error(
-    `\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> ${maxPages * PAGE_SIZE} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.`
+    tr("\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> {n} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.", { n: maxPages * PAGE_SIZE })
   );
 }
 
@@ -51243,6 +51261,7 @@ function getMonthRange(key, monthStartDay = 1) {
   const end = new Date(key.year, key.month, monthStartDay);
   return { start: toISODate(start), end: toISODate(end) };
 }
+var KE_CA_HOM_NAY = tr("(k\u1EC3 c\u1EA3 h\xF4m nay)");
 function monthKeyForDate(dateISO, monthStartDay = 1) {
   const [year, month, day] = dateISO.split("-").map(Number);
   if (day >= monthStartDay) return { year, month };
@@ -51260,6 +51279,7 @@ function addDaysISO2(iso2, delta) {
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
+var WEEKDAY_VI = [tr("CN"), tr("T2"), tr("T3"), tr("T4"), tr("T5"), tr("T6"), tr("T7")];
 
 // src/features/categories/kind.ts
 var NO_TRANSFER_CATEGORIES = /* @__PURE__ */ new Set();
@@ -51329,15 +51349,15 @@ function thangCuaNgay(iso2, monthStartDay) {
 
 // src/lib/currencies.ts
 var CURRENCIES = {
-  JPY: { symbol: "\xA5", decimals: 0, label: "Y\xEAn Nh\u1EADt", position: "prefix", group: ",", decimal: "." },
-  VND: { symbol: "\u20AB", decimals: 0, label: "\u0110\u1ED3ng Vi\u1EC7t Nam", position: "suffix", group: ".", decimal: "," },
+  JPY: { symbol: "\xA5", decimals: 0, label: tr("Y\xEAn Nh\u1EADt"), position: "prefix", group: ",", decimal: "." },
+  VND: { symbol: "\u20AB", decimals: 0, label: tr("\u0110\u1ED3ng Vi\u1EC7t Nam"), position: "suffix", group: ".", decimal: "," },
   // USD theo chuẩn Mỹ ($2,000.00), đổi 2026-08-11. Trước đây là group '.' / decimal ','
   // kiểu Việt ($2.000,00) — mà màn Tài khoản hiện "¥1,187,910 · $2.000,00" cạnh nhau,
   // tức dấu ',' vừa là hàng nghìn (JPY) vừa là thập phân (USD) trong CÙNG một danh sách:
   // $2.000,00 rất dễ đọc thành hai nghìn hoặc hai triệu. Việc đổi này chỉ ảnh hưởng
   // HIỂN THỊ — parseAmountToMinor (nhập CSV) đoán dấu thập phân bằng heuristic "dấu cuối
   // theo sau 1–2 chữ số" nên đọc được cả hai kiểu, còn parseMoney chỉ giữ chữ số.
-  USD: { symbol: "$", decimals: 2, label: "\u0110\xF4 la M\u1EF9", position: "prefix", group: ",", decimal: "." }
+  USD: { symbol: "$", decimals: 2, label: tr("\u0110\xF4 la M\u1EF9"), position: "prefix", group: ",", decimal: "." }
 };
 var groupThousands = (digits, sep) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
 

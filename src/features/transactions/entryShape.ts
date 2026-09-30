@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import type { DebtDirection, TransactionType } from '../../types/database.types'
 import type { EntryRole } from './entryRoles'
 
@@ -11,9 +12,9 @@ import type { EntryRole } from './entryRoles'
 export type Direction = 'out' | 'in' | 'move'
 
 export const DIRECTION_LABEL: Record<Direction, string> = {
-  out: 'Tiền ra',
-  in: 'Tiền vào',
-  move: 'Đổi chỗ',
+  out: tr('Tiền ra'),
+  in: tr('Tiền vào'),
+  move: tr('Đổi chỗ'),
 }
 
 /**
@@ -22,7 +23,7 @@ export const DIRECTION_LABEL: Record<Direction, string> = {
  * người dùng không biết khoản này có bị đếm vào Chi hay không.
  */
 export const DIRECTION_HINT: Partial<Record<Direction, string>> = {
-  move: 'Chuyển tiền giữa các tài khoản của bạn — không tính là thu hay chi.',
+  move: tr('Chuyển tiền giữa các tài khoản của bạn — không tính là thu hay chi.'),
 }
 
 /**
@@ -40,9 +41,9 @@ export const DIRECTION_HINT: Partial<Record<Direction, string>> = {
  * không có đường nào tới.
  */
 export const PHASE_LABEL: Record<Direction, { done: string; future: string }> = {
-  out: { done: 'Đã chi', future: 'Sẽ chi' },
-  in: { done: 'Đã thu', future: 'Sẽ thu' },
-  move: { done: 'Đã chuyển', future: 'Sẽ chuyển' },
+  out: { done: tr('Đã chi'), future: tr('Sẽ chi') },
+  in: { done: tr('Đã thu'), future: tr('Sẽ thu') },
+  move: { done: tr('Đã chuyển'), future: tr('Sẽ chuyển') },
 }
 
 /**
@@ -104,18 +105,18 @@ const NONE: RoleSeed = { role: 'none' }
 
 export const SHAPES: Record<EntryKind, EntryShape> = {
   spend: {
-    kind: 'spend', direction: 'out', label: 'Chi thường',
-    categoryPicker: 'user', capBase: 'full', amountLabel: 'Số tiền',
+    kind: 'spend', direction: 'out', label: tr('Chi thường'),
+    categoryPicker: 'user', capBase: 'full', amountLabel: tr('Số tiền'),
     writes: 'transaction', txType: 'expense', roleSeed: NONE,
   },
   split: {
-    kind: 'split', direction: 'out', label: 'Trả hộ',
-    categoryPicker: 'user', capBase: 'myShare', amountLabel: 'Tổng đã trả',
+    kind: 'split', direction: 'out', label: tr('Trả hộ'),
+    categoryPicker: 'user', capBase: 'myShare', amountLabel: tr('Tổng đã trả'),
     writes: 'transaction', txType: 'expense', roleSeed: { role: 'split' },
   },
   family: {
-    kind: 'family', direction: 'out', label: 'Gửi gia đình',
-    hint: 'Tiền cho đi — chọn danh mục để biết nó đi vào việc gì.',
+    kind: 'family', direction: 'out', label: tr('Gửi gia đình'),
+    hint: tr('Tiền cho đi — chọn danh mục để biết nó đi vào việc gì.'),
     /**
      * 'user', KHÔNG phải 'auto'. Bản cũ đóng cứng danh mục `Gửi tiền về VN` — mà đó là
      * PHƯƠNG TIỆN (tiền đi bằng đường nào), không phải MỤC ĐÍCH (tiền đi vào việc gì).
@@ -124,55 +125,55 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
      * của chính mình (dạng đó đã có nhánh riêng — `remitKind: 'transfer'` ở shape
      * `remit`, ghi thành type='transfer' nên mọi module loại nó theo LOẠI giao dịch).
      */
-    categoryPicker: 'user', capBase: 'full', amountLabel: 'Số gửi',
+    categoryPicker: 'user', capBase: 'full', amountLabel: tr('Số gửi'),
     writes: 'transaction', txType: 'expense',
     roleSeed: { role: 'remit', remitKind: 'expense' },
   },
   lend: {
-    kind: 'lend', direction: 'out', label: 'Cho vay',
-    categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số tiền gốc',
+    kind: 'lend', direction: 'out', label: tr('Cho vay'),
+    categoryPicker: 'auto', capBase: 'none', amountLabel: tr('Số tiền gốc'),
     writes: 'transaction', txType: 'expense',
     roleSeed: { role: 'debt', debtDirection: 'owed_to_me' },
   },
   repay: {
-    kind: 'repay', direction: 'out', label: 'Trả nợ',
-    categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số trả',
+    kind: 'repay', direction: 'out', label: tr('Trả nợ'),
+    categoryPicker: 'auto', capBase: 'none', amountLabel: tr('Số trả'),
     writes: 'debtPayment', txType: null, roleSeed: NONE,
   },
   earn: {
-    kind: 'earn', direction: 'in', label: 'Thu thường',
-    categoryPicker: 'user', capBase: 'none', amountLabel: 'Số tiền',
+    kind: 'earn', direction: 'in', label: tr('Thu thường'),
+    categoryPicker: 'user', capBase: 'none', amountLabel: tr('Số tiền'),
     writes: 'transaction', txType: 'income', roleSeed: NONE,
   },
   owed: {
-    kind: 'owed', direction: 'in', label: 'Khách nợ công',
+    kind: 'owed', direction: 'in', label: tr('Khách nợ công'),
     // Chip này nằm dưới tab "Tiền vào" mà KHÔNG có đồng nào vào ví — chỗ dễ nhầm nhất
     // của cả màn, nên hint là bắt buộc. Nó cũng đi vào `chipAriaLabel`.
-    hint: 'Chưa có đồng nào vào ví — chỉ ghi người ta nợ bạn.',
-    categoryPicker: 'user', capBase: 'none', amountLabel: 'Số tiền công',
+    hint: tr('Chưa có đồng nào vào ví — chỉ ghi người ta nợ bạn.'),
+    categoryPicker: 'user', capBase: 'none', amountLabel: tr('Số tiền công'),
     writes: 'debtOnly', txType: null,
     roleSeed: { role: 'debt', debtDirection: 'owed_to_me' },
   },
   collect: {
-    kind: 'collect', direction: 'in', label: 'Người trả lại',
-    categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số nhận lại',
+    kind: 'collect', direction: 'in', label: tr('Người trả lại'),
+    categoryPicker: 'auto', capBase: 'none', amountLabel: tr('Số nhận lại'),
     writes: 'debtPayment', txType: null, roleSeed: NONE,
   },
   borrow: {
-    kind: 'borrow', direction: 'in', label: 'Vay được',
-    categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số tiền gốc',
+    kind: 'borrow', direction: 'in', label: tr('Vay được'),
+    categoryPicker: 'auto', capBase: 'none', amountLabel: tr('Số tiền gốc'),
     writes: 'transaction', txType: 'income',
     roleSeed: { role: 'debt', debtDirection: 'i_owe' },
   },
   between: {
-    kind: 'between', direction: 'move', label: 'Giữa ví của tôi',
-    categoryPicker: 'none', capBase: 'none', amountLabel: 'Chuyển đi',
+    kind: 'between', direction: 'move', label: tr('Giữa ví của tôi'),
+    categoryPicker: 'none', capBase: 'none', amountLabel: tr('Chuyển đi'),
     writes: 'transaction', txType: 'transfer', roleSeed: NONE,
   },
   ownvn: {
-    kind: 'ownvn', direction: 'move', label: 'Tài khoản tôi ở VN',
-    hint: 'Vẫn là tiền của bạn — không phải chi tiêu, chỉ đổi đồng tiền.',
-    categoryPicker: 'none', capBase: 'none', amountLabel: 'Số gửi',
+    kind: 'ownvn', direction: 'move', label: tr('Tài khoản tôi ở VN'),
+    hint: tr('Vẫn là tiền của bạn — không phải chi tiêu, chỉ đổi đồng tiền.'),
+    categoryPicker: 'none', capBase: 'none', amountLabel: tr('Số gửi'),
     writes: 'transaction', txType: 'transfer',
     roleSeed: { role: 'remit', remitKind: 'transfer' },
   },
@@ -221,10 +222,10 @@ export function categoryPickerOf(kind: EntryKind, withTransaction: boolean): Cat
  */
 export function counterpartyLabelOf(kind: EntryKind): string | undefined {
   switch (kind) {
-    case 'split':  return 'Ai nợ mình'
-    case 'lend':   return 'Cho ai vay'
-    case 'owed':   return 'Ai nợ bạn'
-    case 'borrow': return 'Vay của ai'
+    case 'split':  return tr('Ai nợ mình')
+    case 'lend':   return tr('Cho ai vay')
+    case 'owed':   return tr('Ai nợ bạn')
+    case 'borrow': return tr('Vay của ai')
     default:       return undefined
   }
 }

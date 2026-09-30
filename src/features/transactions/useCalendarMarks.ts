@@ -13,6 +13,7 @@
 // Thẻ tới hạn CỐ Ý không cộng vào "Cam kết còn lại": xem ghi chú ở `cardDues` bên dưới.
 import { useMemo } from 'react'
 import { useAccountBalances, usePlannedExpenses, useRecurringRules } from '../../hooks/queries'
+import { accountLabel, tr } from '../../i18n'
 import { getMonthRange, toISODate, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
@@ -120,7 +121,7 @@ export function useCalendarMarks(args: CalendarMarksArgs): CalendarMarks {
       out.push({
         iso: s.dueISO,
         kind: 'card',
-        title: c.name,
+        title: accountLabel(c.name),
         amount: v,
         unknownAmount: false,
       })
@@ -155,7 +156,7 @@ export function useCalendarMarks(args: CalendarMarksArgs): CalendarMarks {
         (iso): DayMarkInput => ({
           iso,
           kind: 'payday',
-          title: 'Lương',
+          title: tr('Lương'),
           amount: 0,
           unknownAmount: false,
         }),

@@ -8,6 +8,7 @@ import type { ProfileRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { Card, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 import { resolveMethod } from '../budgets/budgetMethods'
+import { tr } from '../../i18n'
 
 interface Props {
   profile: ProfileRow
@@ -76,36 +77,36 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Hồ sơ</SectionTitle>
+          <SectionTitle role="block">{tr('Hồ sơ')}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
         <div className="flex flex-col gap-3">
           <Card as="section" padding="md">
             <SectionTitle role="micro" as="h3">
-              Tài khoản
+              {tr('Tài khoản')}
             </SectionTitle>
             <label htmlFor={`${uid}-name`} className="mt-2 block text-sm font-medium text-fg-muted">
-              Tên hiển thị
+              {tr('Tên hiển thị')}
             </label>
             <input
               id={`${uid}-name`}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Tên của bạn"
+              placeholder={tr('Tên của bạn')}
               className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
             />
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor={`${uid}-day`} className="block text-sm font-medium text-fg-muted">
-                  Ngày bắt đầu tháng
+                  {tr('Ngày bắt đầu tháng')}
                 </label>
                 <Select
                   id={`${uid}-day`}
@@ -115,14 +116,14 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
                 >
                   {DAY_OPTIONS.map((d) => (
                     <option key={d} value={d}>
-                      Ngày {d}
+                      {tr('Ngày {d}', { d })}
                     </option>
                   ))}
                 </Select>
               </div>
               <div>
                 <label htmlFor={`${uid}-base`} className="block text-sm font-medium text-fg-muted">
-                  Loại tiền gốc
+                  {tr('Loại tiền gốc')}
                 </label>
                 <input
                   id={`${uid}-base`}
@@ -133,25 +134,24 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
               </div>
             </div>
             <Guide className="mt-1 text-sm text-fg-muted">
-              Ngày bắt đầu tháng ảnh hưởng cách tính tháng trong báo cáo. Loại tiền gốc không đổi
-              được.
+              {tr('Ngày bắt đầu tháng ảnh hưởng cách tính tháng trong báo cáo. Loại tiền gốc không đổi được.')}
             </Guide>
           </Card>
 
           {/* Tham số cho các chỉ số nâng cao — để trống thì phần đó tự ẩn đi */}
           <Card as="section" padding="md">
             <SectionTitle role="micro" as="h3">
-              Cho báo cáo nâng cao
+              {tr('Cho báo cáo nâng cao')}
             </SectionTitle>
             <label htmlFor={`${uid}-wage`} className="mt-2 block text-sm font-medium text-fg-muted">
-              Thu nhập mỗi giờ làm
+              {tr('Thu nhập mỗi giờ làm')}
             </label>
             <input
               id={`${uid}-wage`}
               inputMode="numeric"
               value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
               onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
-              placeholder="Để trống nếu không dùng"
+              placeholder={tr('Để trống nếu không dùng')}
               className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
             />
             {/* Câu ĐỊNH NGHĨA con số phải gõ đứng ngoài <Guide>: ô này nhận một giá trị mơ hồ
@@ -160,14 +160,14 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
                 đoạn thì đa số người dùng thấy một ô số không nhãn nghĩa. Phần nói ô này mở ra
                 báo cáo nào thì vẫn là chữ dạy, vẫn ẩn. */}
             <p className="mt-1 text-sm text-fg-muted">
-              Lương tháng ÷ số giờ làm thực tế trong tháng.
-              <Guide as="span"> Để báo cáo quy đổi “món này = mấy giờ làm”.</Guide>
+              {tr('Lương tháng ÷ số giờ làm thực tế trong tháng.')}
+              <Guide as="span"> {tr('Để báo cáo quy đổi “món này = mấy giờ làm”.')}</Guide>
             </p>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor={`${uid}-infl`} className="block text-sm font-medium text-fg-muted">
-                  Lạm phát năm (%)
+                  {tr('Lạm phát năm (%)')}
                 </label>
                 <input
                   id={`${uid}-infl`}
@@ -180,7 +180,7 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
               </div>
               <div>
                 <label htmlFor={`${uid}-tax`} className="block text-sm font-medium text-fg-muted">
-                  Thuế lãi vốn (%)
+                  {tr('Thuế lãi vốn (%)')}
                 </label>
                 <input
                   id={`${uid}-tax`}
@@ -193,8 +193,7 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
               </div>
             </div>
             <Guide className="mt-1 text-sm text-fg-muted">
-              Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là
-              20,32%; lạm phát vài năm gần đây quanh 2–3%.
+              {tr('Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là 20,32%; lạm phát vài năm gần đây quanh 2–3%.')}
             </Guide>
           </Card>
 
@@ -208,7 +207,7 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
             >
               <span className="min-w-0 flex-1">
                 <SectionTitle role="micro" as="h3">
-                  Phân bổ ngân sách
+                  {tr('Phân bổ ngân sách')}
                 </SectionTitle>
                 <span className="mt-1 block truncate text-sm text-fg-primary">
                   {method.name} ·{' '}
@@ -225,7 +224,7 @@ export function ProfileEditSheet({ profile, onClose, onOpenBudget }: Props) {
             disabled={update.isPending}
             className={actionButtonClass('primary', 'w-full')}
           >
-            Lưu
+            {tr('Lưu')}
           </button>
         </div>
       </div>

@@ -16,6 +16,8 @@
 import { ExternalLink } from 'lucide-react'
 import { ActionButton, FilterChip, Money, Num } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Pane đang mở dưới hàng chip. `null` = đóng hết, chỉ còn đồ thị. */
 export type ConsolePane = 'table' | 'map' | null
@@ -63,17 +65,23 @@ export function PaneSwitchRow({
       <FilterChip
         on={pane === 'table'}
         onClick={toggle('table')}
-        title="Bảng chi tiết theo năm — bản đọc được bằng chữ của đồ thị"
+        title={tr('Bảng chi tiết theo năm — bản đọc được bằng chữ của đồ thị')}
       >
-        Bảng theo năm · <Num tone={pane === 'table' ? 'onAccent' : 'muted'}>{yearCount}</Num> năm
+        {trn('Bảng theo năm · {count} năm', {
+          count: <Num tone={pane === 'table' ? 'onAccent' : 'muted'}>{yearCount}</Num>,
+          n: yearCount,
+        })}
       </FilterChip>
 
       <FilterChip
         on={pane === 'map'}
         onClick={toggle('map')}
-        title="Khoản nào ngốn nhiều tiền nhất, và mỗi tháng cần để dành bao nhiêu"
+        title={tr('Khoản nào ngốn nhiều tiền nhất, và mỗi tháng cần để dành bao nhiêu')}
       >
-        Bản đồ khoản lớn · <Num tone={pane === 'map' ? 'onAccent' : 'muted'}>{bigCount}</Num> khoản
+        {trn('Bản đồ khoản lớn · {count} khoản', {
+          count: <Num tone={pane === 'map' ? 'onAccent' : 'muted'}>{bigCount}</Num>,
+          n: bigCount,
+        })}
         {bigCount > 0 && (
           <>
             {' · '}
@@ -93,10 +101,12 @@ export function PaneSwitchRow({
       <ActionButton
         variant="outline"
         onClick={onOpenDrawer}
-        title="Toàn bộ chặng và mốc dạng danh sách — tìm được, sắp được"
+        title={tr('Toàn bộ chặng và mốc dạng danh sách — tìm được, sắp được')}
       >
-        Danh sách đầy đủ · <Num tone="muted">{phaseCount}</Num> chặng ·{' '}
-        <Num tone="muted">{eventCount}</Num> mốc
+        {trn('Danh sách đầy đủ · {phases} chặng · {events} mốc', {
+          phases: <Num tone="muted">{phaseCount}</Num>,
+          events: <Num tone="muted">{eventCount}</Num>,
+        })}
         <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       </ActionButton>
     </div>

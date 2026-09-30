@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 // Một nguồn dữ liệu đang ở đâu: đã về, còn chờ, hay đã hỏng hẳn.
 //
 // Vì sao có file này: nguyên tắc chung của app là KHÔNG in số tạm như số thật khi đang
@@ -38,5 +39,5 @@ export function mergeLoad(...all: LoadStatus[]): LoadStatus {
 
 /** Chữ đứng thay con số khi nguồn chưa sẵn sàng. */
 export function pendingText(s: Exclude<LoadStatus, 'ready'>): string {
-  return s === 'failed' ? 'Chưa tải được' : 'Đang tính…'
+  return s === 'failed' ? tr('Chưa tải được') : tr('Đang tính…')
 }

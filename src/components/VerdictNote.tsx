@@ -29,6 +29,7 @@ import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import { useDensity } from '../hooks/useDensity'
 import { StatusChip } from './ui/StatusChip'
 import type { StatusTone } from './ui/statusColors'
+import { tr } from '../i18n'
 
 /** Cùng bốn mức với `StatusTone` của tầng primitive; giữ tên cũ vì 17 chỗ đang gọi. */
 export type NoteTone = StatusTone
@@ -37,10 +38,10 @@ const STYLE: Record<NoteTone, { icon: typeof Info; cls: string; sr: string; word
   // Dùng lại token tiền cho chiều tốt/xấu, giống HealthMetricCard đang làm cho giá trị
   // chỉ số. Cố ý KHÔNG thêm token --fg-good/--fg-bad mới: sẽ là cặp màu thứ hai cho
   // cùng một ý nghĩa (xem docs/design-system.md — đặt tên cho cái đã có).
-  good: { icon: CheckCircle2, cls: 'text-money-in', sr: 'Tốt: ', word: 'Ổn' },
-  warn: { icon: AlertTriangle, cls: 'text-fg-warn', sr: 'Cần chú ý: ', word: 'Cần chú ý' },
-  bad: { icon: XCircle, cls: 'text-money-out', sr: 'Rủi ro: ', word: 'Rủi ro' },
-  info: { icon: Info, cls: 'text-fg-secondary', sr: '', word: 'Lưu ý' },
+  good: { icon: CheckCircle2, cls: 'text-money-in', sr: tr('Tốt: '), word: tr('Ổn') },
+  warn: { icon: AlertTriangle, cls: 'text-fg-warn', sr: tr('Cần chú ý: '), word: tr('Cần chú ý') },
+  bad: { icon: XCircle, cls: 'text-money-out', sr: tr('Rủi ro: '), word: tr('Rủi ro') },
+  info: { icon: Info, cls: 'text-fg-secondary', sr: '', word: tr('Lưu ý') },
 }
 
 interface Props {

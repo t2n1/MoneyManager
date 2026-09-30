@@ -14,6 +14,7 @@ import type { AdjustKind } from '../../types/database.types'
 import { isBalanceAdjust } from './reconcile'
 import type { MergedStatement } from './statementBatch'
 import type { StatementLine } from './statementLine'
+import { tr } from '../../i18n'
 
 export interface LedgerTx {
   id: string
@@ -206,9 +207,9 @@ export function reconcileBatch(
     }
     const label =
       cause === 'date-edge'
-        ? `${s.l.name} — thẻ ghi ${dayLabel(s.l.iso)}, sổ ${dayLabel(iso)}`
+        ? tr('{name} — thẻ ghi {card}, sổ {ledger}', { name: s.l.name, card: dayLabel(s.l.iso), ledger: dayLabel(iso) })
         : cause === 'late-posting'
-          ? `${s.l.name} — nhà thẻ ghi trễ, sổ ${dayLabel(iso)}`
+          ? tr('{name} — nhà thẻ ghi trễ, sổ {ledger}', { name: s.l.name, ledger: dayLabel(iso) })
           : s.l.name
     push(s.closeISO, { ledger: [a.t], lines: [s.l], cause, label, amount: s.l.amount })
     out.get(s.closeISO)!.matchedCount++
@@ -266,7 +267,7 @@ export function reconcileBatch(
       const wallet = s.l.name.normalize('NFKC').includes('楽天') ? 'Rakuten Pay' : 'PayPay'
       push(s.closeISO, {
         ledger: group.map((a) => a.t), lines: [s.l], cause: 'wallet-topup',
-        label: `Nạp ví ${wallet} = ${group.length} món sổ ngày ${dayLabel(day)}`, amount: s.l.amount,
+        label: tr('Nạp ví {wallet} = {n} món sổ ngày {date}', { wallet, n: group.length, date: dayLabel(day) }), amount: s.l.amount,
       })
       break
     }
@@ -287,7 +288,7 @@ export function reconcileBatch(
       adj.used = true
       push(adj.closeISO, {
         ledger: [a.t], lines: [adj.l], cause: 'refund-shifted',
-        label: 'Hoàn tiền nhà thẻ cấn ở kỳ khác', amount: adj.l.amount,
+        label: tr('Hoàn tiền nhà thẻ cấn ở kỳ khác'), amount: adj.l.amount,
       })
       continue
     }
@@ -309,7 +310,7 @@ export function reconcileBatch(
       merged.forEach((s) => (s.used = true))
       push(p.range.closeISO, {
         ledger: [a.t], lines: merged.map((s) => s.l), cause: 'merged-rows',
-        label: `${merged.map((s) => s.l.name).join(' + ')} — sổ ghi gộp một dòng`, amount: a.amount,
+        label: tr('{names} — sổ ghi gộp một dòng', { names: merged.map((s) => s.l.name).join(' + ') }), amount: a.amount,
       })
       continue
     }
@@ -327,7 +328,7 @@ export function reconcileBatch(
     const r = out.get(s.closeISO)!
     switch (s.l.kind) {
       case 'recalculated':
-        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'recalculated', label: `${s.l.name} — nhà thẻ tính lại`, amount: s.l.amount })
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'recalculated', label: tr('{name} — nhà thẻ tính lại', { name: s.l.name }), amount: s.l.amount })
         break
       case 'adjustment':
         r.refundDiffs.push({ source: 'statement', label: s.l.name, iso: s.l.iso, amount: s.l.amount })
@@ -338,10 +339,10 @@ export function reconcileBatch(
         r.unmatchedTopups.lines.push(s.l)
         break
       case 'installment-later':
-        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'installment', label: `${s.l.name} — trả góp lần sau, sổ đã ghi cả món`, amount: s.l.amount })
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'installment', label: tr('{name} — trả góp lần sau, sổ đã ghi cả món', { name: s.l.name }), amount: s.l.amount })
         break
       case 'investment':
-        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'investment', label: `${s.l.name} — mua quỹ, theo dõi riêng`, amount: s.l.amount })
+        push(s.closeISO, { ledger: [], lines: [s.l], cause: 'investment', label: tr('{name} — mua quỹ, theo dõi riêng', { name: s.l.name }), amount: s.l.amount })
         break
       default:
         r.missingFromLedger.push(s.l)

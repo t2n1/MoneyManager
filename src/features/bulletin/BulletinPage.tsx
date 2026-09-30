@@ -8,7 +8,7 @@
 //
 // Trang này KHÔNG tự tính một con số nào: chuỗi tháng từ reports/aggregate, ngân sách từ
 // useBudgetReport, tài sản ròng từ assets/useAssetsData. Nó chỉ chọn khối nào đứng đâu.
-import { useMemo, useState } from 'react'
+import { lazy, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartColumn, LineChart, Milestone, Settings } from 'lucide-react'
 import { ActionButton, Card, PageHeader, SectionTitle, iconButtonClass } from '../../components/ui'
@@ -50,7 +50,7 @@ import { useNotifications } from '../notifications/useNotifications'
 import { historyCoverage, reliability } from '../notifications/reliability'
 import { lastReconciledMap } from '../notifications/reconciledAt'
 import { RECONCILE_STALE_DAYS } from '../notifications/rules/dataRules'
-import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
+import { categoryBreakdown, monthExpenseCompare, monthlySeries } from '../reports/aggregate'
 import { ngayDiVang } from '../reports/ngayDiVang'
 import { dailySpendSeries } from '../reports/dailySpike'
 import { cumulativeCompare } from '../reports/cumulativeCompare'
@@ -80,7 +80,20 @@ import { BudgetPanel } from './BudgetPanel'
 import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } from './DailySpendPanel'
 import { KpiRow } from './KpiRow'
 import { HomNayPanel } from './HomNayPanel'
+import { BulletinBoard } from './BulletinBoard'
+import { moduleDef } from './board'
+import { assetMixRows, cashflowRows, categoryRows, cumulativeRows, netWorthRows } from './boardCharts'
 import type { TransactionRow } from '../../types/database.types'
+import { categoryLabel, tr } from '../../i18n'
+
+// Module biểu đồ tải LƯỜI: recharts (pie/area/line) nặng ~180 kB, mà trang Tổng quan mặc
+// định không có biểu đồ nào — người chưa từng thêm biểu đồ không phải trả giá đó. Chỗ chờ
+// là <Suspense> trong ModuleFrame (BulletinBoard.tsx).
+const charts = () => import('./BoardCharts')
+const CashflowChart = lazy(() => charts().then((m) => ({ default: m.CashflowChart })))
+const CumulativeChart = lazy(() => charts().then((m) => ({ default: m.CumulativeChart })))
+const NetWorthChart = lazy(() => charts().then((m) => ({ default: m.NetWorthChart })))
+const SliceChart = lazy(() => charts().then((m) => ({ default: m.SliceChart })))
 
 /** Số dòng ở khối Giao dịch gần đây. */
 const RECENT = 6
@@ -217,7 +230,7 @@ export function BulletinPage() {
   // Kỳ tính của tỷ lệ giữ lại (MỤC 14) — "tới hôm nay" khi tháng đang xem chưa hết. Nguồn
   // là quy ước chung `periodDays` (lib/dates), cùng chỗ Báo cáo lấy.
   const rateScope = periodDays(getMonthRange(activeMonthKey, monthStartDay), todayISO).inProgress
-    ? 'tới hôm nay'
+    ? tr('tới hôm nay')
     : undefined
 
   // Tới ngày lương (§4.9). Luôn tính theo KỲ HIỆN TẠI, không theo tháng đang xem — nó
@@ -294,7 +307,7 @@ export function BulletinPage() {
     income: incomeKpi.value,
     expense: expenseKpi.value,
     priorExpense: expenseKpi.prev,
-    periodNoun: 'tháng này',
+    periodNoun: tr('tháng này'),
     // Cùng luật "chưa đặt" và cùng phạm vi so với thẻ ngân sách (`pickBudgetVerdict`).
     pace: headlinePaceOf(bulletinPace),
     savingsTargetShare: savingsShare,
@@ -416,7 +429,7 @@ export function BulletinPage() {
     [dailySpend.days, tagSpendRows, tags, tagGroups, accounts, base, rates, transferIds, excludeIds],
   )
 
-  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
+  const nameOf = (id: string) => categoryLabel(categories.find((c) => c.id === id)?.name ?? '') || tr('Chưa rõ')
 
   const {
     netWorth,
@@ -506,13 +519,44 @@ export function BulletinPage() {
     return out
   }, [seriesReady, categoriesReady, accounts, seriesTxs, categories, todayISO])
 
+  // Hạn mức cả tháng cho thẻ Chi tiêu và module Chi luỹ kế. Chờ `budgetLoading` xong mới
+  // đưa số xuống — cùng lý do đã ghi ở `luong`: `report` về trước budgets thì
+  // `totalBudgeted` là 0, và đường hạn mức nháy mất một nhịp ở mọi lần mở app.
+  const monthBudget = report && !budgetLoading ? report.totalBudgeted : 0
+
+  // ---- Dữ liệu của các module BIỂU ĐỒ (BoardCharts.tsx) ----
+  // Không phép tính tiền nào mới: xếp lại đúng những chuỗi các khối trên đã dùng.
+  const cashflowData = useMemo(() => cashflowRows(series.points), [series.points])
+  const categoryData = useMemo(() => {
+    const b = categoryBreakdown(monthTxs, 'expense', currencyOf, base, rates ?? {}, transferIds)
+    return { rows: categoryRows(b, categories), approx: b.hasMissingRate }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthTxs, accounts, base, rates, transferIds, categories])
+  // Chi luỹ kế so với HẠN MỨC cả tháng nên đi trên TỔNG chi — công tắc "bỏ khoản cố
+  // định" của thẻ Chi tiêu (B46) chỉ thuộc về thẻ đó. Hạn mức gồm cả tiền nhà, bỏ tiền nhà
+  // khỏi đường chi thì đường nào cũng nằm gọn dưới hạn mức.
+  const fullDaily = useMemo(
+    () =>
+      dailyScope === 'all'
+        ? dailySpend
+        : dailySpendSeries(monthTxs, activeRange.start, monthLastISO, currencyOf, base, rates ?? {}, transferIds, EMPTY_IDS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dailyScope, dailySpend, monthTxs, activeRange.start, monthLastISO, accounts, base, rates, transferIds],
+  )
+  const cumulativeData = useMemo(
+    () => cumulativeRows(fullDaily.days, cutoffISO, monthBudget),
+    [fullDaily.days, cutoffISO, monthBudget],
+  )
+  const netWorthData = useMemo(() => netWorthRows(snapshots), [snapshots])
+  const assetMixData = useMemo(() => assetMixRows(purposeGroups), [purposeGroups])
+
   // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
   // Thoát sớm hẳn chứ không lồng điều kiện vào từng khối: mỗi khối tự lo trạng thái
   // rỗng của nó là đúng khi thiếu MỘT loại dữ liệu, còn đây là chưa có gì cả.
   if (laLanDau) {
     return (
       <div className="flex flex-col gap-2.5 p-3 lg:p-4">
-        <PageHeader title="Bản tin" flush mobileOnly />
+        <PageHeader title={tr('Bản tin')} flush mobileOnly />
         <FirstRunPanel hasBirthYear={profile?.birth_year != null} />
       </div>
     )
@@ -525,7 +569,7 @@ export function BulletinPage() {
           Bốn nút bên phải là ĐƯỜNG VÀO MOBILE của bốn màn không có tab (§3 chốt bốn tab
           + "+"; xem NAV_ITEMS). Đặt ở Bản tin vì đây là màn mở đầu tiên — bỏ khỏi thanh
           tab mà không mở lối khác thì trên mobile bốn màn đó biến mất hẳn. */}
-      <PageHeader title="Bản tin" flush mobileOnly>
+      <PageHeader title={tr('Bản tin')} flush mobileOnly>
         <p aria-live="polite" className="ml-auto font-mono text-sm text-fg-muted">
           {formatMonthLabel(activeMonthKey)}
         </p>
@@ -545,38 +589,21 @@ export function BulletinPage() {
             phần trên, một phần dưới, đọc thành lỗi). Bọc lại thì cả bốn xuống cùng nhau.
             Đo được: 1× một dòng, 1,25× hai dòng, không tràn ngang ở cả hai. */}
         <span className="flex shrink-0 items-center gap-1">
-          <Link to="/invest" aria-label="Đầu tư" className={iconButtonClass('ghost')}>
+          <Link to="/invest" aria-label={tr('Đầu tư')} className={iconButtonClass('ghost')}>
             <LineChart className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/tuong-lai" aria-label="Tương lai" className={iconButtonClass('ghost')}>
+          <Link to="/tuong-lai" aria-label={tr('Tương lai')} className={iconButtonClass('ghost')}>
             <Milestone className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/reports" aria-label="Báo cáo" className={iconButtonClass('ghost')}>
+          <Link to="/reports" aria-label={tr('Báo cáo')} className={iconButtonClass('ghost')}>
             <ChartColumn className="h-5 w-5" strokeWidth={1.6} />
           </Link>
-          <Link to="/settings" aria-label="Cài đặt" className={iconButtonClass('ghost')}>
+          <Link to="/settings" aria-label={tr('Cài đặt')} className={iconButtonClass('ghost')}>
             <Settings className="h-5 w-5" strokeWidth={1.6} />
           </Link>
         </span>
       </PageHeader>
 
-      {/* Việc cần làm phải đứng ĐẦU ở mobile (như trước redesign — nó cao gần một màn
-          và là thứ cần hành động) nhưng lại thuộc ĐỈNH CỘT PHỤ ở desktop. Đổi chỗ theo
-          breakpoint bằng HAI LẦN BÀY (`xl:hidden` ở đây / `hidden xl:block` trong cột
-          phụ), KHÔNG bằng order-*: `display:none` rút hẳn bản kia khỏi cây a11y, nên ở
-          mọi bề rộng chỉ có đúng một bản — thứ tự đọc và thứ tự tiêu điểm vẫn đi cùng
-          thứ tự nhìn (WCAG 2.4.3), đúng luật đã chốt ở BudgetView. Giá phải trả là một
-          lần render thừa; trạng thái đóng/mở của hai bản độc lập nhau nhưng không bao
-          giờ cùng hiện nên không lệch được trước mắt ai. */}
-      <NotificationBoundary>
-        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} className="xl:hidden" />
-      </NotificationBoundary>
-
-      {/* Bố cục bản vẽ redesign (2026-09-05): từ xl là HAI CỘT — nội dung chính co giãn,
-          cột phụ 23.75rem (380px của bản vẽ, quy về rem để Cài đặt → Cỡ chữ còn co giãn
-          được). Dưới xl cả hai cột xếp dọc theo đúng THỨ TỰ DOM — không order-*: thứ tự
-          đọc và thứ tự tiêu điểm phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở
-          BudgetView. */}
       {/* Nguồn tải HỎNG hẳn: một dòng cho cả trang, có nút thử lại. Các ô bên dưới đã đổi
           "Đang tính…" thành "Chưa tải được", nên đây là chỗ DUY NHẤT nói lý do và lối ra. */}
       {(seriesFailed || monthFailed) && (
@@ -586,10 +613,10 @@ export function BulletinPage() {
         >
           <span className="min-w-0 flex-1">
             {seriesFailed && monthFailed
-              ? 'Không tải được giao dịch tháng này và các tháng trước — thử tải lại.'
+              ? tr('Không tải được giao dịch tháng này và các tháng trước — thử tải lại.')
               : seriesFailed
-                ? 'Không tải được dữ liệu các tháng trước — thử tải lại.'
-                : 'Không tải được giao dịch tháng này — thử tải lại.'}
+                ? tr('Không tải được dữ liệu các tháng trước — thử tải lại.')
+                : tr('Không tải được giao dịch tháng này — thử tải lại.')}
           </span>
           <ActionButton
             onClick={() => {
@@ -597,180 +624,254 @@ export function BulletinPage() {
               if (monthFailed) void monthQ.refetch()
             }}
           >
-            Thử lại
+            {tr('Thử lại')}
           </ActionButton>
         </div>
       )}
 
-      <div className="grid items-start gap-2.5 xl:grid-cols-[minmax(0,1fr)_23.75rem]">
-        {/* ===== CỘT CHÍNH ===== */}
-        <div className="flex min-w-0 flex-col gap-2.5">
-          {/* Khối Hôm nay — mở màn bằng câu người ta mở app ra để hỏi. Nó mang luôn câu
-              kết luận của cả màn (ConclusionLine, §5.0 / R7 — không đi qua VerdictNote)
-              ở góc phải. Chỉ dựng được khi đang xem đúng kỳ hiện tại; xem tháng khác thì
-              còn lại một mình câu kết luận. */}
-          {luong ? (
-            <HomNayPanel
-              data={luong}
-              base={base}
-              approx={report?.hasMissingRate ?? false}
-              monthStartDay={monthStartDay}
-              todayISO={todayISO}
-              kyBatDauISO={kyHienTai.start}
-              ngayLuongISO={kyHienTai.end}
-              daTieu={report?.totalSpent ?? 0}
-              hanMuc={report?.totalBudgeted ?? 0}
-              headline={headline}
-              headlinePending={headlinePending}
-              headlineFailed={headlineFailed}
-            />
-          ) : headlinePending ? (
-            <p className="text-sm text-fg-muted">
-              {headlineFailed ? 'Chưa tính được kết luận tháng.' : 'Đang tính kết luận tháng…'}
-            </p>
-          ) : (
-            headline && (
-              <ConclusionLine tone={headline.tone} short={headline.short}>
-                {headline.text}
-              </ConclusionLine>
-            )
-          )}
+      {/* Bảng module (BulletinBoard.tsx): người dùng tự xếp chỗ, đổi cỡ, thêm/bớt khối và
+          lập nhiều trang. Trang Tổng quan mặc định dựng ĐÚNG bố cục cũ — hai cột từ lg
+          (cột chính co giãn, cột phụ 1/3), dưới đó một cột với Việc cần làm đứng ĐẦU.
 
-          <KpiRow
-            base={base}
-            income={incomeKpi}
-            expense={expenseKpi}
-            keptPct={keptPct}
-            keptAmount={incomeKpi.value - expenseKpi.value}
-            keptSpark={keptSpark}
-            netWorth={netWorthReliable ? netWorth : null}
-            netWorthSpark={netWorthSpark}
-            approx={series.hasMissingRate}
-            pending={!seriesReady}
-            failed={seriesFailed}
-            netWorthPending={assetsLoading}
-            keptScope={rateScope}
-          />
+          Mỗi khối chỉ còn MỘT bản trong DOM (trước đây Việc cần làm bày hai lần, `xl:hidden`
+          / `hidden xl:block`, để đổi chỗ theo breakpoint): lưới tự đổi chỗ theo bề rộng nên
+          thứ tự đọc, thứ tự tiêu điểm và thứ tự nhìn vẫn đi cùng nhau (WCAG 2.4.3).
 
-          {/* Thẻ Chi tiêu — GỘP dải 8 tháng với chi từng ngày trong một khung, vì hai
-              hình là một cặp thu-phóng: trên mỗi cột một tháng, dưới mỗi cột một ngày
-              của tháng đang chọn — bấm một cột ở trên là phần dưới đổi theo. Chiếm hết
-              bề ngang cột chính: 31 cột ngày trong một panel hẹp là nhãn trục đè nhau. */}
-          <DailySpendPanel
-            points={series.points}
-            activeMonth={activeMonthKey}
-            onPickMonth={setMonthKey}
-            series={dailySpend}
-            fullTotal={fullSpendTotal}
-            monthBudget={
-              // Chờ `budgetLoading` xong mới đưa số xuống — cùng lý do đã ghi ở `luong`:
-              // `report` về trước budgets thì `totalBudgeted` là 0, và đường hạn mức nháy
-              // mất một nhịp ở mọi lần mở app của người ĐÃ đặt hạn mức.
-              report && !budgetLoading ? report.totalBudgeted : 0
-            }
-            cells={dailyTagCells}
-            tagLines={tagBudgets.lines}
-            compare={seriesReady ? expenseCmp : null}
-            cutoffISO={cutoffISO}
-            yoy={yoy}
-            yoyApprox={priorSpend.hasMissingRate}
-            priorLabel={formatMonthLabel(priorYearKey)}
-            base={base}
-            categoryOf={categoryOf}
-            approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
-            scope={dailyScope}
-            onScope={pickDailyScope}
-            monthPending={!monthReady}
-            seriesPending={!seriesReady}
-            tagsPending={tagsPending}
-            monthFailed={monthFailed}
-            seriesFailed={seriesFailed}
-          />
-
-          <Card elevation="panel" padding="panel" as="section" className="min-w-0">
-            <div className="flex items-baseline justify-between gap-2">
-              <SectionTitle>Giao dịch gần đây</SectionTitle>
-              <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
-                Mở Sổ →
-              </Link>
-            </div>
-            {!monthReady ? (
-              <p className="mt-3 text-sm text-fg-muted">
-                {monthFailed ? 'Chưa tải được giao dịch tháng này.' : 'Đang tải…'}
-              </p>
-            ) : recent.length === 0 ? (
-              <p className="mt-3 text-sm text-fg-muted">
-                Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
-                <Link to="/entry" className="font-medium text-fg-accent hover:underline">
-                  Ghi một khoản
-                </Link>
+          Thứ tự khai trong `slots` dưới đây giữ đúng thứ tự đọc của bố cục mặc định. */}
+      <BulletinBoard
+        slots={{
+          // Khối Hôm nay — mở màn bằng câu người ta mở app ra để hỏi. Nó mang luôn câu
+          // kết luận của cả màn (ConclusionLine, §5.0 / R7 — không đi qua VerdictNote)
+          // ở góc phải. Chỉ dựng được khi đang xem đúng kỳ hiện tại; xem tháng khác thì
+          // còn lại một mình câu kết luận.
+          today: () =>
+            luong ? (
+              <HomNayPanel
+                data={luong}
+                base={base}
+                approx={report?.hasMissingRate ?? false}
+                monthStartDay={monthStartDay}
+                todayISO={todayISO}
+                kyBatDauISO={kyHienTai.start}
+                ngayLuongISO={kyHienTai.end}
+                daTieu={report?.totalSpent ?? 0}
+                hanMuc={report?.totalBudgeted ?? 0}
+                headline={headline}
+                headlinePending={headlinePending}
+                headlineFailed={headlineFailed}
+              />
+            ) : headlinePending ? (
+              <p className="text-sm text-fg-muted">
+                {headlineFailed ? tr('Chưa tính được kết luận tháng.') : tr('Đang tính kết luận tháng…')}
               </p>
             ) : (
-              <ul className="mt-1 divide-y divide-border-subtle">
-                {recent.map((t) => (
-                  <li key={t.id}>
-                    {/* Dùng lại đúng dòng của Sổ: hai màn vẽ cùng một giao dịch thì không
-                        được lệch cách đọc dấu, màu hay chip nhãn. */}
-                    <TransactionItem
-                      tx={t}
-                      categoryOf={categoryOf}
-                      accountOf={accountOf}
-                      base={base}
-                      onClick={() => setEditing(t)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
+              headline && (
+                <ConclusionLine tone={headline.tone} short={headline.short}>
+                  {headline.text}
+                </ConclusionLine>
+              )
+            ),
 
-        {/* ===== CỘT PHỤ ===== */}
-        <div className="flex min-w-0 flex-col gap-2.5">
-          {/* Việc cần làm đứng ĐẦU cột phụ, MỞ SẴN (xem TodoPanel) — bản DESKTOP của
-              khối `xl:hidden` trên đầu trang, xem chú thích ở đó. Nó THAY banner nhắc
-              nhở cũ, không đứng cạnh: hai chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
-              NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query
-              hỏng không được kéo sập cả trang chủ. */}
-          <NotificationBoundary>
-            <TodoPanel
-              items={notif.actions}
-              onDismiss={notif.dismiss}
-              className="hidden xl:block"
+          kpi: () => (
+            <KpiRow
+              base={base}
+              income={incomeKpi}
+              expense={expenseKpi}
+              keptPct={keptPct}
+              keptAmount={incomeKpi.value - expenseKpi.value}
+              keptSpark={keptSpark}
+              netWorth={netWorthReliable ? netWorth : null}
+              netWorthSpark={netWorthSpark}
+              approx={series.hasMissingRate}
+              pending={!seriesReady}
+              failed={seriesFailed}
+              netWorthPending={assetsLoading}
+              keptScope={rateScope}
             />
-          </NotificationBoundary>
+          ),
 
-          <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
+          // Thẻ Chi tiêu — GỘP dải 8 tháng với chi từng ngày trong một khung, vì hai
+          // hình là một cặp thu-phóng: trên mỗi cột một tháng, dưới mỗi cột một ngày
+          // của tháng đang chọn — bấm một cột ở trên là phần dưới đổi theo. Không cho co
+          // hẹp hơn nửa trang ở lg (`minW` ở board.ts): 31 cột ngày trong một panel hẹp
+          // là nhãn trục đè nhau.
+          spending: () => (
+            <DailySpendPanel
+              points={series.points}
+              activeMonth={activeMonthKey}
+              onPickMonth={setMonthKey}
+              series={dailySpend}
+              fullTotal={fullSpendTotal}
+              monthBudget={monthBudget}
+              cells={dailyTagCells}
+              tagLines={tagBudgets.lines}
+              compare={seriesReady ? expenseCmp : null}
+              cutoffISO={cutoffISO}
+              yoy={yoy}
+              yoyApprox={priorSpend.hasMissingRate}
+              priorLabel={formatMonthLabel(priorYearKey)}
+              base={base}
+              categoryOf={categoryOf}
+              approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
+              scope={dailyScope}
+              onScope={pickDailyScope}
+              monthPending={!monthReady}
+              seriesPending={!seriesReady}
+              tagsPending={tagsPending}
+              monthFailed={monthFailed}
+              seriesFailed={seriesFailed}
+            />
+          ),
 
-          {/* Thu nhập & nếp chi (drift.ts): tự ẩn khi không có gì đáng nói — đứng sau
-              Ngân sách vì cùng nói về NẾP, khác Ngân sách ở chỗ nhìn nhiều tháng chứ
-              không phải tháng này. Nhận `rangeTxs` (dải HỢP, đủ 25 tháng nó cần) thay vì
-              tự tải — xem chú thích ở `range`. Bọc NotificationBoundary như cũ. */}
-          <NotificationBoundary>
-            <DriftPanel txs={rangeTxs} />
-          </NotificationBoundary>
+          recent: () => (
+            <Card elevation="panel" padding="panel" as="section" className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <SectionTitle>{tr('Giao dịch gần đây')}</SectionTitle>
+                <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
+                  {tr('Mở Sổ →')}
+                </Link>
+              </div>
+              {!monthReady ? (
+                <p className="mt-3 text-sm text-fg-muted">
+                  {monthFailed ? tr('Chưa tải được giao dịch tháng này.') : tr('Đang tải…')}
+                </p>
+              ) : recent.length === 0 ? (
+                <p className="mt-3 text-sm text-fg-muted">
+                  {tr('Chưa ghi giao dịch nào {month}.', { month: formatMonthLabel(activeMonthKey) })}{' '}
+                  <Link to="/entry" className="font-medium text-fg-accent hover:underline">
+                    {tr('Ghi một khoản')}
+                  </Link>
+                </p>
+              ) : (
+                <ul className="mt-1 divide-y divide-border-subtle">
+                  {recent.map((t) => (
+                    <li key={t.id}>
+                      {/* Dùng lại đúng dòng của Sổ: hai màn vẽ cùng một giao dịch thì không
+                          được lệch cách đọc dấu, màu hay chip nhãn. */}
+                      <TransactionItem
+                        tx={t}
+                        categoryOf={categoryOf}
+                        accountOf={accountOf}
+                        base={base}
+                        onClick={() => setEditing(t)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          ),
 
-          <AccountsPanel
-            groups={purposeGroups}
-            netWorth={netWorthReliable ? netWorth : null}
-            base={base}
-            staleIds={staleIds}
-            pending={assetsLoading}
-            failed={assetsFailed}
-          />
+          // Việc cần làm, MỞ SẴN (xem TodoPanel). Nó THAY banner nhắc nhở cũ, không đứng
+          // cạnh: hai chỗ cùng nhắc một việc là đúng cái 16a đi dẹp. NotificationBoundary
+          // vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query hỏng không được kéo sập
+          // cả trang chủ.
+          todo: () => (
+            <NotificationBoundary>
+              <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
+            </NotificationBoundary>
+          ),
 
-          {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay — TÌNH TRẠNG,
-              không phải việc; việc đã nằm ở khối trên cùng. Bọc NotificationBoundary
-              cùng lý do. */}
-          <NotificationBoundary>
-            <QuyenLoiPanel todayISO={todayISO} />
-          </NotificationBoundary>
+          budget: () => <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />,
 
-          {/* Độ tin cậy dữ liệu (§4.9). Đứng CUỐI vì nó nói về cái thước, không phải về
-              tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa. */}
-          <ReliabilityPanel data={doTinCay} failed={seriesFailed} />
-        </div>
-      </div>
+          // Thu nhập & nếp chi (drift.ts): tự ẩn khi không có gì đáng nói. Nhận `rangeTxs`
+          // (dải HỢP, đủ 25 tháng nó cần) thay vì tự tải — xem chú thích ở `range`.
+          drift: () => (
+            <NotificationBoundary>
+              <DriftPanel txs={rangeTxs} />
+            </NotificationBoundary>
+          ),
+
+          accounts: () => (
+            <AccountsPanel
+              groups={purposeGroups}
+              netWorth={netWorthReliable ? netWorth : null}
+              base={base}
+              staleIds={staleIds}
+              pending={assetsLoading}
+              failed={assetsFailed}
+            />
+          ),
+
+          // Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay — TÌNH TRẠNG,
+          // không phải việc; việc đã nằm ở khối Việc cần làm.
+          quyenloi: () => (
+            <NotificationBoundary>
+              <QuyenLoiPanel todayISO={todayISO} />
+            </NotificationBoundary>
+          ),
+
+          // Độ tin cậy dữ liệu (§4.9). Mặc định đứng CUỐI vì nó nói về cái thước, không
+          // phải về tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa.
+          reliability: () => <ReliabilityPanel data={doTinCay} failed={seriesFailed} />,
+
+          // ---- Module biểu đồ: cùng nguồn số với các khối trên, chỉ khác cách vẽ ----
+          cashflow: (view, onView) => (
+            <CashflowChart
+              title={moduleDef('cashflow').title}
+              views={moduleDef('cashflow').views}
+              view={view}
+              onView={onView}
+              base={base}
+              rows={cashflowData}
+              approx={series.hasMissingRate}
+              pending={!seriesReady}
+              failed={seriesFailed}
+            />
+          ),
+          categories: (view, onView) => (
+            <SliceChart
+              title={`${moduleDef('categories').title} · ${formatMonthLabel(activeMonthKey)}`}
+              views={moduleDef('categories').views}
+              view={view}
+              onView={onView}
+              base={base}
+              rows={categoryData.rows}
+              approx={categoryData.approx}
+              pending={!monthReady || !categoriesReady}
+              failed={monthFailed}
+              emptyText={tr('Tháng này chưa ghi khoản chi nào.')}
+            />
+          ),
+          cumulative: (view, onView) => (
+            <CumulativeChart
+              title={`${moduleDef('cumulative').title} · ${formatMonthLabel(activeMonthKey)}`}
+              views={moduleDef('cumulative').views}
+              view={view}
+              onView={onView}
+              base={base}
+              rows={cumulativeData}
+              approx={fullDaily.hasMissingRate}
+              pending={!monthReady}
+              failed={monthFailed}
+            />
+          ),
+          networth: (view, onView) => (
+            <NetWorthChart
+              title={moduleDef('networth').title}
+              views={moduleDef('networth').views}
+              view={view}
+              onView={onView}
+              base={base}
+              rows={netWorthData}
+            />
+          ),
+          assetMix: (view, onView) => (
+            <SliceChart
+              title={moduleDef('assetMix').title}
+              views={moduleDef('assetMix').views}
+              view={view}
+              onView={onView}
+              base={base}
+              rows={assetMixData}
+              approx={purposeGroups.some((g) => g.hasMissingRate)}
+              pending={assetsLoading}
+              failed={assetsFailed}
+              emptyText={tr('Chưa có tài sản nào được tính vào tổng.')}
+            />
+          ),
+        }}
+      />
 
       {editing && (
         <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />

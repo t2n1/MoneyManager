@@ -1,3 +1,4 @@
+import { tr, trx } from '../i18n'
 // Xếp kiểu máy tính: hàng 7-8-9 ở trên, 1-2-3 ở dưới.
 const NUM_OP_KEYS = [
   '7', '8', '9', '÷',
@@ -11,11 +12,11 @@ const OP_SET = new Set(['+', '−', '×', '÷'])
 export type NumPadKey = (typeof NUM_OP_KEYS)[number] | '⌫'
 
 const ARIA: Record<string, string> = {
-  '+': 'Cộng',
-  '−': 'Trừ',
-  '×': 'Nhân',
-  '÷': 'Chia',
-  '⌫': 'Xóa',
+  '+': tr('Cộng'),
+  '−': tr('Trừ'),
+  '×': tr('Nhân'),
+  '÷': trx('calc', 'Chia'),
+  '⌫': tr('Xóa'),
 }
 
 /** Bàn phím số + phép tính cho mobile — không dùng bàn phím hệ thống.

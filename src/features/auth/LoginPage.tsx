@@ -4,6 +4,7 @@ import { isDemoMode } from '../../lib/demo'
 import { AppLogo } from '../../components/AppLogo'
 import { getSupabase } from '../../lib/supabase'
 import { useAuth } from './AuthProvider'
+import { tr } from '../../i18n'
 
 export function LoginPage() {
   const { session, loading } = useAuth()
@@ -25,8 +26,9 @@ export function LoginPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-surface-page px-6">
       <div className="text-center">
         <AppLogo className="mx-auto h-16 w-16 drop-shadow-md" />
+        {/* i18n-ignore — tên app */}
         <h1 className="mt-4 text-3xl font-bold text-fg-primary">Sổ Gạo</h1>
-        <p className="mt-2 text-fg-muted">Quản lý chi tiêu cá nhân, đồng bộ mọi thiết bị</p>
+        <p className="mt-2 text-fg-muted">{tr('Quản lý chi tiêu cá nhân, đồng bộ mọi thiết bị')}</p>
       </div>
 
       <button
@@ -40,7 +42,7 @@ export function LoginPage() {
           <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
           <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
         </svg>
-        Đăng nhập với Google
+        {tr('Đăng nhập với Google')}
       </button>
 
       {error && <p className="text-sm text-money-out">{error}</p>}

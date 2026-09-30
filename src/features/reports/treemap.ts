@@ -9,6 +9,8 @@
 // hàng khi thêm một ô nữa làm ô méo hơn. Cắt lát tuần tự thì rẻ hơn nhưng 16 khoản bằng
 // nhau trong khung 600×300 ra 16 sợi tỉ lệ 8:1 — có test giữ đúng chỗ này.
 
+import { categoryLabel, tr } from '../../i18n'
+
 export interface Rect {
   x: number
   y: number
@@ -27,7 +29,7 @@ export interface TreemapTile extends Rect, TreemapLeaf {}
 
 /** Nhóm cha gộp lại khi nó quá nhỏ để vẽ ra hình — xem `collapseSmallGroups`. */
 export const SMALL_GROUP_ID = '__nhom-nho__'
-export const SMALL_GROUP_LABEL = 'Nhóm nhỏ khác'
+export const SMALL_GROUP_LABEL = tr('Nhóm nhỏ khác')
 
 const EPS = 1e-9
 
@@ -323,7 +325,8 @@ export function buildCategoryTreemap(
     const parent = cat?.parent_id ? catById.get(cat.parent_id) : undefined
     // Cha đã xoá mà con còn: coi con là một nhóm đứng riêng, đừng dựng nhóm không tên.
     const groupId = parent ? parent.id : r.categoryId
-    const groupLabel = parent ? parent.name : r.name
+    // `r.name` đã là nhãn hiển thị (bảng dựng sẵn); tên cha tra từ DB nên đổi ở đây.
+    const groupLabel = parent ? categoryLabel(parent.name) : r.name
 
     let g = byGroup.get(groupId)
     if (!g) {

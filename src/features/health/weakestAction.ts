@@ -19,6 +19,7 @@
 // Ba chỗ đó trả `amount: null` và nói việc cần làm bằng lời. Bịa một con số cho đủ bộ
 // là loại lỗi tệ nhất ở màn này: nó trông chính xác nhất trong khi sai nhất.
 import { HEALTH_ZONES } from './health'
+import { tr } from '../../i18n'
 import type { CurrencyCode } from '../../lib/money'
 
 export interface WeakestActionSnap {
@@ -101,17 +102,25 @@ export function weakestAction({
   const pace = snap.monthlyIncome - snap.monthlyExpense
   // "nặng ký nhất" chỉ nói khi đúng là nặng nhất. Nói với mọi chỉ số thì nó thành câu
   // đệm vô nghĩa, và tệ hơn: người dùng ưu tiên sai việc.
-  const nangKy = heaviest ? `, và là chỉ số nặng ký nhất (${weight}%)` : ''
+  const nangKy = heaviest ? tr(', và là chỉ số nặng ký nhất ({pct}%)', { pct: weight }) : ''
 
   /** Dựng câu cho ba chỉ số đảo ngược được thành tiền. */
   function tienCanThem(amount: number, dich: string): WeakestAction {
     const etaMonths = pace > 0 ? Math.ceil(amount / pace) : null
     const nhip =
       etaMonths === null
-        ? ` Hiện mỗi tháng chưa dư đồng nào (thu ${money(snap.monthlyIncome)} · chi ${money(snap.monthlyExpense)}) nên chưa có đường tới mốc — phải bớt chi trước.`
-        : ` Với nhịp để dành ${money(pace)}/tháng thì ${etaMonths === 1 ? 'khoảng 1 tháng' : `khoảng ${etaMonths} tháng`} nữa là tới.`
+        ? tr('Hiện mỗi tháng chưa dư đồng nào (thu {income} · chi {expense}) nên chưa có đường tới mốc — phải bớt chi trước.', {
+            income: money(snap.monthlyIncome),
+            expense: money(snap.monthlyExpense),
+          })
+        : tr('Với nhịp để dành {pace}/tháng thì khoảng {n} tháng nữa là tới.', { pace: money(pace), n: etaMonths })
     return {
-      text: `Cần thêm ${money(amount)} để ${dich}${nangKy}.${nhip}`,
+      text: tr('Cần thêm {amount} để {goal}{heavy}. {next}', {
+        amount: money(amount),
+        goal: dich,
+        heavy: nangKy,
+        next: nhip,
+      }),
       amount,
       amountText: money(amount),
       etaMonths,
@@ -126,7 +135,7 @@ export function weakestAction({
       if (target === null) return null
       const amount = target * snap.monthlyFixedExpense - snap.liquidAssets
       if (amount <= 0) return null
-      return tienCanThem(amount, `chạm mốc ${target} tháng chi cố định`)
+      return tienCanThem(amount, tr('chạm mốc {n} tháng chi cố định', { n: target }))
     }
 
     case 'liq': {
@@ -136,7 +145,7 @@ export function weakestAction({
       if (target === null) return null
       const amount = target * snap.debtDueWithin12m - snap.liquidAssets
       if (amount <= 0) return null
-      return tienCanThem(amount, `tiền lỏng gấp ${target}× nợ phải trả trong 12 tháng`)
+      return tienCanThem(amount, tr('tiền lỏng gấp {n}× nợ phải trả trong 12 tháng', { n: target }))
     }
 
     case 'dti': {
@@ -149,11 +158,15 @@ export function weakestAction({
       if (amount <= 0) return null
       const etaMonths = pace > 0 ? Math.ceil(amount / pace) : null
       return {
-        text:
-          `Cần trả bớt ${money(amount)} nợ để tỷ lệ nợ/thu nhập về ${Math.round(target * 100)}%${nangKy}.` +
-          (etaMonths === null
-            ? ` Hiện mỗi tháng chưa dư đồng nào nên nợ chưa giảm được — phải bớt chi trước.`
-            : ` Với phần dư ${money(pace)}/tháng thì khoảng ${etaMonths} tháng.`),
+        text: tr('Cần trả bớt {amount} nợ để tỷ lệ nợ/thu nhập về {pct}%{heavy}. {next}', {
+          amount: money(amount),
+          pct: Math.round(target * 100),
+          heavy: nangKy,
+          next:
+            etaMonths === null
+              ? tr('Hiện mỗi tháng chưa dư đồng nào nên nợ chưa giảm được — phải bớt chi trước.')
+              : tr('Với phần dư {pace}/tháng thì khoảng {n} tháng.', { pace: money(pace), n: etaMonths }),
+        }),
         amount,
         amountText: money(amount),
         etaMonths,
@@ -165,12 +178,10 @@ export function weakestAction({
     case 'runway': {
       const zones = HEALTH_ZONES.runway
       return {
-        text:
-          `Số tháng cầm cự ra từ 2.000 kịch bản: mỗi tháng không có lương, trừ một mức chi bốc từ ` +
-          `chính các tháng chi thật của bạn — nên không có một con số "nạp thêm bấy nhiêu là ` +
-          `đạt"${nangKy}. Hai đường thật sự dịch được nó: tăng tiền lỏng, hoặc hạ tổng chi mỗi ` +
-          `tháng — kéo thanh "Chi mỗi tháng" ở thẻ Nếu mất việc để xem hạ chi thì được thêm bao ` +
-          `lâu. Mốc gần nhất là ${zones[0].upTo} tháng.`,
+        text: tr(
+          'Số tháng cầm cự ra từ 2.000 kịch bản: mỗi tháng không có lương, trừ một mức chi bốc từ chính các tháng chi thật của bạn — nên không có một con số "nạp thêm bấy nhiêu là đạt"{heavy}. Hai đường thật sự dịch được nó: tăng tiền lỏng, hoặc hạ tổng chi mỗi tháng — kéo thanh "Chi mỗi tháng" ở thẻ Nếu mất việc để xem hạ chi thì được thêm bao lâu. Mốc gần nhất là {n} tháng.',
+          { heavy: nangKy, n: zones[0].upTo },
+        ),
         amount: null,
         amountText: null,
         etaMonths: null,
@@ -180,10 +191,10 @@ export function weakestAction({
 
     case 'conc': {
       return {
-        text:
-          `Chỉ số này không chữa bằng tiền mà bằng một nguồn thu thứ hai${nangKy}. Ai đi làm công ăn ` +
-          `lương thì nó gần 100% là bình thường — bù lại bằng quỹ dự phòng dày hơn, và đó mới là chỗ ` +
-          `đáng dồn sức trước.`,
+        text: tr(
+          'Chỉ số này không chữa bằng tiền mà bằng một nguồn thu thứ hai{heavy}. Ai đi làm công ăn lương thì nó gần 100% là bình thường — bù lại bằng quỹ dự phòng dày hơn, và đó mới là chỗ đáng dồn sức trước.',
+          { heavy: nangKy },
+        ),
         amount: null,
         amountText: null,
         etaMonths: null,
@@ -193,9 +204,10 @@ export function weakestAction({
 
     case 'burden': {
       return {
-        text:
-          `Mức thuế và an sinh do luật quyết, không có mốc nào để nạp tiền vào cho đạt${nangKy}. Chỗ ` +
-          `dịch được là các khoản khấu trừ: 扶養控除, 生命保険料控除, ふるさと納税.`,
+        text: tr(
+          'Mức thuế và an sinh do luật quyết, không có mốc nào để nạp tiền vào cho đạt{heavy}. Chỗ dịch được là các khoản khấu trừ: 扶養控除, 生命保険料控除, ふるさと納税.',
+          { heavy: nangKy },
+        ),
         amount: null,
         amountText: null,
         etaMonths: null,
@@ -223,33 +235,33 @@ export function weakestAction({
  */
 export const UNLOCK_HINT: Record<string, { need: string; to: string; cta: string }> = {
   fund: {
-    need: 'cần phân loại danh mục chi thành Cố định / Biến đổi',
+    need: tr('cần phân loại danh mục chi thành Cố định / Biến đổi'),
     to: '/settings/categories/classify',
-    cta: 'Phân loại',
+    cta: tr('Phân loại'),
   },
   runway: {
-    need: 'cần ít nhất 3 tháng giao dịch và số dư dương',
+    need: tr('cần ít nhất 3 tháng giao dịch và số dư dương'),
     to: '/so',
-    cta: 'Mở Sổ',
+    cta: tr('Mở Sổ'),
   },
   conc: {
-    need: 'cần ghi ít nhất một khoản Thu trong kỳ',
+    need: tr('cần ghi ít nhất một khoản Thu trong kỳ'),
     to: '/entry',
-    cta: 'Ghi thu',
+    cta: tr('Ghi thu'),
   },
   dti: {
-    need: 'cần có khoản Thu trong kỳ để so với dư nợ',
+    need: tr('cần có khoản Thu trong kỳ để so với dư nợ'),
     to: '/entry',
-    cta: 'Ghi thu',
+    cta: tr('Ghi thu'),
   },
   liq: {
-    need: 'cần có khoản nợ phải trả trong 12 tháng tới',
+    need: tr('cần có khoản nợ phải trả trong 12 tháng tới'),
     to: '/debts',
-    cta: 'Nợ / cho vay',
+    cta: tr('Nợ / cho vay'),
   },
   burden: {
-    need: 'cần khai thuế và bảo hiểm theo phiếu lương',
+    need: tr('cần khai thuế và bảo hiểm theo phiếu lương'),
     to: '/settings/categories',
-    cta: 'Tạo bộ danh mục',
+    cta: tr('Tạo bộ danh mục'),
   },
 }

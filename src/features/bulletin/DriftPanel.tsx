@@ -18,6 +18,8 @@ import type { TransactionRow } from '../../types/database.types'
 import { detectRaise, lifestyleDrift } from './drift'
 import { detectRecurringFees } from './recurringFees'
 import { INFL_SPEAK_PCT, personalInflation } from './personalInflation'
+import { categoryLabel, numLocale, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Chỉ bày chừng này chuỗi phí to nhất — panel cột phụ, không phải trang kiểm kê. */
 const FEE_SHOW_MAX = 3
@@ -62,59 +64,83 @@ export function DriftPanel({ txs, className = '' }: Props) {
     }
   }, [txs, accounts, base, rates, todayISO, monthStartDay, transferIds])
 
-  const catName = (id: string | null) =>
-    (id !== null ? categories.find((c) => c.id === id)?.name : undefined) ?? 'Chưa rõ'
+  const catName = (id: string | null) => {
+    const c = id !== null ? categories.find((x) => x.id === id) : undefined
+    return c ? categoryLabel(c.name) : tr('Chưa rõ')
+  }
 
   const noiVeDrift = drift !== null && drift.verdict !== null
   // Lạm phát cá nhân dưới ngưỡng là nhiễu, không phải tin — panel không nói.
   const noiVeInfl = infl !== null && Math.abs(infl.pct) >= INFL_SPEAK_PCT
   if (raise === null && !noiVeDrift && fees === null && !noiVeInfl) return null
+  const inflVars =
+    infl === null
+      ? {}
+      : {
+          months: <Num tone="muted">{tr('{n} tháng', { n: infl.pairKeys.length })}</Num>,
+          approx: infl.approx ? ' ≈' : '',
+          pct: (
+            <Num tone={infl.pct >= 0 ? 'out' : 'in'}>
+              {pct1(Math.abs(infl.pct) / 100).toLocaleString(numLocale(), { useGrouping: false, maximumFractionDigits: 1 })}%
+            </Num>
+          ),
+        }
 
   return (
     <Card elevation="panel" padding="panel" as="section" className={`min-w-0 ${className}`.trim()}>
-      <SectionTitle>Thu nhập &amp; nếp chi</SectionTitle>
+      <SectionTitle>{tr('Thu nhập & nếp chi')}</SectionTitle>
 
       {raise !== null && (
         <>
           <p className="mt-2 text-sm text-fg-primary">
-            Lương định kỳ vừa lên mức mới:{' '}
-            <Num tone="in">{signedPct(pct1(raise.pct / 100))}</Num> từ{' '}
-            <Num tone="muted">{formatMonthLabel(raise.fromKey)}</Num>.
+            {trn('Lương định kỳ vừa lên mức mới: {pct} từ {month}.', {
+              pct: <Num tone="in">{signedPct(pct1(raise.pct / 100))}</Num>,
+              month: <Num tone="muted">{formatMonthLabel(raise.fromKey)}</Num>,
+            })}
           </p>
           {/* Cùng vai với actionLine của tab Tương lai: câu DUY NHẤT hành động được ngay. */}
           {/* E-ink + Gọn: lời khuyên bỏ, giữ con số. */}
           <p className="mt-1 text-sm font-medium text-fg-accent eink-gon:hidden">
-            Cửa sổ vàng: nâng mức để dành ngay bây giờ — vài tháng nữa mức sống sẽ dâng
-            theo và cùng con số đó bắt đầu thấy đau.
+            {tr(
+              'Cửa sổ vàng: nâng mức để dành ngay bây giờ — vài tháng nữa mức sống sẽ dâng theo và cùng con số đó bắt đầu thấy đau.',
+            )}
           </p>
         </>
       )}
 
       {noiVeDrift && drift !== null && (
         <p className="mt-2 text-sm text-fg-primary">
-          6 tháng qua so với 6 tháng trước: thu{' '}
-          <Num tone={drift.incomePct !== null && drift.incomePct < 0 ? 'out' : 'in'}>
-            {signedPct(pct1((drift.incomePct ?? 0) / 100))}
-          </Num>{' '}
-          · chi{' '}
-          <Num tone={drift.expensePct !== null && drift.expensePct > 0 ? 'out' : 'in'}>
-            {signedPct(pct1((drift.expensePct ?? 0) / 100))}
-          </Num>
+          {trn('6 tháng qua so với 6 tháng trước: thu {income} · chi {expense}', {
+            income: (
+              <Num tone={drift.incomePct !== null && drift.incomePct < 0 ? 'out' : 'in'}>
+                {signedPct(pct1((drift.incomePct ?? 0) / 100))}
+              </Num>
+            ),
+            expense: (
+              <Num tone={drift.expensePct !== null && drift.expensePct > 0 ? 'out' : 'in'}>
+                {signedPct(pct1((drift.expensePct ?? 0) / 100))}
+              </Num>
+            ),
+          })}
           {drift.savedPctRecent !== null && drift.savedPctPrior !== null && (
             <>
               {' '}
-              — phần để dành{drift.approx ? ' ≈' : ''}{' '}
-              <Num tone="muted">{Math.round(drift.savedPctPrior)}%</Num> →{' '}
-              <Num tone={drift.savedPctRecent < drift.savedPctPrior ? 'out' : 'in'}>
-                {Math.round(drift.savedPctRecent)}%
-              </Num>
+              {trn('— phần để dành{approx} {from} → {to}', {
+                approx: drift.approx ? ' ≈' : '',
+                from: <Num tone="muted">{Math.round(drift.savedPctPrior)}%</Num>,
+                to: (
+                  <Num tone={drift.savedPctRecent < drift.savedPctPrior ? 'out' : 'in'}>
+                    {Math.round(drift.savedPctRecent)}%
+                  </Num>
+                ),
+              })}
             </>
           )}
           .{' '}
           <span className="eink-gon:hidden">
             {drift.verdict === 'chi-dang-theo-thu'
-              ? 'Chi đang dâng nhanh hơn thu — phần tăng thêm đang bị mức sống nuốt dần.'
-              : 'Tỷ lệ để dành đang tụt so với nửa năm trước.'}
+              ? tr('Chi đang dâng nhanh hơn thu — phần tăng thêm đang bị mức sống nuốt dần.')
+              : tr('Tỷ lệ để dành đang tụt so với nửa năm trước.')}
           </span>
         </p>
       )}
@@ -122,18 +148,18 @@ export function DriftPanel({ txs, className = '' }: Props) {
       {/* Lạm phát cá nhân: giỏ chi CỦA MÌNH đắt lên bao nhiêu, so đúng cùng tháng. */}
       {noiVeInfl && infl !== null && (
         <p className="mt-2 text-sm text-fg-primary">
-          So <Num tone="muted">{infl.pairKeys.length} tháng</Num> cùng kỳ năm ngoái: giỏ chi
-          của bạn {infl.pct >= 0 ? 'đắt lên' : 'rẻ đi'}{infl.approx ? ' ≈' : ''}{' '}
           {/* Hướng đã nằm trong chữ ("đắt lên"/"rẻ đi") → số là TRỊ TUYỆT ĐỐI, kẻo ra
               "rẻ đi −35%" — hai dấu trừ chồng nhau. pct1 trả SỐ, tự thêm % và dấu phẩy. */}
-          <Num tone={infl.pct >= 0 ? 'out' : 'in'}>
-            {String(pct1(Math.abs(infl.pct) / 100)).replace('.', ',')}%
-          </Num>
+          {infl.pct >= 0
+            ? trn('So {months} cùng kỳ năm ngoái: giỏ chi của bạn đắt lên{approx} {pct}', inflVars)
+            : trn('So {months} cùng kỳ năm ngoái: giỏ chi của bạn rẻ đi{approx} {pct}', inflVars)}
           {infl.topCategory !== null && infl.topCategory.pct > 0 && (
             <>
               {' '}
-              — nhanh nhất ở «{catName(infl.topCategory.categoryId)}»{' '}
-              <Num tone="out">{signedPct(pct1(infl.topCategory.pct / 100))}</Num>
+              {trn('— nhanh nhất ở «{name}» {pct}', {
+                name: catName(infl.topCategory.categoryId),
+                pct: <Num tone="out">{signedPct(pct1(infl.topCategory.pct / 100))}</Num>,
+              })}
             </>
           )}
           .
@@ -144,14 +170,15 @@ export function DriftPanel({ txs, className = '' }: Props) {
       {fees !== null && (
         <div className="mt-2 border-t border-border-subtle pt-2 first:mt-0 first:border-t-0 first:pt-0">
           <p className="text-sm text-fg-primary">
-            <Num tone="muted">{fees.items.length}</Num> khoản lặp hằng tháng chưa thành lệnh
-            định kỳ{fees.approx ? ' ≈' : ''} —{' '}
-            <Money amount={fees.totalPerMonthMinor} currency={base} className="text-sm" />
-            /tháng
+            {trn('{count} khoản lặp hằng tháng chưa thành lệnh định kỳ{approx} — {amount}/tháng', {
+              count: <Num tone="muted">{fees.items.length}</Num>,
+              approx: fees.approx ? ' ≈' : '',
+              amount: <Money amount={fees.totalPerMonthMinor} currency={base} className="text-sm" />,
+            })}
             <span className="eink-gon:hidden">
-              , tức{' '}
-              <Money amount={fees.totalPerMonthMinor * 12} currency={base} className="text-sm" />
-              /năm
+              {trn(', tức {amount}/năm', {
+                amount: <Money amount={fees.totalPerMonthMinor * 12} currency={base} className="text-sm" />,
+              })}
             </span>
             .
           </p>
@@ -163,21 +190,17 @@ export function DriftPanel({ txs, className = '' }: Props) {
               >
                 <span className="min-w-0 truncate text-2xs text-fg-secondary">
                   {f.note ?? catName(f.categoryId)}
-                  <span className="text-fg-muted"> · {f.hits} lần</span>
+                  <span className="text-fg-muted"> · {tr('{n} lần', { n: f.hits })}</span>
                 </span>
                 <Money amount={f.perMonthMinor} currency={base} className="shrink-0 text-2xs" />
               </li>
             ))}
           </ul>
           <p className="mt-1 text-sm font-medium text-fg-accent eink-gon:hidden">
-            Đáng rà một lượt: thứ còn dùng thì khai thành lệnh định kỳ, thứ không còn dùng
-            — 10 năm của nó là{' '}
-            <Money
-              amount={fees.totalPerMonthMinor * 120}
-              currency={base}
-              className="text-sm"
-            />
-            , chưa kể lãi phần đó có thể sinh.
+            {trn(
+              'Đáng rà một lượt: thứ còn dùng thì khai thành lệnh định kỳ, thứ không còn dùng — 10 năm của nó là {amount}, chưa kể lãi phần đó có thể sinh.',
+              { amount: <Money amount={fees.totalPerMonthMinor * 120} currency={base} className="text-sm" /> },
+            )}
           </p>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { tr } from '../i18n'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.types'
 
@@ -10,7 +11,7 @@ export function getSupabase(): SupabaseClient<Database> {
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
     if (!url || !anonKey) {
       throw new Error(
-        'Thiếu VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — copy .env.example thành .env.local và điền giá trị.',
+        tr('Thiếu VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — copy .env.example thành .env.local và điền giá trị.'),
       )
     }
     client = createClient<Database>(url, anonKey)

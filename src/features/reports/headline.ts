@@ -7,6 +7,8 @@
 // Trả về `text` là CHUỖI, không phải JSX: để test bằng chuỗi được, và để câu chữ nằm một
 // chỗ thay vì rải trong cây thẻ.
 
+import { getLang, tr } from '../../i18n'
+
 export interface HeadlineInput {
   income: number
   expense: number
@@ -106,23 +108,29 @@ export function headlineOf(input: HeadlineInput): Headline | null {
   // nó là nói một nửa. Không hạ xuống 'bad' — tiền vẫn đang dư, chưa có gì cháy.
   if (overBudget && tone === 'good') tone = 'warn'
 
-  const scopeLong = rateScope ? ` (tính ${rateScope})` : ''
+  const scopeLong = rateScope ? tr(' (tính {scope})', { scope: rateScope }) : ''
   const scopeShort = rateScope ? ` ${rateScope}` : ''
   const parts: string[] = []
   // Cố ý KHÔNG nhắc mốc Để dành (savingsTargetPct, theo phương pháp đang chọn) ở đây:
   // thẻ "Giữ lại được bao nhiêu" ngay bên dưới đã nói đúng câu đó. Câu tổng chỉ giữ
   // phần mà không thẻ nào khác nói — con số của kỳ và so sánh với kỳ trước.
   if (ratePct === null) {
-    parts.push(`Chưa ghi khoản thu nào ${periodNoun}`)
+    parts.push(tr('Chưa ghi khoản thu nào {period}', { period: periodNoun }))
   } else if (ratePct < 0) {
-    parts.push(`Chi vượt thu ${Math.abs(ratePct)}% ${periodNoun}${scopeLong} — đang phải rút vào tiền cũ`)
+    parts.push(
+      tr('Chi vượt thu {pct}% {period}{scope} — đang phải rút vào tiền cũ', {
+        pct: Math.abs(ratePct),
+        period: periodNoun,
+        scope: scopeLong,
+      }),
+    )
   } else {
-    parts.push(`Giữ lại được ${ratePct}% thu nhập ${periodNoun}${scopeLong}`)
+    parts.push(tr('Giữ lại được {pct}% thu nhập {period}{scope}', { pct: ratePct, period: periodNoun, scope: scopeLong }))
   }
 
   // Đi ngang thì bỏ hẳn mệnh đề so sánh: "chi nhiều hơn kỳ trước 0%" là câu vô nghĩa.
   if (deltaPct !== null && deltaPct !== 0) {
-    parts.push(`chi ${compareClause(deltaPct)}`)
+    parts.push(tr('chi {cmp}', { cmp: compareClause(deltaPct) }))
   }
 
   // Mệnh đề NHÌN VỀ PHÍA TRƯỚC (23a). Hai vế trước nói chuyện đã rồi; vế này nói kỳ sẽ
@@ -131,28 +139,28 @@ export function headlineOf(input: HeadlineInput): Headline | null {
     parts.push(
       overBudget
         ? zeroCap
-          ? 'và đã vượt ngân sách (tổng trần đang là 0)'
-          : `và đang trên đà vượt ngân sách ${overPct}%`
-        : `và đang trên đà kết thúc ${periodNoun} dưới ngân sách`,
+          ? tr('và đã vượt ngân sách (tổng trần đang là 0)')
+          : tr('và đang trên đà vượt ngân sách {pct}%', { pct: overPct ?? 0 })
+        : tr('và đang trên đà kết thúc {period} dưới ngân sách', { period: periodNoun }),
     )
   }
 
   const shortRate =
     ratePct === null
-      ? 'Chưa có thu'
+      ? tr('Chưa có thu')
       : ratePct < 0
-        ? `Chi vượt thu ${Math.abs(ratePct)}%${scopeShort}`
-        : `Giữ lại ${ratePct}%${scopeShort}`
+        ? tr('Chi vượt thu {pct}%{scope}', { pct: Math.abs(ratePct), scope: scopeShort })
+        : tr('Giữ lại {pct}%{scope}', { pct: ratePct, scope: scopeShort })
   // Bản ngắn ưu tiên mệnh đề VƯỢT TRẦN hơn mệnh đề so-với-kỳ-trước: chế độ Gọn là mặc
   // định của app, nên nếu chip chỉ mang "Giữ lại 65% · chi gấp 11,9 lần" thì phần lớn
   // người dùng không bao giờ thấy lời cảnh báo — tức việc thêm nó vào `text` thành vô ích.
   // Chỉ nhường chỗ khi KHÔNG vượt: lúc đó "dưới ngân sách" là tin tốt, không gấp.
   const short = overBudget
     ? zeroCap
-      ? `${shortRate} · đã vượt trần 0`
-      : `${shortRate} · trên đà vượt trần ${overPct}%`
+      ? tr('{rate} · đã vượt trần 0', { rate: shortRate })
+      : tr('{rate} · trên đà vượt trần {pct}%', { rate: shortRate, pct: overPct ?? 0 })
     : deltaPct !== null && deltaPct !== 0
-      ? `${shortRate} · chi ${shortCompare(deltaPct)}`
+      ? tr('{rate} · chi {cmp}', { rate: shortRate, cmp: shortCompare(deltaPct) })
       : shortRate
 
   return { tone, ratePct, deltaPct, text: `${parts.join(', ')}.`, short }
@@ -167,8 +175,8 @@ export function headlineOf(input: HeadlineInput): Headline | null {
  */
 export function shortCompare(deltaPct: number): string {
   if (deltaPct >= 200) {
-    const times = (1 + deltaPct / 100).toFixed(1).replace('.', ',')
-    return `gấp ${times} lần`
+    const times = (1 + deltaPct / 100).toFixed(1).replace('.', getLang() === 'en' ? '.' : ',')
+    return tr('gấp {times} lần', { times })
   }
   return `${deltaPct > 0 ? '+' : '-'}${Math.abs(deltaPct)}%`
 }
@@ -184,10 +192,11 @@ export function shortCompare(deltaPct: number): string {
  * cách đọc ("+970%" vs "gấp 10,7 lần") thì người dùng tưởng là hai con số khác nhau.
  * `noun` để chỗ so theo tháng nói "tháng trước" thay vì "kỳ trước".
  */
-export function compareClause(deltaPct: number, noun = 'kỳ trước'): string {
+export function compareClause(deltaPct: number, noun = tr('kỳ trước')): string {
   if (deltaPct >= 200) {
-    const times = (1 + deltaPct / 100).toFixed(1).replace('.', ',')
-    return `gấp ${times} lần ${noun}`
+    const times = (1 + deltaPct / 100).toFixed(1).replace('.', getLang() === 'en' ? '.' : ',')
+    return tr('gấp {times} lần {noun}', { times, noun })
   }
-  return `${deltaPct > 0 ? 'nhiều hơn' : 'ít hơn'} ${noun} ${Math.abs(deltaPct)}%`
+  const pct = Math.abs(deltaPct)
+  return deltaPct > 0 ? tr('nhiều hơn {noun} {pct}%', { noun, pct }) : tr('ít hơn {noun} {pct}%', { noun, pct })
 }

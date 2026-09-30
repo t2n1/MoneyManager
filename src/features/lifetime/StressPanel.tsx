@@ -16,6 +16,7 @@ import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact } from '../../lib/money'
 import type { StressConfig } from './project'
 import { stressVerdict } from './stressVerdict'
+import { tr } from '../../i18n'
 
 /**
  * Giá trị khởi đầu của sáu cú sốc, suy TỪ CHÍNH kịch bản đang xem.
@@ -174,15 +175,14 @@ export function StressPanel({
   const body = (
     <>
       <Guide className="text-2xs leading-relaxed text-fg-muted">
-        Lớp phủ thử — vẽ thêm một đường trên đồ thị, không đụng dữ liệu kịch bản và không
-        cần lưu.
+        {tr('Lớp phủ thử — vẽ thêm một đường trên đồ thị, không đụng dữ liệu kịch bản và không cần lưu.')}
       </Guide>
 
       <div className="mt-2 flex flex-col">
         <Toggle
           on={value.jobloss.on}
-          label="Mất việc 1 năm"
-          sub={`thu về 0 trong năm ${value.jobloss.year}`}
+          label={tr('Mất việc 1 năm')}
+          sub={tr('thu về 0 trong năm {year}', { year: value.jobloss.year })}
           onToggle={() =>
             set('jobloss', { on: !value.jobloss.on })
           }
@@ -190,7 +190,7 @@ export function StressPanel({
         {value.jobloss.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Năm"
+              label={tr('Năm')}
               value={value.jobloss.year}
               min={minYear}
               max={maxYear}
@@ -201,8 +201,8 @@ export function StressPanel({
 
         <Toggle
           on={value.crash.on}
-          label={`Khủng hoảng −${value.crash.dropPct}%`}
-          sub={`tài sản mất ${value.crash.dropPct}% ngay đầu năm ${value.crash.year}`}
+          label={tr('Khủng hoảng −{pct}%', { pct: value.crash.dropPct })}
+          sub={tr('tài sản mất {pct}% ngay đầu năm {year}', { pct: value.crash.dropPct, year: value.crash.year })}
           onToggle={() =>
             set('crash', { on: !value.crash.on })
           }
@@ -210,14 +210,14 @@ export function StressPanel({
         {value.crash.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Năm"
+              label={tr('Năm')}
               value={value.crash.year}
               min={minYear}
               max={maxYear}
               onCommit={(v) => set('crash', { year: v })}
             />
             <NumField
-              label="Mất (%)"
+              label={tr('Mất (%)')}
               value={value.crash.dropPct}
               min={1}
               max={90}
@@ -228,8 +228,11 @@ export function StressPanel({
 
         <Toggle
           on={value.illness.on}
-          label="Bệnh nặng"
-          sub={`chi thêm ${formatCompact(value.illness.amountDisplayMinor, currency)} năm ${value.illness.year}`}
+          label={tr('Bệnh nặng')}
+          sub={tr('chi thêm {amount} năm {year}', {
+            amount: formatCompact(value.illness.amountDisplayMinor, currency),
+            year: value.illness.year,
+          })}
           onToggle={() =>
             set('illness', { on: !value.illness.on })
           }
@@ -237,14 +240,14 @@ export function StressPanel({
         {value.illness.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Năm"
+              label={tr('Năm')}
               value={value.illness.year}
               min={minYear}
               max={maxYear}
               onCommit={(v) => set('illness', { year: v })}
             />
             <NumField
-              label={`Số tiền (${currency})`}
+              label={tr('Số tiền ({currency})', { currency })}
               value={value.illness.amountDisplayMinor}
               min={0}
               max={Number.MAX_SAFE_INTEGER}
@@ -256,8 +259,11 @@ export function StressPanel({
 
         <Toggle
           on={value.recession.on}
-          label="Suy thoái kéo dài"
-          sub={`lợi suất 0% trong ${value.recession.year}–${value.recession.year + value.recession.years - 1}`}
+          label={tr('Suy thoái kéo dài')}
+          sub={tr('lợi suất 0% trong {from}–{to}', {
+            from: value.recession.year,
+            to: value.recession.year + value.recession.years - 1,
+          })}
           onToggle={() =>
             set('recession', { on: !value.recession.on })
           }
@@ -265,14 +271,14 @@ export function StressPanel({
         {value.recession.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Năm"
+              label={tr('Năm')}
               value={value.recession.year}
               min={minYear}
               max={maxYear}
               onCommit={(v) => set('recession', { year: v })}
             />
             <NumField
-              label="Số năm"
+              label={tr('Số năm')}
               value={value.recession.years}
               min={1}
               max={20}
@@ -283,8 +289,8 @@ export function StressPanel({
 
         <Toggle
           on={value.paycut.on}
-          label={`Giảm thu ${value.paycut.cutPct}%`}
-          sub={`thu giảm vĩnh viễn từ năm ${value.paycut.year} (đổi nghề, sức khoẻ…)`}
+          label={tr('Giảm thu {pct}%', { pct: value.paycut.cutPct })}
+          sub={tr('thu giảm vĩnh viễn từ năm {year} (đổi nghề, sức khoẻ…)', { year: value.paycut.year })}
           onToggle={() =>
             set('paycut', { on: !value.paycut.on })
           }
@@ -292,14 +298,14 @@ export function StressPanel({
         {value.paycut.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Năm"
+              label={tr('Năm')}
               value={value.paycut.year}
               min={minYear}
               max={maxYear}
               onCommit={(v) => set('paycut', { year: v })}
             />
             <NumField
-              label="Giảm (%)"
+              label={tr('Giảm (%)')}
               value={value.paycut.cutPct}
               min={1}
               max={90}
@@ -310,14 +316,14 @@ export function StressPanel({
 
         <Toggle
           on={value.longevity.on}
-          label="Sống thọ hơn dự tính"
-          sub={`chiếu thêm ${value.longevity.years} năm quá tuổi cuối của kịch bản`}
+          label={tr('Sống thọ hơn dự tính')}
+          sub={tr('chiếu thêm {n} năm quá tuổi cuối của kịch bản', { n: value.longevity.years })}
           onToggle={() => set('longevity', { on: !value.longevity.on })}
         />
         {value.longevity.on && (
           <div className="mb-1.5 ml-11 flex gap-2">
             <NumField
-              label="Thêm năm"
+              label={tr('Thêm năm')}
               value={value.longevity.years}
               min={1}
               max={20}

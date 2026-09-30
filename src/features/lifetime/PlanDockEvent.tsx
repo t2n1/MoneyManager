@@ -58,6 +58,8 @@ import { dungCauHoi } from './traSo'
 import { EVENT_WORDS } from './planWords'
 import { docKetQua, type KetQuaTra, type LoiTra } from './traSoKetQua'
 import { TraSoSheet } from './TraSoSheet'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Khớp `check (start_year between 1900 and 2200)` của `life_events` (migration 0031). */
 const MIN_YEAR = 1900
@@ -66,10 +68,10 @@ const MAX_YEAR = 2200
 /** Bốn hình dạng, mỗi cái một câu nói ra NGHĨA của con số (migration 0066). Thứ tự cố ý:
  *  'per_year' đứng đầu vì nó là mặc định và là thứ mọi mốc đang có đều đang dùng. */
 const SHAPE_LABELS: Record<AmountShape, string> = {
-  per_year: 'Số này MỖI NĂM',
-  total: 'Số này là TỔNG cả khoảng',
-  ramp: 'Đổi dần tới một số khác',
-  growth: 'Nhân dồn mỗi năm một tỷ lệ',
+  per_year: tr('Số này MỖI NĂM'),
+  total: tr('Số này là TỔNG cả khoảng'),
+  ramp: tr('Đổi dần tới một số khác'),
+  growth: tr('Nhân dồn mỗi năm một tỷ lệ'),
 }
 
 export interface PlanDockEventProps {
@@ -282,12 +284,12 @@ export function PlanDockEvent({
   /** Nhãn của ô số tiền, theo hình đang chọn. Để cứng "Số tiền mỗi năm" thì với hình
    *  'total' ô này tự cãi ô ngay dưới nó ("Số này là TỔNG cả khoảng"). */
   const amountLabel = muaTaiSan
-    ? `Chi phí GIỮ mỗi năm (${CURRENCIES[currency].symbol})`
+    ? tr('Chi phí GIỮ mỗi năm ({sym})', { sym: CURRENCIES[currency].symbol })
     : shape === 'total'
-      ? `Tổng cả khoảng (${CURRENCIES[currency].symbol})`
+      ? tr('Tổng cả khoảng ({sym})', { sym: CURRENCIES[currency].symbol })
       : shape === 'ramp' || shape === 'growth'
-        ? `Số của năm ${event.startYear} (${CURRENCIES[currency].symbol})`
-        : `Số tiền mỗi năm (${CURRENCIES[currency].symbol})`
+        ? tr('Số của năm {year} ({sym})', { year: event.startYear, sym: CURRENCIES[currency].symbol })
+        : tr('Số tiền mỗi năm ({sym})', { sym: CURRENCIES[currency].symbol })
 
   /** Đổi năm kết thúc. Bật "hết đời" mà hình đang là 'total'/'ramp' thì hình phải đi
    *  theo — không thì mốc mang một hình vô nghĩa và `eventSpanNote` rơi về 'per_year'
@@ -307,7 +309,7 @@ export function PlanDockEvent({
       <DockPanel title={EVENT_WORDS.name} hint={EVENT_WORDS.hint}>
         {/* --- Hàng "Loại mốc" của bản vẽ = BỘ MẪU (spec §6) --------------------- */}
         <span id={`${uid}-mau`} className={DOCK_LABEL}>
-          Thêm mốc từ mẫu
+          {tr('Thêm mốc từ mẫu')}
         </span>
         <div role="group" aria-labelledby={`${uid}-mau`} className="flex flex-wrap gap-1">
           {LIFE_PRESETS.map((p) => (
@@ -323,8 +325,7 @@ export function PlanDockEvent({
           ))}
         </div>
         <Guide className="mb-2 mt-1 block text-2xs text-fg-muted">
-          Mẫu chỉ điền sẵn số — sinh ra rồi là mốc thường, sửa xoá như mọi mốc khác. Số mặc
-          định là phỏng đoán, kiểm tra lại.
+          {tr('Mẫu chỉ điền sẵn số — sinh ra rồi là mốc thường, sửa xoá như mọi mốc khác. Số mặc định là phỏng đoán, kiểm tra lại.')}
         </Guide>
 
         {/* --- Hàng nhận dạng (dùng chung với panel chặng) ----------------------- */}
@@ -338,11 +339,11 @@ export function PlanDockEvent({
           renderIcon={(icon) => <EventIcon icon={icon} kind={event.kind} className="h-4 w-4" />}
           name={event.label}
           onName={(label) => onPatch({ label })}
-          nameLabel="Tên mốc"
+          nameLabel={tr('Tên mốc')}
           fromYear={
             <YearBox
               value={event.startYear}
-              ariaLabel={`Năm bắt đầu mốc ${event.label}`}
+              ariaLabel={tr('Năm bắt đầu mốc {label}', { label: event.label })}
               onCommit={(y) => {
                 const kep = kepNamMoc(y)
                 onPatch({
@@ -357,7 +358,7 @@ export function PlanDockEvent({
           toYear={
             <EndYearBox
               value={event.endYear}
-              ariaLabel={`Năm kết thúc mốc ${event.label} — để trống là tới hết đời`}
+              ariaLabel={tr('Năm kết thúc mốc {label} — để trống là tới hết đời', { label: event.label })}
               onCommit={ghiEndYear}
             />
           }
@@ -367,7 +368,7 @@ export function PlanDockEvent({
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
             <span id={`${uid}-chieu`} className={DOCK_LABEL}>
-              Chiều tiền
+              {tr('Chiều tiền')}
             </span>
             {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form
                 control. `aria-pressed` là phần BẮT BUỘC — trạng thái đang chọn chỉ thể
@@ -375,7 +376,7 @@ export function PlanDockEvent({
             <div role="group" aria-labelledby={`${uid}-chieu`} className="flex gap-1">
               {(['expense', 'income'] as const).map((k) => (
                 <SegButton key={k} active={event.kind === k} onClick={() => onPatch({ kind: k })}>
-                  {k === 'expense' ? 'Chi' : 'Thu'}
+                  {k === 'expense' ? tr('Chi') : tr('Thu')}
                 </SegButton>
               ))}
             </div>
@@ -383,7 +384,7 @@ export function PlanDockEvent({
 
           <div>
             <span id={`${uid}-bat`} className={DOCK_LABEL}>
-              Tính vào bản chiếu
+              {tr('Tính vào bản chiếu')}
             </span>
             {/* Tắt tạm (migration 0063) — "thử bỏ mốc này ra xem sao" mà không xoá số
                 đã nhập. `<FilterChip>` là <button> mang `aria-pressed`. */}
@@ -392,9 +393,9 @@ export function PlanDockEvent({
                 on={event.enabled}
                 size="sm"
                 onClick={() => onPatch({ enabled: !event.enabled })}
-                title="Tắt tạm để xem bản chiếu không có mốc này"
+                title={tr('Tắt tạm để xem bản chiếu không có mốc này')}
               >
-                {event.enabled ? 'Đang tính' : 'Đang tắt'}
+                {event.enabled ? trx('status', 'Đang tính') : tr('Đang tắt')}
               </FilterChip>
             </div>
           </div>
@@ -432,7 +433,7 @@ export function PlanDockEvent({
                 hai class cùng hạng, Tailwind quyết theo thứ tự trong CSS). */}
             <Select
               value={currency}
-              aria-label="Tiền tệ khai của mốc"
+              aria-label={tr('Tiền tệ khai của mốc')}
               wrapClassName="w-24 shrink-0"
               onChange={(e) => doiTien(e.target.value as CurrencyCode)}
             >
@@ -446,7 +447,7 @@ export function PlanDockEvent({
           {cauHoi !== null && (
             <div className="mt-1 flex justify-end">
               <ActionButton onClick={batDauTra} className="px-2 py-1 text-2xs">
-                Tra hộ
+                {tr('Tra hộ')}
               </ActionButton>
             </div>
           )}
@@ -455,7 +456,7 @@ export function PlanDockEvent({
         {/* Con số ở trên KHÔNG tự nói được nó là gì (migration 0066). Ô này nói. */}
         <div className="mt-2">
           <label htmlFor={`${uid}-hinh`} className={DOCK_LABEL}>
-            Con số đó nghĩa là gì
+            {tr('Con số đó nghĩa là gì')}
           </label>
           <Select
             id={`${uid}-hinh`}
@@ -479,8 +480,7 @@ export function PlanDockEvent({
           </Select>
           {forever && (
             <Guide className="mt-1 block text-2xs text-fg-muted">
-              Mốc chạy tới hết đời nên chỉ còn hai lựa chọn: không chia được một tổng cho
-              vô hạn năm, và không có năm cuối để đi dần tới.
+              {tr('Mốc chạy tới hết đời nên chỉ còn hai lựa chọn: không chia được một tổng cho vô hạn năm, và không có năm cuối để đi dần tới.')}
             </Guide>
           )}
         </div>
@@ -489,13 +489,13 @@ export function PlanDockEvent({
           {shape === 'ramp' && !forever && (
             <div>
               <span className={DOCK_LABEL}>
-                Số của năm {event.endYear ?? '…'} ({CURRENCIES[currency].symbol})
+                {tr('Số của năm {year} ({sym})', { year: event.endYear ?? '…', sym: CURRENCIES[currency].symbol })}
               </span>
               <MoneyField
                 value={event.endAmountMinor ?? 0}
                 currency={currency}
                 autoOpen={false}
-                ariaLabel="Số tiền của năm cuối"
+                ariaLabel={tr('Số tiền của năm cuối')}
                 onChange={(v) => onPatch({ endAmountMinor: Math.max(0, v) })}
                 className={`w-full text-right font-semibold ${DOCK_INPUT}`}
               />
@@ -505,13 +505,13 @@ export function PlanDockEvent({
           {shape === 'growth' && (
             <div>
               <label htmlFor={`${uid}-nhan`} className={DOCK_LABEL}>
-                Mỗi năm nhân thêm (%)
+                {tr('Mỗi năm nhân thêm (%)')}
               </label>
               <NumBox
                 id={`${uid}-nhan`}
                 value={event.growthBps / 100}
                 emptyIsNull={false}
-                ariaLabel="Mỗi năm nhân thêm, phần trăm mỗi năm"
+                ariaLabel={tr('Mỗi năm nhân thêm, phần trăm mỗi năm')}
                 // Cộng RIÊNG, không thay lạm phát. Kẹp trong (−100, 1000).
                 onCommit={(n) =>
                   n !== null &&
@@ -523,14 +523,14 @@ export function PlanDockEvent({
 
           <div>
             <label htmlFor={`${uid}-lap`} className={DOCK_LABEL}>
-              Lặp mỗi N năm
+              {tr('Lặp mỗi N năm')}
             </label>
             <NumBox
               id={`${uid}-lap`}
               value={event.repeatEveryYears}
               emptyIsNull
-              ariaLabel="Lặp mỗi bao nhiêu năm — để trống là mọi năm trong khoảng"
-              placeholder="mọi năm"
+              ariaLabel={tr('Lặp mỗi bao nhiêu năm — để trống là mọi năm trong khoảng')}
+              placeholder={tr('mọi năm')}
               onCommit={(n) =>
                 onPatch({
                   repeatEveryYears:
@@ -547,7 +547,7 @@ export function PlanDockEvent({
             tính hai lần và không có gì nói ra. Ô này là chỗ nói ra. */}
         <div className="mt-2">
           <span className={DOCK_LABEL}>
-            Thay cho khoản đang tiêu nào ({CURRENCIES[currency].symbol}/năm)
+            {tr('Thay cho khoản đang tiêu nào ({sym}/năm)', { sym: CURRENCIES[currency].symbol })}
           </span>
           {/* "Lấy số thật từ một danh mục…" — đây là chỗ ô này thôi đòi người dùng ĐOÁN.
               Chi nền của chặng vốn lấy từ sổ, nên con số "thôi không tiêu nữa" đã có sẵn
@@ -556,7 +556,7 @@ export function PlanDockEvent({
               ô khác trong dock, xem đầu file. */}
           {chiTheoDanhMuc.length > 0 && (
             <Select
-              aria-label="Chọn danh mục để lấy số thật"
+              aria-label={tr('Chọn danh mục để lấy số thật')}
               wrapClassName="mb-1 w-full"
               // Luôn quay về mục rỗng: đây là một LỆNH ("điền hộ tôi"), không phải một
               // trường có giá trị — giá trị thật nằm ở ô tiền ngay dưới, và giữ tên danh
@@ -571,10 +571,10 @@ export function PlanDockEvent({
                 onPatch({ replacesMinor: c.annualMinor, replacesLabel: c.name })
               }}
             >
-              <option value="">Lấy số thật từ một danh mục…</option>
+              <option value="">{tr('Lấy số thật từ một danh mục…')}</option>
               {chiTheoDanhMuc.map((c, i) => (
                 <option key={i} value={i}>
-                  {c.name} — {formatMoney(c.annualMinor, currency)}/năm
+                  {tr('{name} — {amount}/năm', { name: c.name, amount: formatMoney(c.annualMinor, currency) })}
                 </option>
               ))}
             </Select>
@@ -583,7 +583,7 @@ export function PlanDockEvent({
             value={event.replacesMinor}
             currency={currency}
             autoOpen={false}
-            ariaLabel="Số mỗi năm thôi không tiêu nữa"
+            ariaLabel={tr('Số mỗi năm thôi không tiêu nữa')}
             onChange={(v) => {
               const so = Math.max(0, v)
               onPatch({
@@ -599,8 +599,8 @@ export function PlanDockEvent({
             <input
               value={event.replacesLabel}
               onChange={(e) => onPatch({ replacesLabel: e.target.value })}
-              placeholder="Tên khoản bị thay — ví dụ: Nhà ở"
-              aria-label="Tên khoản bị thay"
+              placeholder={tr('Tên khoản bị thay — ví dụ: Nhà ở')}
+              aria-label={tr('Tên khoản bị thay')}
               className={`mt-1 w-full ${DOCK_INPUT}`}
             />
           )}
@@ -611,7 +611,7 @@ export function PlanDockEvent({
             nhà — nên trên đồ thị mua nhà luôn trông tệ hơn thực tế. */}
         <div className="mt-2">
           <span id={`${uid}-ts`} className={DOCK_LABEL}>
-            Khoản này có mua một tài sản không
+            {tr('Khoản này có mua một tài sản không')}
           </span>
           <div role="group" aria-labelledby={`${uid}-ts`} className="flex gap-1">
             <SegButton
@@ -620,10 +620,10 @@ export function PlanDockEvent({
                 onPatch({ assetValueMinor: 0, loanMinor: 0, loanYears: 0, assetChangeBps: 0 })
               }
             >
-              Không
+              {tr('Không')}
             </SegButton>
             <SegButton active={muaTaiSan} onClick={() => onPatch({ assetValueMinor: 40_000_000 })}>
-              Có — nhà, xe, đất
+              {tr('Có — nhà, xe, đất')}
             </SegButton>
           </div>
         </div>
@@ -633,13 +633,13 @@ export function PlanDockEvent({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className={DOCK_LABEL}>
-                  Giá trị ({CURRENCIES[currency].symbol})
+                  {tr('Giá trị ({sym})', { sym: CURRENCIES[currency].symbol })}
                 </span>
                 <MoneyField
                   value={event.assetValueMinor}
                   currency={currency}
                   autoOpen={false}
-                  ariaLabel="Giá trị tài sản"
+                  ariaLabel={tr('Giá trị tài sản')}
                   onChange={(v) => {
                     const gia = Math.max(0, v)
                     onPatch({
@@ -654,13 +654,13 @@ export function PlanDockEvent({
               </div>
               <div>
                 <label htmlFor={`${uid}-tsdoi`} className={DOCK_LABEL}>
-                  Mỗi năm đổi (%)
+                  {tr('Mỗi năm đổi (%)')}
                 </label>
                 <NumBox
                   id={`${uid}-tsdoi`}
                   value={event.assetChangeBps / 100}
                   emptyIsNull={false}
-                  ariaLabel="Mỗi năm giá trị tài sản đổi, phần trăm — nhà khoảng +1, xe khoảng −15"
+                  ariaLabel={tr('Mỗi năm giá trị tài sản đổi, phần trăm — nhà khoảng +1, xe khoảng −15')}
                   onCommit={(n) =>
                     n !== null &&
                     onPatch({ assetChangeBps: Math.round(Math.min(99, Math.max(-99, n)) * 100) })
@@ -670,11 +670,11 @@ export function PlanDockEvent({
             </div>
 
             <span id={`${uid}-vay`} className={`mt-2 ${DOCK_LABEL}`}>
-              Trả thế nào
+              {tr('Trả thế nào')}
             </span>
             <div role="group" aria-labelledby={`${uid}-vay`} className="flex gap-1">
               <SegButton active={!dangVay} onClick={() => onPatch({ loanMinor: 0, loanYears: 0 })}>
-                Trả thẳng
+                {tr('Trả thẳng')}
               </SegButton>
               <SegButton
                 active={dangVay}
@@ -687,19 +687,19 @@ export function PlanDockEvent({
                   })
                 }
               >
-                Vay
+                {tr('Vay')}
               </SegButton>
             </div>
 
             {dangVay && (
               <div className="mt-2 grid grid-cols-3 gap-2">
                 <div>
-                  <span className={DOCK_LABEL}>Phần vay</span>
+                  <span className={DOCK_LABEL}>{tr('Phần vay')}</span>
                   <MoneyField
                     value={event.loanMinor}
                     currency={currency}
                     autoOpen={false}
-                    ariaLabel="Phần đi vay"
+                    ariaLabel={tr('Phần đi vay')}
                     onChange={(v) =>
                       onPatch({ loanMinor: Math.min(event.assetValueMinor, Math.max(0, v)) })
                     }
@@ -708,13 +708,13 @@ export function PlanDockEvent({
                 </div>
                 <div>
                   <label htmlFor={`${uid}-lai`} className={DOCK_LABEL}>
-                    Lãi (%)
+                    {tr('Lãi (%)')}
                   </label>
                   <NumBox
                     id={`${uid}-lai`}
                     value={event.loanRateBps / 100}
                     emptyIsNull={false}
-                    ariaLabel="Lãi suất, phần trăm mỗi năm"
+                    ariaLabel={tr('Lãi suất, phần trăm mỗi năm')}
                     onCommit={(n) =>
                       n !== null &&
                       onPatch({ loanRateBps: Math.round(Math.min(100, Math.max(0, n)) * 100) })
@@ -723,13 +723,13 @@ export function PlanDockEvent({
                 </div>
                 <div>
                   <label htmlFor={`${uid}-kyhan`} className={DOCK_LABEL}>
-                    Kỳ hạn
+                    {tr('Kỳ hạn')}
                   </label>
                   <NumBox
                     id={`${uid}-kyhan`}
                     value={event.loanYears === 0 ? null : event.loanYears}
                     emptyIsNull
-                    ariaLabel="Kỳ hạn vay, số năm"
+                    ariaLabel={tr('Kỳ hạn vay, số năm')}
                     onCommit={(n) =>
                       onPatch({
                         loanYears:
@@ -746,17 +746,17 @@ export function PlanDockEvent({
             {/* Ba con số này là toàn bộ điều người dùng muốn biết, và chúng do đúng
                 `homeAsset.ts` mà engine dùng tính ra. */}
             <p className="mt-2 rounded-md bg-surface-sunken px-2 py-1.5 text-2xs text-fg-secondary">
-              Năm <Num tone="muted">{taiSan.startYear}</Num>: bỏ ra{' '}
-              <Money amount={tienMua.downMinor} currency={currency} compact className="font-semibold" />
-              {tienMua.loanMinor > 0 ? (
-                <>
-                  {' '}và trả nợ{' '}
-                  <Money amount={tienMua.loanMinor} currency={currency} compact className="font-semibold" />
-                  /năm trong <Num tone="muted">{taiSan.loanYears}</Num> năm.
-                </>
-              ) : (
-                '. Không vay.'
-              )}
+              {tienMua.loanMinor > 0
+                ? trn('Năm {year}: bỏ ra {down} và trả nợ {loan}/năm trong {years} năm.', {
+                    year: <Num tone="muted">{taiSan.startYear}</Num>,
+                    down: <Money amount={tienMua.downMinor} currency={currency} compact className="font-semibold" />,
+                    loan: <Money amount={tienMua.loanMinor} currency={currency} compact className="font-semibold" />,
+                    years: <Num tone="muted">{taiSan.loanYears}</Num>,
+                  })
+                : trn('Năm {year}: bỏ ra {down}. Không vay.', {
+                    year: <Num tone="muted">{taiSan.startYear}</Num>,
+                    down: <Money amount={tienMua.downMinor} currency={currency} compact className="font-semibold" />,
+                  })}
             </p>
           </div>
         )}
@@ -764,11 +764,11 @@ export function PlanDockEvent({
         {/* --- Dòng tổng của bản vẽ: tổng ảnh hưởng · trải N năm · Y/năm · chặng --- */}
         {giaiThich !== null && (
           <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md bg-surface-sunken px-2 py-1.5 text-2xs text-fg-secondary">
-            <span className="text-fg-muted">Tổng ảnh hưởng</span>
+            <span className="text-fg-muted">{tr('Tổng ảnh hưởng')}</span>
             {giaiThich.totalMinor === null ? (
               // "tới hết đời" là CHỮ, không phải số — không đi qua <Num> (xem đầu file
               // Num.tsx, và cùng luật với "chưa đạt" ở PlanSummaryCard).
-              <span className="text-fg-muted">tới hết đời</span>
+              <span className="text-fg-muted">{tr('tới hết đời')}</span>
             ) : (
               <Money
                 amount={giaiThich.totalMinor}
@@ -783,21 +783,21 @@ export function PlanDockEvent({
                 <span aria-hidden className="text-fg-muted">
                   ·
                 </span>
-                <Num tone="muted">{giaiThich.years} năm</Num>
+                <Num tone="muted">{tr('{n} năm', { n: giaiThich.years })}</Num>
               </>
             )}
             <span aria-hidden className="text-fg-muted">
               ·
             </span>
             <Money amount={giaiThich.firstMinor} currency={currency} compact />
-            <span className="text-fg-muted">/lần</span>
+            <span className="text-fg-muted">{tr('/lần')}</span>
             {giaiThich.repeatEveryYears !== null && (
               <>
                 <span aria-hidden className="text-fg-muted">
                   ·
                 </span>
-                <span className="text-fg-muted">lặp mỗi</span>
-                <Num tone="muted">{giaiThich.repeatEveryYears} năm</Num>
+                <span className="text-fg-muted">{tr('lặp mỗi')}</span>
+                <Num tone="muted">{tr('{n} năm', { n: giaiThich.repeatEveryYears })}</Num>
               </>
             )}
             {phaseLabel !== null && (
@@ -805,7 +805,7 @@ export function PlanDockEvent({
                 <span aria-hidden className="text-fg-muted">
                   ·
                 </span>
-                <span className="min-w-0 truncate">Rơi vào chặng "{phaseLabel}"</span>
+                <span className="min-w-0 truncate">{tr('Rơi vào chặng "{label}"', { label: phaseLabel })}</span>
               </>
             )}
           </p>
@@ -819,7 +819,7 @@ export function PlanDockEvent({
           onClick={() => setAdvOpen((v) => !v)}
           className="mt-2 flex min-h-8 w-full items-center justify-between gap-2 rounded-full px-2 text-2xs uppercase tracking-label text-fg-muted transition active:scale-95 hover:bg-surface-sunken"
         >
-          Nâng cao
+          {tr('Nâng cao')}
           <ChevronDown
             aria-hidden
             className={`h-3 w-3 motion-group ${advOpen ? 'rotate-180' : ''}`}
@@ -831,13 +831,15 @@ export function PlanDockEvent({
                 trả lời một câu hỏi khác: đơn vị đang thấy ĐẾN TỪ ĐÂU. Mốc mới sinh ra
                 mang tiền của chặng (`currencyAt`), nên thấy một đơn vị không ngờ tới thì
                 biết ngay là do chặng hay do chính mình đã đổi. */}
-            <span className={DOCK_LABEL}>Tiền tệ khai</span>
+            <span className={DOCK_LABEL}>{tr('Tiền tệ khai')}</span>
             <p className="mb-2 text-2xs text-fg-secondary">
               {CURRENCIES[currency].label}
               {/* E-ink + Gọn: giữ tên đơn vị, bỏ lời chỉ chỗ đổi. */}
               <span className="eink-gon:hidden">
-                {' '}— chọn ở ô cạnh số tiền. Mốc mới mặc định theo chặng
-                {phaseLabel === null ? '' : ` "${phaseLabel}"`}.
+                {' '}
+                {phaseLabel === null
+                  ? tr('— chọn ở ô cạnh số tiền. Mốc mới mặc định theo chặng.')
+                  : tr('— chọn ở ô cạnh số tiền. Mốc mới mặc định theo chặng "{label}".', { label: phaseLabel })}
               </span>
             </p>
 
@@ -848,11 +850,11 @@ export function PlanDockEvent({
                 onChange={(e) => onPatch({ inflate: e.target.checked })}
                 className="h-3.5 w-3.5"
               />
-              Tăng theo lạm phát
+              {tr('Tăng theo lạm phát')}
             </label>
 
             <label htmlFor={`${uid}-ghichu`} className={DOCK_LABEL}>
-              Ghi chú
+              {tr('Ghi chú')}
             </label>
             <input
               id={`${uid}-ghichu`}
@@ -867,7 +869,7 @@ export function PlanDockEvent({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <ActionButton onClick={onDuplicate} className="px-2 py-1 text-2xs">
             <Copy className="h-3 w-3" aria-hidden="true" />
-            Nhân đôi
+            {tr('Nhân đôi')}
           </ActionButton>
           {/* Bản vẽ chỉ cho nút này với ba loại `job`/`move`/`study`. App không có cột
               `type` để lọc theo (spec §6), nên nút hiện cho MỌI mốc — "đổi việc / về
@@ -875,11 +877,11 @@ export function PlanDockEvent({
               người dùng nhận ra điều đó. */}
           <ActionButton onClick={onNewPhaseFromHere} className="px-2 py-1 text-2xs">
             <Layers className="h-3 w-3" aria-hidden="true" />
-            Chặng đời mới từ đây
+            {tr('Chặng đời mới từ đây')}
           </ActionButton>
           <ActionButton variant="danger" onClick={onRemove} className="ml-auto px-2 py-1 text-2xs">
             <Trash2 className="h-3 w-3" aria-hidden="true" />
-            Xoá mốc
+            {tr('Xoá mốc')}
           </ActionButton>
         </div>
       </DockPanel>

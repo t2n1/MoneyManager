@@ -18,6 +18,7 @@
 // đổi dáng bằng class `lg:`; hai cột đổi chỗ bằng `display:contents` + `order` (cùng mẹo
 // `BudgetView` đang dùng), nên thứ tự đọc trên mobile khác desktop mà DOM chỉ có một bản.
 import { useMemo, useState } from 'react'
+import { tagLabel, tr } from '../../i18n'
 import { Tag } from 'lucide-react'
 import { Card, deltaTone, Money, Num, signedPct } from '../../components/ui'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
@@ -238,13 +239,13 @@ export function CalendarView({
           <div className="order-2 flex items-center gap-2 lg:order-none lg:px-0.5">
             <span className="hidden shrink-0 items-center gap-1.5 text-2xs uppercase tracking-label text-fg-muted lg:flex">
               <Tag className="h-3 w-3" aria-hidden />
-              Nhãn
+              {tr('Nhãn')}
             </span>
             {/* Cuộn ngang ở mobile (402px không chứa nổi 5 chip có số tiền), xuống hàng
                 từ lg. Cùng dải, hai cách nhường chỗ. */}
             <div className="-mx-3 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
               <TagChip active={tagFilter === null} onClick={() => setTagFilter(null)}>
-                Tất cả
+                {tr('Tất cả')}
               </TagChip>
               {tagTotals.slices.map((s) => (
                 <TagChip
@@ -257,7 +258,7 @@ export function CalendarView({
                     style={{ background: TAG_HEX[tagColor(s.color)] }}
                     aria-hidden
                   />
-                  {s.name}
+                  {tagLabel(s.name)}
                   {/* Số tiền chỉ ở desktop: ở 402px nó đẩy chip thứ hai ra khỏi màn. */}
                   <Num tone="muted" className="hidden text-2xs lg:inline">
                     {formatMoney(s.amount, base)}
@@ -266,7 +267,7 @@ export function CalendarView({
               ))}
             </div>
             <span className="ml-auto hidden shrink-0 text-2xs text-fg-muted xl:block">
-              chọn một nhãn để chỉ hiện những ngày có nhãn đó
+              {tr('chọn một nhãn để chỉ hiện những ngày có nhãn đó')}
             </span>
           </div>
         )}
@@ -307,7 +308,7 @@ export function CalendarView({
           {/* Cột Tuần — chỉ desktop. Ở mobile nó thành dải pill cuộn ngang bên dưới:
               7rem cạnh một ô 48px là ăn mất một phần tư bề ngang của lưới. */}
           <div className="hidden w-28 shrink-0 border-l border-border-panel pl-1.5 lg:block">
-            <div className="py-1 text-right text-2xs font-medium text-fg-muted">Tuần</div>
+            <div className="py-1 text-right text-2xs font-medium text-fg-muted">{tr('Tuần')}</div>
             <div className="grid gap-[3px] [grid-auto-rows:4.75rem]">
               {month.weeks.map((w) => (
                 <WeekCell key={w.startISO} week={w} base={base} />
@@ -323,7 +324,7 @@ export function CalendarView({
               key={w.startISO}
               className="flex shrink-0 items-center gap-1.5 rounded-full border border-border-panel bg-surface px-2.5 py-1 text-2xs text-fg-muted"
             >
-              T{i + 1}
+              {tr('T{w}', { w: i + 1 })}
               {/* "—" chứ không "¥0", cùng chữ với cột Tuần ở desktop: một tuần chưa tới
                   KHÔNG phải một tuần tiêu 0 đồng. */}
               {w.expense > 0 ? (
@@ -340,34 +341,33 @@ export function CalendarView({
                 chú giải của những cái chấm thì dài hơn cả cái lưới nó giải thích. --- */}
         <div className="order-5 hidden flex-wrap items-center gap-x-4 gap-y-1 px-1 text-2xs text-fg-muted lg:order-none lg:flex">
           <span className="flex items-center gap-1.5">
-            <span className="h-[3px] w-6 rounded-full bg-money-out" aria-hidden /> vạch dài = ngày
-            chi nặng
+            <span className="h-[3px] w-6 rounded-full bg-money-out" aria-hidden /> {tr('vạch dài = ngày chi nặng')}
           </span>
           <span className="flex items-center gap-1.5">
             <span
               className="h-2.5 w-2.5 rounded-sm border border-state-good-border bg-state-good-bg"
               aria-hidden
             />{' '}
-            thu &gt; chi
+            {tr('thu > chi')}
           </span>
           <span className="flex items-center gap-1.5">
             <span
               className="h-2.5 w-2.5 rounded-sm border border-dashed border-border-strong"
               aria-hidden
             />{' '}
-            chưa tới
+            {tr('chưa tới')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className={`rounded px-1 text-2xs ${STATUS_CHIP.warn}`} aria-hidden>
-              Điện
+              {tr('Điện')}
             </span>{' '}
-            khoản đã lên lịch
+            {tr('khoản đã lên lịch')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className={`rounded px-1 text-2xs ${STATUS_CHIP.bad}`} aria-hidden>
-              Thẻ
+              {tr('Thẻ')}
             </span>{' '}
-            thẻ tới hạn
+            {tr('thẻ tới hạn')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="flex gap-px" aria-hidden>
@@ -380,7 +380,7 @@ export function CalendarView({
                 style={{ background: TAG_HEX.indigo }}
               />
             </span>{' '}
-            nhãn của khoản chi trong ngày
+            {tr('nhãn của khoản chi trong ngày')}
           </span>
         </div>
       </div>
@@ -489,15 +489,15 @@ function DayCell({
   //      nên cách của bản vẽ ở đây lặng lẽ không có tác dụng gì.
   const muted = dimmed && !isSelected
   const label = muted
-    ? `${formatDayHeader(c.iso)} · không có nhãn đang lọc`
+    ? tr('{day} · không có nhãn đang lọc', { day: formatDayHeader(c.iso) })
     : [
         formatDayHeader(c.iso),
-        c.future && !c.mark ? 'chưa tới' : null,
-        c.income > 0 ? `thu ${formatMoney(c.income, base)}` : null,
-        c.expense !== 0 ? `chi ${formatMoney(c.expense, base)}` : null,
+        c.future && !c.mark ? tr('chưa tới') : null,
+        c.income > 0 ? tr('thu {amount}', { amount: formatMoney(c.income, base) }) : null,
+        c.expense !== 0 ? tr('chi {amount}', { amount: formatMoney(c.expense, base) }) : null,
         c.mark
           ? `${c.mark.title}${c.mark.amount > 0 ? ` ${formatMoney(c.mark.amount, base)}` : ''}${
-              c.markCount > 1 ? ` và ${c.markCount - 1} khoản nữa` : ''
+              c.markCount > 1 ? tr(' và {n} khoản nữa', { n: c.markCount - 1 }) : ''
             }`
           : null,
       ]
@@ -663,9 +663,9 @@ function WeekDelta({
   if (week.marked > 0) {
     return (
       <span className="whitespace-nowrap text-2xs text-fg-warn">
-        {compact ? '+lịch ' : '+ '}
-        {formatMoney(week.marked, base)}
-        {!compact && ' lịch'}
+        {compact
+          ? tr('+lịch {amount}', { amount: formatMoney(week.marked, base) })
+          : tr('+ {amount} lịch', { amount: formatMoney(week.marked, base) })}
       </span>
     )
   }
@@ -676,7 +676,7 @@ function WeekDelta({
   return (
     <Num tone={deltaTone(week.deltaPct)} className="whitespace-nowrap text-2xs">
       {signedPct(week.deltaPct)}
-      {!compact && <span className="font-sans text-fg-muted"> so tuần trước</span>}
+      {!compact && <span className="font-sans text-fg-muted">{tr(' so tuần trước')}</span>}
     </Num>
   )
 }

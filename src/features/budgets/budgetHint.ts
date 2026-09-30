@@ -6,6 +6,7 @@
 // là hàm cục bộ trong BudgetView nên tab Lập kế hoạch đặt mốc con trong im lặng — đúng
 // đường dẫn tới ca "mốc con 2.400 trong trần nhóm 1.800" mà không ai được cảnh báo.
 import type { CategoryRow } from '../../types/database.types'
+import { categoryLabel, tr } from '../../i18n'
 
 /**
  * `hasBudget` cho biết một danh mục đã có dòng hạn mức trong tháng đang xét chưa.
@@ -22,12 +23,12 @@ export function budgetHint(
   if (c.parent_id) {
     const parent = categories.find((x) => x.id === c.parent_id)
     return hasBudget(c.parent_id)
-      ? `Chỉ là mốc theo dõi bên trong trần của ${parent?.name ?? 'nhóm cha'} — không cộng thêm vào trần đó, cũng không cộng vào tổng ngân sách.`
-      : `${parent?.name ?? 'Nhóm cha'} chưa có trần chung, nên hạn mức này tính vào tổng ngân sách. Trần của nhóm = tổng hạn mức các mục con.`
+      ? tr('Chỉ là mốc theo dõi bên trong trần của {parent} — không cộng thêm vào trần đó, cũng không cộng vào tổng ngân sách.', { parent: parent ? categoryLabel(parent.name) : tr('nhóm cha') })
+      : tr('{parent} chưa có trần chung, nên hạn mức này tính vào tổng ngân sách. Trần của nhóm = tổng hạn mức các mục con.', { parent: parent ? categoryLabel(parent.name) : tr('Nhóm cha') })
   }
 
   const hasChildren = categories.some((k) => k.parent_id === categoryId && !k.is_archived)
   return hasChildren
-    ? 'Trần chung cho cả nhóm: tính mọi khoản chi của các mục con và chi ghi thẳng vào nhóm.'
+    ? tr('Trần chung cho cả nhóm: tính mọi khoản chi của các mục con và chi ghi thẳng vào nhóm.')
     : undefined
 }

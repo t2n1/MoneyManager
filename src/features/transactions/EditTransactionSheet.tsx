@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { tr } from '../../i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Banknote, Search, SplitSquareHorizontal } from 'lucide-react'
@@ -75,7 +76,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
     }
     onClose()
     // Xóa xong mới cho hoàn tác: tạo lại giao dịch (id mới) nếu người dùng bấm.
-    showUndoToast('Đã xóa giao dịch', async () => {
+    showUndoToast(tr('Đã xóa giao dịch'), async () => {
       await repo.createTransaction(toNewTransaction(snapshot, snapshotTags))
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
@@ -114,7 +115,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
       >
         <div className="mb-3 flex items-center justify-between">
           <SectionTitle role="block" id="edit-tx-title">
-            Sửa giao dịch
+            {tr('Sửa giao dịch')}
           </SectionTitle>
           <div className="flex gap-2">
             <button
@@ -122,14 +123,14 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
               onClick={handleDelete}
               className={actionButtonClass('danger')}
             >
-              Xóa
+              {tr('Xóa')}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
             >
-              Đóng
+              {tr('Đóng')}
             </button>
           </div>
         </div>
@@ -143,7 +144,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             className="mb-3 flex w-full items-center gap-2 rounded-md bg-state-good-bg px-3 py-2.5 text-left text-sm font-medium text-green-800 dark:text-green-300 active:scale-[0.99]"
           >
             <Banknote className="h-4 w-4 shrink-0" />
-            <span className="flex-1">Giao dịch trả nợ · Xem khoản nợ</span>
+            <span className="flex-1">{tr('Giao dịch trả nợ · Xem khoản nợ')}</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-green-500 dark:text-green-400" />
           </button>
         )}
@@ -158,9 +159,9 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             (xem laKhoanBu). Nói lý do thay vì giấu nút, để người dùng khỏi đi tìm. */}
         {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && laBu && (
           <p className="mb-3 rounded-md bg-surface-sunken px-3 py-2.5 text-sm text-fg-secondary">
-            Khoản bù số dư không chia được.
+            {tr('Khoản bù số dư không chia được.')}
             {/* E-ink + Gọn: bỏ vế giải thích vì sao. */}
-            <span className="eink-gon:hidden"> Nó chỉ để sổ khớp với số thật.</span>
+            <span className="eink-gon:hidden">{tr(' Nó chỉ để sổ khớp với số thật.')}</span>
           </p>
         )}
         {(tx.type === 'expense' || tx.type === 'income') && tx.amount > 0 && !laBu && (
@@ -170,7 +171,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             className="mb-3 flex w-full items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-left text-sm font-medium text-fg-secondary active:scale-[0.99]"
           >
             <SplitSquareHorizontal className="h-4 w-4 shrink-0" />
-            <span className="flex-1">Chia thành nhiều dòng</span>
+            <span className="flex-1">{tr('Chia thành nhiều dòng')}</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
           </button>
         )}
@@ -184,7 +185,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             className="mb-3 flex w-full items-center gap-2 rounded-md bg-surface-sunken px-3 py-2.5 text-left text-sm font-medium text-fg-secondary active:scale-[0.99]"
           >
             <Search className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate">Xem mọi lần “{tx.note.trim()}”</span>
+            <span className="flex-1 truncate">{tr('Xem mọi lần “{note}”', { note: tx.note.trim() })}</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
           </button>
         )}
@@ -196,7 +197,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
           // gần như không dùng tới, còn việc "à, khoản kia là tiền trả hàng" thì bao giờ
           // cũng nhớ ra sau khi đã ghi — tức là mở lại giao dịch, tức là đúng màn này.
           showRefundOption
-          submitLabel="Cập nhật"
+          submitLabel={tr('Cập nhật')}
           onSubmit={async (values) => {
             await update.mutateAsync({ id: tx.id, patch: values })
             onClose()

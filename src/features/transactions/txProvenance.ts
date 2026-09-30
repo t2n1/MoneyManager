@@ -17,6 +17,7 @@
 // khoản khác, nhưng người đối chiếu nên biết. Cố ý KHÔNG gọi là "ghi muộn": xem lý do ở
 // provenanceLine.
 
+import { tr } from '../../i18n'
 import { daysBetween, toISODate } from '../../lib/dates'
 import type { TransactionRow } from '../../types/database.types'
 
@@ -88,10 +89,10 @@ export function provenanceLine(p: TxProvenance): string {
   const phan: string[] = []
   phan.push(
     p.origin === 'dinh-ky'
-      ? `Quy tắc định kỳ sinh lúc ${p.createdStamp}`
+      ? tr('Quy tắc định kỳ sinh lúc {time}', { time: p.createdStamp })
       : p.origin === 'co-phieu'
-        ? `Lệnh cổ phiếu sinh lúc ${p.createdStamp}`
-        : `Ghi lúc ${p.createdStamp}`,
+        ? tr('Lệnh cổ phiếu sinh lúc {time}', { time: p.createdStamp })
+        : tr('Ghi lúc {time}', { time: p.createdStamp }),
   )
   // Khoảng cách này CHỈ nói với dòng do người ghi. Máy sinh ra dòng thì nó là lúc engine
   // bù kỳ chạy, không phải lúc người dùng nhớ ra — một khoản lương của 2024 do lượt bù kỳ
@@ -105,7 +106,7 @@ export function provenanceLine(p: TxProvenance): string {
   // nói "vào sổ sau N ngày" là đúng sự thật với cả hai đường, và người ghi tự biết tháng
   // nào mình nhập từ file.
   if (p.origin === 'nhap-tay' && p.lateDays >= LATE_DAY_THRESHOLD)
-    phan.push(`vào sổ sau ${p.lateDays} ngày`)
-  phan.push(p.editedStamp === null ? 'chưa sửa lần nào' : `sửa lúc ${p.editedStamp}`)
+    phan.push(tr('vào sổ sau {n} ngày', { n: p.lateDays }))
+  phan.push(p.editedStamp === null ? tr('chưa sửa lần nào') : tr('sửa lúc {time}', { time: p.editedStamp }))
   return phan.join(' · ')
 }

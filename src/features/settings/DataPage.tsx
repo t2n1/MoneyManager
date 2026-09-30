@@ -49,12 +49,14 @@ import {
   PanelHeader,
   SegmentedControl,
 } from '../../components/ui'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 type Period = 'month' | 'year'
 
 const PERIOD_ITEMS = [
-  { value: 'month' as const, label: 'Tháng' },
-  { value: 'year' as const, label: 'Năm' },
+  { value: 'month' as const, label: tr('Tháng') },
+  { value: 'year' as const, label: tr('Năm') },
 ]
 
 function ExportSection() {
@@ -80,8 +82,9 @@ function ExportSection() {
   function handleCsv() {
     const sorted = [...txs].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
     const csv = buildTransactionsCsv(sorted, {
-      categoryName: (id) => categories.find((c) => c.id === id)?.name ?? '',
-      accountName: (id) => accounts.find((a) => a.id === id)?.name ?? '',
+      // CSV chỉ để đọc (không ai nhập lại) nên in nhãn hiển thị, như trên màn.
+      categoryName: (id) => categoryLabel(categories.find((c) => c.id === id)?.name ?? ''),
+      accountName: (id) => accountLabel(accounts.find((a) => a.id === id)?.name ?? ''),
       currencyOf,
     })
     downloadTextFile(exportCsvFilename(period, monthKey, year), csv, 'text/csv')
@@ -100,30 +103,29 @@ function ExportSection() {
   // bằng cách bỏ các cặp `{…}` KHÔNG lồng nhau, nên một biểu thức ba tầng nằm trong
   // <p class="…fg-muted"> bị nó đọc thành một đoạn văn 45+ ký tự và tính vào trần.
   const countLine = loading ? (
-    'Đang đếm…'
+    tr('Đang đếm…')
   ) : (
-    <>
-      <Num tone="muted">{txs.length}</Num> giao dịch
-    </>
+    // `n` chỉ để chọn số ít/số nhiều; chữ số hiện ra là `{count}` bọc <Num>.
+    trn('{count} giao dịch', { n: txs.length, count: <Num tone="muted">{txs.length}</Num> })
   )
   const step = (delta: number) =>
     period === 'month' ? setMonthKey((k) => addMonths(k, delta)) : setYear((y) => y + delta)
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader>Lấy ra</PanelHeader>
+      <PanelHeader>{tr('Lấy ra')}</PanelHeader>
       <div className="flex flex-col gap-3 p-3">
         <SegmentedControl
           items={PERIOD_ITEMS}
           value={period}
           onChange={setPeriod}
-          label="Kỳ để xuất"
+          label={tr('Kỳ để xuất')}
         />
 
         <div>
           <div className="flex items-center justify-between gap-2">
             <IconButton
-              aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
+              aria-label={period === 'month' ? tr('Tháng trước') : tr('Năm trước')}
               onClick={() => step(-1)}
             >
               <ChevronLeft className="h-5 w-5" />
@@ -132,7 +134,7 @@ function ExportSection() {
               {label}
             </span>
             <IconButton
-              aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
+              aria-label={period === 'month' ? tr('Tháng sau') : tr('Năm sau')}
               onClick={() => step(1)}
             >
               <ChevronRight className="h-5 w-5" />
@@ -150,11 +152,11 @@ function ExportSection() {
               trên nút — dòng "0 giao dịch". */}
           <ActionButton onClick={handleCsv} disabled={txs.length === 0}>
             <Download className="h-4 w-4" />
-            Tải CSV
+            {tr('Tải CSV')}
           </ActionButton>
           <ActionButton onClick={handlePdf}>
             <Printer className="h-4 w-4" />
-            Xuất PDF / In
+            {tr('Xuất PDF / In')}
           </ActionButton>
         </div>
       </div>
@@ -167,15 +169,15 @@ function ImportSection() {
     'flex min-h-12 items-center gap-3 border-b border-border-subtle px-3 py-3 text-sm text-fg-primary transition last:border-b-0 hover:bg-surface-sunken'
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader>Đưa vào</PanelHeader>
+      <PanelHeader>{tr('Đưa vào')}</PanelHeader>
       <Link to="/settings/import" className={rowClass}>
         <FileUp className="h-5 w-5 shrink-0 text-fg-muted" />
-        <span className="min-w-0 flex-1">Giao dịch từ CSV</span>
+        <span className="min-w-0 flex-1">{tr('Giao dịch từ CSV')}</span>
         <ChevronRight className="h-5 w-5 shrink-0 text-fg-muted" />
       </Link>
       <Link to="/settings/nhap-phieu-luong" className={rowClass}>
         <FileUp className="h-5 w-5 shrink-0 text-fg-muted" />
-        <span className="min-w-0 flex-1">Phiếu lương từ PDF</span>
+        <span className="min-w-0 flex-1">{tr('Phiếu lương từ PDF')}</span>
         <ChevronRight className="h-5 w-5 shrink-0 text-fg-muted" />
       </Link>
     </Card>
@@ -185,7 +187,7 @@ function ImportSection() {
 export function DataPage() {
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Dữ liệu & sao lưu" back="/settings" flush />
+      <PageHeader title={tr('Dữ liệu & sao lưu')} back="/settings" flush />
 
       {/* `auto-fit` + `minmax` chứ không chốt số cột: thẻ này sống trong CỘT PHẢI của
           Cài đặt, mà cột đó rộng bao nhiêu thì tuỳ cửa sổ (1024px → ~730px, 1920px →

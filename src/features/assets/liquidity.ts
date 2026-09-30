@@ -9,6 +9,7 @@
 // snapshot lại nằm trong đồ thị bộ luật thông báo (purity.test.ts).
 
 import type { AccountType } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 /**
  * Loại tài khoản MẶC ĐỊNH coi là rút ngay được, dùng khi `is_liquid` còn null.
@@ -81,7 +82,7 @@ export function inferredCount(accounts: readonly LiquidityInput[]): number {
  * hai tab đọc chính sự khác biệt đó để cảnh báo.
  */
 export const LIQUID_OPTIONS = [
-  [true, 'Có'],
-  [false, 'Không'],
-  [null, 'Để app suy'],
+  [true, tr('Có')],
+  [false, tr('Không')],
+  [null, tr('Để app suy')],
 ] as const satisfies readonly (readonly [boolean | null, string])[]

@@ -10,6 +10,8 @@
 // Dùng <abbr title> chứ không tooltip tự vẽ: trên điện thoại `title` không hiện, nên
 // `aria-label` mới là kênh chính cho trình đọc màn hình, và dấu này luôn chỉ BỔ NGHĨA —
 // câu chữ quanh nó phải tự đủ nghĩa khi không đọc được lời giải thích.
+import { tr } from '../i18n'
+
 interface Props {
   /** Một câu ngắn nói vì sao đây là số ước tính. */
   reason: string
@@ -19,7 +21,7 @@ export function EstimateMark({ reason }: Props) {
   return (
     <abbr
       title={reason}
-      aria-label={`Số ước tính. ${reason}`}
+      aria-label={tr('Số ước tính. {reason}', { reason })}
       className="ml-0.5 cursor-help text-2xs font-medium text-fg-muted no-underline"
     >
       ≈

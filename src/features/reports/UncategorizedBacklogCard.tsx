@@ -10,6 +10,7 @@ import { Guide } from '../../components/Guide'
 import { Card, SectionTitle } from '../../components/ui'
 import { formatMonthLabel, getMonthRange, parseMonthKey } from '../../lib/dates'
 import type { MonthBacklogRow } from './uncategorized'
+import { tr } from '../../i18n'
 
 interface Props {
   rows: MonthBacklogRow[]
@@ -36,8 +37,8 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <SectionTitle>Khoản chưa gắn danh mục</SectionTitle>
-        <span className="shrink-0 text-2xs text-fg-muted">{rows.length} tháng</span>
+        <SectionTitle>{tr('Khoản chưa gắn danh mục')}</SectionTitle>
+        <span className="shrink-0 text-2xs text-fg-muted">{tr('{n} tháng', { n: rows.length })}</span>
       </div>
 
       <ul className="space-y-1.5">
@@ -55,7 +56,7 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
                     {formatMonthLabel(parseMonthKey(row.monthKey))}
                   </span>
                   <span className="shrink-0 text-sm font-semibold text-fg-primary">
-                    còn {row.pending} khoản
+                    {tr('còn {n} khoản', { n: row.pending })}
                   </span>
                 </div>
                 {/* Thanh tiến độ có nhãn chữ đi kèm: ai không phân biệt được màu vẫn đọc
@@ -64,7 +65,7 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
                   <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                     <div className="h-full rounded-full bg-accent" style={{ width: `${donePct}%` }} />
                   </div>
-                  <span className="shrink-0 text-2xs text-fg-muted">đã gắn {donePct}%</span>
+                  <span className="shrink-0 text-2xs text-fg-muted">{tr('đã gắn {pct}%', { pct: donePct })}</span>
                 </div>
               </Link>
             </li>
@@ -73,8 +74,7 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
       </ul>
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Xếp tháng cũ nhất lên trước — khoản để lâu thường khó nhớ ra đã tiêu vào việc gì. Bấm một
-        dòng để mở đúng tháng đó, đã lọc sẵn. Chỉ xét {monthsWindow} tháng gần nhất.
+        {tr('Xếp tháng cũ nhất lên trước — khoản để lâu thường khó nhớ ra đã tiêu vào việc gì. Bấm một dòng để mở đúng tháng đó, đã lọc sẵn. Chỉ xét {n} tháng gần nhất.', { n: monthsWindow })}
       </Guide>
     </Card>
   )

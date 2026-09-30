@@ -16,6 +16,8 @@ import { pendingText, type LoadStatus } from '../../lib/loadStatus'
 import { InvestDividendTagger } from './InvestDividendTagger'
 import { share, sliceColor } from './investFormat'
 import type { PositionRow, PositionTableResult, TaggableCashflow } from './positionTable'
+import { accountLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const VND = 'VND' as const
 
@@ -75,12 +77,12 @@ export function InvestAllocationSection({
 
   return (
     <Card as="section">
-      <SectionTitle>Cơ cấu danh mục ({rows.length} mã)</SectionTitle>
+      <SectionTitle>{tr('Cơ cấu danh mục ({n} mã)', { n: rows.length })}</SectionTitle>
 
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-fg-muted">
-          Chưa giữ mã nào.
-          <Guide as="span"> Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.</Guide>
+          {tr('Chưa giữ mã nào.')}
+          <Guide as="span"> {tr('Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.')}</Guide>
         </p>
       ) : (
         <>
@@ -104,8 +106,8 @@ export function InvestAllocationSection({
       {/* Sổ hỏng hẳn thì nói ra và cho thử lại — không để cột Cổ tức đứng "…" mãi. */}
       {rows.length > 0 && chuaBiet === 'failed' && (
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-fg-secondary">
-          Không tải được sổ giao dịch nên chưa tính được cổ tức và tổng lãi/lỗ.
-          <ActionButton onClick={onRetryDividends}>Thử lại</ActionButton>
+          {tr('Không tải được sổ giao dịch nên chưa tính được cổ tức và tổng lãi/lỗ.')}
+          <ActionButton onClick={onRetryDividends}>{tr('Thử lại')}</ActionButton>
         </p>
       )}
 
@@ -113,11 +115,13 @@ export function InvestAllocationSection({
         <>
           {/* E-ink + Gọn: chỉ giữ con số, bỏ câu giải thích vì sao nó nằm ngoài bảng. */}
           <p className="mt-2 hidden text-2xs text-fg-secondary eink-gon:block">
-            Cổ tức mã đã bán hết <Money amount={soldDividend} currency={VND} showSign />
+            {trn('Cổ tức mã đã bán hết {amount}', { amount: <Money amount={soldDividend} currency={VND} showSign /> })}
           </p>
           <p className="mt-2 text-2xs text-fg-secondary eink-gon:hidden">
-            Ngoài bảng còn <Money amount={soldDividend} currency={VND} showSign /> cổ tức của
-            những mã đã bán hết — tiền đã về tài khoản, nhưng không còn dòng nào để đứng.
+            {trn(
+              'Ngoài bảng còn {amount} cổ tức của những mã đã bán hết — tiền đã về tài khoản, nhưng không còn dòng nào để đứng.',
+              { amount: <Money amount={soldDividend} currency={VND} showSign /> },
+            )}
           </p>
         </>
       )}
@@ -128,7 +132,7 @@ export function InvestAllocationSection({
         <p className="mt-2 border-t border-border-subtle pt-2 text-2xs text-fg-secondary">
           {concentration.text}
           {concentration.estimated && (
-            <EstimateMark reason="Có mã chưa có giá nên tỷ trọng đang tính một phần theo giá vốn." />
+            <EstimateMark reason={tr('Có mã chưa có giá nên tỷ trọng đang tính một phần theo giá vốn.')} />
           )}
         </p>
       )}
@@ -159,24 +163,24 @@ function BangDesktop({
         <thead>
           <tr className="border-b border-border-subtle text-2xs text-fg-muted">
             <th scope="col" className="py-1.5 text-left font-normal">
-              Mã
+              {tr('Mã')}
             </th>
-            <Th>Biến động</Th>
-            <Th>Tỷ trọng</Th>
-            <Th>Khối lượng</Th>
+            <Th>{tr('Biến động')}</Th>
+            <Th>{tr('Tỷ trọng')}</Th>
+            <Th>{tr('Khối lượng')}</Th>
             <Th>
-              Giá nay
+              {tr('Giá nay')}
               <br />
-              Giá vốn
+              {tr('Giá vốn')}
             </Th>
             <Th>
-              Giá trị
+              {tr('Giá trị')}
               <br />
-              Tiền mua
+              {tr('Tiền mua')}
             </Th>
-            <Th>Lãi/lỗ giá</Th>
-            <Th>Cổ tức</Th>
-            <Th>Lãi/lỗ</Th>
+            <Th>{tr('Lãi/lỗ giá')}</Th>
+            <Th>{tr('Cổ tức')}</Th>
+            <Th>{tr('Lãi/lỗ')}</Th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border-subtle">
@@ -209,7 +213,7 @@ function BangDesktop({
               </Td>
               <Td>
                 {r.price === null ? (
-                  <span className="text-fg-muted">chưa có giá</span>
+                  <span className="text-fg-muted">{tr('chưa có giá')}</span>
                 ) : (
                   <Money amount={r.price} currency={VND} />
                 )}
@@ -274,7 +278,7 @@ function BangDesktop({
             một mã, và trình đọc màn hình cần biết thế. */}
         <tfoot>
           <tr className="border-t-2 border-border-strong font-semibold">
-            <td className="py-2">Tổng</td>
+            <td className="py-2">{tr('Tổng')}</td>
             <Td />
             <Td>
               <Num>{share(1)}</Num>
@@ -431,19 +435,19 @@ function TheDienThoai({
 
             <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
               <Num className="text-2xs">{r.quantity.toLocaleString('vi-VN')}</Num>
-              <span>cổ · vốn</span>
+              <span>{tr('cổ · vốn')}</span>
               <Money amount={r.avgCost} currency={VND} className="text-2xs" />
               {r.price === null ? (
-                <span>· chưa có giá</span>
+                <span>{tr('· chưa có giá')}</span>
               ) : (
                 <>
-                  <span>· nay</span>
+                  <span>{tr('· nay')}</span>
                   <Money amount={r.price} currency={VND} className="text-2xs" />
                 </>
               )}
               {!chuaBiet && r.dividend !== 0 && (
                 <>
-                  <span>· cổ tức</span>
+                  <span>{tr('· cổ tức')}</span>
                   <Money
                     amount={r.dividend}
                     currency={VND}
@@ -455,7 +459,7 @@ function TheDienThoai({
               )}
               {/* Chỉ nói tên tài khoản khi mã nằm ở NHIỀU nơi — một tài khoản thì câu đó
                   đúng với mọi dòng, tức là không nói thêm được gì. */}
-              {r.accountNames.length > 1 && <span>· {r.accountNames.join(' + ')}</span>}
+              {r.accountNames.length > 1 && <span>· {r.accountNames.map(accountLabel).join(' + ')}</span>}
             </p>
           </button>
         </li>

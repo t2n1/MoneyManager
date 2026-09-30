@@ -13,6 +13,7 @@ import {
   type HomeAsset,
 } from './homeAsset'
 import { resolvePhasePercents } from './phasePercent'
+import { tr } from '../../i18n'
 
 /**
  * Chặng đời: thu chi NỀN. Chặng sau bắt đầu thì chặng trước kết thúc.
@@ -480,7 +481,7 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       if (tien.downMinor > 0) {
         yearEvents.push({
           id: `${e.id}:tratruoc`,
-          label: `${e.label} — trả trước`,
+          label: tr('{label} — trả trước', { label: e.label }),
           kind: 'expense',
           amountDisplayMinor: doi(tien.downMinor),
         })
@@ -488,7 +489,7 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       if (tien.loanMinor > 0) {
         yearEvents.push({
           id: `${e.id}:trano`,
-          label: `${e.label} — trả nợ`,
+          label: tr('{label} — trả nợ', { label: e.label }),
           kind: 'expense',
           amountDisplayMinor: doi(tien.loanMinor),
         })
@@ -502,7 +503,7 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
     if (stress?.illness.on && year === stress.illness.year) {
       yearEvents.push({
         id: STRESS_ILLNESS_EVENT_ID,
-        label: 'Bệnh nặng (stress test)',
+        label: tr('Bệnh nặng (stress test)'),
         kind: 'expense',
         amountDisplayMinor: Math.round(stress.illness.amountDisplayMinor * infl),
       })

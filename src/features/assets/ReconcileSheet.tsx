@@ -23,6 +23,8 @@ import {
   findAdjustCategory,
   reconcilePlan,
 } from './reconcile'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   account: AccountRow
@@ -121,7 +123,7 @@ export function ReconcileSheet({
           account_id: account.id,
           to_account_id: null,
           occurred_on: occurredOn,
-          note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
+          note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư', // i18n-ignore — ghi chú lưu vào DB
           // Dấu thật để nhận ra khoản bù tổng nợ — ghi chú người dùng sửa được (isBalanceAdjust).
           adjust_kind: 'balance',
           exclude_from_stats: true,
@@ -147,10 +149,16 @@ export function ReconcileSheet({
       onClose()
     } catch (err) {
       // Không nuốt lỗi: trước đây sheet chỉ đứng im, người dùng không biết vì sao
-      showToast(`Không lưu được: ${(err as Error).message}`, 'error')
+      showToast(tr('Không lưu được: {error}', { error: (err as Error).message }), 'error')
     } finally {
       setSaving(false)
     }
+  }
+
+  const pendingVars = {
+    b: <b>{tr('đã chốt chờ rút')}</b>,
+    amount: formatMoney(billedPending ?? 0, currency),
+    zero: formatMoney(0, currency),
   }
 
   return (
@@ -163,10 +171,10 @@ export function ReconcileSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-1">
-          {isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
+          {isCard ? tr('Điều chỉnh số nợ') : tr('Điều chỉnh số dư')}
         </SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
-          {account.name} · {isCard ? 'sổ đang ghi nợ' : 'số dư sổ hiện tại'}{' '}
+          {accountLabel(account.name)} · {isCard ? tr('sổ đang ghi nợ') : tr('số dư sổ hiện tại')}{' '}
           {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
 
@@ -174,23 +182,28 @@ export function ReconcileSheet({
             "Kỳ này" về 0 như thể không phải trả, người dùng tưởng app hỏng. */}
         {isCard && (billedPending ?? 0) > 0 && (
           <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
-            Thẻ đang có kỳ <b>đã chốt chờ rút</b>: {formatMoney(billedPending ?? 0, currency)}
-            {billedDueISO ? ` vào ${dayMonthLabel(billedDueISO)}` : ''}. Số "đang nợ thực tế" phải
-            gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {formatMoney(0, currency)} như
-            thể không phải trả.
+            {billedDueISO
+              ? trn(
+                  'Thẻ đang có kỳ {b}: {amount} vào {date}. Số "đang nợ thực tế" phải gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {zero} như thể không phải trả.',
+                  { ...pendingVars, date: dayMonthLabel(billedDueISO) },
+                )
+              : trn(
+                  'Thẻ đang có kỳ {b}: {amount}. Số "đang nợ thực tế" phải gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {zero} như thể không phải trả.',
+                  pendingVars,
+                )}
           </p>
         )}
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
+          {isCard ? tr('Số đang nợ thực tế') : tr('Số dư thực tế')}
         </span>
         <div className="mb-3">
           <MoneyField
             value={entered}
             onChange={setEntered}
             currency={currency}
-            ariaLabel={isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
+            ariaLabel={isCard ? tr('Số đang nợ thực tế') : tr('Số dư thực tế')}
             onEnter={handleSubmit}
             className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right font-mono text-lg font-semibold text-fg-primary outline-accent"
           />
@@ -202,9 +215,9 @@ export function ReconcileSheet({
         {diff !== 0 && (
           <>
             {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-            <span className="mb-1 block text-sm font-medium text-fg-muted">Ghi vào ngày</span>
+            <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ghi vào ngày')}</span>
             <DateField
-              ariaLabel="Ghi vào ngày"
+              ariaLabel={tr('Ghi vào ngày')}
               value={occurredOn}
               max={todayISO}
               onChange={setOccurredOn}
@@ -214,15 +227,15 @@ export function ReconcileSheet({
                 chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}
             <p className="mb-3 text-sm text-fg-muted">
               {occurredOn === suggestedDate && suggestedDate !== todayISO
-                ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
+                ? tr('Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.')
                 : occurredOn > suggestedDate && suggestedDate !== todayISO
-                  ? 'Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.'
+                  ? tr('Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.')
                   : // Mệnh đề thứ hai là của 19b, và nó mới là phần người ta hiểu sai: đối
                     // chiếu KHÔNG viết lại quá khứ. Thiếu nó thì "khớp lại kể từ ngày này" dễ
                     // đọc thành "app sẽ sửa các số dư cũ cho đúng", nên người dùng lùi ngày về
                     // đầu tháng hy vọng vá được cả tháng — thực tế chỉ tạo một khoản bù nằm
                     // sai chỗ, và mọi tổng của tháng đó lệch thêm một lần nữa.
-                    'Số dư khớp lại kể từ ngày này. Giao dịch trước ngày đó giữ nguyên.'}
+                    tr('Số dư khớp lại kể từ ngày này. Giao dịch trước ngày đó giữ nguyên.')}
             </p>
           </>
         )}
@@ -233,19 +246,19 @@ export function ReconcileSheet({
         {diff !== 0 && anhHuongChi && (
           <>
             <span className="mb-1 block text-sm font-medium text-fg-muted">
-              Phần chênh này là gì
+              {tr('Phần chênh này là gì')}
             </span>
             <div className="mb-3 flex gap-1">
               {[
                 {
                   value: true,
-                  label: 'Đã tiêu, quên ghi',
-                  hint: 'Kể vào tổng Chi tháng',
+                  label: tr('Đã tiêu, quên ghi'),
+                  hint: tr('Kể vào tổng Chi tháng'),
                 },
                 {
                   value: false,
-                  label: 'Chỉ chỉnh số dư',
-                  hint: 'Không phải chi tiêu',
+                  label: tr('Chỉ chỉnh số dư'),
+                  hint: tr('Không phải chi tiêu'),
                 },
               ].map((opt) => {
                 const active = laChiTieu === opt.value
@@ -274,7 +287,7 @@ export function ReconcileSheet({
 
         <div className="mb-3 rounded-md border border-border-subtle bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
-            <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
+            <span>{isCard ? tr('Nợ thay đổi') : tr('Chênh lệch')}</span>
             <span
               className={`font-mono font-semibold ${
                 diff === 0
@@ -299,20 +312,28 @@ export function ReconcileSheet({
           <p className="mt-1 text-sm text-fg-muted">
             {diff === 0
               ? isCard
-                ? 'Số nợ đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
-                : 'Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
+                ? tr('Số nợ đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.')
+                : tr('Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.')
               : isCard
-                ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} trên thẻ vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`
+                ? diff > 0
+                  ? tr('Nợ thật ít hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
+                  : tr('Nợ thật nhiều hơn sổ — sẽ tạo một giao dịch bù {amount} trên thẻ vào danh mục {category}, không tính vào thống kê thu chi.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
                 : // Ví/tài khoản thường: khoản bù KHÔNG còn vô hình khi người dùng chọn
                   // "đã tiêu, quên ghi" — Báo cáo tháng kể nó vào tổng Chi ở dòng
                   // "Chưa ghi rõ" / "Ghi thừa" (xem chiChuaGhi.ts). Câu này phải nói ra,
                   // không thì bấm Điều chỉnh xong thấy tổng Chi nhảy mà không hiểu vì sao.
                   // Chọn "chỉ chỉnh số dư" thì phải nói NGƯỢC LẠI cho rõ, vì đó mới là mặc
                   // định của ngân hàng — im lặng ở nhánh đó là để người dùng tự đoán.
-                  `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}. ${
+                  `${
+                    diff > 0
+                      ? tr('Sổ đang ghi ít hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
+                      : tr('Sổ đang ghi nhiều hơn thực tế — sẽ tạo một giao dịch bù {amount} vào danh mục {category}.', { amount: formatMoney(Math.abs(diff), currency), category: categoryLabel(ADJUST_CATEGORY_NAME) })
+                  } ${
                     anhHuongChi && laChiTieu
-                      ? `Báo cáo tháng ${diff > 0 ? 'trừ nó khỏi' : 'kể nó vào'} tổng Chi ở dòng "${diff > 0 ? 'Ghi thừa' : 'Chưa ghi rõ'}".`
-                      : 'Số dư khớp lại, còn tổng Chi của Báo cáo giữ nguyên.'
+                      ? diff > 0
+                        ? tr('Báo cáo tháng trừ nó khỏi tổng Chi ở dòng "{line}".', { line: tr('Ghi thừa') })
+                        : tr('Báo cáo tháng kể nó vào tổng Chi ở dòng "{line}".', { line: tr('Chưa ghi rõ') })
+                      : tr('Số dư khớp lại, còn tổng Chi của Báo cáo giữ nguyên.')
                   }`}
           </p>
         </div>
@@ -323,11 +344,11 @@ export function ReconcileSheet({
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <ActionButton variant="primary" onClick={handleSubmit} disabled={!canSave}>
             {/* Khớp thì nút không còn hứa "điều chỉnh" — nó chỉ ghi nhận đã kiểm. */}
-            {saving ? 'Đang lưu…' : diff === 0 ? 'Đã đối chiếu' : 'Điều chỉnh'}
+            {saving ? tr('Đang lưu…') : diff === 0 ? tr('Đã đối chiếu') : tr('Điều chỉnh')}
           </ActionButton>
         </div>
       </div>

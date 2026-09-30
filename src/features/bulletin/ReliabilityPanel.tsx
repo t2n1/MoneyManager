@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { Card, SectionTitle } from '../../components/ui'
 import type { Reliability } from '../notifications/reliability'
 import { pendingText } from '../../lib/loadStatus'
+import { tr } from '../../i18n'
 
 /** Mỗi thành phần thiếu dẫn đi đâu để sửa. */
 const TO: Record<string, string> = {
@@ -34,7 +35,7 @@ export function ReliabilityPanel({
   if (data === null) {
     return (
       <Card elevation="panel" padding="panel" as="section">
-        <SectionTitle>Độ tin cậy dữ liệu</SectionTitle>
+        <SectionTitle>{tr('Độ tin cậy dữ liệu')}</SectionTitle>
         <p className="mt-2.5 text-sm text-fg-muted">
           {pendingText(failed ? 'failed' : 'pending')}
         </p>
@@ -46,7 +47,7 @@ export function ReliabilityPanel({
   return (
     <Card elevation="panel" padding="panel" as="section">
       <div className="flex items-baseline justify-between gap-2">
-        <SectionTitle>Độ tin cậy dữ liệu</SectionTitle>
+        <SectionTitle>{tr('Độ tin cậy dữ liệu')}</SectionTitle>
         <span
           className={`font-mono text-lg font-medium leading-none ${
             data.pct >= 80 ? 'text-money-in' : data.pct >= 50 ? 'text-fg-warn' : 'text-money-out'
@@ -76,7 +77,7 @@ export function ReliabilityPanel({
 
       {thieu.length === 0 ? (
         <p className="mt-2.5 text-sm text-fg-muted">
-          Không còn chỗ nào thiếu — mọi con số trong app đang tính trên dữ liệu đủ.
+          {tr('Không còn chỗ nào thiếu — mọi con số trong app đang tính trên dữ liệu đủ.')}
         </p>
       ) : (
         <ul className="mt-2.5 flex flex-col gap-1">

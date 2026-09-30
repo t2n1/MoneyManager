@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { categoryLabel, tr } from '../../i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronLeft } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
@@ -175,7 +176,7 @@ export function EntryPage({ onClose }: Props = {}) {
     const acc = accounts.find((a) => a.id === values.account_id)
     return {
       id,
-      label: cat?.name ?? 'Chuyển khoản',
+      label: cat ? categoryLabel(cat.name) : tr('Chuyển khoản'),
       icon: cat?.icon ?? '💸',
       amount: values.amount,
       currency: acc?.currency ?? 'JPY',
@@ -217,7 +218,7 @@ export function EntryPage({ onClose }: Props = {}) {
     savedSeq.current += 1
     return {
       id: `${kind}-${savedSeq.current}`,
-      label: cat?.name ?? shapeOf(kind).label,
+      label: cat ? categoryLabel(cat.name) : shapeOf(kind).label,
       icon: cat?.icon ?? '💸',
       amount: base.amount,
       currency: base.srcCurrency,
@@ -238,7 +239,7 @@ export function EntryPage({ onClose }: Props = {}) {
     // coi như chưa từng ghi trong lượt này.
     setSavedList((list) => removeSaved(list, id))
     setSavedCount((n) => Math.max(0, n - 1))
-    setToast({ text: 'Đã hoàn tác' })
+    setToast({ text: tr('Đã hoàn tác') })
     toastTimer.current = setTimeout(() => setToast(null), 1500)
   }
 
@@ -293,7 +294,7 @@ export function EntryPage({ onClose }: Props = {}) {
       return
     }
     recordSaved(roleSavedEntry(payload.kind, payload.base))
-    toastAndStay('Đã lưu')
+    toastAndStay(tr('Đã lưu'))
   }
 
   // Lưu một lần trả nợ (repay/collect) — đường vào thứ hai cho DebtPaymentSheet,
@@ -305,7 +306,7 @@ export function EntryPage({ onClose }: Props = {}) {
       return
     }
     recordSaved(roleSavedEntry(payload.kind, payload.base))
-    toastAndStay('Đã lưu')
+    toastAndStay(tr('Đã lưu'))
   }
 
   return (
@@ -350,24 +351,24 @@ export function EntryPage({ onClose }: Props = {}) {
             <button
               type="button"
               onClick={onClose}
-              aria-label="Đóng màn nhập giao dịch"
+              aria-label={tr('Đóng màn nhập giao dịch')}
               className={actionButtonClass('outline')}
             >
-              <ChevronLeft className="h-5 w-5" /> Đóng
+              <ChevronLeft className="h-5 w-5" /> {tr('Đóng')}
             </button>
           ) : (
             <BackLink
               to="/"
-              aria-label="Đóng, quay lại trang trước"
+              aria-label={tr('Đóng, quay lại trang trước')}
               className={actionButtonClass('outline')}
             >
-              <ChevronLeft className="h-5 w-5" /> Đóng
+              <ChevronLeft className="h-5 w-5" /> {tr('Đóng')}
             </BackLink>
           )
         }
         title={
           <>
-            {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+            {billRule || planned ? tr('Ghi khoản đến hạn') : tr('Nhập giao dịch')}
             {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
                 mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
             {savedCountLabel && (
@@ -390,13 +391,13 @@ export function EntryPage({ onClose }: Props = {}) {
             >
               {/* Trong lớp phủ, "về Bản tin" là lời hứa sai: đóng hộp là trả người dùng
                   về ĐÚNG màn họ đang đứng, không phải Bản tin. */}
-              {onClose ? 'Xong' : 'Xong · về Bản tin'}
+              {onClose ? tr('Xong') : tr('Xong · về Bản tin')}
             </button>
           )}
         </div>
       </PageHeader>
       {waitingForRule || waitingForPlanned ? (
-        <EmptyState>Đang tải khoản đến hạn…</EmptyState>
+        <EmptyState>{tr('Đang tải khoản đến hạn…')}</EmptyState>
       ) : (
       <TransactionForm
         // Khoá theo kỳ: mở lời nhắc khác trong cùng một lần vào màn (từ chuông sang
@@ -408,7 +409,7 @@ export function EntryPage({ onClose }: Props = {}) {
               ? `planned-${planned.id}`
               : 'new'
         }
-        submitLabel={billRule || planned ? 'Ghi và đánh dấu đã chi' : 'Lưu'}
+        submitLabel={billRule || planned ? tr('Ghi và đánh dấu đã chi') : tr('Lưu')}
         initial={billPrefill ?? plannedPrefill}
         initialTagIds={plannedTagIds}
         initialType={initialType}
@@ -426,7 +427,7 @@ export function EntryPage({ onClose }: Props = {}) {
         onSubmitPayment={handlePayment}
         // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như các dạng khác)
         onSubmitWithFee={async (main, fee, keepGoing) => {
-          await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps())
+          await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps()) // i18n-ignore — auto note stored in DB
           if (!keepGoing) {
             leave('/so')
             return
@@ -435,7 +436,7 @@ export function EntryPage({ onClose }: Props = {}) {
           // được từ chính `main` vì đây là một NewTransaction thật.
           savedSeq.current += 1
           recordSaved(toSavedEntry(`fee-${savedSeq.current}`, main))
-          toastAndStay('Đã lưu (kèm phí)')
+          toastAndStay(tr('Đã lưu (kèm phí)'))
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
@@ -456,14 +457,14 @@ export function EntryPage({ onClose }: Props = {}) {
           // Trừ khoản đến hạn: xóa giao dịch xong thì lời nhắc vẫn bị đánh dấu đã chi,
           // hoàn tác kiểu đó để lại một trạng thái sai.
           if (!billRule && !planned) {
-            showUndoToast('Đã lưu giao dịch', () => del.mutateAsync(row.id).then(() => {}))
+            showUndoToast(tr('Đã lưu giao dịch'), () => del.mutateAsync(row.id).then(() => {}))
           }
           leave('/so')
         }}
         // "Sẽ chi": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
         onSubmitPlanned={async (input) => {
           await createPlanned.mutateAsync(input)
-          setToast({ text: 'Đã thêm khoản sắp chi', ok: true })
+          setToast({ text: tr('Đã thêm khoản sắp chi'), ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => {
             setToast(null)
@@ -478,7 +479,7 @@ export function EntryPage({ onClose }: Props = {}) {
           // Đẩy vào "Vừa ghi" + tăng đếm — người ghi cả ngày 3-4 khoản một lượt cần
           // thấy mình đã ghi bao nhiêu, không chỉ thấy toast rồi quên ngay.
           recordSaved(toSavedEntry(row.id, values))
-          setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
+          setToast({ text: tr('Đã lưu'), undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)
         }}
@@ -490,7 +491,7 @@ export function EntryPage({ onClose }: Props = {}) {
           vào vùng cuộn của form (nó dùng flex-1, nhường bao nhiêu mất bấy nhiêu) — hàng
           ngang chỉ tốn đúng một chiều cao dòng dù có 1 hay 5 khoản. */}
       {savedList.length > 0 && (
-        <ul aria-label="Vừa ghi" className="mt-1.5 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
+        <ul aria-label={tr('Vừa ghi')} className="mt-1.5 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
           {savedList.map((s) => (
             <li
               key={s.id}
@@ -518,7 +519,7 @@ export function EntryPage({ onClose }: Props = {}) {
                 onClick={() => handleUndo(toast.undoId!)}
                 className="rounded-full bg-white/20 px-2 py-0.5 text-white transition active:scale-95"
               >
-                Hoàn tác
+                {tr('Hoàn tác')}
               </button>
             )}
           </div>

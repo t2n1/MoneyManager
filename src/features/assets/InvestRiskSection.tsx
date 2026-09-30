@@ -23,12 +23,14 @@ import {
   type SymbolRisk,
 } from './riskMetrics'
 import type { InvestChartData } from './useInvestChartData'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Nhãn + tông của ba mức rủi ro. Một chỗ, để bảng và dải không lệch nhau. */
 const MUC: Record<RiskClass, { nhan: string; tone: StatusTone }> = {
-  low: { nhan: 'Thấp', tone: 'good' },
-  mid: { nhan: 'Trung bình', tone: 'warn' },
-  high: { nhan: 'Cao', tone: 'bad' },
+  low: { nhan: tr('Thấp'), tone: 'good' },
+  mid: { nhan: tr('Trung bình'), tone: 'warn' },
+  high: { nhan: tr('Cao'), tone: 'bad' },
 }
 const THU_TU: RiskClass[] = ['low', 'mid', 'high']
 
@@ -75,11 +77,11 @@ export function InvestRiskSection({ data, positions }: Props) {
   if (data.isLoading || chuaCoGi) {
     return (
       <Card as="section">
-        <SectionTitle>Rủi ro</SectionTitle>
+        <SectionTitle>{trx('topic', 'Rủi ro')}</SectionTitle>
         <p className="mt-1 text-sm text-fg-muted">
           {data.isLoading
-            ? 'Đang tính…'
-            : 'Chưa đủ lịch sử giá để đo — app tự tải mỗi chiều sau khi sàn đóng cửa.'}
+            ? tr('Đang tính…')
+            : tr('Chưa đủ lịch sử giá để đo — app tự tải mỗi chiều sau khi sàn đóng cửa.')}
         </p>
       </Card>
     )
@@ -87,13 +89,13 @@ export function InvestRiskSection({ data, positions }: Props) {
 
   return (
     <Card as="section">
-      <SectionTitle>Rủi ro</SectionTitle>
+      <SectionTitle>{trx('topic', 'Rủi ro')}</SectionTitle>
 
       {/* Cơ cấu rủi ro: một dải 100% thay vì một donut nữa. Trang đã có hai vòng tròn, và
           ba mức xếp theo MỘT TRỤC (thấp → cao) thì một dải nói đúng cái trục đó; donut lại
           bỏ mất thứ tự. */}
       <div className="mt-3">
-        <p className="text-2xs text-fg-muted">Cơ cấu rủi ro theo biến động</p>
+        <p className="text-2xs text-fg-muted">{tr('Cơ cấu rủi ro theo biến động')}</p>
         <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-surface-sunken">
           {THU_TU.map((k) =>
             r.breakdown[k] > 0 ? (
@@ -116,20 +118,20 @@ export function InvestRiskSection({ data, positions }: Props) {
       </div>
 
       <Thang
-        nhan="Hệ số beta"
+        nhan={tr('Hệ số beta')}
         giaTri={r.beta}
         min={BETA_MIN}
         max={BETA_MAX}
         moc={1}
-        mocNhan="thị trường 1,00"
+        mocNhan={tr('thị trường 1,00')}
       />
       <Thang
-        nhan="Chỉ số Sharpe"
+        nhan={tr('Chỉ số Sharpe')}
         giaTri={r.sharpe}
         min={SHARPE_MIN}
         max={SHARPE_MAX}
         moc={1}
-        mocNhan="khá 1,00"
+        mocNhan={tr('khá 1,00')}
         vung={VUNG_SHARPE}
       />
 
@@ -140,13 +142,13 @@ export function InvestRiskSection({ data, positions }: Props) {
           <thead>
             <tr className="text-2xs text-fg-muted">
               <th scope="col" className="py-1 text-left font-normal">
-                Mã
+                {tr('Mã')}
               </th>
               <th scope="col" className="py-1 pl-3 text-right font-normal">
-                Biến động/năm
+                {tr('Biến động/năm')}
               </th>
               <th scope="col" className="py-1 pl-3 text-right font-normal">
-                Mức
+                {tr('Mức')}
               </th>
               <th scope="col" className="py-1 pl-3 text-right font-normal">
                 Beta
@@ -163,30 +165,34 @@ export function InvestRiskSection({ data, positions }: Props) {
 
       {r.partial && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          Có mã chưa đủ lịch sử giá nên các con số trên chỉ tính trên phần còn lại.
+          {tr('Có mã chưa đủ lịch sử giá nên các con số trên chỉ tính trên phần còn lại.')}
         </p>
       )}
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          <b>Biến động</b> là mức dao động thường ngày quy ra một năm. Cao không có nghĩa là
-          sai — nó nói rằng đường giá của mã đó gập ghềnh hơn, nên khoản lãi lỗ tạm thời sẽ
-          lớn hơn theo cả hai chiều. Ngưỡng chia mức: từ 20% là cao, trên 10% là trung bình.
+          {trn(
+            '{vol} là mức dao động thường ngày quy ra một năm. Cao không có nghĩa là sai — nó nói rằng đường giá của mã đó gập ghềnh hơn, nên khoản lãi lỗ tạm thời sẽ lớn hơn theo cả hai chiều. Ngưỡng chia mức: từ 20% là cao, trên 10% là trung bình.',
+            { vol: <b>{tr('Biến động')}</b> },
+          )}
         </p>
         <p>
-          <b>Beta</b> đo độ nhạy với VN-Index. Beta 1,4 nghĩa là thị trường lên 10% thì phần
-          cổ phiếu của bạn kỳ vọng lên khoảng 14% — và xuống cũng vậy. Đây là một lựa chọn,
-          không phải một lỗi: beta cao là chấp nhận sóng lớn hơn để đổi lấy kỳ vọng cao hơn.
+          {trn(
+            '{beta} đo độ nhạy với VN-Index. Beta 1,4 nghĩa là thị trường lên 10% thì phần cổ phiếu của bạn kỳ vọng lên khoảng 14% — và xuống cũng vậy. Đây là một lựa chọn, không phải một lỗi: beta cao là chấp nhận sóng lớn hơn để đổi lấy kỳ vọng cao hơn.',
+            { beta: <b>Beta</b> },
+          )}
         </p>
         <p>
-          <b>Sharpe</b> là lợi nhuận thu được trên mỗi đơn vị rủi ro đã chịu, tính bằng
-          (lãi kép/năm − lãi suất không rủi ro) chia biến động. App lấy lãi suất không rủi ro
-          là <Num>{RISK_FREE_ANNUAL_PCT}</Num>%/năm — quanh mức tiết kiệm 12 tháng. Đó là một
-          quy ước, không phải sự thật; đổi nó thì Sharpe đổi theo.
+          {trn(
+            '{sharpe} là lợi nhuận thu được trên mỗi đơn vị rủi ro đã chịu, tính bằng (lãi kép/năm − lãi suất không rủi ro) chia biến động. App lấy lãi suất không rủi ro là {rate}%/năm — quanh mức tiết kiệm 12 tháng. Đó là một quy ước, không phải sự thật; đổi nó thì Sharpe đổi theo.',
+            { sharpe: <b>Sharpe</b>, rate: <Num>{RISK_FREE_ANNUAL_PCT}</Num> },
+          )}
         </p>
         <p>
-          Cả ba đo trên lịch sử giá đã có, nên danh mục càng mới thì con số càng ít nghĩa.
-          Chúng nói về quá khứ của những mã bạn <b>đang giữ</b>, không dự báo tương lai.
+          {trn(
+            'Cả ba đo trên lịch sử giá đã có, nên danh mục càng mới thì con số càng ít nghĩa. Chúng nói về quá khứ của những mã bạn {held}, không dự báo tương lai.',
+            { held: <b>{tr('đang giữ')}</b> },
+          )}
         </p>
       </ExplainBox>
     </Card>
@@ -206,7 +212,7 @@ function Dong({ s }: { s: SymbolRisk }) {
       </td>
       <td className="py-1.5 pl-3 text-right">
         {s.cls === null ? (
-          <span className="text-2xs text-fg-muted">chưa đo được</span>
+          <span className="text-2xs text-fg-muted">{tr('chưa đo được')}</span>
         ) : (
           <StatusChip tone={MUC[s.cls].tone}>{MUC[s.cls].nhan}</StatusChip>
         )}
@@ -256,7 +262,7 @@ function Thang({
         <span>{nhan}</span>
         <span className="text-sm font-semibold text-fg-primary">
           {giaTri === null ? (
-            <span className="text-2xs font-normal text-fg-muted">chưa đo được</span>
+            <span className="text-2xs font-normal text-fg-muted">{tr('chưa đo được')}</span>
           ) : (
             <Num>{heSo(giaTri)}</Num>
           )}
@@ -284,7 +290,7 @@ function Thang({
       </div>
       <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-muted">
         <span>{heSo(min, 1)}</span>
-        <span>{ngoaiThang ? 'ngoài thang' : mocNhan}</span>
+        <span>{ngoaiThang ? tr('ngoài thang') : mocNhan}</span>
         <span>{heSo(max, 1)}</span>
       </div>
     </div>

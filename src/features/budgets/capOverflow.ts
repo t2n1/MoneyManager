@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 // Câu nhắc khi mốc các mục con cộng lại vượt trần nhóm — thuần, test được.
 //
 // Vì sao phải GỌI TÊN mục con, không chỉ in tổng: ca thật tháng 8/2026 — nhóm "Ngoại
@@ -21,7 +22,7 @@ const MAX_NAMED = 3
 export function nameList(names: string[], max = MAX_NAMED): string {
   const shown = names.slice(0, max)
   const rest = names.length - shown.length
-  return `${shown.join(' · ')}${rest > 0 ? ` · …và ${rest} mục nữa` : ''}`
+  return `${shown.join(' · ')}${rest > 0 ? tr(' · …và {n} mục nữa', { n: rest }) : ''}`
 }
 
 /**
@@ -80,9 +81,12 @@ export function capMismatchNotice(
   if (g.markerTotal < g.cap) {
     const text =
       g.named.length === 0
-        ? `Chưa mục con nào chia phần trong trần nhóm ${money(g.cap)}.`
-        : `Mốc các mục con mới cộng được ${money(g.markerTotal)} trong trần nhóm ${money(g.cap)}` +
-          ` — còn ${money(g.cap - g.markerTotal)} chưa chia.`
+        ? tr('Chưa mục con nào chia phần trong trần nhóm {cap}.', { cap: money(g.cap) })
+        : tr('Mốc các mục con mới cộng được {total} trong trần nhóm {cap} — còn {left} chưa chia.', {
+            total: money(g.markerTotal),
+            cap: money(g.cap),
+            left: money(g.cap - g.markerTotal),
+          })
     return { kind: 'under', text, ...base }
   }
 
@@ -90,9 +94,11 @@ export function capMismatchNotice(
   const named = [...g.named].sort((a, b) => b.marker - a.marker)
   const text =
     named.length === 1
-      ? `${named[0].name} đặt mốc ${money(named[0].marker)}, vượt trần nhóm ${money(g.cap)}.`
-      : `Mốc các mục con cộng lại ${money(g.markerTotal)} (${nameList(
-          named.map((k) => `${k.name} ${money(k.marker)}`),
-        )}), vượt trần nhóm ${money(g.cap)}.`
+      ? tr('{name} đặt mốc {marker}, vượt trần nhóm {cap}.', { name: named[0].name, marker: money(named[0].marker), cap: money(g.cap) })
+      : tr('Mốc các mục con cộng lại {total} ({names}), vượt trần nhóm {cap}.', {
+          total: money(g.markerTotal),
+          names: nameList(named.map((k) => `${k.name} ${money(k.marker)}`)),
+          cap: money(g.cap),
+        })
   return { kind: 'over', text, ...base }
 }

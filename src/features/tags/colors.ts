@@ -1,5 +1,6 @@
 // Bảng màu cho nhãn. Lưu KHÓA màu trong DB (không lưu mã hex) để đổi bảng màu
 // hay thêm dark mode về sau không phải migrate dữ liệu.
+import { tr } from '../../i18n'
 
 export const TAG_COLOR_KEYS = [
   'gray',
@@ -29,13 +30,13 @@ export const TAG_CHIP_CLASS: Record<TagColorKey, string> = {
 
 /** Tên màu tiếng Việt — cho aria-label của nút chọn màu (nút chỉ là chấm tròn). */
 export const TAG_COLOR_LABELS: Record<TagColorKey, string> = {
-  gray: 'xám',
-  red: 'đỏ',
-  amber: 'vàng',
-  green: 'xanh lá',
-  sky: 'xanh dương',
-  indigo: 'tím than',
-  pink: 'hồng',
+  gray: tr('xám'),
+  red: tr('đỏ'),
+  amber: tr('vàng'),
+  green: tr('xanh lá'),
+  sky: tr('xanh dương'),
+  indigo: tr('tím than'),
+  pink: tr('hồng'),
 }
 
 /** Mã hex cho biểu đồ (recharts không nhận class Tailwind). */

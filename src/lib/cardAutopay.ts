@@ -170,7 +170,7 @@ export interface CardAutopayRepo {
 }
 
 /** Ghi chú gắn cho giao dịch tự động trả thẻ (để người dùng nhận ra). */
-export const AUTOPAY_NOTE = 'Tự động trả thẻ'
+export const AUTOPAY_NOTE = 'Tự động trả thẻ' // i18n-ignore — ghi vào DB, dùng để khử trùng lặp
 
 /** Số dư thẻ tính đến hết ngày `closeISO` (âm = đang nợ). */
 async function cardBalanceThrough(

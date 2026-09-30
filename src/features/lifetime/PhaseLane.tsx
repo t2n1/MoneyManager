@@ -71,6 +71,7 @@ import { PLOT_LEFT, laneBlocks, plotRightOf, type LaneBlock } from './plotFrame'
 import { TAG_CHIP_CLASS, TAG_HEX, type TagColorKey } from '../tags/colors'
 import { useBoxSize } from './useBoxSize'
 import { useYearDrag } from './useYearDrag'
+import { tr } from '../../i18n'
 
 /**
  * Chặng đời ở dạng TỐI THIỂU mà dải này thật sự đọc — cùng lối với `PlotEvent` của
@@ -285,7 +286,7 @@ export function PhaseLane({
       ref={attachBox}
       className="relative h-[2.875rem] w-full select-none"
       role="group"
-      aria-label="Dải chặng đời — bấm một khối để sửa, kéo giữa khối để đổi chỗ hai chặng, kéo mép để đổi năm"
+      aria-label={tr('Dải chặng đời — bấm một khối để sửa, kéo giữa khối để đổi chỗ hai chặng, kéo mép để đổi năm')}
     >
       {blocks.map((b) => {
         const p = byId.get(b.id)
@@ -344,7 +345,7 @@ export function PhaseLane({
                 left={b.left}
                 colorKey={k}
                 snap={keoMep}
-                title={`Kéo mép để đổi năm bắt đầu của "${p.label}" — đang là ${b.startYear}`}
+                title={tr('Kéo mép để đổi năm bắt đầu của "{label}" — đang là {year}', { label: p.label, year: b.startYear })}
                 onPointerDown={(e) => drag.start({ id: b.id, mode: 'left', from: b.startYear, spans }, e)}
                 surface={drag.surface}
               />
@@ -354,7 +355,10 @@ export function PhaseLane({
                 left={b.left + b.width - EDGE_W}
                 colorKey={k}
                 snap={keoMep}
-                title={`Kéo mép để đổi năm kết thúc của "${p.label}" — đang là ${b.endYear}. Mép này dời năm bắt đầu của chặng kế tiếp.`}
+                title={tr('Kéo mép để đổi năm kết thúc của "{label}" — đang là {year}. Mép này dời năm bắt đầu của chặng kế tiếp.', {
+                  label: p.label,
+                  year: b.endYear,
+                })}
                 onPointerDown={(e) => drag.start({ id: b.id, mode: 'right', from: b.startYear, spans }, e)}
                 surface={drag.surface}
               />
@@ -415,7 +419,11 @@ function PhaseBlock({
     <button
       type="button"
       aria-pressed={selected}
-      title={`Chặng "${phase.label}" · ${block.startYear}–${block.endYear} · bấm để sửa · kéo giữa khối để đổi chỗ với chặng khác · ←/→ dời một năm · Alt+←/→ đổi chỗ`}
+      title={tr('Chặng "{label}" · {from}–{to} · bấm để sửa · kéo giữa khối để đổi chỗ với chặng khác · ←/→ dời một năm · Alt+←/→ đổi chỗ', {
+        label: phase.label,
+        from: block.startYear,
+        to: block.endYear,
+      })}
       style={
         {
           left: block.left,

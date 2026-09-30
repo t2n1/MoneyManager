@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { accountLabel, categoryLabel, tagGroupLabel, tagLabel, tr } from '../../i18n'
 import { useSearchParams } from 'react-router-dom'
 import { BookmarkPlus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -41,16 +42,16 @@ import { Card, EmptyState, PageHeader, filterChipClass } from '../../components/
 
 /** Ba lựa chọn lọc theo người chi — cùng nhãn với ô chọn trong form ghi. */
 const OWNER_FILTERS: { value: TxOwner; label: string }[] = [
-  { value: 'mine', label: 'Mình' },
-  { value: 'partner', label: 'Người ấy' },
-  { value: 'shared', label: 'Chung' },
+  { value: 'mine', label: tr('Mình') },
+  { value: 'partner', label: tr('Người ấy') },
+  { value: 'shared', label: tr('Chung') },
 ]
 
 const TYPE_TABS: { value: TransactionType | 'all'; label: string }[] = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'expense', label: 'Chi' },
-  { value: 'income', label: 'Thu' },
-  { value: 'transfer', label: 'Chuyển khoản' },
+  { value: 'all', label: tr('Tất cả') },
+  { value: 'expense', label: tr('Chi') },
+  { value: 'income', label: tr('Thu') },
+  { value: 'transfer', label: tr('Chuyển khoản') },
 ]
 
 /** ISO ngày + 1 (để biến ngày "đến" thành mốc loại trừ). */
@@ -83,12 +84,12 @@ export function SearchPage() {
     return [
       ...tagGroups.map((g) => ({
         key: g.id,
-        title: g.name,
+        title: tagGroupLabel(g.name),
         list: tags.filter((t) => t.group_id === g.id),
       })),
       {
         key: '__other__',
-        title: 'Khác',
+        title: tr('Khác'),
         list: tags.filter((t) => !t.group_id || !known.has(t.group_id)),
       },
     // Bỏ mọi section rỗng, KỂ CẢ nhóm có tên: khác ô chọn nhãn khi nhập (nhóm rỗng
@@ -174,10 +175,10 @@ export function SearchPage() {
     setShowMore(true)
   }
   function luuBoLoc() {
-    const ten = window.prompt('Đặt tên cho bộ lọc này:')?.trim()
+    const ten = window.prompt(tr('Đặt tên cho bộ lọc này:'))?.trim()
     if (!ten) return
     ghiSaved(upsertSavedFilter(saved, ten, trangThai(), crypto.randomUUID()))
-    showToast(`Đã lưu bộ lọc “${ten}”`, 'success')
+    showToast(tr('Đã lưu bộ lọc “{name}”', { name: ten }), 'success')
   }
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
@@ -267,10 +268,10 @@ export function SearchPage() {
     if (ids.length === 0) return
     if (
       !(await confirmDialog({
-        title: `Xóa ${ids.length} giao dịch?`,
-        message: 'Không hoàn tác được.',
+        title: tr('Xóa {n} giao dịch?', { n: ids.length }),
+        message: tr('Không hoàn tác được.'),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
@@ -281,7 +282,7 @@ export function SearchPage() {
     } catch {
       return
     }
-    showToast(`Đã xóa ${ids.length} giao dịch`)
+    showToast(tr('Đã xóa {n} giao dịch', { n: ids.length }))
     selection.exit()
   }
 
@@ -292,22 +293,22 @@ export function SearchPage() {
   return (
     <div className="p-3 lg:p-6">
       {/* Header */}
-      <PageHeader title="Tìm kiếm" back="/so" />
+      <PageHeader title={tr('Tìm kiếm')} back="/so" />
 
       {/* Ô tìm ghi chú */}
       <Card padding="none" className="mb-2 flex items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-accent">
         <Search className="h-5 w-5 text-fg-muted" />
         <input
-          aria-label="Tìm theo ghi chú"
+          aria-label={tr('Tìm theo ghi chú')}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Tìm theo ghi chú…"
+          placeholder={tr('Tìm theo ghi chú…')}
           // `outline-none` vì <Card> bao ngoài đã có `focus-within:ring-accent` — để ô
           // tự vẽ thêm ring nữa là hai vòng lồng nhau (xem designSystem.test.ts).
           className="flex-1 text-sm text-fg-primary outline-none"
         />
         {text && (
-          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted" aria-label="Xóa">
+          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted" aria-label={tr('Xóa')}>
             <X className="h-5 w-5" />
           </button>
         )}
@@ -348,7 +349,7 @@ export function SearchPage() {
               <button
                 type="button"
                 onClick={() => ghiSaved(removeSavedFilter(saved, f.id))}
-                aria-label={`Bỏ bộ lọc ${f.name}`}
+                aria-label={tr('Bỏ bộ lọc {name}', { name: f.name })}
                 className={filterChipClass(false, 'md', 'rounded-l-none border-l-0 px-2 text-fg-muted')}
               >
                 <X className="h-3 w-3" aria-hidden />
@@ -361,7 +362,7 @@ export function SearchPage() {
               onClick={luuBoLoc}
               className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-fg-accent"
             >
-              <BookmarkPlus className="h-4 w-4" /> Lưu bộ lọc
+              <BookmarkPlus className="h-4 w-4" /> {tr('Lưu bộ lọc')}
             </button>
           )}
         </div>
@@ -373,7 +374,7 @@ export function SearchPage() {
       {coupleMode && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {/* "Của ai", không "Ai chi": bộ lọc này lọc cả khoản thu. */}
-          <span className="text-2xs uppercase tracking-label text-fg-muted">Của ai</span>
+          <span className="text-2xs uppercase tracking-label text-fg-muted">{tr('Của ai')}</span>
           {OWNER_FILTERS.map((o) => {
             const on = ownerFilter.includes(o.value)
             return (
@@ -400,22 +401,22 @@ export function SearchPage() {
         {/* Hai ô ngày chỉ phân biệt nhau bằng mũi tên "→" ở giữa — mà mũi tên là trang trí,
             screen reader nghe cả hai y như nhau ("date"). Tên phải nằm trên từng ô. */}
         <DateField
-          ariaLabel="Từ ngày"
+          ariaLabel={tr('Từ ngày')}
           value={from}
           onChange={setFrom}
           clearable
-          placeholder="Từ ngày"
+          placeholder={tr('Từ ngày')}
           className="min-w-0 flex-1"
         />
         <span aria-hidden className="text-fg-muted">
           →
         </span>
         <DateField
-          ariaLabel="Đến ngày"
+          ariaLabel={tr('Đến ngày')}
           value={to}
           onChange={setTo}
           clearable
-          placeholder="Đến ngày"
+          placeholder={tr('Đến ngày')}
           className="min-w-0 flex-1"
         />
       </div>
@@ -426,7 +427,7 @@ export function SearchPage() {
         onClick={() => setShowMore((v) => !v)}
         className="-my-1 mb-1 inline-flex items-center gap-1 py-2 text-sm font-medium text-fg-accent"
       >
-        {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
+        {showMore ? tr('Ẩn bộ lọc') : tr('Lọc theo danh mục / nhãn / tài khoản')}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showMore && (
@@ -436,10 +437,10 @@ export function SearchPage() {
               {/* Quy ước AND/OR là chữ dạy: ẩn nó đi vẫn bấm chip lọc được như thường, và
                   kết quả ngay dưới nói luôn còn bao nhiêu khoản. */}
               <p className="mb-1.5 text-sm font-semibold text-fg-muted">
-                Nhãn
+                {tr('Nhãn')}
                 <Guide as="span" className="font-normal text-fg-muted">
                   {' '}
-                  (trong cùng nhóm = khớp bất kỳ · khác nhóm = phải khớp đủ)
+                  {tr('(trong cùng nhóm = khớp bất kỳ · khác nhóm = phải khớp đủ)')}
                 </Guide>
               </p>
               <div className="flex flex-col gap-2">
@@ -461,7 +462,7 @@ export function SearchPage() {
                                 : TAG_CHIP_CLASS[tagColor(t.color)]
                             }`}
                           >
-                            {t.name}
+                            {tagLabel(t.name)}
                           </button>
                         )
                       })}
@@ -473,7 +474,7 @@ export function SearchPage() {
           )}
           {typeFilter !== 'transfer' && (
             <div>
-              <p className="mb-1.5 text-sm font-semibold text-fg-muted">Danh mục</p>
+              <p className="mb-1.5 text-sm font-semibold text-fg-muted">{tr('Danh mục')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {visibleCategories.map((c) => (
                   <button
@@ -483,7 +484,7 @@ export function SearchPage() {
                     aria-pressed={categoryIds.includes(c.id)}
                     className={filterChipClass(categoryIds.includes(c.id))}
                   >
-                    {c.icon} {c.name}
+                    {c.icon} {categoryLabel(c.name)}
                   </button>
                 ))}
               </div>
@@ -493,7 +494,7 @@ export function SearchPage() {
               không phải nhãn. Tên nằm trên từng ô, và nhóm mang tên của tiêu đề. */}
           <div role="group" aria-labelledby="search-amount-title">
             <p id="search-amount-title" className="mb-1.5 text-sm font-semibold text-fg-muted">
-              Số tiền ({CURRENCIES[base].symbol})
+              {tr('Số tiền ({symbol})', { symbol: CURRENCIES[base].symbol })}
             </p>
             <div className="flex items-center gap-2 text-sm text-fg-secondary">
               <input
@@ -501,8 +502,8 @@ export function SearchPage() {
                 inputMode="numeric"
                 value={amountMinStr}
                 onChange={(e) => setAmountMinStr(e.target.value)}
-                placeholder="Tối thiểu"
-                aria-label="Số tiền tối thiểu"
+                placeholder={tr('Tối thiểu')}
+                aria-label={tr('Số tiền tối thiểu')}
                 className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
               <span className="text-fg-muted">→</span>
@@ -511,14 +512,14 @@ export function SearchPage() {
                 inputMode="numeric"
                 value={amountMaxStr}
                 onChange={(e) => setAmountMaxStr(e.target.value)}
-                placeholder="Tối đa"
-                aria-label="Số tiền tối đa"
+                placeholder={tr('Tối đa')}
+                aria-label={tr('Số tiền tối đa')}
                 className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-sm font-semibold text-fg-muted">Tài khoản</p>
+            <p className="mb-1.5 text-sm font-semibold text-fg-muted">{tr('Tài khoản')}</p>
             <div className="flex flex-wrap gap-1.5">
               {accounts.map((a) => (
                 <button
@@ -529,7 +530,7 @@ export function SearchPage() {
                   className={filterChipClass(accountIds.includes(a.id))}
                 >
                   <span className="inline-flex items-center gap-1">
-                    <AccountTypeIcon type={a.type} className="h-4 w-4" /> {a.name} ·{' '}
+                    <AccountTypeIcon type={a.type} className="h-4 w-4" /> {accountLabel(a.name)} ·{' '}
                     {CURRENCIES[a.currency].symbol}
                   </span>
                 </button>
@@ -547,7 +548,7 @@ export function SearchPage() {
               onChange={(e) => setUncategorized(e.target.checked)}
               className="h-4 w-4 accent-[var(--accent)]"
             />
-            Chỉ khoản chưa gắn danh mục
+            {tr('Chỉ khoản chưa gắn danh mục')}
           </label>
         </div>
       )}
@@ -555,23 +556,25 @@ export function SearchPage() {
       {/* Kết quả */}
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-fg-muted">
-          <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
+          <span>{isLoading ? tr('Đang tìm…') : tr('{n} kết quả', { n: results.length })}</span>
           {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
           {tagIds.length > 0 && (
             <>
               <span>
-                · lọc theo{' '}
-                {tagIds
-                  .map((id) => tags.find((t) => t.id === id)?.name)
-                  .filter(Boolean)
-                  .join(' + ')}
+                {tr('· lọc theo {tags}', {
+                  tags: tagIds
+                    .map((id) => tags.find((t) => t.id === id)?.name)
+                    .filter((n): n is string => Boolean(n))
+                    .map(tagLabel)
+                    .join(' + '),
+                })}
               </span>
               <button
                 type="button"
                 onClick={() => setTagIds([])}
                 className="font-medium text-fg-accent"
               >
-                Bỏ lọc nhãn
+                {tr('Bỏ lọc nhãn')}
               </button>
             </>
           )}
@@ -583,21 +586,21 @@ export function SearchPage() {
             // -my-2 để vùng chạm 44px không đội dòng "n kết quả" ra xa danh sách
             className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-sm font-medium text-fg-accent"
           >
-            {selection.selecting ? 'Xong' : 'Chọn'}
+            {selection.selecting ? tr('Xong') : tr('Chọn')}
           </button>
         )}
       </div>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
         <Card className="mb-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-fg-muted">Thu</span>
+            <span className="text-fg-muted">{tr('Thu')}</span>
             <span className="font-semibold text-money-in">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.income, base)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between text-sm">
-            <span className="text-fg-muted">Chi</span>
+            <span className="text-fg-muted">{tr('Chi')}</span>
             <span className="font-semibold text-money-out">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.expense, base)}
@@ -605,13 +608,13 @@ export function SearchPage() {
           </div>
           {totals.hasMissingRate && (
             <p className="mt-2 text-sm text-state-warn-fg">
-              Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
+              {tr('Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).')}
             </p>
           )}
         </Card>
       )}
       {days.length === 0 && !isLoading ? (
-        <EmptyState>Không có giao dịch khớp bộ lọc</EmptyState>
+        <EmptyState>{tr('Không có giao dịch khớp bộ lọc')}</EmptyState>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">

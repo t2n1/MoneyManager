@@ -23,14 +23,15 @@
 //   · mỗi khối TỰ KHAI mốc đầu của mình ("từ 10-2024 · 23 mốc định giá" ở biểu đồ đầu tư);
 //   · dòng chú thích ở header chỉ nói về CÁI CẮT, và khi không cắt thì nó nói đúng thế.
 import { addMonthsISO } from '../../lib/dates'
+import { tr } from '../../i18n'
 
 export type AssetsRange = '1m' | '3m' | '12m' | 'all'
 
 export const ASSETS_RANGES: readonly { value: AssetsRange; label: string }[] = [
-  { value: '1m', label: '1 th' },
-  { value: '3m', label: '3 th' },
-  { value: '12m', label: '12 th' },
-  { value: 'all', label: 'Từ đầu' },
+  { value: '1m', label: tr('1 th') },
+  { value: '3m', label: tr('3 th') },
+  { value: '12m', label: tr('12 th') },
+  { value: 'all', label: tr('Từ đầu') },
 ] as const
 
 /** Số tháng của mỗi lựa chọn; null = không cắt (từ đầu). */
@@ -43,10 +44,10 @@ export const RANGE_MONTHS: Record<AssetsRange, number | null> = {
 
 /** Nhãn ngắn để chêm vào tên cột / câu chú thích ("Δ 3 tháng", "Δ từ đầu"). */
 export const RANGE_NOUN: Record<AssetsRange, string> = {
-  '1m': '1 tháng',
-  '3m': '3 tháng',
-  '12m': '12 tháng',
-  all: 'từ đầu',
+  '1m': tr('1 tháng'),
+  '3m': tr('3 tháng'),
+  '12m': tr('12 tháng'),
+  all: tr('từ đầu'),
 }
 
 /** "2024-10-07" → "10-2024" (thứ tự tháng-năm của bản vẽ 2b). */
@@ -79,6 +80,10 @@ export function rangeSpan(range: AssetsRange, todayISO: string): RangeSpan {
  * khối bên dưới tự khai mốc đầu của mình, vì ba khối có ba mốc khác nhau.
  */
 export function spanLabel(span: RangeSpan): string {
-  if (span.startISO == null) return 'toàn bộ lịch sử đang có'
-  return `${monthLabel(span.startISO)} → ${monthLabel(span.endISO)} · ${span.months} tháng`
+  if (span.startISO == null) return tr('toàn bộ lịch sử đang có')
+  return tr('{from} → {to} · {n} tháng', {
+    from: monthLabel(span.startISO),
+    to: monthLabel(span.endISO),
+    n: span.months ?? 0,
+  })
 }

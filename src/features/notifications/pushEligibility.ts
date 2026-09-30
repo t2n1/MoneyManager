@@ -4,6 +4,7 @@
 // Tách ra khỏi pushClient.ts vì đây là phần dễ sai nhất và không thể thử tay hết:
 // bốn lý do chặn có thứ tự ưu tiên, và hiện sai lý do là người dùng đi sửa sai chỗ
 // (đi bật quyền trong Cài đặt iOS trong khi việc cần làm là Thêm vào màn hình chính).
+import { tr } from '../../i18n'
 
 export type PushBlocker =
   /** Đăng ký được. */
@@ -56,12 +57,12 @@ export function decideBlocker(env: PushEnv): PushBlocker {
 /** Câu giải thích cho người dùng, kèm việc cần làm. Rỗng khi 'ok'. */
 export const BLOCKER_MESSAGE: Record<PushBlocker, string> = {
   ok: '',
-  'chua-cau-hinh': 'App chưa được cấu hình khoá đẩy thông báo, nên phần này tạm chưa dùng được.',
+  'chua-cau-hinh': tr('App chưa được cấu hình khoá đẩy thông báo, nên phần này tạm chưa dùng được.'),
   'can-cai-pwa':
-    'Trên iPhone/iPad phải Thêm vào màn hình chính rồi mở app từ đó, Safari trong tab thường không nhận được thông báo.',
-  'khong-ho-tro': 'Trình duyệt này không nhận được thông báo đẩy. Thử Chrome, Edge hoặc Safari mới.',
+    tr('Trên iPhone/iPad phải Thêm vào màn hình chính rồi mở app từ đó, Safari trong tab thường không nhận được thông báo.'),
+  'khong-ho-tro': tr('Trình duyệt này không nhận được thông báo đẩy. Thử Chrome, Edge hoặc Safari mới.'),
   'bi-chan':
-    'Bạn đã từ chối quyền thông báo cho app này. Mở cài đặt thông báo của trình duyệt để bật lại, app không xin lại được.',
+    tr('Bạn đã từ chối quyền thông báo cho app này. Mở cài đặt thông báo của trình duyệt để bật lại, app không xin lại được.'),
 }
 
 /**

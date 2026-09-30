@@ -2,14 +2,15 @@ import { Card, PanelHeader } from '../../components/ui'
 import { useFontScale } from '../../hooks/useFontScale'
 import { Guide } from '../../components/Guide'
 import type { FontScalePref } from '../../lib/fontScale'
+import { tr } from '../../i18n'
 
 // Cỡ chữ chữ "A" trên nút cố định theo px để mẫu thử không đổi khi đổi cỡ chữ,
 // nhờ vậy 4 nút luôn cho thấy đúng thứ tự Nhỏ → Rất lớn.
 const OPTIONS: { value: FontScalePref; label: string; px: number }[] = [
-  { value: 'sm', label: 'Nhỏ', px: 13 },
-  { value: 'md', label: 'Vừa', px: 15 },
-  { value: 'lg', label: 'Lớn', px: 17 },
-  { value: 'xl', label: 'Rất lớn', px: 20 },
+  { value: 'sm', label: tr('Nhỏ'), px: 13 },
+  { value: 'md', label: tr('Vừa'), px: 15 },
+  { value: 'lg', label: tr('Lớn'), px: 17 },
+  { value: 'xl', label: tr('Rất lớn'), px: 20 },
 ]
 
 export function FontSizeToggle() {
@@ -17,7 +18,7 @@ export function FontSizeToggle() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader>Cỡ chữ</PanelHeader>
+      <PanelHeader>{tr('Cỡ chữ')}</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -46,7 +47,7 @@ export function FontSizeToggle() {
         })}
       </div>
       <Guide className="px-3 pb-3 text-sm text-fg-muted">
-        Áp dụng cho toàn bộ app. Chọn cỡ lớn sẽ hiển thị ít nội dung hơn trên mỗi màn hình.
+        {tr('Áp dụng cho toàn bộ app. Chọn cỡ lớn sẽ hiển thị ít nội dung hơn trên mỗi màn hình.')}
       </Guide>
     </Card>
   )

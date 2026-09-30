@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { categoryLabel, tr } from '../../i18n'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { categoryChips, childCounts, type RecentCategory } from './recentCategories'
@@ -81,7 +82,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
       <Card padding="lg" className="text-center text-sm text-fg-muted">
         {emptyNote}
         <Link to="/settings/categories" className="mt-1 block font-medium text-fg-accent underline">
-          Mở Cài đặt → Danh mục
+          {tr('Mở Cài đặt → Danh mục')}
         </Link>
       </Card>
     )
@@ -105,7 +106,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
             }`}
           >
             <span className="text-sm leading-none">{r.icon}</span>
-            {r.name}
+            {categoryLabel(r.name)}
           </button>
         ))}
         <button
@@ -114,7 +115,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
           aria-expanded={expanded}
           className="flex h-8 shrink-0 items-center gap-1 rounded-full border-2 border-border-strong bg-surface px-2.5 text-sm text-fg-secondary transition active:scale-95"
         >
-          Khác
+          {tr('Khác')}
           <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       </div>
@@ -129,7 +130,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
               className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-sm font-medium text-fg-secondary transition active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span>{' '}
-              {drillParent.name}
+              {categoryLabel(drillParent.name)}
             </button>
             <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
               {drillChildren.map((c) => (
@@ -143,7 +144,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
               ))}
               {drillChildren.length === 0 && (
                 <p className="col-span-full py-4 text-center text-sm text-fg-muted">
-                  Nhóm này chưa có danh mục con
+                  {tr('Nhóm này chưa có danh mục con')}
                 </p>
               )}
             </div>
@@ -212,7 +213,7 @@ function CategoryTile({
       }`}
     >
       <span className="text-xl leading-none">{icon}</span>
-      <span className="w-full truncate text-center">{name}</span>
+      <span className="w-full truncate text-center">{categoryLabel(name)}</span>
       {/* Số danh mục con thay chevron 10px: tile CÓ con và tile KHÔNG con (Phí chuyển tiền ·
           Phí thủ tục · Khác) trước đây trông y hệt mà hành vi khác — bấm cái này thì mở
           thêm một tầng, bấm cái kia thì chọn xong. */}

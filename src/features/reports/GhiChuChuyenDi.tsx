@@ -8,6 +8,8 @@ import { Num } from '../../components/ui'
 import { useDeleteTrip } from '../../hooks/queries'
 import { addDaysISO } from '../../lib/dates'
 import type { TripRow } from '../../types/database.types'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export function GhiChuChuyenDi({
   trips,
@@ -34,10 +36,13 @@ export function GhiChuChuyenDi({
 
   return (
     <p className="mb-2 text-sm text-fg-warn">
-      <Num tone="neutral" className="text-inherit">
-        {soNgay}
-      </Num>{' '}
-      ngày đi vắng trong kỳ — tổng Chi không so được với tháng thường.{' '}
+      {trn('{n} ngày đi vắng trong kỳ — tổng Chi không so được với tháng thường.', {
+        n: (
+          <Num tone="neutral" className="text-inherit">
+            {soNgay}
+          </Num>
+        ),
+      })}{' '}
       {/* Đường lùi đứng ngay cạnh hệ quả của nó: đánh dấu nhầm thì gỡ tại chỗ nhìn
           thấy, không phải đi tìm một màn quản lý không tồn tại. */}
       <button
@@ -46,7 +51,7 @@ export function GhiChuChuyenDi({
         onClick={() => trongKy.forEach((t) => deleteTrip.mutate(t.id))}
         disabled={deleteTrip.isPending}
       >
-        Bỏ đánh dấu
+        {tr('Bỏ đánh dấu')}
       </button>
     </p>
   )

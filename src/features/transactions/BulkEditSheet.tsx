@@ -9,6 +9,7 @@
 // Sự khác nhau đó nằm ở tầng repo (setTransactionsCategory vs addTagToTransactions), ở
 // đây chỉ nói ra bằng chữ trên nút.
 import { useState } from 'react'
+import { categoryLabel, tagLabel, tr } from '../../i18n'
 import { ActionButton, EmptyState, SectionTitle } from '../../components/ui'
 import { showToast } from '../../lib/dialog'
 import { useAddTagToTransactions, useSetTransactionsCategory } from '../../hooks/queries'
@@ -35,8 +36,10 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
   const leaves = categories.filter(
     (c) => c.type !== 'income' && !c.is_archived && !categories.some((x) => x.parent_id === c.id),
   )
-  const parentName = (c: CategoryRow) =>
-    c.parent_id ? (categories.find((p) => p.id === c.parent_id)?.name ?? '') : ''
+  const parentName = (c: CategoryRow) => {
+    const p = c.parent_id ? categories.find((x) => x.id === c.parent_id) : undefined
+    return p ? categoryLabel(p.name) : ''
+  }
 
   async function apply(fn: () => Promise<unknown>, msg: string) {
     await fn()
@@ -50,14 +53,14 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Sửa ${ids.length} giao dịch đã chọn`}
+        aria-label={tr('Sửa {n} giao dịch đã chọn', { n: ids.length })}
         className="flex max-h-[80dvh] w-full max-w-lg flex-col rounded-t-2xl border border-border-panel bg-surface p-4 sm:rounded-xl animate-sheet-in sm:animate-sheet-pop"
       >
         <div className="flex items-baseline justify-between gap-2">
           <SectionTitle>
-            Sửa {ids.length} giao dịch
+            {tr('Sửa {n} giao dịch', { n: ids.length })}
           </SectionTitle>
-          <ActionButton onClick={onClose}>Đóng</ActionButton>
+          <ActionButton onClick={onClose}>{tr('Đóng')}</ActionButton>
         </div>
 
         <div className="mt-3 flex gap-1.5">
@@ -65,10 +68,10 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
             onClick={() => setTab('category')}
             variant={tab === 'category' ? 'primary' : 'outline'}
           >
-            Đổi danh mục
+            {tr('Đổi danh mục')}
           </ActionButton>
           <ActionButton onClick={() => setTab('tag')} variant={tab === 'tag' ? 'primary' : 'outline'}>
-            Gắn nhãn
+            {tr('Gắn nhãn')}
           </ActionButton>
         </div>
 
@@ -76,7 +79,7 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
           {tab === 'category' ? (
             leaves.length === 0 ? (
               <EmptyState compact>
-                Chưa có danh mục chi nào.
+                {tr('Chưa có danh mục chi nào.')}
               </EmptyState>
             ) : (
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -88,14 +91,14 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                     onClick={() =>
                       apply(
                         () => setCategory.mutateAsync({ ids, categoryId: c.id }),
-                        `Đã chuyển ${ids.length} khoản sang ${c.name}`,
+                        tr('Đã chuyển {n} khoản sang {name}', { n: ids.length, name: categoryLabel(c.name) }),
                       )
                     }
                     className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-2.5 py-2 text-left text-sm text-fg-secondary transition hover:bg-surface-sunken disabled:opacity-50"
                   >
                     <span aria-hidden>{c.icon}</span>
                     <span className="min-w-0 flex-1 truncate">
-                      {c.name}
+                      {categoryLabel(c.name)}
                       {parentName(c) && (
                         <span className="block truncate text-2xs text-fg-muted">
                           {parentName(c)}
@@ -107,7 +110,7 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
               </div>
             )
           ) : tags.length === 0 ? (
-            <EmptyState compact>Chưa có nhãn nào.</EmptyState>
+            <EmptyState compact>{tr('Chưa có nhãn nào.')}</EmptyState>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -118,12 +121,12 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                   onClick={() =>
                     apply(
                       () => addTag.mutateAsync({ ids, tagId: t.id }),
-                      `Đã gắn nhãn ${t.name} cho ${ids.length} khoản`,
+                      tr('Đã gắn nhãn {name} cho {n} khoản', { name: tagLabel(t.name), n: ids.length }),
                     )
                   }
                   className={`min-h-11 rounded-full px-3 text-sm font-medium transition disabled:opacity-50 ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
                 >
-                  {t.name}
+                  {tagLabel(t.name)}
                 </button>
               ))}
             </div>

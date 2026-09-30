@@ -78,7 +78,7 @@ export function defaultAdjustDate({
  * `adjust_kind`; ghi chú chỉ còn là đường nhận dạng cho dòng cũ chưa có dấu — xem
  * `isBalanceAdjust`.
  */
-export const CARD_RECONCILE_NOTE = 'Điều chỉnh số nợ'
+export const CARD_RECONCILE_NOTE = 'Điều chỉnh số nợ' // i18n-ignore — ghi chú lưu DB, dùng để nhận dạng dòng cũ
 
 /**
  * Khoản bù TỔNG nợ/số dư (sheet "Điều chỉnh số nợ") — tổng "Quẹt trong kỳ"

@@ -7,6 +7,7 @@ import { groupOptionsByType } from '../features/accounts/groupByType'
 import { normalizeText } from '../features/transactions/filter'
 import type { AccountType } from '../types/database.types'
 import { type PanelBox, panelBox } from './accountPickerBox'
+import { accountLabel, tr } from '../i18n'
 
 type AccountOption = {
   id: string
@@ -82,13 +83,13 @@ export function AccountPicker({
   const needle = normalizeText(query)
   const groups = useMemo(() => {
     const matched = needle
-      ? options.filter((a) => normalizeText(a.name).includes(needle))
+      ? options.filter((a) => normalizeText(a.name).includes(needle) || normalizeText(accountLabel(a.name)).includes(needle))
       : options
     return groupOptionsByType(matched)
   }, [options, needle])
   const matchedCount = groups.reduce((n, g) => n + g.items.length, 0)
   const emptyMessage =
-    options.length === 0 ? 'Không có tài khoản' : `Không có tài khoản nào khớp “${query}”`
+    options.length === 0 ? tr('Không có tài khoản') : tr('Không có tài khoản nào khớp “{query}”', { query })
 
   // Mở lại là bắt đầu lại từ danh sách đầy đủ — không thì lần sau mở ra thấy một
   // danh sách đã bị lọc mà không rõ vì sao.
@@ -158,11 +159,11 @@ export function AccountPicker({
                 dấu … không bao giờ xuất hiện — chữ tràn ra ngoài viền nút. Đo ở cỡ chữ
                 "Rất lớn" trên màn 375px: nút tràn 31px, mũi chevron bị đẩy ra ngoài (§13). */}
             <span className="min-w-0 truncate">
-              {selected.name} · {CURRENCIES[selected.currency].symbol}
+              {accountLabel(selected.name)} · {CURRENCIES[selected.currency].symbol}
             </span>
           </>
         ) : (
-          <span className="text-fg-muted">Chọn tài khoản…</span>
+          <span className="text-fg-muted">{tr('Chọn tài khoản…')}</span>
         )}
         <ChevronDown
           className={`ml-auto h-4 w-4 shrink-0 text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -196,8 +197,8 @@ export function AccountPicker({
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={`Tìm trong ${options.length} tài khoản…`}
-                  aria-label="Tìm tài khoản"
+                  placeholder={tr('Tìm trong {n} tài khoản…', { n: options.length })}
+                  aria-label={tr('Tìm tài khoản')}
                   className="min-h-11 min-w-0 flex-1 bg-transparent text-sm"
                 />
               </div>
@@ -241,7 +242,7 @@ export function AccountPicker({
                               : 'text-fg-primary'
                           }`}
                         >
-                          {a.name}
+                          {accountLabel(a.name)}
                         </span>
                         {bal !== undefined && (
                           <span

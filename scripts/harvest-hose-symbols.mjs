@@ -50,6 +50,7 @@ const esc = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 const body = rows.map(([sym, ten]) => `  ['${sym}', '${esc(ten)}'],`).join('\n')
 
 const out = `// TỆP SINH TỰ ĐỘNG — ĐỪNG SỬA TAY.
+// i18n-ignore-file — tên công ty là tên riêng, không dịch.
 // Nguồn: SSI iBoard (${URL_HOSE}), lọc stockType='s'
 // Sinh lại: node scripts/harvest-hose-symbols.mjs
 // Vì sao là file tĩnh chứ không gọi mạng: xem đầu scripts/harvest-hose-symbols.mjs

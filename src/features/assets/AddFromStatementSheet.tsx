@@ -12,6 +12,7 @@ import { useCreateTransaction } from '../../hooks/queries'
 import { useEscClose } from '../../hooks/useEscClose'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from '../transactions/TransactionForm'
+import { tr } from '../../i18n'
 
 interface Props {
   initial: TransactionRow
@@ -44,20 +45,20 @@ export function AddFromStatementSheet({ initial, onClose, onSaved }: Props) {
       >
         <div className="mb-3 flex items-center justify-between">
           <SectionTitle role="block" id="add-from-stm-title">
-            Thêm vào sổ từ sao kê
+            {tr('Thêm vào sổ từ sao kê')}
           </SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
         <TransactionForm
           initial={initial}
           showRefundOption
-          submitLabel="Thêm vào sổ"
+          submitLabel={tr('Thêm vào sổ')}
           onSubmit={async (values) => {
             await create.mutateAsync(values)
             onSaved()

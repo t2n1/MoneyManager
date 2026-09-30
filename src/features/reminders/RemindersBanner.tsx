@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { useNotifications } from '../notifications/useNotifications'
+import { tr } from '../../i18n'
 
 /**
  * Dải nhắc ở đầu trang Sổ giao dịch — CHỈ MỘT DÒNG, chỉ dành cho việc mức đỏ
@@ -29,7 +30,7 @@ export function RemindersBanner() {
           Quyền lợi, lấy thẳng `ketLuan.viec` (vd "Còn 2 năm cũ đủ điều kiện nộp
           還付申告, hạn 31/12"). Cắt một dòng trên điện thoại là mất đúng nửa sau. */}
       <span className="min-w-0 flex-1 line-clamp-2">{top.title}</span>
-      <span className="shrink-0 text-2xs font-semibold">Xem →</span>
+      <span className="shrink-0 text-2xs font-semibold">{tr('Xem →')}</span>
     </Link>
   )
 }

@@ -14,6 +14,8 @@
 // Draft nằm trong chính component, nơi gọi truyền `key` để mở danh mục khác là state mới:
 // nhấc draft lên trên thành hai nguồn phải đồng bộ tay mỗi lần mở.
 import { useState } from 'react'
+import { categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 import { useEscClose } from '../../hooks/useEscClose'
 import type { CategoryKind, CategoryRow, CostType, NeedLevel } from '../../types/database.types'
 import { COST_OPTIONS, KIND_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
@@ -53,7 +55,7 @@ const costLabel = (v: CostType) => COST_CHOICES.find(([o]) => o === v)![1]
  * `null` = chưa chọn đủ, nơi gọi khoá nút Lưu theo đúng giá trị này.
  */
 export function classifyLabel(v: ClassifyValue): string | null {
-  if (v.kind === 'transfer') return 'Chuyển tài sản'
+  if (v.kind === 'transfer') return tr('Chuyển tài sản')
   if (v.need_level === null || v.cost_type === null) return null
   return `${needLabel(v.need_level)} · ${costLabel(v.cost_type)}`
 }
@@ -103,10 +105,10 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
         <div className="mb-1 flex items-center justify-between">
           <SectionTitle role="block">
             {target.mode === 'group' ? (
-              <>Áp cho cả nhóm {target.parent.name}</>
+              <>{tr('Áp cho cả nhóm {name}', { name: categoryLabel(target.parent.name) })}</>
             ) : (
               <>
-                <span aria-hidden>{target.category.icon}</span> {target.category.name}
+                <span aria-hidden>{target.category.icon}</span> {categoryLabel(target.category.name)}
               </>
             )}
           </SectionTitle>
@@ -115,7 +117,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
             onClick={onClose}
             className="rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
@@ -124,20 +126,26 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
           // dạy — guardrail của bộ design system phân theo đó.
           <p className="text-sm font-medium text-fg-muted">
             <span aria-hidden>{target.parent.icon}</span>{' '}
-            <Num tone="muted">{target.memberCount}</Num> danh mục, tính cả nhóm cha
+            {trn('{n} danh mục, tính cả nhóm cha', { n: <Num tone="muted">{target.memberCount}</Num> })}
           </p>
         ) : target.parent ? (
           <p className="text-sm text-fg-muted">
-            thuộc nhóm <span aria-hidden>{target.parent.icon}</span> {target.parent.name}
+            {trn('thuộc nhóm {group}', {
+              group: (
+                <>
+                  <span aria-hidden>{target.parent.icon}</span> {categoryLabel(target.parent.name)}
+                </>
+              ),
+            })}
           </p>
         ) : null}
 
         <div className="mt-3 flex flex-col gap-3">
           <Card as="section" padding="md">
             <SectionTitle role="micro" as="h3">
-              Khoản này là
+              {tr('Khoản này là')}
             </SectionTitle>
-            <div role="group" aria-label="Khoản này là" className="mt-1.5 flex flex-wrap gap-2">
+            <div role="group" aria-label={tr('Khoản này là')} className="mt-1.5 flex flex-wrap gap-2">
               {KIND_OPTIONS.map(([v, text]) => (
                 <FilterChip key={v} on={kind === v} onClick={() => setKind(v)}>
                   {text}
@@ -147,17 +155,17 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
 
             {kind === 'transfer' ? (
               <p className="mt-3 rounded-lg bg-state-warn-bg px-3 py-2 text-2xs text-state-warn-fg">
-                Chuyển tài sản = tiền vẫn của bạn, chỉ đứng ở chỗ khác (gửi về VN, nạp đầu
-                tư, điều chỉnh số dư). Khoản này sẽ <b>không</b> vào tổng chi, không vào tỷ
-                lệ giữ lại, và <b>không đặt được hạn mức</b> — nên cũng không cần Tính chất
-                hay Loại chi.
+                {trn('Chuyển tài sản = tiền vẫn của bạn, chỉ đứng ở chỗ khác (gửi về VN, nạp đầu tư, điều chỉnh số dư). Khoản này sẽ {not} vào tổng chi, không vào tỷ lệ giữ lại, và {noLimit} — nên cũng không cần Tính chất hay Loại chi.', {
+                  not: <b>{tr('không')}</b>,
+                  noLimit: <b>{tr('không đặt được hạn mức')}</b>,
+                })}
               </p>
             ) : (
               <>
                 <SectionTitle role="micro" as="h3" className="mt-3">
-                  Tính chất
+                  {tr('Tính chất')}
                 </SectionTitle>
-                <div role="group" aria-label="Tính chất" className="mt-1.5 flex flex-wrap gap-2">
+                <div role="group" aria-label={tr('Tính chất')} className="mt-1.5 flex flex-wrap gap-2">
                   {NEED_CHOICES.map(([v, text]) => (
                     <FilterChip key={v} on={need === v} onClick={() => setNeed(v)}>
                       {text}
@@ -165,9 +173,9 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
                   ))}
                 </div>
                 <SectionTitle role="micro" as="h3" className="mt-3">
-                  Loại chi
+                  {tr('Loại chi')}
                 </SectionTitle>
-                <div role="group" aria-label="Loại chi" className="mt-1.5 flex flex-wrap gap-2">
+                <div role="group" aria-label={tr('Loại chi')} className="mt-1.5 flex flex-wrap gap-2">
                   {COST_CHOICES.map(([v, text]) => (
                     <FilterChip key={v} on={cost === v} onClick={() => setCost(v)}>
                       {text}
@@ -185,7 +193,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
               disabled={label === null || saving}
               onClick={() => label !== null && onApplyGroup(value, label)}
             >
-              Gán cho cả nhóm
+              {tr('Gán cho cả nhóm')}
             </ActionButton>
           ) : (
             <>
@@ -195,7 +203,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
                 disabled={label === null}
                 onClick={() => label !== null && onSave(value)}
               >
-                {onSkip ? 'Lưu · mục kế tiếp →' : 'Lưu'}
+                {onSkip ? tr('Lưu · mục kế tiếp →') : tr('Lưu')}
               </ActionButton>
               {(onSkip || onClear) && (
                 <div className="flex items-center justify-between">
@@ -205,7 +213,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
                       onClick={onClear}
                       className="text-sm text-fg-muted hover:text-fg-primary"
                     >
-                      Xoá phân loại
+                      {tr('Xoá phân loại')}
                     </button>
                   ) : (
                     <span />
@@ -216,7 +224,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
                       onClick={onSkip}
                       className="text-sm font-medium text-fg-accent"
                     >
-                      Bỏ qua — mục kế tiếp ›
+                      {tr('Bỏ qua — mục kế tiếp ›')}
                     </button>
                   )}
                 </div>

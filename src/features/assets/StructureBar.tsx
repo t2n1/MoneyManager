@@ -28,9 +28,11 @@
 import { ExplainBox } from '../../components/ExplainBox'
 import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import { formatMoney } from '../../lib/money'
-import { formatShare, type AssetGroup } from './aggregate'
+import { formatShare, groupDisplayName, type AssetGroup } from './aggregate'
 import type { MoneyView } from './moneyView'
 import { parsePctToBps, REBAL_DRIFT_ALERT_PP, type RebalanceResult } from './rebalance'
+import { tr, decimalSep } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Lát nhỏ nhất vẫn phải thấy được. 2px = đủ một sợi nhìn ra màu, chưa tới mức nói dối. */
 const SAN_LAT_PX = 2
@@ -60,10 +62,10 @@ interface Props {
 const bpsToText = (bps: number) =>
   (bps / 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 
-const pct1 = (v: number) => `${v.toFixed(1).replace('.', ',')}%`
+const pct1 = (v: number) => `${v.toFixed(1).replace('.', decimalSep())}%`
 
 const pp1 = (v: number) =>
-  `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1).replace('.', ',')}`
+  `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1).replace('.', decimalSep())}`
 
 export function StructureBar({
   groups,
@@ -105,22 +107,22 @@ export function StructureBar({
     >
       <div className="flex items-center justify-between gap-2 border-b border-border-panel px-4 py-2.5">
         <SectionTitle role="micro">
-          Cơ cấu · theo {modeLabel}
+          {tr('Cơ cấu · theo {mode}', { mode: modeLabel })}
         </SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
           {plan?.basis === 'all'
-            ? `${counted.length} nhóm · trên toàn bộ tài sản`
-            : `${counted.length} nhóm được tính vào tổng`}
+            ? tr('{n} nhóm · trên toàn bộ tài sản', { n: counted.length })
+            : tr('{n} nhóm được tính vào tổng', { n: counted.length })}
         </span>
       </div>
 
       {counted.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-fg-muted">
           {loadFailed
-            ? 'Chưa tải được dữ liệu tài sản'
+            ? tr('Chưa tải được dữ liệu tài sản')
             : isLoading
-              ? 'Đang tải…'
-              : 'Chưa có tài sản để hiển thị'}
+              ? tr('Đang tải…')
+              : tr('Chưa có tài sản để hiển thị')}
         </p>
       ) : (
         <>
@@ -144,9 +146,9 @@ export function StructureBar({
             <div className="flex items-center gap-2 px-4 pt-3 text-2xs font-semibold uppercase tracking-label text-fg-muted">
               <span className="h-2 w-2 shrink-0" aria-hidden />
               <span className="min-w-0 flex-1" />
-              <span className="w-12 shrink-0 text-right">Đang</span>
-              <span className="w-14 shrink-0 text-right">Mục tiêu</span>
-              <span className="hidden w-12 shrink-0 text-right sm:block">Lệch</span>
+              <span className="w-12 shrink-0 text-right">{tr('Đang')}</span>
+              <span className="w-14 shrink-0 text-right">{tr('Mục tiêu')}</span>
+              <span className="hidden w-12 shrink-0 text-right sm:block">{tr('Lệch')}</span>
             </div>
           )}
 
@@ -162,7 +164,7 @@ export function StructureBar({
                     aria-hidden
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-fg-secondary">{g.name}</span>
+                    <span className="block truncate text-fg-secondary">{groupDisplayName(g.name)}</span>
                     <span className="flex items-baseline gap-1.5 text-2xs">
                       <Money
                         {...view.view(g.total)}
@@ -177,7 +179,7 @@ export function StructureBar({
                           tone={Math.abs(row.driftPp) >= REBAL_DRIFT_ALERT_PP ? 'out' : 'muted'}
                           className="sm:hidden"
                         >
-                          {pp1(row.driftPp)}đ%
+                          {tr('{v}đ%', { v: pp1(row.driftPp) })}
                         </Num>
                       )}
                     </span>
@@ -196,7 +198,7 @@ export function StructureBar({
                           inputMode="decimal"
                           defaultValue={bps !== null ? bpsToText(bps) : ''}
                           placeholder="—"
-                          aria-label={`Tỷ trọng mục tiêu của nhóm ${g.name} (%)`}
+                          aria-label={tr('Tỷ trọng mục tiêu của nhóm {name} (%)', { name: groupDisplayName(g.name) })}
                           className="w-10 rounded-md border border-border-strong bg-surface px-1.5 py-1 text-right font-mono text-sm tabular-nums"
                           onBlur={(e) => {
                             const next = parsePctToBps(e.target.value)
@@ -238,7 +240,7 @@ export function StructureBar({
                       aria-hidden
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-fg-secondary">{g.name}</span>
+                      <span className="block truncate text-fg-secondary">{groupDisplayName(g.name)}</span>
                       <Money
                         {...view.view(g.total)}
                         tone="muted"
@@ -247,7 +249,7 @@ export function StructureBar({
                       />
                     </span>
                     <span className="w-12 shrink-0 text-right text-2xs text-fg-muted">
-                      ngoài tổng
+                      {tr('ngoài tổng')}
                     </span>
                     <label className="flex w-14 shrink-0 items-baseline justify-end gap-1 text-2xs text-fg-muted">
                       <input
@@ -256,7 +258,7 @@ export function StructureBar({
                         inputMode="decimal"
                         defaultValue={bps !== null ? bpsToText(bps) : ''}
                         placeholder="—"
-                        aria-label={`Tỷ trọng mục tiêu của nhóm ${g.name} (%)`}
+                        aria-label={tr('Tỷ trọng mục tiêu của nhóm {name} (%)', { name: groupDisplayName(g.name) })}
                         className="w-10 rounded-md border border-border-strong bg-surface px-1.5 py-1 text-right font-mono text-sm tabular-nums"
                         onBlur={(e) => {
                           const next = parsePctToBps(e.target.value)
@@ -274,8 +276,9 @@ export function StructureBar({
                 )
               })}
               <li className="text-2xs leading-snug text-fg-muted">
-                Chưa có lát trên vạch vì các nhóm này đứng ngoài Tổng tài sản. Khai mục
-                tiêu cho một trong số chúng thì cả thẻ chuyển sang đo trên TOÀN BỘ tài sản.
+                {tr(
+                  'Chưa có lát trên vạch vì các nhóm này đứng ngoài Tổng tài sản. Khai mục tiêu cho một trong số chúng thì cả thẻ chuyển sang đo trên TOÀN BỘ tài sản.',
+                )}
               </li>
             </ul>
           )}
@@ -284,8 +287,10 @@ export function StructureBar({
 
       {plan !== null && plan.declaredPct > 100.05 && (
         <p className="px-4 pb-2 text-2xs text-state-warn-fg">
-          Tổng mục tiêu đã khai là <Num tone="muted">{Math.round(plan.declaredPct)}%</Num> —
-          quá 100%, các con số lệch bên trên sẽ không thể cùng về 0.
+          {trn(
+            'Tổng mục tiêu đã khai là {pct} — quá 100%, các con số lệch bên trên sẽ không thể cùng về 0.',
+            { pct: <Num tone="muted">{Math.round(plan.declaredPct)}%</Num> },
+          )}
         </p>
       )}
 
@@ -293,18 +298,20 @@ export function StructureBar({
         plan.worst !== null &&
         (plan.alert ? (
           <p className="border-t border-border-panel px-4 py-2.5 text-sm font-medium text-fg-accent">
-            Lệch nhất: «{plan.worst.name}» đang{' '}
-            <Num tone="muted">{pct1(plan.worst.actualPct)}</Num> so mục tiêu{' '}
-            <Num tone="muted">{plan.worst.targetPct.toFixed(0)}%</Num>
+            {trn('Lệch nhất: «{name}» đang {actual} so mục tiêu {target}', {
+              name: groupDisplayName(plan.worst.name),
+              actual: <Num tone="muted">{pct1(plan.worst.actualPct)}</Num>,
+              target: <Num tone="muted">{plan.worst.targetPct.toFixed(0)}%</Num>,
+            })}
             {plan.worst.addToReachMinor !== null && (
               <>
-                {' '}
-                — góp thêm{' '}
-                <Money {...view.view(plan.worst.addToReachMinor)} className="text-sm" />
+                {' — '}
+                {trn('góp thêm {amount}', {
+                  amount: <Money {...view.view(plan.worst.addToReachMinor)} className="text-sm" />,
+                })}
                 {/* E-ink + Gọn: giữ con số góp thêm, bỏ vế giải thích. */}
                 <span className="eink-gon:hidden">
-                  {' '}
-                  bằng tiền mới là về mục tiêu, không cần bán gì
+                  {tr(' bằng tiền mới là về mục tiêu, không cần bán gì')}
                 </span>
               </>
             )}
@@ -312,44 +319,49 @@ export function StructureBar({
           </p>
         ) : (
           <p className="border-t border-border-panel px-4 py-2.5 text-sm text-fg-secondary">
-            Cơ cấu đang trong ngưỡng ±<Num tone="muted">{REBAL_DRIFT_ALERT_PP}đ%</Num> quanh
-            mục tiêu<span className="eink-gon:hidden"> — chưa cần làm gì</span>.
+            {trn('Cơ cấu đang trong ngưỡng ±{pp} quanh mục tiêu', {
+              pp: <Num tone="muted">{tr('{v}đ%', { v: REBAL_DRIFT_ALERT_PP })}</Num>,
+            })}
+            <span className="eink-gon:hidden">{tr(' — chưa cần làm gì')}</span>.
           </p>
         ))}
 
       {ngoaiTong.length > 0 && (
         <p className="mt-auto border-t border-border-subtle px-4 py-2.5 text-2xs leading-snug text-fg-muted">
-          Ngoài tổng:{' '}
+          {tr('Ngoài tổng:')}{' '}
           {ngoaiTong.map((g, i) => (
             <span key={g.name}>
               {i > 0 && ' · '}
-              <span className="text-fg-secondary">{g.name}</span> — {g.accounts.length} tài
-              khoản, {tienGoc(g, view)}
+              {trn('{name} — {n} tài khoản, {amounts}', {
+                name: <span className="text-fg-secondary">{groupDisplayName(g.name)}</span>,
+                n: g.accounts.length,
+                amounts: tienGoc(g, view),
+              })}
             </span>
           ))}
           .
-          <span className="eink-gon:hidden"> Không có lát nào trên vạch vì mẫu số không chứa nó.</span>
+          <span className="eink-gon:hidden">{tr(' Không có lát nào trên vạch vì mẫu số không chứa nó.')}</span>
         </p>
       )}
 
       {rebalance !== null && (
         <div className="border-t border-border-subtle px-4 py-2.5 empty:hidden empty:border-0 empty:p-0">
-          <ExplainBox label="Vì sao chỉ gợi ý góp thêm, không gợi ý bán">
+          <ExplainBox label={tr('Vì sao chỉ gợi ý góp thêm, không gợi ý bán')}>
             <p>
-              Mục tiêu khai một lần lúc bình tĩnh chính là để những lúc thị trường nhảy
-              múa có một con số đứng yên mà bám. Lệch quá {REBAL_DRIFT_ALERT_PP} điểm % app
-              sẽ nhắc ở đây và ở Bản tin.
+              {tr(
+                'Mục tiêu khai một lần lúc bình tĩnh chính là để những lúc thị trường nhảy múa có một con số đứng yên mà bám. Lệch quá {n} điểm % app sẽ nhắc ở đây và ở Bản tin.',
+                { n: REBAL_DRIFT_ALERT_PP },
+              )}
             </p>
             <p>
-              Cân lại bằng TIỀN GÓP MỚI: bán trong NISA là mất suất miễn thuế của phần đó
-              vĩnh viễn, còn bán ngoài NISA thì nộp ~20% thuế lãi — cả hai đều đắt hơn việc
-              hướng vài tháng tiền góp về nhóm đang hụt.
+              {tr(
+                'Cân lại bằng TIỀN GÓP MỚI: bán trong NISA là mất suất miễn thuế của phần đó vĩnh viễn, còn bán ngoài NISA thì nộp ~20% thuế lãi — cả hai đều đắt hơn việc hướng vài tháng tiền góp về nhóm đang hụt.',
+              )}
             </p>
             <p>
-              Mẫu số đi theo chính lời khai: chỉ khai cho nhóm đang tính vào Tổng tài sản
-              thì đo trên tổng đó; khai cho một nhóm đứng NGOÀI tổng (ví dụ nhóm đầu tư
-              bằng ngoại tệ) thì mẫu số nở ra toàn bộ tài sản, và dòng trên cùng của thẻ
-              nói rõ đang đo trên cái nào.
+              {tr(
+                'Mẫu số đi theo chính lời khai: chỉ khai cho nhóm đang tính vào Tổng tài sản thì đo trên tổng đó; khai cho một nhóm đứng NGOÀI tổng (ví dụ nhóm đầu tư bằng ngoại tệ) thì mẫu số nở ra toàn bộ tài sản, và dòng trên cùng của thẻ nói rõ đang đo trên cái nào.',
+              )}
             </p>
           </ExplainBox>
         </div>
@@ -370,6 +382,6 @@ function tienGoc(g: AssetGroup, view: MoneyView): string {
     .map((n) => formatMoney(n.amount, n.currency))
     .join(' · ')
   return g.nativeTotals.length > 2
-    ? `${head} +${g.nativeTotals.length - 2} loại tiền`
+    ? tr('{head} +{n} loại tiền', { head, n: g.nativeTotals.length - 2 })
     : head
 }

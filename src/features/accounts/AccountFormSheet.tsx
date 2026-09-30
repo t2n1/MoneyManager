@@ -28,6 +28,8 @@ import {
 } from '../assets/shelter'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { accountLabel, assetGroupLabel, tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const CURRENCY_LIST = Object.keys(CURRENCIES) as CurrencyCode[]
 
@@ -57,19 +59,19 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
   async function handleDelete() {
     if (!account) return
     const ok = await confirmDialog({
-      title: `Xóa tài khoản «${account.name}»?`,
-      message: 'Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.',
-      confirmLabel: 'Xóa',
+      title: tr('Xóa tài khoản «{name}»?', { name: accountLabel(account.name) }),
+      message: tr('Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.'),
+      confirmLabel: tr('Xóa'),
       danger: true,
     })
     if (!ok) return
     try {
       await del.mutateAsync(account.id)
-      showToast('Đã xóa tài khoản', 'success')
+      showToast(tr('Đã xóa tài khoản'), 'success')
       onClose()
       onDeleted?.()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không xóa được', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không xóa được'), 'error')
     }
   }
   const { data: accounts = [] } = useAccounts()
@@ -221,41 +223,48 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-3">
-          {account ? 'Sửa tài khoản' : 'Thêm tài khoản'}
+          {account ? tr('Sửa tài khoản') : tr('Thêm tài khoản')}
         </SectionTitle>
 
         <label htmlFor={`${uid}-name`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Tên
+          {tr('Tên')}
         </label>
         <input
           id={`${uid}-name`}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ví dụ: Ví MoMo"
+          placeholder={tr('Ví dụ: Ví MoMo')}
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
+        {/* Tên lưu DB giữ nguyên; chế độ Anh chỉ ĐỔI CHỮ HIỂN THỊ của tên mặc định — nói ra
+            để người sửa không tưởng tên mình gõ bị đổi mất. */}
+        {accountLabel(name.trim()) !== name.trim() && (
+          <p className="-mt-2 mb-3 text-2xs text-fg-muted">
+            {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: accountLabel(name.trim()) })}
+          </p>
+        )}
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor={`${uid}-type`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Loại
+              {tr('Loại')}
             </label>
             <Select
               id={`${uid}-type`}
               value={type}
               onChange={(e) => setType(e.target.value as AccountType)} wrapClassName="w-full">
-              <option value="cash">Tiền mặt</option>
-              <option value="bank">Ngân hàng</option>
-              <option value="card">Thẻ tín dụng</option>
-              <option value="ic">IC giao thông</option>
-              <option value="ewallet">Ví điện tử</option>
-              <option value="investment">Đầu tư</option>
-              <option value="fixed">Tài sản cố định</option>
+              <option value="cash">{tr('Tiền mặt')}</option>
+              <option value="bank">{tr('Ngân hàng')}</option>
+              <option value="card">{tr('Thẻ tín dụng')}</option>
+              <option value="ic">{tr('IC giao thông')}</option>
+              <option value="ewallet">{tr('Ví điện tử')}</option>
+              <option value="investment">{tr('Đầu tư')}</option>
+              <option value="fixed">{tr('Tài sản cố định')}</option>
             </Select>
           </div>
           <div>
             <label htmlFor={`${uid}-currency`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Loại tiền
+              {tr('Loại tiền')}
             </label>
             <Select
               id={`${uid}-currency`}
@@ -273,19 +282,25 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         {!isCard && (
           <>
             <label htmlFor={`${uid}-group`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Nhóm tài sản <span className="text-fg-muted">(không bắt buộc)</span>
+              {tr('Nhóm tài sản')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
             </label>
             <input
               id={`${uid}-group`}
               value={assetGroup}
               onChange={(e) => setAssetGroup(e.target.value)}
               list="asset-group-suggestions"
-              placeholder="Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư"
+              placeholder={tr('Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư')}
               className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
             />
+            {assetGroupLabel(assetGroup.trim()) !== assetGroup.trim() && (
+              <p className="-mt-2 mb-3 text-2xs text-fg-muted">
+                {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: assetGroupLabel(assetGroup.trim()) })}
+              </p>
+            )}
             <datalist id="asset-group-suggestions">
+              {/* `value` là tên lưu DB; `label` chỉ có khi tên hiển thị khác (chế độ Anh). */}
               {groupSuggestions.map((g) => (
-                <option key={g} value={g} />
+                <option key={g} value={g} label={assetGroupLabel(g) !== g ? assetGroupLabel(g) : undefined} />
               ))}
             </datalist>
           </>
@@ -297,7 +312,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
                 input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô đang
                 bị CSS ẩn. Tên ô đến từ `ariaLabel` — phải khớp chữ ở đây. */}
             <span className="mb-1 block text-sm font-medium text-fg-muted">
-              Hạn mức tín dụng <span className="text-fg-muted">(không bắt buộc)</span>
+              {tr('Hạn mức tín dụng')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
             </span>
             <div className="mb-3">
               <MoneyField
@@ -305,7 +320,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
                 onChange={setCreditLimit}
                 currency={currency}
                 autoOpen={false}
-                ariaLabel="Hạn mức tín dụng"
+                ariaLabel={tr('Hạn mức tín dụng')}
                 className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
               />
             </div>
@@ -313,7 +328,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor={`${uid}-stmt`} className="mb-1 block text-sm font-medium text-fg-muted">
-                  Ngày chốt sao kê
+                  {tr('Ngày chốt sao kê')}
                 </label>
                 <input
                   id={`${uid}-stmt`}
@@ -326,7 +341,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               </div>
               <div>
                 <label htmlFor={`${uid}-due`} className="mb-1 block text-sm font-medium text-fg-muted">
-                  Ngày đến hạn
+                  {trx('card', 'Ngày đến hạn')}
                 </label>
                 <input
                   id={`${uid}-due`}
@@ -343,25 +358,27 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               <p className="mb-3 flex items-start gap-1 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <span>
-                  Ngày chốt nhỏ hơn ngày đến hạn — app sẽ hiểu là chốt ngày {statementDay} rồi rút
-                  ngày {paymentDueDay} <strong>ngay trong tháng đó</strong>. Nếu thẻ của bạn chốt
-                  ngày {statementDay} rồi mới rút ngày {paymentDueDay} <strong>tháng sau</strong>
-                  {' '}(như 楽天ペイ 25日締め), mọi số sẽ lệch nguyên một kỳ.
+                  {trn('Ngày chốt nhỏ hơn ngày đến hạn — app sẽ hiểu là chốt ngày {stmt} rồi rút ngày {due} {same}. Nếu thẻ của bạn chốt ngày {stmt} rồi mới rút ngày {due} {next} (như 楽天ペイ 25日締め), mọi số sẽ lệch nguyên một kỳ.', {
+                    stmt: statementDay,
+                    due: paymentDueDay,
+                    same: <strong>{tr('ngay trong tháng đó')}</strong>,
+                    next: <strong>{tr('tháng sau')}</strong>,
+                  })}
                 </span>
               </p>
             )}
 
             <label htmlFor={`${uid}-payacc`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Tài khoản trả thẻ <span className="text-fg-muted">(không bắt buộc)</span>
+              {tr('Tài khoản trả thẻ')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
             </label>
             <Select
               id={`${uid}-payacc`}
               value={paymentAccountId}
               onChange={(e) => setPaymentAccountId(e.target.value)} wrapClassName="mb-1 w-full">
-              <option value="">— Không tự trả —</option>
+              <option value="">{tr('— Không tự trả —')}</option>
               {paymentSourceOptions.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {accountLabel(a.name)}
                 </option>
               ))}
             </Select>
@@ -369,10 +386,10 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               {autopayNeedsDays ? (
                 <>
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>Cần điền Ngày chốt sao kê và Ngày đến hạn để tự trả.</span>
+                  <span>{tr('Cần điền Ngày chốt sao kê và Ngày đến hạn để tự trả.')}</span>
                 </>
               ) : (
-                'Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.'
+                tr('Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.')
               )}
             </p>
           </>
@@ -381,23 +398,22 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         {isInvestment && currency === 'VND' && (
           <>
             <label htmlFor={`${uid}-vitien`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Ví tiền <span className="text-fg-muted">(không bắt buộc)</span>
+              {tr('Ví tiền')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
             </label>
             <Select
               id={`${uid}-vitien`}
               value={cashAccountId}
               onChange={(e) => setCashAccountId(e.target.value)}
               wrapClassName="mb-1 w-full">
-              <option value="">— Không nối —</option>
+              <option value="">{tr('— Không nối —')}</option>
               {cashWalletOptions.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {accountLabel(a.name)}
                 </option>
               ))}
             </Select>
             <Guide className="mb-3 text-sm text-fg-muted">
-              Tiền mua cổ phiếu đi ra từ tài khoản này. Mỗi lệnh bạn ghi, app tự ghi kèm một
-              lần chuyển tiền — số dư ví khỏi cao hơn tiền thật.
+              {tr('Tiền mua cổ phiếu đi ra từ tài khoản này. Mỗi lệnh bạn ghi, app tự ghi kèm một lần chuyển tiền — số dư ví khỏi cao hơn tiền thật.')}
             </Guide>
           </>
         )}
@@ -406,25 +422,25 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         <div className="mb-3 space-y-2 rounded-lg bg-surface-page p-3">
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
-              {isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
+              {isCard ? tr('Trừ vào Tài sản ròng') : tr('Tính vào Tổng tài sản')}
               <span className="block text-sm text-fg-muted">
                 {isCard
-                  ? 'Trừ số đang nợ khỏi Tài sản ròng ở trang Tài sản'
-                  : 'Cộng số dư vào tổng ở trang Tài sản'}
+                  ? tr('Trừ số đang nợ khỏi Tài sản ròng ở trang Tài sản')
+                  : tr('Cộng số dư vào tổng ở trang Tài sản')}
               </span>
             </span>
             <AccountToggle
               checked={includeInTotals}
               onChange={setIncludeInTotals}
-              label={isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
+              label={isCard ? tr('Trừ vào Tài sản ròng') : tr('Tính vào Tổng tài sản')}
             />
           </label>
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
-              Ẩn khỏi trang Tài sản
-              <span className="block text-sm text-fg-muted">Vẫn dùng bình thường khi nhập giao dịch</span>
+              {tr('Ẩn khỏi trang Tài sản')}
+              <span className="block text-sm text-fg-muted">{tr('Vẫn dùng bình thường khi nhập giao dịch')}</span>
             </span>
-            <AccountToggle checked={isHidden} onChange={setIsHidden} label="Ẩn khỏi trang Tài sản" />
+            <AccountToggle checked={isHidden} onChange={setIsHidden} label={tr('Ẩn khỏi trang Tài sản')} />
           </label>
         </div>
 
@@ -437,44 +453,46 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         {!isCard && (
           <div className="mb-3">
             <ClassificationToggle
-              label="Rút ra tiêu được ngay?"
+              label={tr('Rút ra tiêu được ngay?')}
               options={LIQUID_OPTIONS}
               value={isLiquid}
               onChange={setIsLiquid}
             />
             <p className="mt-1.5 text-2xs text-fg-muted">
               {isLiquid === null
-                ? `Đang để app suy từ loại tài khoản (${type === 'cash' || type === 'bank' || type === 'ic' || type === 'ewallet' ? 'coi là rút ngay được' : 'coi là phải bán/chờ'}). Tiền gửi CÓ KỲ HẠN là loại "Ngân hàng" nên sẽ bị đếm sai — hãy chọn "Không".`
+                ? tr('Đang để app suy từ loại tài khoản ({guess}). Tiền gửi CÓ KỲ HẠN là loại "Ngân hàng" nên sẽ bị đếm sai — hãy chọn "Không".', {
+                    guess:
+                      type === 'cash' || type === 'bank' || type === 'ic' || type === 'ewallet'
+                        ? tr('coi là rút ngay được')
+                        : tr('coi là phải bán/chờ'),
+                  })
                 : isLiquid
-                  ? 'Tính vào quỹ dự phòng và khả năng trả nợ ngắn hạn.'
-                  : 'KHÔNG tính vào quỹ dự phòng, cũng không vào khả năng trả nợ ngắn hạn.'}
+                  ? tr('Tính vào quỹ dự phòng và khả năng trả nợ ngắn hạn.')
+                  : tr('KHÔNG tính vào quỹ dự phòng, cũng không vào khả năng trả nợ ngắn hạn.')}
             </p>
           </div>
         )}
 
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
+          {isCard ? tr('Số nợ ban đầu') : tr('Số dư ban đầu')}
         </span>
         <div className="mb-2">
           <MoneyField
             value={balanceMagnitude}
             onChange={setBalanceMagnitude}
             currency={currency}
-            ariaLabel={isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
+            ariaLabel={isCard ? tr('Số nợ ban đầu') : tr('Số dư ban đầu')}
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
         </div>
         {isCard && (
           <Guide className="mb-2 text-sm text-fg-muted">
-            Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả
-            thẻ ghi như giao dịch bình thường. Muốn khớp lại nợ hiện tại thì mở thẻ trong
-            trang Tài sản và bấm “Điều chỉnh số nợ” — sửa ô này sẽ dịch cả lịch sử cũ.
+            {tr('Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường. Muốn khớp lại nợ hiện tại thì mở thẻ trong trang Tài sản và bấm “Điều chỉnh số nợ” — sửa ô này sẽ dịch cả lịch sử cũ.')}
           </Guide>
         )}
         {isInvestment && (
           <Guide className="mb-2 text-sm text-fg-muted">
-            Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
-            “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
+            {tr('Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.')}
           </Guide>
         )}
 
@@ -482,7 +500,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         {isInvestment && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5">
             <label htmlFor={`${uid}-shelter`} className="mb-1 block text-sm font-medium text-fg-muted">
-              Ưu đãi thuế <span className="text-fg-muted">(không bắt buộc)</span>
+              {tr('Ưu đãi thuế')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
             </label>
             <Select
               id={`${uid}-shelter`}
@@ -495,7 +513,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
                   setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
               }} wrapClassName="w-full">
-              <option value="">Tài khoản thường</option>
+              <option value="">{tr('Tài khoản thường')}</option>
               {TAX_SHELTER_LIST.map((s) => (
                 <option key={s} value={s}>
                   {TAX_SHELTER_LABELS[s]}
@@ -505,19 +523,18 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
             {taxShelter !== '' && (
               <>
                 <span className="mb-1 mt-2 block text-sm font-medium text-fg-muted">
-                  Hạn mức nạp mỗi năm
+                  {tr('Hạn mức nạp mỗi năm')}
                 </span>
                 <MoneyField
                   value={shelterLimit}
                   onChange={setShelterLimit}
                   currency={currency}
                   autoOpen={false}
-                  ariaLabel="Hạn mức nạp mỗi năm"
+                  ariaLabel={tr('Hạn mức nạp mỗi năm')}
                   className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm"
                 />
                 <Guide className="mt-1 text-2xs text-fg-muted">
-                  App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
-                  mức chưa dùng.
+                  {tr('App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn mức chưa dùng.')}
                 </Guide>
               </>
             )}
@@ -528,16 +545,16 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
         {isFixed && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5">
             <Guide className="mb-2 text-sm text-fg-muted">
-              Nhập <b>giá mua</b> ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian.
-              Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được
-              ưu tiên.
+              {trn('Nhập {price} ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian. Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được ưu tiên.', {
+                price: <b>{tr('giá mua')}</b>,
+              })}
             </Guide>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-                <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày mua</span>
+                <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ngày mua')}</span>
                 <DateField
-                  ariaLabel="Ngày mua"
+                  ariaLabel={tr('Ngày mua')}
                   value={depFrom}
                   onChange={setDepFrom}
                   className="w-full py-2"
@@ -545,7 +562,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               </div>
               <div>
                 <label htmlFor={`${uid}-depmonths`} className="mb-1 block text-sm font-medium text-fg-muted">
-                  Khấu hao (tháng)
+                  {tr('Khấu hao (tháng)')}
                 </label>
                 <input
                   id={`${uid}-depmonths`}
@@ -558,26 +575,25 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               </div>
             </div>
             <span className="mb-1 mt-2 block text-sm font-medium text-fg-muted">
-              Giá trị còn lại cuối vòng đời
+              {tr('Giá trị còn lại cuối vòng đời')}
             </span>
             <MoneyField
               value={salvage}
               onChange={setSalvage}
               currency={currency}
               autoOpen={false}
-              ariaLabel="Giá trị còn lại cuối vòng đời"
+              ariaLabel={tr('Giá trị còn lại cuối vòng đời')}
               className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm"
             />
             <Guide className="mt-1 text-2xs text-fg-muted">
-              Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.
-              Bỏ trống ngày mua hoặc số tháng = không khấu hao tự động.
+              {tr('Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính. Bỏ trống ngày mua hoặc số tháng = không khấu hao tự động.')}
             </Guide>
           </div>
         )}
 
         {currencyChanged && hasActivity && (
           <p className="mb-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
-            Tài khoản đã có giao dịch. Đổi loại tiền không tự quy đổi số tiền các giao dịch cũ.
+            {tr('Tài khoản đã có giao dịch. Đổi loại tiền không tự quy đổi số tiền các giao dịch cũ.')}
           </p>
         )}
 
@@ -589,7 +605,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               disabled={del.isPending}
               className="rounded-md px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
-              Xóa
+              {tr('Xóa')}
             </button>
           )}
           <div className="ml-auto flex gap-2">
@@ -598,7 +614,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               onClick={onClose}
               className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
-              Hủy
+              {tr('Hủy')}
             </button>
             <button
               type="button"
@@ -606,7 +622,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               disabled={!canSave}
               className={actionButtonClass('primary')}
             >
-              {saving ? 'Đang lưu…' : 'Lưu'}
+              {saving ? tr('Đang lưu…') : tr('Lưu')}
             </button>
           </div>
         </div>

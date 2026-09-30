@@ -1,4 +1,5 @@
 import { useEffect, useId } from 'react'
+import { tr } from '../../i18n'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertBetween, formatRateLine, type Rates } from '../../lib/rates'
@@ -110,8 +111,7 @@ export function DebtPickerField({
     return (
       <div className={blockCls('debt')}>
         <p className="rounded-lg bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
-          Chưa có khoản nợ nào đang mở ở chiều này. Ghi &quot;Cho vay&quot; hoặc &quot;Vay
-          được&quot; trước.
+          {tr('Chưa có khoản nợ nào đang mở ở chiều này. Ghi "Cho vay" hoặc "Vay được" trước.')}
         </p>
       </div>
     )
@@ -121,7 +121,7 @@ export function DebtPickerField({
     <div className={blockCls('debt')}>
       <div>
         <label htmlFor={`${uid}-debt`} className={labelCls}>
-          Khoản nợ nào
+          {tr('Khoản nợ nào')}
         </label>
         {/* Mỗi dòng nói CÒN LẠI bao nhiêu, không phải số gốc — người chọn cần biết
             đang trả/thu vào đâu, số gốc đã trả một phần thì không còn đúng nữa. */}
@@ -148,24 +148,27 @@ export function DebtPickerField({
           }}
           wrapClassName="w-full"
         >
-          <option value="">— chọn —</option>
+          <option value="">{tr('— chọn —')}</option>
           {open.map((d) => (
             <option key={d.id} value={d.id}>
               {d.paidOff
-                ? `${d.counterparty} · đã tất toán`
-                : `${d.counterparty} · còn ${formatMoney(d.remaining, d.currency)}`}
+                ? tr('{name} · đã tất toán', { name: d.counterparty })
+                : tr('{name} · còn {amount}', { name: d.counterparty, amount: formatMoney(d.remaining, d.currency) })}
             </option>
           ))}
         </Select>
         {picked &&
           (picked.paidOff ? (
             <p className="mt-1 text-sm text-state-warn-fg">
-              Khoản này đã tất toán — không còn gì để {direction === 'i_owe' ? 'trả' : 'thu'}.
+              {direction === 'i_owe'
+                ? tr('Khoản này đã tất toán — không còn gì để trả.')
+                : tr('Khoản này đã tất toán — không còn gì để thu.')}
             </p>
           ) : (
             <p className="mt-1 text-sm text-fg-accent">
-              {direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · còn{' '}
-              {formatMoney(picked.remaining, picked.currency)}
+              {direction === 'i_owe'
+                ? tr('Mình trả · còn {amount}', { amount: formatMoney(picked.remaining, picked.currency) })
+                : tr('Người ta trả · còn {amount}', { amount: formatMoney(picked.remaining, picked.currency) })}
             </p>
           ))}
       </div>
@@ -177,12 +180,12 @@ export function DebtPickerField({
           tự sửa về sau. */}
       {cross && picked && (
         <div>
-          <span className={labelCls}>Xoá bao nhiêu nợ ({CURRENCIES[picked.currency].label})</span>
+          <span className={labelCls}>{tr('Xoá bao nhiêu nợ ({currency})', { currency: CURRENCIES[picked.currency].label })}</span>
           <MoneyField
             value={value.debtAmount ?? 0}
             onChange={(v) => onChange({ ...value, debtAmount: v })}
             currency={picked.currency}
-            ariaLabel="Xoá bao nhiêu nợ"
+            ariaLabel={tr('Xoá bao nhiêu nợ')}
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
           {(() => {
@@ -193,7 +196,7 @@ export function DebtPickerField({
               accountCurrency,
               impliedRate(value.debtAmount ?? 0, picked.currency, amount, accountCurrency) ?? 0,
             )
-            return line ? <p className="mt-1 text-sm text-fg-muted">Tỷ giá lần này: {line}</p> : null
+            return line ? <p className="mt-1 text-sm text-fg-muted">{tr('Tỷ giá lần này: {rate}', { rate: line })}</p> : null
           })()}
         </div>
       )}
@@ -213,20 +216,20 @@ export function DebtPickerField({
       <div className="rounded-lg bg-surface/70 p-2.5">
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
-            Có chuyển tiền thật
+            {tr('Có chuyển tiền thật')}
             {/* KHÔNG bọc <Guide> — hệ quả của công tắc, không phải chữ dạy. Xem chú thích
                 dài ở roleFields.tsx, cùng một câu và cùng một lý do. */}
             <span className="block text-sm text-fg-muted">
               {direction === 'i_owe'
-                ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
-                : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
+                ? tr('Tạo giao dịch chi (trừ số dư tài khoản)')
+                : tr('Tạo giao dịch thu (cộng số dư tài khoản)')}
             </span>
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={value.withTransaction}
-            aria-label="Có chuyển tiền thật"
+            aria-label={tr('Có chuyển tiền thật')}
             onClick={() => onChange({ ...value, withTransaction: !value.withTransaction })}
             // Vùng chạm 44×44 ở nút, đường ray 24×44 ở <span> trong — cùng khuôn với các
             // công tắc khác trong app (ray đặt thẳng lên nút thì chỉ cao 24px).

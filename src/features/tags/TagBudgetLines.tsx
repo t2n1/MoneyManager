@@ -7,6 +7,7 @@
 //
 // `size` chỉ đổi MẬT ĐỘ, không đổi cách đọc: 'md' là thẻ của tab Ngân sách (thanh 8px,
 // chữ 12px), 'panel' là cột phụ 420px của 1a (thanh 6px, chữ 11px — §1.4).
+import { tagLabel, tr } from '../../i18n'
 import { Money } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
@@ -42,10 +43,10 @@ export function TagBudgetLines({ lines, base, size = 'md' }: Props) {
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${TAG_CHIP_CLASS[tagColor(l.color)]}`}
               >
-                {l.name}
+                {tagLabel(l.name)}
               </span>
               <span className="shrink-0 text-2xs text-fg-muted">
-                {l.period === 'monthly' ? 'tháng này' : 'cả đợt'}
+                {l.period === 'monthly' ? tr('tháng này') : tr('cả đợt')}
               </span>
             </span>
             <span className={`shrink-0 text-sm font-semibold ${TEXT[l.status]}`}>
@@ -77,8 +78,9 @@ export function TagBudgetLines({ lines, base, size = 'md' }: Props) {
               {formatMoney(l.budget, base)}
             </span>
             <span className={l.status === 'over' ? 'text-money-out' : ''}>
-              {l.status === 'over' ? 'vượt ' : 'còn '}
-              {formatMoney(Math.abs(Math.round(l.remaining)), base)}
+              {l.status === 'over'
+                ? tr('vượt {amount}', { amount: formatMoney(Math.abs(Math.round(l.remaining)), base) })
+                : tr('còn {amount}', { amount: formatMoney(Math.abs(Math.round(l.remaining)), base) })}
             </span>
           </div>
         </li>

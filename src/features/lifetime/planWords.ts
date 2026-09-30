@@ -19,21 +19,23 @@
 // trục; mốc chỉ cộng thêm, không bao giờ sửa nền) vẫn ở trong <Guide> như cũ — xem
 // `PhaseRowTools`, và ranh giới ghi ở `src/components/Guide.tsx`.
 
+import { tr } from '../../i18n/index.ts'
+
 /** CHẶNG ĐỜI — đặt mức NỀN của một quãng đời. */
 export const PHASE_WORDS = {
-  name: 'Chặng đời',
+  name: tr('Chặng đời'),
   /** Câu hỏi mà loại này trả lời. Cửa mẫu dùng làm tiêu đề nhóm. */
-  question: 'Từ năm này tôi sống thế nào',
+  question: tr('Từ năm này tôi sống thế nào'),
   /** Phụ đề một dòng, đứng ngay dưới tiêu đề. */
-  hint: 'thu/chi mỗi năm của quãng đời này',
+  hint: tr('thu/chi mỗi năm của quãng đời này'),
   /** Nhãn trong chú giải đồ thị — nói cả HÌNH, vì đó là việc của chú giải. */
-  legend: 'Chặng — vùng màu ở chân đồ thị',
+  legend: tr('Chặng — vùng màu ở chân đồ thị'),
 } as const
 
 /** MỐC CUỘC ĐỜI — CỘNG THÊM lên cái nền đó, và không bao giờ sửa nền. */
 export const EVENT_WORDS = {
-  name: 'Mốc cuộc đời',
-  question: 'Năm này có việc gì',
-  hint: 'một khoản riêng, cộng lên nền của chặng',
-  legend: 'Mốc — ghim phía trên đồ thị',
+  name: tr('Mốc cuộc đời'),
+  question: tr('Năm này có việc gì'),
+  hint: tr('một khoản riêng, cộng lên nền của chặng'),
+  legend: tr('Mốc — ghim phía trên đồ thị'),
 } as const

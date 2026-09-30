@@ -26,6 +26,7 @@ import { EntrySheet } from '../features/transactions/EntrySheet'
 import { useNotifications } from '../features/notifications/useNotifications'
 import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
+import { tr } from '../i18n'
 
 // Đích điều hướng + tiêu đề trang đã chuyển sang ./navItems.ts — từ bản 1a có BA chỗ
 // đọc chúng (rail desktop, thanh tab mobile, tiêu đề trên top bar) thay vì một.
@@ -109,7 +110,7 @@ export function AppLayout() {
 
   useEffect(() => {
     const hit = pageTitle(shown.pathname)
-    document.title = hit ? `${hit} — Sổ Gạo` : 'Sổ Gạo'
+    document.title = hit ? `${hit} — Sổ Gạo` : 'Sổ Gạo' // i18n-ignore — tên app
   }, [shown.pathname])
 
   useEffect(() => {
@@ -126,10 +127,10 @@ export function AppLayout() {
       .mutateAsync()
       .then(({ recurring, autopay }) => {
         const parts: string[] = []
-        if (recurring > 0) parts.push(`${recurring} giao dịch định kỳ`)
-        if (autopay > 0) parts.push(`${autopay} lần tự trả thẻ`)
+        if (recurring > 0) parts.push(tr('{n} giao dịch định kỳ', { n: recurring }))
+        if (autopay > 0) parts.push(tr('{n} lần tự trả thẻ', { n: autopay }))
         if (parts.length === 0) return
-        setRecurringToast(`Đã tạo ${parts.join(' · ')}`)
+        setRecurringToast(tr('Đã tạo {items}', { items: parts.join(' · ') }))
         toastTimer.current = setTimeout(() => setRecurringToast(null), 5000)
       })
       .catch(() => {}) // mở app không được chết vì catch-up lỗi (offline…)
@@ -281,9 +282,9 @@ export function AppLayout() {
           }`}
         >
           <div className="flex items-center gap-3 rounded-full bg-gray-900/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
-            <span>Có bản mới</span>
+            <span>{tr('Có bản mới')}</span>
             <button type="button" onClick={applyPwaUpdate} className={TOAST_BTN}>
-              Tải lại
+              {tr('Tải lại')}
             </button>
           </div>
         </div>
@@ -317,7 +318,7 @@ export function AppLayout() {
               onClick={() => runUndo()}
               className={TOAST_BTN}
             >
-              Hoàn tác
+              {tr('Hoàn tác')}
             </button>
           </div>
         </div>
@@ -334,7 +335,7 @@ export function AppLayout() {
               onClick={dismissErrorToast}
               className={TOAST_BTN}
             >
-              Đóng
+              {tr('Đóng')}
             </button>
           </div>
         </div>

@@ -5,6 +5,7 @@
 // hạn rồi" — và nó BÁM cho tới khi người dùng xác nhận đã ghi, vì không ai khác ghi
 // hộ được.
 import { billStatuses } from '../../../lib/recurring'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 export function billRules(input: NotificationInput): AppNotification[] {
@@ -18,7 +19,7 @@ export function billRules(input: NotificationInput): AppNotification[] {
     const money = input.formatMoney(rule.amount, input.currencyOf(rule.account_id))
     // Tên khoản: ghi chú của người dùng là thứ họ tự đặt nên ưu tiên. Không có thì
     // rơi về một chữ chung — chứ không để tiêu đề cụt lủn "chưa ghi ¥30.000".
-    const ten = rule.note.trim() || 'Khoản định kỳ'
+    const ten = rule.note.trim() || tr('Khoản định kỳ')
 
     out.push({
       // dueISO trong mã: xác nhận xong kỳ này thì kỳ sau là một tin MỚI, không bị
@@ -31,10 +32,10 @@ export function billRules(input: NotificationInput): AppNotification[] {
       severity: b.daysLeft < 0 ? 'high' : b.daysLeft === 0 ? 'medium' : 'low',
       title:
         b.daysLeft < 0
-          ? `Chưa ghi "${ten}" ${money}`
+          ? tr('Chưa ghi "{name}" {amount}', { name: ten, amount: money })
           : b.daysLeft === 0
-            ? `Hôm nay tới hạn "${ten}" ${money}`
-            : `${b.daysLeft} ngày nữa tới hạn "${ten}" ${money}`,
+            ? tr('Hôm nay tới hạn "{name}" {amount}', { name: ten, amount: money })
+            : tr('{n} ngày nữa tới hạn "{name}" {amount}', { n: b.daysLeft, name: ten, amount: money }),
       detail: detailOf(b.daysLeft, b.overdueCount),
       onISO: b.dueISO,
       // Mở thẳng form đã điền sẵn theo quy tắc + đúng kỳ đang nợ. Dẫn về danh sách
@@ -48,8 +49,8 @@ export function billRules(input: NotificationInput): AppNotification[] {
 
 /** Câu phụ: nói rõ đang nợ mấy kỳ, vì "quá hạn 92 ngày" và "lỡ 4 lần" khác nhau. */
 function detailOf(daysLeft: number, overdueCount: number): string {
-  if (daysLeft > 0) return 'Ghi trước cũng được — bấm để mở form đã điền sẵn.'
-  if (overdueCount > 1) return `Đang nợ ${overdueCount} kỳ chưa ghi. Bấm để ghi kỳ cũ nhất.`
-  if (daysLeft === 0) return 'Bấm để mở form đã điền sẵn, sửa số tiền rồi lưu.'
-  return `Quá hạn ${-daysLeft} ngày. Bấm để mở form đã điền sẵn.`
+  if (daysLeft > 0) return tr('Ghi trước cũng được — bấm để mở form đã điền sẵn.')
+  if (overdueCount > 1) return tr('Đang nợ {n} kỳ chưa ghi. Bấm để ghi kỳ cũ nhất.', { n: overdueCount })
+  if (daysLeft === 0) return tr('Bấm để mở form đã điền sẵn, sửa số tiền rồi lưu.')
+  return tr('Quá hạn {n} ngày. Bấm để mở form đã điền sẵn.', { n: -daysLeft })
 }

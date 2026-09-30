@@ -10,9 +10,10 @@
 // Cấp 4 mịn hơn (Thép / Ngân hàng / Bán lẻ tổng hợp / Dịch vụ đầu tư) nhưng chẻ donut ra
 // quá vụn khi danh mục đông mã; cấp 1 thì gộp MBB với VND vào chung "Tài chính", tức xoá
 // mất đúng cái khác biệt mà người xem cần thấy.
+import { tr } from '../../i18n'
 
 /** Nhãn cho mã chưa tra được ngành. Là một NHÃN, không phải một ngành. */
-export const CHUA_RO = 'Chưa rõ'
+export const CHUA_RO = tr('Chưa rõ')
 
 /**
  * Ưu tiên cấp 3, thiếu thì lấy cấp CỤ THỂ NHẤT còn lại.

@@ -15,6 +15,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { AssetsNowView } from './AssetsNowView'
 import { ASSETS_RANGES, rangeSpan, spanLabel, type AssetsRange } from './assetsRange'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
+import { tr } from '../../i18n'
 
 // Màn "Diễn biến" ít mở hơn màn mặc định → lazy để mở trang Tài sản không phải tải nó.
 const AssetsTrendView = lazy(() =>
@@ -42,8 +43,8 @@ const AssetsTrendView = lazy(() =>
 type AssetsMode = 'today' | 'trend'
 
 const MODE_TABS: readonly SegmentedItem<AssetsMode>[] = [
-  { value: 'today', label: 'Hôm nay' },
-  { value: 'trend', label: 'Theo thời gian' },
+  { value: 'today', label: tr('Hôm nay') },
+  { value: 'trend', label: tr('Theo thời gian') },
 ]
 
 const RANGE_TABS: readonly SegmentedItem<AssetsRange>[] = ASSETS_RANGES.map((r) => ({
@@ -64,7 +65,7 @@ export function migrateAssetsMode(raw: string | null): AssetsMode {
   return raw === 'trend' ? 'trend' : 'today'
 }
 
-const Loading = () => <EmptyState>Đang tải…</EmptyState>
+const Loading = () => <EmptyState>{tr('Đang tải…')}</EmptyState>
 
 export function AssetsPage() {
   // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT hợp của hai tab (useInvestData cho
@@ -115,7 +116,7 @@ export function AssetsPage() {
           xuống thành ba dòng lộn xộn. Ở lg tiêu đề tự thành sr-only (top bar đã mang tên
           màn) nên hàng này KHÔNG tốn thêm chiều cao ở desktop — đúng cái mà lời ghi cũ
           ("88px cho một chữ Tài sản") lo. `flex-wrap` vẫn lo phần dưới lg. */}
-      <PageHeader title="Tài sản" flush />
+      <PageHeader title={tr('Tài sản')} flush />
       <div className="flex flex-wrap items-center gap-2">
 
         {/* Chỉ còn MỘT trục kể từ khi Tương lai tách trang riêng (2026-09-09): xem cái gì
@@ -125,7 +126,7 @@ export function AssetsPage() {
           items={MODE_TABS}
           value={mode}
           onChange={setMode}
-          label="Cách xem"
+          label={tr('Cách xem')}
           stretch={false}
           size="sm"
         />
@@ -136,7 +137,7 @@ export function AssetsPage() {
               items={RANGE_TABS}
               value={range}
               onChange={setRange}
-              label="Khoảng thời gian"
+              label={tr('Khoảng thời gian')}
               stretch={false}
               size="sm"
             />
@@ -170,7 +171,7 @@ export function AssetsPage() {
           {/* Danh mục đầu tư là trang riêng, không phải tab con: nó gộp MỌI tài khoản đầu
               tư (cổ phiếu VN và quỹ Nhật) nên không thuộc về chế độ nào hơn chế độ nào. */}
           {hasPortfolio && (
-            <Link to="/invest" className={iconButtonClass()} aria-label="Danh mục đầu tư">
+            <Link to="/invest" className={iconButtonClass()} aria-label={tr('Danh mục đầu tư')}>
               <LineChart className="h-5 w-5" />
             </Link>
           )}
@@ -179,7 +180,7 @@ export function AssetsPage() {
             to="/settings/asset-groups"
             className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
           >
-            <Settings2 className="h-4 w-4" /> Quản lý nhóm
+            <Settings2 className="h-4 w-4" /> {tr('Quản lý nhóm')}
           </Link>
         </div>
       </div>

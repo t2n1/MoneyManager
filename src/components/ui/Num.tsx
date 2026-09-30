@@ -11,6 +11,7 @@
 // hyphen trong dãy mono thì ngắn hơn dấu cộng nên hai dòng liền nhau đọc ra lệch nhau.
 
 import type { ReactNode } from 'react'
+import { decimalSep } from '../../i18n'
 
 export type NumTone = 'neutral' | 'muted' | 'in' | 'out' | 'warn' | 'onAccent'
 
@@ -57,7 +58,7 @@ export function signedPct(pct: number | null): string {
   if (pct === null) return '—'
   if (pct === 0) return '±0%'
   const abs = Math.abs(pct)
-  const body = Number.isInteger(abs) ? String(abs) : String(abs).replace('.', ',')
+  const body = Number.isInteger(abs) ? String(abs) : String(abs).replace('.', decimalSep())
   return `${pct > 0 ? '+' : '−'}${body}%`
 }
 

@@ -1,6 +1,7 @@
 // Luật ngân sách (mục 5, 6, 7 của spec) — THUẦN.
 // Chu kỳ tháng theo month_start_day, KHÔNG phải ngày 1 dương lịch.
 import { daysBetween, getMonthRange, monthKeyForDate } from '../../../lib/dates'
+import { categoryLabel, tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Tiêu vượt nhịp bao nhiêu điểm phần trăm thì báo. */
@@ -29,7 +30,7 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
 
   const out: AppNotification[] = []
   const nameOf = (id: string) =>
-    input.categories.find((c) => c.id === id)?.name ?? 'Danh mục đã xóa'
+    categoryLabel(input.categories.find((c) => c.id === id)?.name ?? '') || tr('Danh mục đã xóa')
 
   // Tỷ lệ ngày đã qua trong kỳ hiện tại.
   const monthKey = monthKeyForDate(input.todayISO, input.monthStartDay)
@@ -64,20 +65,25 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
     // đã có mục 6 (tiêu nhanh hơn nhịp) lo, câu chữ hữu ích hơn.
     if (l.spent > l.budgeted) {
       const over = input.formatMoney(l.spent - l.budgeted, input.base)
-      const usage = `Đã tiêu ${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)}`
+      const usage = tr('Đã tiêu {spent} / {budget}', {
+        spent: input.formatMoney(l.spent, input.base),
+        budget: input.formatMoney(l.budgeted, input.base),
+      })
 
       if (children.length > 0) {
         // Nêu tối đa 2 mục con tiêu nhiều nhất — thứ duy nhất mục 7 nói thêm được so với
         // mục 5. Không con nào tiêu (chi gán trực tiếp vào cha) → bỏ hẳn phần "chủ yếu do".
         const topChildren = children
-          .map((c) => ({ name: c.name, spent: report.spentByCategory.get(c.id) ?? 0 }))
+          .map((c) => ({ name: categoryLabel(c.name), spent: report.spentByCategory.get(c.id) ?? 0 }))
           .filter((c) => c.spent > 0)
           .sort((a, b) => b.spent - a.spent)
           .slice(0, 2)
         const blame =
-          topChildren.length > 0
-            ? ` — chủ yếu do ${topChildren.map((c) => c.name).join(' và ')}`
-            : ''
+          topChildren.length > 1
+            ? tr(' — chủ yếu do {a} và {b}', { a: topChildren[0].name, b: topChildren[1].name })
+            : topChildren.length > 0
+              ? tr(' — chủ yếu do {a}', { a: topChildren[0].name })
+              : ''
         out.push({
           key: `budget-parent-over:${l.categoryId}`,
           kind: 'action',
@@ -86,7 +92,7 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
           // Hai nhánh này LOẠI TRỪ NHAU cho cùng một dòng ngân sách, nên chúng phải
           // cùng mức: để lệch là cùng một sự việc lúc đỏ lúc vàng tuỳ mục có con hay không.
           severity: 'medium',
-          title: `Nhóm ${nameOf(l.categoryId)} vượt trần ${over}${blame}`,
+          title: tr('Nhóm {name} vượt trần {amount}{blame}', { name: nameOf(l.categoryId), amount: over, blame }),
           detail: usage,
           to: BUDGET_ROUTE,
         })
@@ -103,7 +109,7 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
           // nhịp, mức 'medium') — dòng DUY NHẤT của nhóm ngân sách đến lúc còn ghìm
           // lại được — luôn bị đẩy xuống dưới chính cái dòng nói rằng đã quá muộn.
           severity: 'medium',
-          title: `${nameOf(l.categoryId)} đã vượt ngân sách ${over}`,
+          title: tr('{name} đã vượt ngân sách {amount}', { name: nameOf(l.categoryId), amount: over }),
           detail: usage,
           to: BUDGET_ROUTE,
         })
@@ -127,8 +133,16 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
       severity: 'medium',
       // Gọi tên y như nhánh "đã vượt" ở trên: cùng một danh mục mà lúc thì "Nhóm Sinh
       // hoạt", lúc thì "Sinh hoạt" thì người dùng tưởng là hai chỗ khác nhau.
-      title: `${children.length > 0 ? 'Nhóm ' : ''}${nameOf(l.categoryId)} tiêu nhanh hơn nhịp`,
-      detail: `Mới qua ${Math.round(elapsed * 100)}% tháng đã dùng ${Math.round(spentRatio * 100)}% hạn mức (${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)})`,
+      title:
+        children.length > 0
+          ? tr('Nhóm {name} tiêu nhanh hơn nhịp', { name: nameOf(l.categoryId) })
+          : tr('{name} tiêu nhanh hơn nhịp', { name: nameOf(l.categoryId) }),
+      detail: tr('Mới qua {elapsed}% tháng đã dùng {used}% hạn mức ({spent} / {budget})', {
+        elapsed: Math.round(elapsed * 100),
+        used: Math.round(spentRatio * 100),
+        spent: input.formatMoney(l.spent, input.base),
+        budget: input.formatMoney(l.budgeted, input.base),
+      }),
       to: BUDGET_ROUTE,
     })
   }

@@ -9,6 +9,7 @@
 import { isDemoMode } from '../lib/demo'
 import { useDataFreshness } from '../hooks/useDataFreshness'
 import { DataFreshness } from './DataFreshness'
+import { tr } from '../i18n'
 
 export function AppFooter() {
   const freshness = useDataFreshness()
@@ -28,7 +29,7 @@ export function AppFooter() {
           đúng ở mọi trang. */}
       {isDemoMode && (
         <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-1.5 text-state-warn-fg">
-          Chế độ demo — dữ liệu chỉ lưu trên trình duyệt này
+          {tr('Chế độ demo — dữ liệu chỉ lưu trên trình duyệt này')}
         </p>
       )}
       {/* Ẩn từ xl trở lên: ở đó top bar đã in dòng này ngay trên đầu màn, hai bản cùng

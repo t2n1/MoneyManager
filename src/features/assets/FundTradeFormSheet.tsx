@@ -22,11 +22,12 @@ import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../.
 import type { AccountRow, FundTradeKind, FundTradeRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { fundLineValue } from './fundHoldings'
+import { accountLabel, tr } from '../../i18n'
 
 const KINDS = [
-  { value: 'buy' as const, label: 'Mua' },
-  { value: 'sell' as const, label: 'Bán' },
-  { value: 'adjust' as const, label: 'Điều chỉnh' },
+  { value: 'buy' as const, label: tr('Mua') },
+  { value: 'sell' as const, label: tr('Bán') },
+  { value: 'adjust' as const, label: tr('Điều chỉnh') },
 ]
 
 interface Props {
@@ -89,11 +90,11 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
   // Nói MỘT thứ thiếu mỗi lần, theo thứ tự mắt đọc form — cùng quy ước với entryGate()
   // của trang Nhập, chỉ khác là quỹ này không có state chung nên viết thẳng ở đây.
   const missing = ((): string | null => {
-    if (!assocFundCd) return 'Còn thiếu: chọn quỹ.'
-    if (isAdjust) return units === 0 ? 'Còn thiếu: số 口数 (khác 0).' : null
-    if (!(units > 0)) return 'Còn thiếu: số 口数.'
-    if (!(nav > 0)) return 'Còn thiếu: 基準価額.'
-    if (!(effAmount > 0)) return 'Còn thiếu: số tiền.'
+    if (!assocFundCd) return tr('Còn thiếu: chọn quỹ.')
+    if (isAdjust) return units === 0 ? tr('Còn thiếu: số 口数 (khác 0).') : null
+    if (!(units > 0)) return tr('Còn thiếu: số 口数.')
+    if (!(nav > 0)) return tr('Còn thiếu: 基準価額.')
+    if (!(effAmount > 0)) return tr('Còn thiếu: số tiền.')
     return null
   })()
   const canSave = missing === null && !saving
@@ -126,9 +127,12 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
     if (!trade) return
     if (
       !(await confirmDialog({
-        title: `Xóa lệnh ${fundName.get(trade.assoc_fund_cd) ?? trade.assoc_fund_cd} ngày ${formatDateLabel(trade.traded_on)}?`,
+        title: tr('Xóa lệnh {fund} ngày {date}?', {
+          fund: fundName.get(trade.assoc_fund_cd) ?? trade.assoc_fund_cd,
+          date: formatDateLabel(trade.traded_on),
+        }),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
@@ -151,24 +155,24 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-1">
-          {trade ? 'Sửa lệnh' : 'Ghi lệnh'}
+          {trade ? tr('Sửa lệnh') : tr('Ghi lệnh')}
         </SectionTitle>
-        <p className="mb-3 text-sm text-fg-muted">{account.name}</p>
+        <p className="mb-3 text-sm text-fg-muted">{accountLabel(account.name)}</p>
 
         <div className="mb-3">
-          <SegmentedControl items={KINDS} value={kind} onChange={setKind} label="Loại lệnh" />
+          <SegmentedControl items={KINDS} value={kind} onChange={setKind} label={tr('Loại lệnh')} />
         </div>
 
         {isAdjust && (
           <Guide className="mb-3 rounded-lg bg-surface-page px-2.5 py-2 text-2xs text-fg-muted">
-            Dùng khi được chia thêm 口 mà không tốn tiền (分配金再投資) hoặc sửa lại 口数
-            cho khớp sao kê. Số 口 tăng mà giá vốn không đổi nên 取得単価 tự giảm. Gộp 口
-            thì nhập số âm.
+            {tr(
+              'Dùng khi được chia thêm 口 mà không tốn tiền (分配金再投資) hoặc sửa lại 口数 cho khớp sao kê. Số 口 tăng mà giá vốn không đổi nên 取得単価 tự giảm. Gộp 口 thì nhập số âm.',
+            )}
           </Guide>
         )}
 
         <label htmlFor={`${uid}-fund`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Quỹ
+          {tr('Quỹ')}
         </label>
         <Select
           id={`${uid}-fund`}
@@ -177,11 +181,11 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           wrapClassName="mb-3 w-full"
         >
           <option value="" disabled>
-            Chọn quỹ…
+            {tr('Chọn quỹ…')}
           </option>
           {fundKhongCon && (
             <option value={assocFundCd} disabled>
-              {assocFundCd} (quỹ này không còn trong danh sách — chọn quỹ khác để đổi)
+              {tr('{code} (quỹ này không còn trong danh sách — chọn quỹ khác để đổi)', { code: assocFundCd })}
             </option>
           )}
           {funds.map((f) => (
@@ -192,9 +196,9 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         </Select>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày khớp (約定日)</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ngày khớp (約定日)')}</span>
         <DateField
-          ariaLabel="Ngày khớp (約定日)"
+          ariaLabel={tr('Ngày khớp (約定日)')}
           value={tradedOn}
           max={toISODate(new Date())}
           onChange={setTradedOn}
@@ -202,13 +206,13 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         />
 
         <label htmlFor={`${uid}-units`} className="mb-1 block text-sm font-medium text-fg-muted">
-          口数 (số đơn vị quỹ){' '}
-          {isAdjust && <span className="text-fg-muted">(âm = giảm 口 do gộp/điều chỉnh)</span>}
+          {tr('口数 (số đơn vị quỹ)')}{' '}
+          {isAdjust && <span className="text-fg-muted">{tr('(âm = giảm 口 do gộp/điều chỉnh)')}</span>}
         </label>
         {/* 口 là chữ Nhật trên sao kê, người dùng Việt không đọc được — giải thích ngay ở ô
             nhập đầu tiên gặp nó, không giấu trong Guide (Guide tắt được). */}
         <p id={`${uid}-units-hint`} className="mb-1 text-2xs text-fg-muted">
-          口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Chép đúng cột 口数 trên sao kê.
+          {tr('口 = đơn vị chứng chỉ quỹ (số phần bạn đang giữ). Chép đúng cột 口数 trên sao kê.')}
         </p>
         <input
           id={`${uid}-units`}
@@ -238,9 +242,9 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
             </div>
 
             <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-sm font-medium text-fg-muted">Số tiền</span>
+              <span className="text-sm font-medium text-fg-muted">{tr('Số tiền')}</span>
               {!amountTouched && suggestedAmount > 0 && (
-                <span className="text-2xs text-fg-muted">gợi ý theo 口数 × 基準価額</span>
+                <span className="text-2xs text-fg-muted">{tr('gợi ý theo 口数 × 基準価額')}</span>
               )}
             </div>
             <div className="mb-1">
@@ -252,31 +256,31 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
                 }}
                 currency={currency}
                 autoOpen={false}
-                ariaLabel="Số tiền"
+                ariaLabel={tr('Số tiền')}
                 className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
               />
             </div>
             <Guide className="mb-3 text-2xs text-fg-muted">
-              Gợi ý tính từ 口数 × 基準価額 ÷ 10.000. Sao kê Rakuten thường lệch vài yên do
-              làm tròn — cứ sửa cho khớp số thật, app lấy số bạn nhập làm giá vốn.
+              {tr(
+                'Gợi ý tính từ 口数 × 基準価額 ÷ 10.000. Sao kê Rakuten thường lệch vài yên do làm tròn — cứ sửa cho khớp số thật, app lấy số bạn nhập làm giá vốn.',
+              )}
             </Guide>
           </>
         )}
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
+          {tr('Ghi chú')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
         </label>
         <input
           id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: 分配金再投資"
+          placeholder={tr('Ví dụ: 分配金再投資')}
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
         <Guide className="mb-3 text-sm text-fg-muted">
-          Lệnh không tạo giao dịch thu/chi và không đổi số dư — nó chỉ nói tiền trong tài
-          khoản đang nằm ở quỹ nào.
+          {tr('Lệnh không tạo giao dịch thu/chi và không đổi số dư — nó chỉ nói tiền trong tài khoản đang nằm ở quỹ nào.')}
         </Guide>
 
         {missing && !saving && (
@@ -291,7 +295,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
               disabled={saving}
               className={actionButtonClass('danger', 'mr-auto')}
             >
-              Xóa
+              {tr('Xóa')}
             </button>
           )}
           <button
@@ -299,10 +303,10 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <ActionButton variant="primary" onClick={handleSubmit} disabled={!canSave}>
-            {saving ? 'Đang lưu…' : 'Lưu'}
+            {saving ? tr('Đang lưu…') : tr('Lưu')}
           </ActionButton>
         </div>
       </div>

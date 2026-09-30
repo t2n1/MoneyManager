@@ -32,6 +32,7 @@ import type { CurrencyCode } from '../../lib/currencies'
 import { toISODate } from '../../lib/dates'
 import { usePrivacyMode } from '../../lib/privacy'
 import { ghiChuTu, laLoi, type KetQuaTra, type LoiTra } from './traSoKetQua'
+import { tr } from '../../i18n'
 
 /**
  * Link nguồn — chỉ biến thành `<a>` khi đúng `https://`.
@@ -97,37 +98,37 @@ export function TraSoSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Tra số cho mốc"
+        aria-label={tr('Tra số cho mốc')}
         className="max-h-[92vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {canhBaoRiengTu && (
           <p className="mb-3 rounded-md bg-surface-sunken p-2 text-sm text-fg-secondary">
-            Đây là mốc bạn tự đặt tên, nên tên mốc sẽ được gửi ra ngoài. Đừng gõ chuyện riêng.
+            {tr('Đây là mốc bạn tự đặt tên, nên tên mốc sẽ được gửi ra ngoài. Đừng gõ chuyện riêng.')}
           </p>
         )}
 
         {choXacNhan ? (
           <div className="py-2">
             <p className="text-sm text-fg-secondary">
-              Chưa có gì được gửi đi. Bấm "Gửi câu hỏi" nếu bạn đồng ý.
+              {tr('Chưa có gì được gửi đi. Bấm "Gửi câu hỏi" nếu bạn đồng ý.')}
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <ActionButton onClick={onDong}>Thôi</ActionButton>
+              <ActionButton onClick={onDong}>{tr('Thôi')}</ActionButton>
               <ActionButton variant="primary" onClick={onXacNhan}>
-                Gửi câu hỏi
+                {tr('Gửi câu hỏi')}
               </ActionButton>
             </div>
           </div>
         ) : (
           <>
-            {dangChay && <p className="py-6 text-center text-sm text-fg-secondary">Đang tra…</p>}
+            {dangChay && <p className="py-6 text-center text-sm text-fg-secondary">{tr('Đang tra…')}</p>}
 
             {!dangChay && ketQua !== null && laLoi(ketQua) && (
               <div className="py-2">
-                <p className="text-sm font-medium text-fg-primary">Không lấy được số</p>
+                <p className="text-sm font-medium text-fg-primary">{tr('Không lấy được số')}</p>
                 <p className="mt-1 text-sm text-fg-secondary">{ketQua.noiDung}</p>
-                <p className="mt-3 text-sm text-fg-secondary">Số bạn đang có giữ nguyên.</p>
+                <p className="mt-3 text-sm text-fg-secondary">{tr('Số bạn đang có giữ nguyên.')}</p>
               </div>
             )}
 
@@ -147,26 +148,28 @@ export function TraSoSheet({
                     người dùng "kiểm nguồn kỹ hơn" thì phải đưa được cái link ra trước khi
                     họ chọn, chứ không phải sau. */}
                 <p className="mt-3 text-sm text-fg-secondary">
-                  Nguồn: {ketQua.nguon.ten}
-                  {ketQua.nguon.nam !== null && ` ${ketQua.nguon.nam}`}
+                  {tr('Nguồn: {source}{year}', {
+                    source: ketQua.nguon.ten,
+                    year: ketQua.nguon.nam !== null ? ` ${ketQua.nguon.nam}` : '',
+                  })}
                 </p>
                 <p className="mt-1 break-all text-2xs text-fg-muted">
                   <LinkNguon url={ketQua.nguon.url} />
                 </p>
-                <p className="mt-1 text-2xs text-fg-muted">Ngày tra: {toISODate(ngayTra)}</p>
+                <p className="mt-1 text-2xs text-fg-muted">{tr('Ngày tra: {date}', { date: toISODate(ngayTra) })}</p>
 
                 {dangCheSo && (
                   <p className="mt-3 text-sm text-fg-secondary">
-                    Đang bật chế độ riêng tư nên ba mức bị che. Bật lại số để chọn.
+                    {tr('Đang bật chế độ riêng tư nên ba mức bị che. Bật lại số để chọn.')}
                   </p>
                 )}
 
                 <div className="mt-3 space-y-1">
                   {(
                     [
-                      ['Thấp', ketQua.thapMinor],
-                      ['Giữa', ketQua.giuaMinor],
-                      ['Cao', ketQua.caoMinor],
+                      [tr('Thấp'), ketQua.thapMinor],
+                      [tr('Giữa'), ketQua.giuaMinor],
+                      [tr('Cao'), ketQua.caoMinor],
                     ] as const
                   ).map(([ten, minor]) => (
                     <button
@@ -184,7 +187,7 @@ export function TraSoSheet({
             )}
 
             <div className="mt-4 flex justify-end">
-              <ActionButton onClick={onDong}>Bỏ qua</ActionButton>
+              <ActionButton onClick={onDong}>{tr('Bỏ qua')}</ActionButton>
             </div>
           </>
         )}

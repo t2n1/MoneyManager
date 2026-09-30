@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 import { Guide } from '../../components/Guide'
 import {
   ChevronDown,
@@ -100,9 +102,9 @@ import { NguoiThanSheet } from '../../components/NguoiThanSheet'
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 /** Ba lựa chọn "ai chi". Nhãn ngắn vì chúng đứng thành hàng ba trên màn 375px. */
 const OWNER_OPTIONS: { value: TxOwner; label: string }[] = [
-  { value: 'mine', label: 'Mình' },
-  { value: 'partner', label: 'Người ấy' },
-  { value: 'shared', label: 'Chung' },
+  { value: 'mine', label: tr('Mình') },
+  { value: 'partner', label: tr('Người ấy') },
+  { value: 'shared', label: tr('Chung') },
 ]
 
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -492,7 +494,7 @@ export function TransactionForm({
   // Chuỗi "3 giờ trước" — đọc qua cửa duy nhất (xem import ở trên), không tính lại.
   const ratesFreshness = useRatesFreshness()
   const remitRateAge = remitLike
-    ? ratesFreshness?.details.find((d) => d.label === 'Tỷ giá')?.age ?? null
+    ? ratesFreshness?.details.find((d) => d.source === 'rates')?.age ?? null
     : null
 
   // Dải 12 tháng gửi về VN — CÙNG bước filter/convert/bucket với khối "Gửi về VN" ở tab
@@ -762,7 +764,7 @@ export function TransactionForm({
     const othersShare = convertToBase(splitVal.others, srcCurrency, base, rates ?? {})
     if (add === null || othersShare === null) return null
     return categoryAlert({
-      categoryName: owner?.name ?? null,
+      categoryName: owner ? categoryLabel(owner.name) : null,
       currency: base,
       cap: line.budgeted,
       spent: line.spent,
@@ -835,7 +837,7 @@ export function TransactionForm({
   const canSave = gate.canSave && !saving
   const missing = saving ? null : gate.missing
   /** Họ câu ngắn "Còn thiếu: <field>." — hiển thị `sr-only`, xem chỗ render. */
-  const shortMissing = missing?.startsWith('Còn thiếu: ') ?? false
+  const shortMissing = missing?.startsWith(tr('Còn thiếu: ')) ?? false
   /**
    * Nhãn nút chính là MỘT TỪ, không nội suy gì vào.
    *
@@ -852,7 +854,7 @@ export function TransactionForm({
    * Form SỬA và bản điền sẵn khoản đến hạn giữ nhãn của người gọi ("Cập nhật" / "Ghi và
    * đánh dấu đã chi"): ở đó nút không ghi một khoản mới.
    */
-  const saveLabel = !plannedMode && initial ? submitLabel : 'Lưu'
+  const saveLabel = !plannedMode && initial ? submitLabel : tr('Lưu')
 
   /**
    * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / Sẽ chi).
@@ -862,8 +864,8 @@ export function TransactionForm({
    */
   const emptyGridNote =
     type === 'income'
-      ? 'Chưa có danh mục Thu nào để chọn.'
-      : 'Chưa có danh mục Chi nào để chọn.'
+      ? tr('Chưa có danh mục Thu nào để chọn.')
+      : tr('Chưa có danh mục Chi nào để chọn.')
   /**
    * Nhãn và cờ "hoàn tiền" giờ ĐỀU đi theo được cả ba đường ghi:
    *  - giao dịch: cột trên transactions
@@ -872,7 +874,7 @@ export function TransactionForm({
    *    đây (chưa chi thì chưa có gì để hoàn) nên ô đó vẫn ẩn khi bật "Sẽ chi".
    */
   const refundDropped = plannedMode
-  const refundNote = 'Khoản sắp chi không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
+  const refundNote = tr('Khoản sắp chi không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).')
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -889,20 +891,20 @@ export function TransactionForm({
     if (!canSaveTemplate) {
       showToast(
         type === 'transfer'
-          ? 'Chuyển khoản không lưu ra mẫu được — mẫu nhanh chỉ chở số tiền + danh mục.'
+          ? tr('Chuyển khoản không lưu ra mẫu được — mẫu nhanh chỉ chở số tiền + danh mục.')
           : amount <= 0
-            ? 'Nhập số tiền trước rồi mới lưu được mẫu.'
-            : 'Chọn danh mục trước rồi mới lưu được mẫu.',
+            ? tr('Nhập số tiền trước rồi mới lưu được mẫu.')
+            : tr('Chọn danh mục trước rồi mới lưu được mẫu.'),
       )
       return
     }
-    const suggested = selectedCat?.name ?? note.trim()
+    const suggested = selectedCat ? categoryLabel(selectedCat.name) : note.trim()
     const label = (
       await promptDialog({
-        title: 'Đặt tên mẫu',
-        placeholder: 'vd "Ăn trưa", "Vé tàu"',
+        title: tr('Đặt tên mẫu'),
+        placeholder: tr('vd "Ăn trưa", "Vé tàu"'),
         defaultValue: suggested,
-        confirmLabel: 'Lưu mẫu',
+        confirmLabel: tr('Lưu mẫu'),
       })
     )?.trim()
     if (!label) return
@@ -1065,7 +1067,7 @@ export function TransactionForm({
             setRemitVal({ ...initialRemit(), recipientId: lastRecipientId })
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+        setError(e instanceof Error ? e.message : tr('Lưu thất bại, thử lại.'))
       } finally {
         setPending(null)
       }
@@ -1109,7 +1111,7 @@ export function TransactionForm({
           setPayOverConfirm(null)
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+        setError(e instanceof Error ? e.message : tr('Lưu thất bại, thử lại.'))
       } finally {
         setPending(null)
       }
@@ -1164,7 +1166,7 @@ export function TransactionForm({
       }
       if (keepGoing) clearForNextEntry()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+      setError(e instanceof Error ? e.message : tr('Lưu thất bại, thử lại.'))
     } finally {
       setPending(null)
     }
@@ -1215,7 +1217,7 @@ export function TransactionForm({
         <button
           type="button"
           onClick={() => setActiveField(field)}
-          aria-label={`${label ?? 'Số tiền'}: ${mobileText}`}
+          aria-label={`${label ?? tr('Số tiền')}: ${mobileText}`}
           // 30px mono/600 canh phải (§4.6). rem chứ không px: Cài đặt → Cỡ chữ chỉ co
           // giãn được cái tính theo rem. Ô nhập của 1a là `--surface` + viền control,
           // bán kính 8px, KHÔNG bóng.
@@ -1257,7 +1259,7 @@ export function TransactionForm({
             2026-07-30; bản copy trong file này bị bỏ sót. Không ghép giá trị vào tên như
             nút chạm: giá trị đã nằm trong `value`, ghép nữa thì đọc hai lần. */}
         <input
-          aria-label={label ?? 'Số tiền'}
+          aria-label={label ?? tr('Số tiền')}
           inputMode="numeric"
           // Ô tiền CHÍNH tự nhận tiêu điểm khi mở màn (desktop). Không có nó thì ô 30px
           // ngay đầu màn đứng trống, không con trỏ nháy, không viền sáng — đọc thành một
@@ -1345,7 +1347,7 @@ export function TransactionForm({
                 <button
                   type="button"
                   onClick={() => deleteQuickTemplate(t.id)}
-                  aria-label={`Xóa mẫu ${t.label}`}
+                  aria-label={tr('Xóa mẫu {name}', { name: t.label })}
                   className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 after:absolute after:-inset-2 hover:text-money-out dark:text-gray-600"
                 >
                   <X className="h-3 w-3" />
@@ -1369,7 +1371,7 @@ export function TransactionForm({
           items={PLAIN_KINDS.map((k) => ({ value: k, label: DIRECTION_LABEL[directionOf(k)] }))}
           value={kind}
           onChange={switchKind}
-          label="Hướng tiền"
+          label={tr('Hướng tiền')}
         />
       )}
       {/* Form SỬA không có DirectionTabs nên dòng mô tả hướng phải in ở đây. */}
@@ -1387,7 +1389,7 @@ export function TransactionForm({
       {!initial && onSubmitPlanned && kind === 'spend' && (
         <SegmentedControl
           size="lg"
-          label="Khoản này đã xảy ra chưa"
+          label={tr('Khoản này đã xảy ra chưa')}
           value={plannedMode ? 'future' : 'done'}
           onChange={(v) => {
             setWantsPlanned(v === 'future')
@@ -1417,9 +1419,9 @@ export function TransactionForm({
               trần ngân sách, không đụng tới bất kỳ con số Báo cáo nào của kỳ này. */}
           <div className="mb-1.5 flex items-center gap-2 px-1">
             <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-sm font-semibold text-state-warn-fg">
-              chưa xảy ra
+              {tr('chưa xảy ra')}
             </span>
-            <span className="text-sm text-fg-muted">Chưa trừ tiền, chưa vào trần.</span>
+            <span className="text-sm text-fg-muted">{tr('Chưa trừ tiền, chưa vào trần.')}</span>
           </div>
           <PlannedFields
             value={plannedDraft}
@@ -1449,7 +1451,7 @@ export function TransactionForm({
               <Select
                 value={owedCurrency}
                 onChange={(e) => setOwedCurrency(e.target.value as CurrencyCode)}
-                aria-label="Loại tiền của khoản nợ" wrapClassName="w-24 shrink-0">
+                aria-label={tr('Loại tiền của khoản nợ')} wrapClassName="w-24 shrink-0">
                 {Object.keys(CURRENCIES).map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -1461,7 +1463,7 @@ export function TransactionForm({
             <>
               {amountBox('main', digits, srcCurrency, setDigits, shape.amountLabel)}
               {crossCurrency &&
-                amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
+                amountBox('to', toDigits, dstCurrency, setToDigits, tr('Nhận được ({currency})', { currency: dstCurrency }))}
             </>
           )}
 
@@ -1487,7 +1489,7 @@ export function TransactionForm({
                   value={effectiveAccountId}
                   onChange={setAccountId}
                   excludeId={toAccountId}
-                  ariaLabel="Từ tài khoản"
+                  ariaLabel={tr('Từ tài khoản')}
                   className="min-w-[7rem] flex-1"
                 />
                 <span aria-hidden className="shrink-0 text-fg-muted">
@@ -1498,7 +1500,7 @@ export function TransactionForm({
                   value={toAccountId}
                   onChange={setToAccountId}
                   excludeId={effectiveAccountId}
-                  ariaLabel="Đến tài khoản"
+                  ariaLabel={tr('Đến tài khoản')}
                   className="min-w-[7rem] flex-1"
                 />
               </>
@@ -1507,7 +1509,7 @@ export function TransactionForm({
                 accounts={pickerAccounts}
                 value={effectiveAccountId}
                 onChange={setAccountId}
-                ariaLabel="Tài khoản"
+                ariaLabel={tr('Tài khoản')}
                 // `min-w-[7rem]` như hai picker của chuyển khoản ngay trên, KHÔNG phải
                 // `min-w-0`: hàng này có ô ngày rộng 7.5rem cố định, nên ở cỡ chữ "Rất lớn"
                 // trên màn 375px cái ô ngày ăn hết chỗ và picker bị bóp còn 36px — chỉ đủ hai
@@ -1519,7 +1521,7 @@ export function TransactionForm({
             <DateField
               value={date}
               onChange={setDate}
-              ariaLabel="Ngày giao dịch"
+              ariaLabel={tr('Ngày giao dịch')}
               className="w-[7.5rem] shrink-0"
             />
           </div>
@@ -1534,7 +1536,7 @@ export function TransactionForm({
           active={activeField === 'transfer.fee'}
           onFocus={() => setActiveField('transfer.fee')}
           onChange={setTransferFee}
-          hint={'Ghi riêng thành khoản chi "Tài chính", trừ vào tài khoản nguồn.'}
+          hint={tr('Ghi riêng thành khoản chi "Tài chính", trừ vào tài khoản nguồn.')}
           onEnter={() => handleSubmit()}
         />
       )}
@@ -1544,7 +1546,7 @@ export function TransactionForm({
           family|ownvn→RemitFields. Map sai là bug im lặng (form hiện đúng nhưng ghi sai). */}
       {remitLike && accountsLoad === 'ready' && pickerAccounts.length === 0 && (
         <p className="rounded-lg border border-state-bad-border bg-state-bad-bg px-3 py-2 text-sm text-state-bad-fg">
-          Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
+          {tr('Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.')}
         </p>
       )}
       {kind === 'split' && (
@@ -1704,7 +1706,7 @@ export function TransactionForm({
         aria-expanded={showMore}
         className="flex min-h-11 items-center justify-between rounded-md border border-border-strong bg-surface px-3 text-sm text-fg-secondary lg:hidden"
       >
-        Nhãn, ghi chú
+        {tr('Nhãn, ghi chú')}
         <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
       </button>
 
@@ -1724,13 +1726,13 @@ export function TransactionForm({
         {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
             qua `aria-label`. Placeholder KHÔNG phải tên: nó mất ngay khi bắt đầu gõ. */}
         <input
-          aria-label="Ghi chú"
+          aria-label={tr('Ghi chú')}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleSubmit()
           }}
-          placeholder="Ghi chú (tùy chọn)"
+          placeholder={tr('Ghi chú (tùy chọn)')}
           className="min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary"
         />
         {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
@@ -1743,8 +1745,8 @@ export function TransactionForm({
         {enableTemplates && shape.roleSeed.role === 'none' && shape.writes === 'transaction' && (
           <IconButton
             onClick={saveCurrentAsTemplate}
-            aria-label="Lưu thành mẫu nhanh"
-            title="Lưu thành mẫu nhanh (cần số tiền + danh mục)"
+            aria-label={tr('Lưu thành mẫu nhanh')}
+            title={tr('Lưu thành mẫu nhanh (cần số tiền + danh mục)')}
             className="shrink-0"
           >
             <Star className="h-4 w-4 text-amber-400" fill={canSaveTemplate ? 'currentColor' : 'none'} />
@@ -1761,7 +1763,7 @@ export function TransactionForm({
         <div className="mt-1.5 px-1">
           {/* Nhãn theo loại: khoản THU mà hỏi "ai chi" là hỏi sai câu. */}
           <span className="mb-1 block text-2xs uppercase tracking-label text-fg-muted">
-            {type === 'income' ? 'Ai nhận khoản này' : 'Ai chi khoản này'}
+            {type === 'income' ? tr('Ai nhận khoản này') : tr('Ai chi khoản này')}
           </span>
           <div className="flex gap-1">
             {OWNER_OPTIONS.map((o) => (
@@ -1804,10 +1806,9 @@ export function TransactionForm({
             className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>
-            Đây là khoản <b>hoàn tiền</b>
+            {trn('Đây là khoản {refund}', { refund: <b>{tr('hoàn tiền')}</b> })}
             <Guide as="span" className="block text-sm text-fg-muted">
-              Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay
-              vì bị tính thành thu nhập.
+              {tr('Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay vì bị tính thành thu nhập.')}
             </Guide>
           </span>
         </label>
@@ -1828,7 +1829,7 @@ export function TransactionForm({
             checked={excludeFromStats}
             onChange={(e) => setExcludeFromStats(e.target.checked)}
           />
-          Không tính vào thống kê (giao dịch nội bộ, ghi bù…)
+          {tr('Không tính vào thống kê (giao dịch nội bộ, ghi bù…)')}
         </label>
       )}
 
@@ -1880,7 +1881,7 @@ export function TransactionForm({
         <button
           type="button"
           onClick={() => onNumPadKey('⌫')}
-          aria-label="Xóa"
+          aria-label={tr('Xóa')}
           className="flex shrink-0 items-center justify-center rounded-md border border-border-strong bg-surface-sunken px-5 text-lg font-semibold text-fg-primary transition active:scale-95 active:bg-surface lg:hidden"
         >
           <Delete className="h-5 w-5" />
@@ -1902,7 +1903,7 @@ export function TransactionForm({
             disabled={!canSave}
             className="flex-1 rounded-md border border-state-good-border bg-transparent px-1 py-3 text-sm font-semibold text-money-in transition enabled:active:scale-95 enabled:hover:bg-state-good-bg disabled:border-border-subtle disabled:text-fg-disabled lg:w-[12.5rem] lg:flex-none lg:text-base"
           >
-            {pending === 'continue' ? 'Đang lưu…' : 'Lưu và nhập tiếp'}
+            {pending === 'continue' ? tr('Đang lưu…') : tr('Lưu và nhập tiếp')}
           </button>
         )}
         <button
@@ -1917,7 +1918,7 @@ export function TransactionForm({
               nút ở 375px, và ở `--app-font-scale` 1.25 thì dài thêm nữa. Chặn hai dòng để
               khối GHIM đáy không ăn chiều cao vùng cuộn: đo được 120px hàng nút ở 320px
               khi chưa chặn. */}
-          <span className="line-clamp-2">{pending === 'save' ? 'Đang lưu…' : saveLabel}</span>
+          <span className="line-clamp-2">{pending === 'save' ? tr('Đang lưu…') : saveLabel}</span>
         </button>
       </div>
       </div>

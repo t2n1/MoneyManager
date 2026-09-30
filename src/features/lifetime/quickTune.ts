@@ -9,6 +9,7 @@
 // KHÔNG import gì từ `draft.ts` ngoài KIỂU: hàng này không được quyết định lược đồ nháp,
 // nó chỉ nhận một bản nháp rồi trả về một bản nháp khác.
 import type { ScenarioDraft } from './draft'
+import { decimalSep } from '../../i18n'
 
 /**
  * Biên và bước ba thanh trượt, theo `dsg-handoff/README.md` mục "Vặn nhanh — 3 thanh
@@ -75,7 +76,7 @@ export function sliderBound(
 export function bpsText(bps: number): string {
   const body = Math.abs(bps / 100)
     .toFixed(1)
-    .replace('.', ',')
+    .replace('.', decimalSep())
   return `${bps < 0 ? '−' : ''}${body}%`
 }
 

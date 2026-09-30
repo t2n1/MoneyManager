@@ -12,6 +12,7 @@
 // trong một câu. Ba thứ đó là ba lỗi ngữ pháp/logic khác nhau, mỗi thứ một test.
 import { axisMissSummary, shareLabel, type AxisProgress } from './axisTargets'
 import type { PlanSummary } from './planning'
+import { tr } from '../../i18n'
 
 export interface PlanVerdict {
   /**
@@ -52,8 +53,8 @@ export function planVerdict({ summary, gapCount }: PlanVerdictInput): PlanVerdic
   if (summary.allocated <= 0) {
     return {
       tone: 'info',
-      text: 'Chưa đặt hạn mức nào cho tháng này — các tỷ lệ dưới đây đang đạt mốc chỉ vì chưa chia đồng nào.',
-      short: 'Chưa đặt hạn mức nào.',
+      text: tr('Chưa đặt hạn mức nào cho tháng này — các tỷ lệ dưới đây đang đạt mốc chỉ vì chưa chia đồng nào.'),
+      short: tr('Chưa đặt hạn mức nào.'),
     }
   }
 
@@ -65,25 +66,25 @@ export function planVerdict({ summary, gapCount }: PlanVerdictInput): PlanVerdic
   const over = summary.unallocated < 0
 
   const mo = over
-    ? `Kế hoạch này chia quá tay ${shareLabel(-share)} thu nhập`
-    : `Kế hoạch này giữ lại ${shareLabel(share)} thu nhập`
+    ? tr('Kế hoạch này chia quá tay {pct} thu nhập', { pct: shareLabel(-share) })
+    : tr('Kế hoạch này giữ lại {pct} thu nhập', { pct: shareLabel(share) })
 
   const truc = axisClause(summary.axis)
   const camKet =
-    gapCount > 0 ? `${gapCount} danh mục chưa phủ hết khoản đã cam kết` : null
+    gapCount > 0 ? tr('{n} danh mục chưa phủ hết khoản đã cam kết', { n: gapCount }) : null
 
   // Nối sao cho KHÔNG có hai chữ "nhưng" trong một câu: mệnh đề trục đã tự mang liên
   // từ của nó ('và đạt…' hay 'nhưng chưa đạt…'), nên mệnh đề cam kết phải xem liên từ
   // đó là gì rồi mới chọn liên từ của mình.
   let text = mo
-  if (truc) text += ` ${truc}`
-  if (camKet) text += truc?.startsWith('nhưng') ? `, và ${camKet}` : ` — nhưng ${camKet}`
+  if (truc) text += ` ${truc.text}`
+  if (camKet) text = truc?.but ? tr('{a}, và {b}', { a: text, b: camKet }) : tr('{a} — nhưng {b}', { a: text, b: camKet })
   text += '.'
 
   // Bản ngắn giữ MỆNH ĐỀ QUYẾT ĐỊNH, không phải mệnh đề đầu tiên: chia quá tay là lỗi
   // nặng nhất, rồi tới cam kết không được phủ (tiền chắc chắn ra), rồi mới tới lệch mốc.
   const short = over
-    ? `Chia quá tay ${shareLabel(-share)} thu nhập.`
+    ? tr('Chia quá tay {pct} thu nhập.', { pct: shareLabel(-share) })
     : camKet
       ? `${camKet[0].toUpperCase()}${camKet.slice(1)}.`
       : `${mo}.`
@@ -102,9 +103,10 @@ export function planVerdict({ summary, gapCount }: PlanVerdictInput): PlanVerdic
  * dõi, nên hai mặt không thể đếm ra hai kết luận khác nhau trên cùng dữ liệu. Ở đây chỉ
  * thêm liên từ, vì câu này còn phải nối được với mệnh đề cam kết phía sau.
  */
-function axisClause(axis: AxisProgress | null): string | null {
+function axisClause(axis: AxisProgress | null): { text: string; but: boolean } | null {
   if (!axis) return null
   const s = axisMissSummary(axis.lines)
   if (!s) return null
-  return `${s.missed.length === 0 ? 'và' : 'nhưng'} ${s.phrase}`
+  const but = s.missed.length > 0
+  return { text: but ? tr('nhưng {phrase}', { phrase: s.phrase }) : tr('và {phrase}', { phrase: s.phrase }), but }
 }

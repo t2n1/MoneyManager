@@ -35,6 +35,8 @@ import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
 import { KIND_CLASS, KIND_LABEL, ngay, pct } from './investFormat'
 import type { StockTradeRow } from '../../types/database.types'
+import { accountLabel, numLocale, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   accountId: string | null
@@ -133,10 +135,13 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
     if (
       napGhiTay.count > 0 &&
       !(await confirmDialog({
-        title: 'Ghi bù dù sổ đã có nạp/rút tự ghi?',
-        message: `Sổ đang có ${napGhiTay.count} dòng nạp/rút tự ghi giữa tài khoản chứng khoán và ví. Ghi bù sẽ thêm một dòng cho từng lệnh, và tiền nạp có thể bị đếm hai lần.`,
+        title: tr('Ghi bù dù sổ đã có nạp/rút tự ghi?'),
+        message: tr(
+          'Sổ đang có {n} dòng nạp/rút tự ghi giữa tài khoản chứng khoán và ví. Ghi bù sẽ thêm một dòng cho từng lệnh, và tiền nạp có thể bị đếm hai lần.',
+          { n: napGhiTay.count },
+        ),
         danger: true,
-        confirmLabel: 'Vẫn ghi bù',
+        confirmLabel: tr('Vẫn ghi bù'),
       }))
     )
       return
@@ -185,25 +190,31 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           khi tới đây. Tab quỹ cũng không có guard đó — để lệch nhau là mời người sau
           "khôi phục" nó sang tab kia. */}
       <ActionButton variant="primary" onClick={startTrade} className="ml-auto">
-        <Plus className="h-4 w-4" /> Ghi lệnh
+        <Plus className="h-4 w-4" /> {tr('Ghi lệnh')}
       </ActionButton>
     </div>
   )
 
   if (isLoading) {
-    return <EmptyState>Đang tải…</EmptyState>
+    return <EmptyState>{tr('Đang tải…')}</EmptyState>
   }
 
   if (accounts.length === 0) {
     return (
       <Card as="section">
         <p className="text-sm text-fg-muted">
-          Chưa có tài khoản chứng khoán Việt Nam nào. Tạo một tài khoản loại <b>Đầu tư</b>{' '}
-          với loại tiền <b>VND</b> ở{' '}
-          <Link to="/settings/accounts" className="font-medium text-fg-accent">
-            Cài đặt → Tài khoản
-          </Link>
-          , rồi ghi lệnh mua bán để app tự lấy giá và tính lời/lỗ.
+          {trn(
+            'Chưa có tài khoản chứng khoán Việt Nam nào. Tạo một tài khoản loại {type} với loại tiền {currency} ở {link}, rồi ghi lệnh mua bán để app tự lấy giá và tính lời/lỗ.',
+            {
+              type: <b>{tr('Đầu tư')}</b>,
+              currency: <b>VND</b>,
+              link: (
+                <Link to="/settings/accounts" className="font-medium text-fg-accent">
+                  {tr('Cài đặt → Tài khoản')}
+                </Link>
+              ),
+            },
+          )}
         </p>
       </Card>
     )
@@ -222,19 +233,24 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
       {soLenhThieu > 0 && (
         <div className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
           <p>
-            <Num>{soLenhThieu}</Num> lệnh chưa có dòng chuyển tiền, nên số dư ví đang cao
-            hơn tiền thật. Ghi bù để ví về đúng số — Tổng tài sản có thể đổi theo.
+            {trn(
+              '{count} lệnh chưa có dòng chuyển tiền, nên số dư ví đang cao hơn tiền thật. Ghi bù để ví về đúng số — Tổng tài sản có thể đổi theo.',
+              { count: <Num>{soLenhThieu}</Num>, n: soLenhThieu },
+            )}
           </p>
           {/* Bộ nạp/rút tự ghi là thứ "Ghi bù" KHÔNG thấy — nó dò dòng đã có bằng cột
               `stock_trade_id`. Không nói ra thì nút này nhân đôi tiền nạp trong im lặng,
               đúng như đã xảy ra với sổ thật (xem handWrittenFunding). */}
           {napGhiTay.count > 0 && (
             <p className="mt-1.5">
-              Nhưng sổ đã có <Num>{napGhiTay.count}</Num> dòng nạp/rút tự ghi giữa tài khoản
-              chứng khoán và ví (ròng{' '}
-              <Money amount={napGhiTay.net} currency={VND} showSign />
-              ). Ghi bù sẽ cộng THÊM một bộ nữa cho từng lệnh, nên tiền nạp bị đếm hai lần
-              và phần thừa nổi lên ở ô “Tiền chưa mua”. Xoá bộ tự ghi trước thì hãy bấm.
+              {trn(
+                'Nhưng sổ đã có {count} dòng nạp/rút tự ghi giữa tài khoản chứng khoán và ví (ròng {net}). Ghi bù sẽ cộng THÊM một bộ nữa cho từng lệnh, nên tiền nạp bị đếm hai lần và phần thừa nổi lên ở ô “Tiền chưa mua”. Xoá bộ tự ghi trước thì hãy bấm.',
+                {
+                  count: <Num>{napGhiTay.count}</Num>,
+                  n: napGhiTay.count,
+                  net: <Money amount={napGhiTay.net} currency={VND} showSign />,
+                },
+              )}
             </p>
           )}
           {/* Chờ sổ về rồi mới cho bấm: câu hỏi lại ở `ghiBuCoHoi` đếm bộ nạp/rút tự ghi
@@ -244,7 +260,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
             disabled={ghiBu.isPending || dangTaiSo}
             className="mt-2"
           >
-            {ghiBu.isPending ? 'Đang ghi…' : dangTaiSo ? 'Đang kiểm sổ…' : 'Ghi bù'}
+            {ghiBu.isPending ? tr('Đang ghi…') : dangTaiSo ? tr('Đang kiểm sổ…') : tr('Ghi bù')}
           </ActionButton>
         </div>
       )}
@@ -252,21 +268,21 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
       {/* Tổng danh mục */}
       <Card as="section">
         <div className="flex items-baseline justify-between gap-2">
-          <SectionTitle>Giá trị danh mục</SectionTitle>
-          {session && <span className="text-2xs text-fg-muted">giá phiên {ngay(session)}</span>}
+          <SectionTitle>{tr('Giá trị danh mục')}</SectionTitle>
+          {session && <span className="text-2xs text-fg-muted">{tr('giá phiên {date}', { date: ngay(session) })}</span>}
         </div>
         {giaTriVND === null ? (
           <p className="mt-1 text-sm text-fg-muted">
             {p.cash < 0
-              ? 'Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.'
-              : 'Chưa tính được — chưa có giá cho mã nào đang giữ.'}
+              ? tr('Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.')
+              : tr('Chưa tính được — chưa có giá cho mã nào đang giữ.')}
           </p>
         ) : (
           <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <Money amount={giaTriVND} currency={VND} className="text-kpi font-medium tracking-number" />
             {p.missingPrices.length > 0 && (
               <EstimateMark
-                reason={`${p.missingPrices.join(', ')} chưa có giá, đang tạm tính theo giá vốn.`}
+                reason={tr('{symbols} chưa có giá, đang tạm tính theo giá vốn.', { symbols: p.missingPrices.join(', ') })}
               />
             )}
             {/* Quy đổi về đồng tiền gốc — mảnh mà 21a gọi là "nối với chỗ khác": mọi
@@ -292,13 +308,13 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
 
         <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border-subtle pt-3 text-sm">
           <div>
-            <dt className="text-fg-muted">Vốn cổ phiếu</dt>
+            <dt className="text-fg-muted">{tr('Vốn cổ phiếu')}</dt>
             <dd>
               <Money amount={p.stockCost} currency={VND} className="font-semibold" />
             </dd>
           </div>
           <div>
-            <dt className="text-fg-muted">Tiền chưa mua</dt>
+            <dt className="text-fg-muted">{tr('Tiền chưa mua')}</dt>
             <dd>
               {/* Tiền ở công ty chứng khoán CỘNG tiền trong ví đã khai: người dùng mua cổ
                   phiếu bằng tiền ở ví, nên tiền chờ mua nằm cả hai chỗ. */}
@@ -310,13 +326,13 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
               />
               {p.walletCash !== null && (
                 <span className="block text-2xs text-fg-muted">
-                  gồm <Money amount={p.walletCash} currency={VND} /> ở ví
+                  {trn('gồm {amount} ở ví', { amount: <Money amount={p.walletCash} currency={VND} /> })}
                 </span>
               )}
             </dd>
           </div>
           <div>
-            <dt className="text-fg-muted">Lời/lỗ chưa bán</dt>
+            <dt className="text-fg-muted">{tr('Lời/lỗ chưa bán')}</dt>
             {/* `flex-wrap` chứ không `flex` trơn: ô này là ô DUY NHẤT trong lưới có HAI
                 con số cạnh nhau (số tiền + phần trăm), nên ở 375px với cỡ chữ 1,25× nó
                 đòi 192px trong cột 150px và tràn đè lên ô "Lời/lỗ đã bán" bên cạnh — đo
@@ -338,7 +354,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           <div>
             {/* Đã bán rồi thì tiền đã về tài khoản — con số này KHÔNG nằm trong giá trị
                 danh mục ở trên, nên để riêng chứ không cộng vào lời/lỗ chưa bán. */}
-            <dt className="text-fg-muted">Lời/lỗ đã bán</dt>
+            <dt className="text-fg-muted">{tr('Lời/lỗ đã bán')}</dt>
             <dd>
               <Money
                 amount={Math.abs(p.realizedPnl)}
@@ -353,13 +369,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
 
         {p.oversold.length > 0 && (
           <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-            {p.oversold.join(', ')}: sổ lệnh ghi bán nhiều hơn số đang giữ — thiếu một
-            lệnh mua ở đâu đó.
+            {tr('{symbols}: sổ lệnh ghi bán nhiều hơn số đang giữ — thiếu một lệnh mua ở đâu đó.', {
+              symbols: p.oversold.join(', '),
+            })}
           </p>
         )}
         {staleHeld.length > 0 && (
           <p className="mt-2 text-2xs text-fg-muted">
-            {staleHeld.join(', ')} đang dùng giá của phiên trước.
+            {tr('{symbols} đang dùng giá của phiên trước.', { symbols: staleHeld.join(', ') })}
           </p>
         )}
       </Card>
@@ -398,7 +415,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
       <Card as="section">
         <div className="flex items-baseline justify-between gap-2">
           <SectionTitle>
-            Sổ lệnh{symbolFilter ? ` · ${symbolFilter}` : ''} ({shownTrades.length})
+            {tr('Sổ lệnh{filter} ({n})', { filter: symbolFilter ? ` · ${symbolFilter}` : '', n: shownTrades.length })}
           </SectionTitle>
           {symbolFilter && (
             <button
@@ -406,13 +423,13 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
               onClick={() => setSymbolFilter(null)}
               className="text-2xs font-medium text-fg-accent"
             >
-              Xem hết
+              {tr('Xem hết')}
             </button>
           )}
         </div>
 
         {shownTrades.length === 0 ? (
-          <p className="mt-2 text-sm text-fg-muted">Chưa có lệnh nào.</p>
+          <p className="mt-2 text-sm text-fg-muted">{tr('Chưa có lệnh nào.')}</p>
         ) : (
           <ul className="mt-1 divide-y divide-border-subtle">
             {shownTrades.map((t) => (
@@ -436,14 +453,14 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
                             chứ không theo `filtered`: một `?account=` cũ làm `filtered`
                             rỗng trong khi sổ lệnh dưới đây trải mọi tài khoản, và khi đó
                             không dòng nào nói mình thuộc tài khoản nào. */}
-                        {shown.length > 1 && ` · ${accountName(t.account_id)}`}
+                        {shown.length > 1 && ` · ${accountLabel(accountName(t.account_id))}`}
                       </span>
                     </p>
                     {t.note && <p className="truncate text-2xs text-fg-muted">{t.note}</p>}
                   </div>
                   <div className="shrink-0 text-right text-2xs text-fg-secondary">
                     <p>
-                      {t.quantity.toLocaleString('vi-VN')} cổ
+                      {tr('{qty} cổ', { qty: t.quantity.toLocaleString(numLocale()) })}
                       {t.kind !== 'adjust' && (
                         <>
                           {' × '}
@@ -453,7 +470,9 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
                     </p>
                     {(t.fee > 0 || t.tax > 0) && (
                       <p className="text-fg-muted">
-                        phí+thuế <Money amount={t.fee + t.tax} currency={VND} className="text-2xs" />
+                        {trn('phí+thuế {amount}', {
+                          amount: <Money amount={t.fee + t.tax} currency={VND} className="text-2xs" />,
+                        })}
                       </p>
                     )}
                   </div>

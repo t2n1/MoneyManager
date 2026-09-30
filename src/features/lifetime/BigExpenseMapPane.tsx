@@ -21,6 +21,8 @@ import { PhaseIcon } from './PlanDockParts'
 import type { DraftEvent, DraftPhase } from './draft'
 import type { LifetimeCostItem } from './lifetimeCost'
 import type { BigExpenseMapData } from './useBigExpenseMap'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Hai câu khác nhau, xem đầu `lifetimeCost.ts`. */
 type CachXep = 'life' | 'need'
@@ -47,9 +49,9 @@ interface Props {
 }
 
 const SOURCE_LABEL: Record<'event' | 'planned' | 'goal', string> = {
-  event: 'kịch bản',
-  planned: 'khoản sắp chi',
-  goal: 'mục tiêu',
+  event: tr('kịch bản'),
+  planned: trx('source', 'khoản sắp chi'),
+  goal: tr('mục tiêu'),
 }
 
 export function BigExpenseMapPane({
@@ -78,29 +80,29 @@ export function BigExpenseMapPane({
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <p className="min-w-0 flex-1 text-2xs text-fg-muted">
           {mode === 'life'
-            ? 'Xếp theo tổng tiền cả đời, gồm sinh hoạt từng chặng'
-            : 'Cần để dành mỗi tháng, tính từ hôm nay'}
+            ? tr('Xếp theo tổng tiền cả đời, gồm sinh hoạt từng chặng')
+            : tr('Cần để dành mỗi tháng, tính từ hôm nay')}
         </p>
         {/* Hai cách xếp trả lời HAI câu khác nhau, nên là một công tắc chứ không phải hai
             khối nối tiếp: đặt cạnh nhau thì hai bảng trông gần như nhau và người đọc lấy
             số của bảng này gán cho câu của bảng kia. Chip co theo chữ (không `flex-1`) —
             control nhỏ thì vừa đúng chữ, chỗ trống để cho bảng. */}
-        <span role="group" aria-label="Cách xếp khoản lớn" className="flex items-center gap-1">
+        <span role="group" aria-label={tr('Cách xếp khoản lớn')} className="flex items-center gap-1">
           <FilterChip
             size="sm"
             on={mode === 'life'}
             onClick={() => setMode('life')}
-            title="Cả đời khoản nào ngốn nhiều tiền nhất — gộp sinh hoạt từng chặng và từng mốc"
+            title={tr('Cả đời khoản nào ngốn nhiều tiền nhất — gộp sinh hoạt từng chặng và từng mốc')}
           >
-            Cả đời
+            {tr('Cả đời')}
           </FilterChip>
           <FilterChip
             size="sm"
             on={mode === 'need'}
             onClick={() => setMode('need')}
-            title="Mỗi tháng cần để dành bao nhiêu cho các khoản sắp tới"
+            title={tr('Mỗi tháng cần để dành bao nhiêu cho các khoản sắp tới')}
           >
-            Cần dành
+            {tr('Cần dành')}
           </FilterChip>
         </span>
       </div>
@@ -108,7 +110,7 @@ export function BigExpenseMapPane({
       {mode === 'life' ? (
         life.items.length === 0 ? (
           <p className="mt-2 text-sm text-fg-muted">
-            Chưa có chặng đời nào để cộng — thêm một chặng thì bảng này có số.
+            {tr('Chưa có chặng đời nào để cộng — thêm một chặng thì bảng này có số.')}
           </p>
         ) : (
           <>
@@ -150,14 +152,14 @@ export function BigExpenseMapPane({
                           </span>
                         </span>
                         <span className="mt-0.5 block truncate text-2xs text-fg-muted">
-                          {i.kind === 'phase' ? 'sinh hoạt' : 'mốc'} ·{' '}
+                          {i.kind === 'phase' ? tr('sinh hoạt') : trx('event', 'mốc')} ·{' '}
                           <Num tone="muted">{i.startYear}</Num>
                           {i.endYear !== i.startYear && (
                             <>
                               –<Num tone="muted">{i.endYear}</Num>
                             </>
                           )}{' '}
-                          · <Num tone="muted">{i.years}</Num> năm
+                          · <Num tone="muted">{i.years}</Num> {tr('năm', { n: i.years })}
                         </span>
                         {/* Thanh tỉ lệ — bản vẽ §"Bản đồ khoản lớn". Bề rộng là số tính
                             được nên đi qua `style`, không phải một class tuỳ ý. */}
@@ -184,9 +186,9 @@ export function BigExpenseMapPane({
                           cột tên chỉ còn vài chữ. Nó là con số PHỤ (tổng và % mới là câu
                           trả lời), nên nó là cột nhường chỗ. */}
                       <span className="hidden text-right text-2xs text-fg-muted sm:block">
-                        ≈
-                        <Money amount={monthlyMinor} currency={displayCurrency} tone="muted" />
-                        /tháng
+                        {trn('≈{amount}/tháng', {
+                          amount: <Money amount={monthlyMinor} currency={displayCurrency} tone="muted" />,
+                        })}
                       </span>
 
                       {/* Bản vẽ ghi chữ "thu vào" ở cột % cho dòng THU — một khoản thu
@@ -195,7 +197,7 @@ export function BigExpenseMapPane({
                         className="text-right text-2xs tabular-nums"
                         style={{ color: look.color }}
                       >
-                        {sharePct === null ? 'thu vào' : `${Math.round(sharePct)}%`}
+                        {sharePct === null ? tr('thu vào') : `${Math.round(sharePct)}%`}
                       </span>
                     </button>
                   </li>
@@ -208,19 +210,19 @@ export function BigExpenseMapPane({
                 variant="outline"
                 onClick={() => setShowAll(true)}
                 className="mt-1.5"
-                title="Bảng đang xếp theo tổng cả đời, nên phần bị giấu là những khoản nhỏ nhất"
+                title={tr('Bảng đang xếp theo tổng cả đời, nên phần bị giấu là những khoản nhỏ nhất')}
               >
-                Xem tất cả <Num tone="muted">{life.items.length}</Num> khoản
+                {trn('Xem tất cả {count} khoản', { count: <Num tone="muted">{life.items.length}</Num>, n: life.items.length })}
               </ActionButton>
             )}
             {showAll && life.items.length > MAP_TOP_N && (
               <ActionButton variant="outline" onClick={() => setShowAll(false)} className="mt-1.5">
-                Thu gọn · chỉ <Num tone="muted">{MAP_TOP_N}</Num> khoản lớn nhất
+                {trn('Thu gọn · chỉ {count} khoản lớn nhất', { count: <Num tone="muted">{MAP_TOP_N}</Num>, n: MAP_TOP_N })}
               </ActionButton>
             )}
 
             <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-panel pt-2">
-              <span className="text-sm font-medium text-fg-secondary">Tổng chi cả đời</span>
+              <span className="text-sm font-medium text-fg-secondary">{tr('Tổng chi cả đời')}</span>
               <Money
                 amount={life.totalSpendMinor}
                 currency={displayCurrency}
@@ -229,23 +231,21 @@ export function BigExpenseMapPane({
                 className="text-sm font-semibold"
               />
             </div>
-            <ExplainBox label="Cách tính">
+            <ExplainBox label={tr('Cách tính')}>
               <p>
-                <b>Cả đời</b> cộng chi nền của từng chặng và từng mốc suốt bản chiếu, lấy
-                thẳng từ phép chiếu — nên đã gồm lạm phát, tỷ giá, bốn hình dạng số tiền và
-                ô &quot;thay cho&quot; (không đếm hai lần phần đã trừ khỏi chi nền).
+                {trn('{life} cộng chi nền của từng chặng và từng mốc suốt bản chiếu, lấy thẳng từ phép chiếu — nên đã gồm lạm phát, tỷ giá, bốn hình dạng số tiền và ô "thay cho" (không đếm hai lần phần đã trừ khỏi chi nền).', {
+                  life: <b>{tr('Cả đời')}</b>,
+                })}
               </p>
               <p>
-                Một mốc mua tài sản gộp cả trả trước, trả nợ và chi phí giữ về MỘT dòng.
-                Cú sốc của stress test không vào bảng này — nó là &quot;nếu như&quot;, không
-                phải một khoản trong kế hoạch.
+                {tr('Một mốc mua tài sản gộp cả trả trước, trả nợ và chi phí giữ về MỘT dòng. Cú sốc của stress test không vào bảng này — nó là "nếu như", không phải một khoản trong kế hoạch.')}
               </p>
             </ExplainBox>
           </>
         )
       ) : map.items.length === 0 ? (
         <p className="mt-2 text-sm text-fg-muted">
-          Không có mốc nào phía trước cần để dành từ bây giờ.
+          {tr('Không có mốc nào phía trước cần để dành từ bây giờ.')}
         </p>
       ) : (
         <>
@@ -257,19 +257,19 @@ export function BigExpenseMapPane({
               <span className="block text-2xs text-fg-muted">
                 {i.recurring ? (
                   <>
-                    {i.everyYears > 1 ? `mỗi ${i.everyYears} năm` : 'mỗi năm'} ·{' '}
+                    {i.everyYears > 1 ? tr('mỗi {n} năm', { n: i.everyYears }) : tr('mỗi năm')} ·{' '}
                     {SOURCE_LABEL[i.source]}
                   </>
                 ) : (
                   <>
-                    {i.dueMonth ?? `năm ${i.dueYear}`} ·{' '}
-                    <Num tone="muted">{i.monthsLeft} tháng</Num> · {SOURCE_LABEL[i.source]}
+                    {i.dueMonth ?? tr('năm {year}', { year: i.dueYear })} ·{' '}
+                    <Num tone="muted">{tr('{n} tháng', { n: i.monthsLeft })}</Num> · {SOURCE_LABEL[i.source]}
                   </>
                 )}
               </span>
             </span>
             {i.monthlyNeedMinor === null ? (
-              <span className="text-sm text-fg-muted">thiếu tỷ giá</span>
+              <span className="text-sm text-fg-muted">{tr('thiếu tỷ giá')}</span>
             ) : (
               <Money
                 amount={i.monthlyNeedMinor}
@@ -283,7 +283,7 @@ export function BigExpenseMapPane({
       </ul>
 
       <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-panel pt-2">
-        <span className="text-sm font-medium text-fg-secondary">Tổng cần để dành</span>
+        <span className="text-sm font-medium text-fg-secondary">{tr('Tổng cần để dành')}</span>
         <Money
           amount={map.totalMonthlyNeedMinor}
           currency={displayCurrency}
@@ -295,7 +295,7 @@ export function BigExpenseMapPane({
       {surplus !== null && (
         <div className="flex items-baseline justify-between gap-2 py-1">
           <span className="text-sm text-fg-secondary">
-            Phần dư của bạn {surplus.real ? '(12 tháng qua)' : '(theo kế hoạch)'}
+            {surplus.real ? tr('Phần dư của bạn (12 tháng qua)') : tr('Phần dư của bạn (theo kế hoạch)')}
           </span>
           <Money
             amount={surplus.monthlyMinor}
@@ -308,11 +308,10 @@ export function BigExpenseMapPane({
 
       {over && surplus !== null && (
         <p className="mt-1 text-2xs leading-snug text-state-warn-fg">
-          Các mốc đang đòi nhiều hơn phần dư
+          {tr('Các mốc đang đòi nhiều hơn phần dư')}
           {/* E-ink + Gọn: giữ câu cảnh báo, bỏ lời khuyên phía sau. */}
           <span className="eink-gon:hidden">
-            {' '}— không mốc nào sai, chúng chỉ chưa từng được nhìn cùng lúc. Ba lối thoát đều
-            rẻ khi còn thời gian: dời một mốc, thu nhỏ nó, hoặc bắt đầu tích sớm hơn
+            {' '}{tr('— không mốc nào sai, chúng chỉ chưa từng được nhìn cùng lúc. Ba lối thoát đều rẻ khi còn thời gian: dời một mốc, thu nhỏ nó, hoặc bắt đầu tích sớm hơn')}
           </span>
           .
         </p>
@@ -321,8 +320,10 @@ export function BigExpenseMapPane({
       {heavyRow && (
         <div className="flex items-baseline justify-between gap-2 py-1">
           <span className="text-sm text-fg-secondary">
-            Năm nặng nhất · <Num tone="muted">{heavyRow.year}</Num> (
-            <Num tone="muted">{heavyRow.onceCount} khoản</Num> dồn cùng năm)
+            {trn('Năm nặng nhất · {year} ({count} dồn cùng năm)', {
+              year: <Num tone="muted">{heavyRow.year}</Num>,
+              count: <Num tone="muted">{tr('{n} khoản', { n: heavyRow.onceCount })}</Num>,
+            })}
           </span>
           <Money
             amount={heavyRow.totalMinor}
@@ -334,22 +335,26 @@ export function BigExpenseMapPane({
         </div>
       )}
 
-      <ExplainBox label="Cách tính">
+      <ExplainBox label={tr('Cách tính')}>
         <p>
-          <b>Cần mỗi tháng</b> = số còn thiếu ÷ số tháng còn lại. Mốc của kịch bản chỉ có
-          NĂM nên tính tới tháng 1 của năm đó — thà dư sớm còn hơn hụt.
+          {trn('{b} = số còn thiếu ÷ số tháng còn lại. Mốc của kịch bản chỉ có NĂM nên tính tới tháng 1 của năm đó — thà dư sớm còn hơn hụt.', {
+            b: <b>{tr('Cần mỗi tháng')}</b>,
+          })}
         </p>
         <p>
-          <b>Mục tiêu tiết kiệm</b> đã trừ phần dành được (số dư tài khoản gắn với nó); mục
-          tiêu không đặt hạn không vào bản đồ. Sửa hạn và số tiền ở{' '}
-          <Link to="/assets" className="font-medium text-fg-accent">
-            tab Tài sản
-          </Link>{' '}
-          và{' '}
-          <Link to="/planned" className="font-medium text-fg-accent">
-            Khoản sắp chi
-          </Link>
-          .
+          {trn('{goals} đã trừ phần dành được (số dư tài khoản gắn với nó); mục tiêu không đặt hạn không vào bản đồ. Sửa hạn và số tiền ở {assets} và {planned}.', {
+            goals: <b>{tr('Mục tiêu tiết kiệm')}</b>,
+            assets: (
+              <Link to="/assets" className="font-medium text-fg-accent">
+                {tr('tab Tài sản')}
+              </Link>
+            ),
+            planned: (
+              <Link to="/planned" className="font-medium text-fg-accent">
+                {tr('Khoản sắp chi')}
+              </Link>
+            ),
+          })}
         </p>
       </ExplainBox>
         </>

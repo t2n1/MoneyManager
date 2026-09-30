@@ -35,6 +35,7 @@ import {
   tagColor,
   type TagColorKey,
 } from '../tags/colors'
+import { tr } from '../../i18n'
 
 /**
  * Ô nhập trong dock. `rounded-md` (control 6px, §1.3) — pill chỉ dành cho nút.
@@ -144,7 +145,7 @@ export function IdentityRow({
       <Popover
         open={pick === 'icon'}
         onOpenChange={(v) => setPick(v ? 'icon' : null)}
-        label={icon === '' ? 'Chọn icon' : `Icon: ${EVENT_ICONS[icon]?.label ?? 'khác'}`}
+        label={icon === '' ? tr('Chọn icon') : tr('Icon: {name}', { name: EVENT_ICONS[icon]?.label ?? tr('khác') })}
         trigger={renderIcon(icon)}
       >
         <IconGrid
@@ -162,10 +163,10 @@ export function IdentityRow({
         onOpenChange={(v) => setPick(v ? 'color' : null)}
         label={
           color !== ''
-            ? `Màu: ${TAG_COLOR_LABELS[tagColor(color)]}`
+            ? tr('Màu: {color}', { color: TAG_COLOR_LABELS[tagColor(color)] })
             : fallbackColor !== undefined
-              ? `Màu: mặc định theo thứ tự chặng (${TAG_COLOR_LABELS[fallbackColor]})`
-              : 'Chọn màu'
+              ? tr('Màu: mặc định theo thứ tự chặng ({color})', { color: TAG_COLOR_LABELS[fallbackColor] })
+              : tr('Chọn màu')
         }
         trigger={<Swatch color={color} fallback={fallbackColor} treatment={treatment} />}
       >
@@ -293,7 +294,7 @@ function IconGrid({
     <div className="max-h-[16rem] w-[10.75rem] overflow-y-auto overscroll-contain">
       <button
         type="button"
-        aria-label="Bỏ icon"
+        aria-label={tr('Bỏ icon')}
         aria-pressed={icon === ''}
         onClick={() => onPick('')}
         className={`mb-1 flex min-h-8 w-full items-center justify-center gap-1.5 rounded-full text-2xs transition active:scale-95 ${
@@ -301,7 +302,7 @@ function IconGrid({
         }`}
       >
         <Ban className="h-3 w-3" aria-hidden />
-        Bỏ icon
+        {tr('Bỏ icon')}
       </button>
       {EVENT_ICON_GROUPS.map((g) => (
         <div key={g.title} className="mb-1 last:mb-0">
@@ -363,13 +364,15 @@ function ColorGrid({
         type="button"
         aria-label={
           fallback === undefined
-            ? 'Không màu riêng'
-            : `Không màu riêng — mặc định đang là ${TAG_COLOR_LABELS[fallback]}`
+            ? tr('Không màu riêng')
+            : tr('Không màu riêng — mặc định đang là {color}', { color: TAG_COLOR_LABELS[fallback] })
         }
         title={
           fallback === undefined
-            ? 'Không màu riêng'
-            : `Không màu riêng — mặc định theo thứ tự chặng, đang là ${TAG_COLOR_LABELS[fallback]}`
+            ? tr('Không màu riêng')
+            : tr('Không màu riêng — mặc định theo thứ tự chặng, đang là {color}', {
+                color: TAG_COLOR_LABELS[fallback],
+              })
         }
         aria-pressed={color === ''}
         onClick={() => onPick('')}
@@ -383,8 +386,8 @@ function ColorGrid({
         <button
           key={k}
           type="button"
-          aria-label={`Màu ${TAG_COLOR_LABELS[k]}`}
-          title={`Màu ${TAG_COLOR_LABELS[k]}`}
+          aria-label={tr('Màu {color}', { color: TAG_COLOR_LABELS[k] })}
+          title={tr('Màu {color}', { color: TAG_COLOR_LABELS[k] })}
           aria-pressed={color === k}
           onClick={() => onPick(k)}
           className={`flex h-6 w-6 items-center justify-center rounded-full transition active:scale-95 ${
@@ -508,7 +511,7 @@ export function EndYearBox({
       inputMode="numeric"
       value={editing ? text : value === null ? '' : String(value)}
       aria-label={ariaLabel}
-      placeholder="hết đời"
+      placeholder={tr('hết đời')}
       onFocus={() => {
         setText(value === null ? '' : String(value))
         setEditing(true)

@@ -21,6 +21,7 @@
 // hiện vài nhãn dùng nhiều nhất + nhãn đang chọn, còn lại nằm sau nút "Tất cả" kèm ô
 // tìm. Xếp hạng nằm trong `pickerSections`, số nhãn hiện sẵn trong `collapsedLimit`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { tagGroupLabel, tagLabel, tr } from '../../i18n'
 import { Check, ChevronDown, ChevronUp, Plus, Search, Tag as TagIcon, X } from 'lucide-react'
 import {
   useCreateTag,
@@ -98,7 +99,7 @@ export function TagPicker({ value, onChange }: Props) {
       const all = expanded ? [...s.shown, ...s.rest] : s.shown
       return {
         ...s,
-        list: needle ? all.filter((t) => normalizeText(t.name).includes(needle)) : all,
+        list: needle ? all.filter((t) => normalizeText(t.name).includes(needle) || normalizeText(tagLabel(t.name)).includes(needle)) : all,
       }
     })
     // Mục nào không còn nhãn nào khớp thì ẩn cả tên, không để lại hàng trống. TRỪ hàng
@@ -176,7 +177,7 @@ export function TagPicker({ value, onChange }: Props) {
           on ? `border-transparent ${TAG_CHIP_CLASS[tagColor(t.color)]}` : CHIP_OFF
         }`}
       >
-        <span className="truncate">{t.name}</span>
+        <span className="truncate">{tagLabel(t.name)}</span>
       </button>
     )
   }
@@ -190,7 +191,7 @@ export function TagPicker({ value, onChange }: Props) {
           chip, không tự nghĩ ra cỡ mới. */}
       <span className="mb-1 flex items-center gap-1 text-sm font-medium text-fg-muted">
         <TagIcon className="h-3.5 w-3.5" aria-hidden />
-        Nhãn <span className="font-normal">(tùy chọn)</span>
+        {tr('Nhãn')} <span className="font-normal">{tr('(tùy chọn)')}</span>
       </span>
 
       {inputShown && (
@@ -201,8 +202,8 @@ export function TagPicker({ value, onChange }: Props) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Tìm trong ${total} nhãn…`}
-            aria-label="Tìm nhãn"
+            placeholder={tr('Tìm trong {n} nhãn…', { n: total })}
+            aria-label={tr('Tìm nhãn')}
             // `outline-none` ở đây KHÔNG phải bỏ chỉ báo: khung bao dùng
             // `focus-within:ring-accent`, nên để ô tự vẽ thêm một ring nữa là hai vòng
             // lồng nhau. designSystem.test.ts canh đúng cặp điều kiện này.
@@ -216,7 +217,7 @@ export function TagPicker({ value, onChange }: Props) {
         {rows.map((s) => {
           const groupId = s.group?.id ?? ''
           const adding = addingTo === groupId
-          const name = s.group?.name ?? 'Khác'
+          const name = s.group ? tagGroupLabel(s.group.name) : tr('Khác')
           const labelId = `${uid}-${s.group?.id ?? 'other'}`
           const empty = s.list.length === 0 && !adding
           return (
@@ -239,7 +240,7 @@ export function TagPicker({ value, onChange }: Props) {
               </span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 {empty && (
-                  <span className="flex h-11 items-center text-sm text-fg-muted">chưa có nhãn</span>
+                  <span className="flex h-11 items-center text-sm text-fg-muted">{tr('chưa có nhãn')}</span>
                 )}
                 {s.list.map(chip)}
                 {adding ? (
@@ -264,15 +265,15 @@ export function TagPicker({ value, onChange }: Props) {
                           setAddingTo(null)
                         }
                       }}
-                      placeholder={`Tên nhãn mới trong “${name}”…`}
-                      aria-label={`Tên nhãn mới trong nhóm ${name}`}
+                      placeholder={tr('Tên nhãn mới trong “{name}”…', { name })}
+                      aria-label={tr('Tên nhãn mới trong nhóm {name}', { name })}
                       className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => void addTag(s.group?.id ?? null, newName)}
                       disabled={!newName.trim()}
-                      aria-label={`Lưu nhãn mới vào nhóm ${name}`}
+                      aria-label={tr('Lưu nhãn mới vào nhóm {name}', { name })}
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-accent disabled:opacity-40"
                     >
                       <Check className="h-4 w-4" aria-hidden />
@@ -280,7 +281,7 @@ export function TagPicker({ value, onChange }: Props) {
                     <button
                       type="button"
                       onClick={() => setAddingTo(null)}
-                      aria-label="Bỏ tạo nhãn"
+                      aria-label={tr('Bỏ tạo nhãn')}
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-muted"
                     >
                       <X className="h-4 w-4" aria-hidden />
@@ -295,7 +296,7 @@ export function TagPicker({ value, onChange }: Props) {
                       setNewName(query.trim())
                       setAddingTo(groupId)
                     }}
-                    aria-label={`Thêm nhãn vào nhóm ${name}`}
+                    aria-label={tr('Thêm nhãn vào nhóm {name}', { name })}
                     className={`${CHIP} w-11 justify-center border-dashed border-border-strong px-0 text-fg-accent`}
                   >
                     <Plus className="h-4 w-4" aria-hidden />
@@ -317,7 +318,7 @@ export function TagPicker({ value, onChange }: Props) {
             (xem `visible`) nên dấu + đang nhìn thấy được, mà câu dài hơn 45 ký tự thì
             thành một đoạn văn xuôi mới phải đi qua cổng <Guide> (test canh chế độ Gọn). */}
         {needle && visible.length === 0 && (
-          <p className="py-1 text-sm text-fg-muted">Không có nhãn nào khớp “{query}”</p>
+          <p className="py-1 text-sm text-fg-muted">{tr('Không có nhãn nào khớp “{query}”', { query })}</p>
         )}
       </div>
 
@@ -336,11 +337,11 @@ export function TagPicker({ value, onChange }: Props) {
           >
             {expanded ? (
               <>
-                Thu gọn <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                {tr('Thu gọn')} <ChevronUp className="h-3.5 w-3.5" aria-hidden />
               </>
             ) : (
               <>
-                Tất cả ({total}) <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                {tr('Tất cả ({n})', { n: total })} <ChevronDown className="h-3.5 w-3.5" aria-hidden />
               </>
             )}
           </button>

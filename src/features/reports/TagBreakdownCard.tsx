@@ -10,6 +10,8 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import type { TagBreakdown } from '../tags/aggregate'
 import { Card, SectionTitle } from '../../components/ui'
+import { tagLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   data: TagBreakdown
@@ -43,15 +45,16 @@ export function TagBreakdownCard({
     return (
       <Card as="section">
         <SectionTitle className="mb-1">
-          Chi theo nhãn
+          {tr('Chi theo nhãn')}
         </SectionTitle>
         <Guide className="text-sm text-fg-secondary">
-          Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay,
-          quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc{' '}
-          <Link to="/settings/tags" className="font-medium text-fg-accent">
-            quản lý nhãn trong Cài đặt
-          </Link>
-          .
+          {trn('Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay, quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc {link}.', {
+            link: (
+              <Link to="/settings/tags" className="font-medium text-fg-accent">
+                {tr('quản lý nhãn trong Cài đặt')}
+              </Link>
+            ),
+          })}
         </Guide>
       </Card>
     )
@@ -61,10 +64,10 @@ export function TagBreakdownCard({
     return (
       <Card as="section">
         <SectionTitle className="mb-1">
-          Chi theo nhãn
+          {tr('Chi theo nhãn')}
         </SectionTitle>
         <p className="text-sm text-fg-muted">
-          Không có khoản chi nào mang nhãn {periodNoun}.
+          {tr('Không có khoản chi nào mang nhãn {period}.', { period: periodNoun })}
         </p>
       </Card>
     )
@@ -75,9 +78,9 @@ export function TagBreakdownCard({
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <SectionTitle>Chi theo nhãn</SectionTitle>
+        <SectionTitle>{tr('Chi theo nhãn')}</SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
-          {taggedPct}% chi tiêu có nhãn
+          {tr('{pct}% chi tiêu có nhãn', { pct: taggedPct })}
         </span>
       </div>
 
@@ -86,14 +89,14 @@ export function TagBreakdownCard({
           <li key={s.tagId}>
             <Link
               to={`/search?tags=${encodeURIComponent(s.tagId)}&from=${rangeFrom}&to=${rangeTo}`}
-              aria-label={`Xem ${s.count} khoản mang nhãn ${s.name}`}
+              aria-label={tr('Xem {n} khoản mang nhãn {name}', { n: s.count, name: tagLabel(s.name) })}
               className="block rounded-lg py-1 transition active:scale-[0.99] hover:bg-surface-sunken"
             >
               <div className="flex items-center justify-between gap-2">
                 <span
                   className={`min-w-0 truncate rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(s.color)]}`}
                 >
-                  {s.name}
+                  {tagLabel(s.name)}
                 </span>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                   {money(s.amount)}
@@ -107,7 +110,7 @@ export function TagBreakdownCard({
                   />
                 </div>
                 <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-2xs text-fg-muted">
-                  {s.count} khoản
+                  {tr('{n} khoản', { n: s.count })}
                   <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                 </span>
               </div>
@@ -116,14 +119,13 @@ export function TagBreakdownCard({
         ))}
       </ul>
 
-      <ExplainBox label="Cách đọc">
-        <p>Bấm vào một nhãn để xem đúng những khoản đã tạo nên con số đó.</p>
+      <ExplainBox label={tr('Cách đọc')}>
+        <p>{tr('Bấm vào một nhãn để xem đúng những khoản đã tạo nên con số đó.')}</p>
         <p>
-          Một giao dịch có thể mang NHIỀU nhãn, nên tổng các nhãn có thể lớn hơn tổng chi — đây
-          không phải cơ cấu chia phần trăm như danh mục.
+          {tr('Một giao dịch có thể mang NHIỀU nhãn, nên tổng các nhãn có thể lớn hơn tổng chi — đây không phải cơ cấu chia phần trăm như danh mục.')}
         </p>
         <p>
-          Khoản hoàn tiền có cùng nhãn sẽ được trừ ra, nên con số là chi phí ròng thật của việc đó.
+          {tr('Khoản hoàn tiền có cùng nhãn sẽ được trừ ra, nên con số là chi phí ròng thật của việc đó.')}
         </p>
       </ExplainBox>
     </Card>

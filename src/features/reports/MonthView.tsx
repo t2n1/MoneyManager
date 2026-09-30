@@ -116,17 +116,19 @@ import { TagBreakdownCard } from './TagBreakdownCard'
 import { UncategorizedBacklogCard } from './UncategorizedBacklogCard'
 import { uncategorizedByMonth } from './uncategorized'
 import { ReportBlock } from './ReportBlock'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Cửa sổ cho đường tí hon, cột TB 3 tháng và biểu đồ 6 tháng. */
 const WINDOW = 6
 
 /** Dải chip mục lục — GIỮ ở mobile, bỏ ở desktop (§4.5). */
 const SECTIONS: readonly IndexItem[] = [
-  { id: 'm-vao-ra', label: 'Vào / ra' },
-  { id: 'm-danh-muc', label: 'Danh mục' },
-  { id: 'm-so-truoc', label: 'So trước' },
-  { id: 'm-khong-tieu', label: 'Không tiêu' },
-  { id: 'm-dang-de-y', label: 'Đáng để ý' },
+  { id: 'm-vao-ra', label: tr('Vào / ra') },
+  { id: 'm-danh-muc', label: tr('Danh mục') },
+  { id: 'm-so-truoc', label: tr('So trước') },
+  { id: 'm-khong-tieu', label: tr('Không tiêu') },
+  { id: 'm-dang-de-y', label: tr('Đáng để ý') },
 ]
 
 export function MonthView({ monthKey }: { monthKey: MonthKey }) {
@@ -289,7 +291,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         const cat = categoryOf(row.categoryId)
         return {
           categoryId: row.categoryId,
-          name: cat?.name ?? 'Danh mục đã xoá',
+          name: cat ? categoryLabel(cat.name) : tr('Danh mục đã xoá'),
           icon: cat?.icon ?? '📦',
           thisMonth: row.thisMonth,
           pct: total > 0 ? Math.round((row.thisMonth / total) * 100) : 0,
@@ -335,7 +337,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, accounts, range.start, monthLastISO, base, rates],
   )
-  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'Tài khoản đã xoá'
+  const accountName = (id: string) => {
+    const a = accounts.find((x) => x.id === id)
+    return a ? accountLabel(a.name) : tr('Tài khoản đã xoá')
+  }
 
   // Cam kết CHƯA bị trừ = khoản định kỳ có kỳ hạn rơi vào phần CÒN LẠI của kỳ. Lấy cả kỳ
   // rồi trừ đi phần đã trôi là đếm luôn những khoản đã trả — chúng đã nằm trong `spent`.
@@ -413,11 +418,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         income: sums.income,
         expense: sums.expense,
         priorExpense: cmp?.priorSameDays ?? null,
-        periodNoun: 'tháng này',
+        periodNoun: tr('tháng này'),
         // Cùng luật "chưa đặt" và cùng phạm vi so với thẻ ngân sách (`pickBudgetVerdict`).
         pace: headlinePaceOf(pace),
         savingsTargetShare: savingsShare,
-        rateScope: kyNgay.inProgress ? 'tới hôm nay' : undefined,
+        rateScope: kyNgay.inProgress ? tr('tới hôm nay') : undefined,
       })
     : null
 
@@ -465,12 +470,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
   const moreItems: MoreItem[] = [
     ...(anomalies.length > 0
-      ? [{ label: 'Chi lạ so với thường ngày', value: `${anomalies.length} khoản`, to: '#m-dang-de-y' }]
+      ? [{ label: tr('Chi lạ so với thường ngày'), value: tr('{n} khoản', { n: anomalies.length }), to: '#m-dang-de-y' }]
       : []),
     ...(subscriptions.count > 0
       ? [
           {
-            label: 'Tự động trừ mỗi tháng',
+            label: tr('Tự động trừ mỗi tháng'),
             value: formatMoney(Math.round(subscriptions.monthly), base),
             to: '#m-dang-de-y',
           },
@@ -479,8 +484,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     ...(sizes
       ? [
           {
-            label: 'Một lần chi to cỡ nào',
-            value: `trung vị ${formatMoney(Math.round(sizes.median), base)}`,
+            label: tr('Một lần chi to cỡ nào'),
+            value: tr('trung vị {amount}', { amount: formatMoney(Math.round(sizes.median), base) }),
             to: '#m-dang-de-y',
           },
         ]
@@ -488,8 +493,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     ...(backlogRows.length > 0
       ? [
           {
-            label: 'Khoản chưa gắn danh mục',
-            value: `${backlogRows.reduce((s, b) => s + b.pending, 0)} khoản`,
+            label: tr('Khoản chưa gắn danh mục'),
+            value: tr('{n} khoản', { n: backlogRows.reduce((s, b) => s + b.pending, 0) }),
             to: '#m-dang-de-y',
           },
         ]
@@ -497,7 +502,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   ]
 
   if (!monthFetched) {
-    return <EmptyState>Đang tải…</EmptyState>
+    return <EmptyState>{tr('Đang tải…')}</EmptyState>
   }
 
   const monthLabel = monthWordLabel(monthKey)
@@ -507,8 +512,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     <div className="flex flex-col gap-2.5">
       {hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
-          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
-          thiếu.
+          {tr('Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể thiếu.')}
         </div>
       )}
 
@@ -538,7 +542,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         {/* "tới hôm nay" chứ không "23 ngày": số ngày đã in đúng một lần ở nhãn kỳ trên
             đầu trang, theo quy ước chung. Con số cũ còn là số ngày SAU khi bỏ ngày đi vắng
             — trong khi tổng chi ở đây gồm cả những ngày đó. */}
-        <StatTile label={kyNgay.inProgress ? 'Chi tiêu · tới hôm nay' : 'Chi tiêu'} center>
+        <StatTile label={kyNgay.inProgress ? tr('Chi tiêu · tới hôm nay') : tr('Chi tiêu')} center>
           <Swap on={sums.expense}>
             <Money amount={sums.expense} currency={base} tone="out" compact approx={sums.hasForeign} />
           </Swap>
@@ -547,8 +551,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             khoảng khác nhau (xem MonthlyBarsCard, LongView). Ở đây là tháng đang xem —
             đang dở thì chỉ tới hôm nay. */}
         <StatTile
-          label="Không tiêu"
-          note={kyNgay.inProgress ? 'tháng này, tới hôm nay' : 'cả tháng'}
+          label={tr('Không tiêu')}
+          note={kyNgay.inProgress ? tr('tháng này, tới hôm nay') : tr('cả tháng')}
           center
         >
           <Swap
@@ -564,7 +568,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               : `${headline.ratePct}%`}
           </Swap>
         </StatTile>
-        <StatTile label="Dự báo cuối tháng" center>
+        <StatTile label={tr('Dự báo cuối tháng')} center>
           <Swap on={pace.forecast?.projected ?? null}>
             {pace.forecast ? (
               <Money
@@ -579,7 +583,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             )}
           </Swap>
         </StatTile>
-        <StatTile label="Còn tự do" center>
+        <StatTile label={tr('Còn tự do')} center>
           <Swap on={remaining?.free ?? null}>
             {remaining ? (
               <Money
@@ -590,7 +594,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                 approx={sums.hasForeign}
               />
             ) : (
-              <span className="text-fg-muted">{commitmentsReady ? '—' : 'Đang tính…'}</span>
+              <span className="text-fg-muted">{commitmentsReady ? '—' : tr('Đang tính…')}</span>
             )}
           </Swap>
         </StatTile>
@@ -604,7 +608,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           xuống dưới 320px thì thẻ Nhãn và thẻ Cấu trúc đều bị bóp đến mức phải cuộn ngang. */}
       <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-[minmax(0,1fr)_23.75rem] xl:items-start xl:gap-2.5">
         <div className="contents xl:flex xl:flex-col xl:gap-4">
-          <ReportBlock id="m-vao-ra" no="01" title="Tiền vào từ đâu, ra theo đường nào">
+          <ReportBlock id="m-vao-ra" no="01" title={tr('Tiền vào từ đâu, ra theo đường nào')}>
             <OutflowTiersCard
               tiers={tiers}
               income={sums.income}
@@ -630,13 +634,13 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             {income.hasSignal && (
               <Card as="section" elevation="panel" padding="panel">
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                  <SectionTitle as="h3">Thu từ đâu</SectionTitle>
-                  <span className="text-2xs text-fg-muted">định kỳ vs một lần</span>
+                  <SectionTitle as="h3">{tr('Thu từ đâu')}</SectionTitle>
+                  <span className="text-2xs text-fg-muted">{tr('định kỳ vs một lần')}</span>
                 </div>
                 <ul className="flex flex-col">
                   {[
-                    { label: 'Lương định kỳ', v: income.recurring, tone: 'bg-money-in' },
-                    { label: 'Một lần', v: income.oneOff, tone: 'bg-money-in/40' },
+                    { label: tr('Lương định kỳ'), v: income.recurring, tone: 'bg-money-in' },
+                    { label: tr('Một lần'), v: income.oneOff, tone: 'bg-money-in/40' },
                   ].map((row) => (
                     <li
                       key={row.label}
@@ -665,30 +669,36 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                     tính trên lương định kỳ, không phải trên tổng thu. */}
                 {income.oneOff > 0 && income.keptOnRecurringPct !== null && (
                   <p className="mt-2 text-sm text-fg-primary">
-                    Tính theo <b>lương định kỳ</b> thì tỷ lệ không tiêu là{' '}
-                    <b
-                      className={income.keptOnRecurringPct < 0 ? 'text-money-out' : 'text-money-in'}
-                    >
-                      {income.keptOnRecurringPct}%
-                    </b>
-                    {/* Không có dấu cách trước dấu phẩy: JSX ăn khoảng trắng đầu chuỗi ở
-                        dòng riêng, nên `<> , không phải…` in ra "68% , không phải". */}
-                    {headline?.ratePct != null &&
-                      headline.ratePct !== income.keptOnRecurringPct &&
-                      `, không phải ${headline.ratePct}% như tính trên tổng thu`}
-                    .
+                    {(() => {
+                      const vars = {
+                        basis: <b>{tr('lương định kỳ')}</b>,
+                        pct: (
+                          <b
+                            className={income.keptOnRecurringPct < 0 ? 'text-money-out' : 'text-money-in'}
+                          >
+                            {income.keptOnRecurringPct}%
+                          </b>
+                        ),
+                      }
+                      return headline?.ratePct != null && headline.ratePct !== income.keptOnRecurringPct
+                        ? trn('Tính theo {basis} thì tỷ lệ không tiêu là {pct}, không phải {total}% như tính trên tổng thu.', {
+                            ...vars,
+                            total: headline.ratePct,
+                          })
+                        : trn('Tính theo {basis} thì tỷ lệ không tiêu là {pct}.', vars)
+                    })()}
                   </p>
                 )}
                 <Guide className="mt-1.5 text-2xs text-fg-muted">
-                  “Định kỳ” = khoản thu ghi từ một <b>lời nhắc định kỳ</b> bạn đã khai. Lương ghi
-                  TAY sẽ nằm ở cột “một lần” — app không đoán theo số tiền, vì phép đoán đó sẽ sai
-                  đúng vào tháng có thưởng.
+                  {trn('“Định kỳ” = khoản thu ghi từ một {reminder} bạn đã khai. Lương ghi TAY sẽ nằm ở cột “một lần” — app không đoán theo số tiền, vì phép đoán đó sẽ sai đúng vào tháng có thưởng.', {
+                    reminder: <b>{tr('lời nhắc định kỳ')}</b>,
+                  })}
                 </Guide>
               </Card>
             )}
           </ReportBlock>
 
-          <ReportBlock id="m-danh-muc" no="02" title="Chi tiêu đi vào đâu">
+          <ReportBlock id="m-danh-muc" no="02" title={tr('Chi tiêu đi vào đâu')}>
             <GhiChuChuyenDi trips={trips} range={range} />
             {/* Hình đứng TRƯỚC bảng và dùng CHUNG `tableRows`: hình trả lời "to nhỏ ra
                 sao", bảng trả lời "bao nhiêu, so tháng trước thế nào". Cùng một mảng nên
@@ -711,12 +721,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             />
           </ReportBlock>
 
-          <ReportBlock id="m-so-truoc" no="03" title="So với trước — cùng số ngày">
+          <ReportBlock id="m-so-truoc" no="03" title={tr('So với trước — cùng số ngày')}>
             <MonthlyBarsCard
               series={series}
               markedKeys={thangVang}
               base={base}
-              title={`Thu / chi ${WINDOW} tháng gần nhất`}
+              title={tr('Thu / chi {n} tháng gần nhất', { n: WINDOW })}
               labelOf={(k) => `${k.year}/${k.month}`}
               currentKey={monthKeyForDate(todayISO, monthStartDay)}
             />
@@ -733,16 +743,16 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             )}
           </ReportBlock>
 
-          <ReportBlock id="m-khong-tieu" no="04" title="Phần không tiêu đã đi đâu">
+          <ReportBlock id="m-khong-tieu" no="04" title={tr('Phần không tiêu đã đi đâu')}>
             <KeptWhereCard data={kept} nameOf={accountName} />
             {remaining && <RemainingCard plan={remaining} ky={kyNgay} base={base} />}
           </ReportBlock>
 
-          <ReportBlock id="m-dang-de-y" no="05" title="Đáng để ý">
+          <ReportBlock id="m-dang-de-y" no="05" title={tr('Đáng để ý')}>
             {anomalies.length > 0 && (
               <Card as="section" elevation="panel" padding="panel">
                 <SectionTitle as="h3" className="mb-2">
-                  Chi lạ so với thường ngày
+                  {tr('Chi lạ so với thường ngày')}
                 </SectionTitle>
                 <ul className="flex flex-col">
                   {anomalies.map((a) => {
@@ -753,7 +763,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                         className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0 last:pb-0"
                       >
                         <span className="min-w-0 truncate text-sm text-fg-primary">
-                          {cat?.icon ?? '📦'} {cat?.name ?? 'Danh mục đã xoá'}
+                          {cat?.icon ?? '📦'} {cat ? categoryLabel(cat.name) : tr('Danh mục đã xoá')}
                         </span>
                         <Money
                           amount={a.amount}
@@ -768,9 +778,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                   })}
                 </ul>
                 <Guide className="mt-2 text-2xs text-fg-muted">
-                  “Lạ” = lớn hơn 3 lần mức điển hình của CHÍNH danh mục đó trong{' '}
-                  {WINDOW - 1} tháng trước, và chỉ xét danh mục có đủ 5 lần chi để có mức điển
-                  hình. Không phải lời phán rằng khoản đó sai.
+                  {tr('“Lạ” = lớn hơn 3 lần mức điển hình của CHÍNH danh mục đó trong {n} tháng trước, và chỉ xét danh mục có đủ 5 lần chi để có mức điển hình. Không phải lời phán rằng khoản đó sai.', {
+                    n: WINDOW - 1,
+                  })}
                 </Guide>
               </Card>
             )}
@@ -783,7 +793,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             <SpendSizeCard
               data={sizes}
               base={base}
-              periodNoun={`trong ${WINDOW} tháng`}
+              periodNoun={tr('trong {n} tháng', { n: WINDOW })}
               hourlyWage={profile?.hourly_wage ?? null}
             />
             {backlogRows.length > 0 && (
@@ -794,7 +804,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                 phán "không có gì bất thường" trước khi kịp nhìn. Chờ đủ rồi mới nói. */}
             {!(rangeReady && recurringReady) ? (
               <Card as="section" elevation="panel" padding="panel">
-                <p className="text-sm text-fg-muted">Đang soát các khoản bất thường…</p>
+                <p className="text-sm text-fg-muted">{tr('Đang soát các khoản bất thường…')}</p>
               </Card>
             ) : (
               anomalies.length === 0 &&
@@ -803,7 +813,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               backlogRows.length === 0 && (
                 <Card as="section" elevation="panel" padding="panel">
                   <p className="text-sm text-fg-muted">
-                    Không có gì bất thường trong kỳ này.
+                    {tr('Không có gì bất thường trong kỳ này.')}
                   </p>
                 </Card>
               )
@@ -820,7 +830,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               income={sums.income}
               expense={sums.expense}
               base={base}
-              periodNoun="tháng này"
+              periodNoun={tr('tháng này')}
               unclassifiedCount={unclassifiedCount}
             />
           </Section>
@@ -828,7 +838,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             <TagBreakdownCard
               data={monthTags}
               base={base}
-              periodNoun="tháng này"
+              periodNoun={tr('tháng này')}
               noTags={tags.length === 0}
               rangeFrom={range.start}
               rangeTo={monthLastISO}
@@ -842,15 +852,17 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           dòng), và nói ra hai quy ước quyết định mọi con số ở trên.
           E-ink + Gọn: bỏ ghi chú phương pháp này. */}
       <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
-        Tháng bắt đầu ngày {monthStartDay} · so cùng số ngày · quy đổi ≈ {base} theo tỷ giá
-        cuối kỳ · khoản chuyển tài sản tính riêng, không vào chi tiêu.
+        {tr('Tháng bắt đầu ngày {day} · so cùng số ngày · quy đổi ≈ {base} theo tỷ giá cuối kỳ · khoản chuyển tài sản tính riêng, không vào chi tiêu.', {
+          day: monthStartDay,
+          base,
+        })}
       </p>
 
       {/* Dấu vết của tab "Thấu hiểu" cũ: khối "Nhịp chi tiêu theo thứ" và "Tuần này so
           tuần trước" đã chuyển sang tab Sức khỏe (26a). Chúng nói về NẾP, không về kỳ. */}
       {sixMonthDaily.points.length === 0 && (
-        <VerdictNote tone="info" short="Chưa có giao dịch">
-          Chưa có giao dịch nào trong {WINDOW} tháng gần đây nên các khối so sánh còn trống.
+        <VerdictNote tone="info" short={tr('Chưa có giao dịch')}>
+          {tr('Chưa có giao dịch nào trong {n} tháng gần đây nên các khối so sánh còn trống.', { n: WINDOW })}
         </VerdictNote>
       )}
     </div>

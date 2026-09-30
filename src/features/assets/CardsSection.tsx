@@ -29,6 +29,8 @@ import { STATUS_FILL } from '../../components/ui/statusColors'
 import type { CardLiability } from './aggregate'
 import type { MoneyView } from './moneyView'
 import type { CardsPanel } from './useCardsPanel'
+import { accountLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Bốn cột của bảng. rem chứ không px — bề rộng cột phải giãn theo Cỡ chữ (§designSystem).
  *
@@ -119,8 +121,8 @@ export function CardsSection({ cards, panel, view }: Props) {
       return d ? [d] : []
     }),
   )
-  const colBilled = dueDays.size === 1 ? `Rút ${dueDateLabel([...dueDays][0])}` : 'Kỳ này'
-  const colUnbilled = nextDays.size === 1 ? `Rút ${dueDateLabel([...nextDays][0])}` : 'Chưa chốt'
+  const colBilled = dueDays.size === 1 ? tr('Rút {date}', { date: dueDateLabel([...dueDays][0]) }) : tr('Kỳ này')
+  const colUnbilled = nextDays.size === 1 ? tr('Rút {date}', { date: dueDateLabel([...nextDays][0]) }) : tr('Chưa chốt')
 
   return (
     <Card
@@ -131,13 +133,13 @@ export function CardsSection({ cards, panel, view }: Props) {
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-panel px-4 py-2.5">
         <CreditCard className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
-        <SectionTitle role="micro">Thẻ tín dụng</SectionTitle>
+        <SectionTitle role="micro">{tr('Thẻ tín dụng')}</SectionTitle>
         <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 text-2xs font-medium text-fg-on-track">
           {cards.length}
         </span>
         {motMoi && (
           <span className="ml-auto text-2xs text-fg-muted">
-            Cả {cards.length} thẻ cùng ngày rút và cùng nguồn trả — ghi một lần ở đây.
+            {tr('Cả {n} thẻ cùng ngày rút và cùng nguồn trả — ghi một lần ở đây.', { n: cards.length })}
           </span>
         )}
       </div>
@@ -159,22 +161,26 @@ export function CardsSection({ cards, panel, view }: Props) {
               />
             </span>
             <span className="text-sm text-fg-secondary">
-              Rút <Money {...view.view(g.totalOwed, g.currency)} className="font-semibold" /> / số
-              dư {g.sourceName} <Money {...view.view(g.sourceBalance, g.currency)} tone="muted" />
+              {trn('Rút {amount} / số dư {name} {balance}', {
+                amount: <Money {...view.view(g.totalOwed, g.currency)} className="font-semibold" />,
+                name: accountLabel(g.sourceName),
+                balance: <Money {...view.view(g.sourceBalance, g.currency)} tone="muted" />,
+              })}
             </span>
             <StatusChip tone={g.enough ? 'good' : 'bad'} className="ml-auto shrink-0">
               {g.enough ? (
-                <>
-                  đủ trả · dư{' '}
-                  <Money
-                    {...view.view(g.sourceBalance - g.totalOwed, g.currency)}
-                    tone="good"
-                  />
-                </>
+                trn('đủ trả · dư {amount}', {
+                  amount: (
+                    <Money
+                      {...view.view(g.sourceBalance - g.totalOwed, g.currency)}
+                      tone="good"
+                    />
+                  ),
+                })
               ) : (
-                <>
-                  cần nạp thêm <Money {...view.view(g.shortfall, g.currency)} tone="warn" />
-                </>
+                trn('cần nạp thêm {amount}', {
+                  amount: <Money {...view.view(g.shortfall, g.currency)} tone="warn" />,
+                })
               )}
             </StatusChip>
           </div>
@@ -184,10 +190,10 @@ export function CardsSection({ cards, panel, view }: Props) {
       <div
         className={`${COLS} border-b border-border-subtle px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted`}
       >
-        <span>Thẻ</span>
+        <span>{tr('Thẻ')}</span>
         <span className="text-right">{colBilled}</span>
         <span className="hidden text-right @xl:block">{colUnbilled}</span>
-        <span className="hidden text-right @xl:block">Tổng nợ</span>
+        <span className="hidden text-right @xl:block">{tr('Tổng nợ')}</span>
       </div>
 
       {cards.map((c) => {
@@ -202,16 +208,16 @@ export function CardsSection({ cards, panel, view }: Props) {
             className={`${COLS} items-center border-b border-border-subtle px-4 py-2 text-sm transition hover:bg-surface-sunken`}
           >
             <span className="min-w-0 truncate text-fg-secondary">
-              {c.name}
+              {accountLabel(c.name)}
               {!c.includeInTotals && (
-                <span className="ml-1 text-2xs font-normal text-fg-muted">(ngoài tổng)</span>
+                <span className="ml-1 text-2xs font-normal text-fg-muted">{tr('(ngoài tổng)')}</span>
               )}
               {/* Thẻ thiếu ngày chốt/ngày trả thì không chia được kỳ — cột "Kỳ này" của
                   nó là TOÀN BỘ dư nợ, và điều đó phải nói ra tại dòng, không để người
                   đọc cộng ba dòng rồi thắc mắc vì sao không khớp. */}
               {owed > 0 && billed == null && (
                 <span className="ml-1 text-2xs font-normal text-state-warn-fg">
-                  chưa đặt ngày chốt
+                  {tr('chưa đặt ngày chốt')}
                 </span>
               )}
             </span>
@@ -222,7 +228,7 @@ export function CardsSection({ cards, panel, view }: Props) {
                 className="text-right font-semibold"
               />
             ) : (
-              <span className="text-right text-sm text-fg-muted">chưa nợ</span>
+              <span className="text-right text-sm text-fg-muted">{tr('chưa nợ')}</span>
             )}
             <span className="hidden text-right @xl:block">
               {unbilled > 0 ? (
@@ -244,7 +250,7 @@ export function CardsSection({ cards, panel, view }: Props) {
         {/* Đầu cột đã nói mỗi cột là lần rút nào, nên dòng tổng không cần chú thích
             "phần chưa chốt sang kỳ sau" nữa — và chính chữ "kỳ sau" là chỗ gây hiểu
             nhầm ban đầu. */}
-        <span className="text-fg-muted">Tổng</span>
+        <span className="text-fg-muted">{tr('Tổng')}</span>
         <Money
           amount={tong.billed}
           currency={view.cur}

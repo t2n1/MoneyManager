@@ -7,6 +7,8 @@
 // splitTransaction.ts.
 
 import { useMemo, useState } from 'react'
+import { categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 import { Plus, Trash2 } from 'lucide-react'
 import { ActionButton, Money, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 import { Guide } from '../../components/Guide'
@@ -41,7 +43,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
 
   const catOptions = categories
     .filter((c) => c.type === tx.type && !c.is_archived)
-    .map((c) => ({ value: c.id, label: `${c.icon} ${c.name}` }))
+    .map((c) => ({ value: c.id, label: `${c.icon} ${categoryLabel(c.name)}` }))
 
   const setPart = (i: number, patch: Partial<SplitPart>) =>
     setParts((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)))
@@ -62,7 +64,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
     // Chốt thứ hai sau nút ở EditTransactionSheet: khoản bù không được chia (laKhoanBu).
     const buIds = new Set(categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id))
     if (laKhoanBu(tx, buIds)) {
-      showToast('Khoản bù số dư không chia được.', 'error')
+      showToast(tr('Khoản bù số dư không chia được.'), 'error')
       return
     }
     setDangChay(true)
@@ -93,7 +95,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
       setDangChay(false)
       return
     }
-    showToast(`Đã chia thành ${plan.parts.length} dòng`, 'success')
+    showToast(tr('Đã chia thành {n} dòng', { n: plan.parts.length }), 'success')
     onDone()
   }
 
@@ -111,13 +113,14 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          <SectionTitle id="split-title">Chia giao dịch</SectionTitle>
+          <SectionTitle id="split-title">{tr('Chia giao dịch')}</SectionTitle>
           <Money amount={tx.amount} currency={currency} className="text-sm font-semibold" />
         </div>
         <Guide className="mb-3 text-2xs text-fg-muted">
-          Một lần đi siêu thị gồm đồ ăn và đồ dùng nhà thì đây là chỗ tách chúng ra. Giao
-          dịch gốc được thay bằng {plan.parts.length} dòng cộng lại <b>đúng bằng</b> nó —
-          phần cuối luôn tự nhận số dư nên không bao giờ lệch một đồng.
+          {trn('Một lần đi siêu thị gồm đồ ăn và đồ dùng nhà thì đây là chỗ tách chúng ra. Giao dịch gốc được thay bằng {n} dòng cộng lại {exactly} nó — phần cuối luôn tự nhận số dư nên không bao giờ lệch một đồng.', {
+            n: plan.parts.length,
+            exactly: <b>{tr('đúng bằng')}</b>,
+          })}
         </Guide>
 
         <ul className="flex flex-col gap-2">
@@ -128,7 +131,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
                 <div className="flex items-end gap-2">
                   <div className="min-w-0 flex-1">
                     <span className="mb-0.5 block text-2xs text-fg-muted">
-                      {laCuoi ? `Phần ${i + 1} · phần còn lại` : `Phần ${i + 1}`}
+                      {laCuoi ? tr('Phần {n} · phần còn lại', { n: i + 1 }) : tr('Phần {n}', { n: i + 1 })}
                     </span>
                     {laCuoi ? (
                       // Phần cuối KHÔNG nhập được: nó luôn là số dư. Cho gõ thì người
@@ -146,7 +149,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
                         value={p.amount}
                         onChange={(v) => setPart(i, { amount: v })}
                         autoOpen={false}
-                        ariaLabel={`Số tiền phần ${i + 1}`}
+                        ariaLabel={tr('Số tiền phần {n}', { n: i + 1 })}
                       />
                     )}
                   </div>
@@ -154,7 +157,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
                     <button
                       type="button"
                       onClick={() => boPhan(i)}
-                      aria-label={`Bỏ phần ${i + 1}`}
+                      aria-label={tr('Bỏ phần {n}', { n: i + 1 })}
                       className="mb-1 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-fg-muted hover:text-money-out"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -162,14 +165,14 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
                   )}
                 </div>
                 <label className="mt-2 block text-2xs text-fg-muted">
-                  Danh mục
+                  {tr('Danh mục')}
                   <Select
                     value={p.categoryId ?? ''}
                     onChange={(e) => setPart(i, { categoryId: e.target.value || null })}
                     wrapClassName="mt-0.5 block w-full"
                     className="w-full"
                   >
-                    <option value="">— chưa chọn —</option>
+                    <option value="">{tr('— chưa chọn —')}</option>
                     {catOptions.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -184,10 +187,10 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
 
         <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" onClick={themPhan} className={actionButtonClass('outline')}>
-            <Plus className="h-4 w-4" /> Thêm phần
+            <Plus className="h-4 w-4" /> {tr('Thêm phần')}
           </button>
           <button type="button" onClick={chiaDeu} className={actionButtonClass('outline')}>
-            Chia đều
+            {tr('Chia đều')}
           </button>
         </div>
 
@@ -204,14 +207,14 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Huỷ
+            {tr('Huỷ')}
           </button>
           <ActionButton
             variant="primary"
             onClick={handleSplit}
             disabled={plan.error !== null || dangChay}
           >
-            {dangChay ? 'Đang chia…' : `Chia thành ${plan.parts.length} dòng`}
+            {dangChay ? tr('Đang chia…') : tr('Chia thành {n} dòng', { n: plan.parts.length })}
           </ActionButton>
         </div>
       </div>

@@ -36,6 +36,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useAuth } from '../features/auth/AuthProvider'
 import { AppLogo } from './AppLogo'
 import { NAV_ITEMS } from './navItems'
+import { tr } from '../i18n'
 
 // Icon 17px, nét 1.6 — bộ số của §2.7. rem chứ không px: Cài đặt → Cỡ chữ phóng chữ
 // mà icon đứng yên thì nhãn to dần bên cạnh một hình vẽ bé tí.
@@ -80,7 +81,7 @@ export function AppRail() {
 
   return (
     <nav
-      aria-label="Điều hướng chính"
+      aria-label={tr('Điều hướng chính')}
       // w cố định chứ không để padding tự cộng ra: đây là cột NGOÀI CÙNG, lệch 1px ở
       // đây là cả vùng nội dung lệch theo.
       className={`hidden shrink-0 flex-col gap-1 border-r border-border-panel bg-surface-chrome px-2 py-3 lg:flex print:hidden ${
@@ -101,7 +102,7 @@ export function AppRail() {
           <NavLink> trong file này. */}
       <span aria-hidden className="mb-1.5 flex items-center gap-2 px-1.5">
         <AppLogo className="h-6.5 w-6.5 shrink-0 rounded-lg" />
-        {!collapsed && <span className="truncate text-sm font-bold text-fg-primary">Sổ Gạo</span>}
+        {!collapsed && <span className="truncate text-sm font-bold text-fg-primary">Sổ Gạo</span>} {/* i18n-ignore — tên app */}
       </span>
       {NAV_ITEMS.map((item) => (
         <NavLink
@@ -140,7 +141,7 @@ export function AppRail() {
       <button
         type="button"
         onClick={toggle}
-        title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+        title={collapsed ? tr('Mở rộng') : tr('Thu gọn')}
         aria-expanded={!collapsed}
         className={`${row} mt-auto text-fg-muted hover:bg-surface-sunken hover:text-fg-primary`}
       >
@@ -150,7 +151,7 @@ export function AppRail() {
           <PanelLeftClose className={ICON} strokeWidth={1.6} />
         )}
         <span className={collapsed ? 'sr-only' : 'truncate text-sm font-medium'}>
-          {collapsed ? 'Mở rộng' : 'Thu gọn'}
+          {collapsed ? tr('Mở rộng') : tr('Thu gọn')}
         </span>
       </button>
       {/* Đang đăng nhập bằng tài khoản nào. Ở 56px chỉ đủ chữ đầu của email; ở 160px thì

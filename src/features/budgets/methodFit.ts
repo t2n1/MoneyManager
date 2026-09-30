@@ -12,6 +12,7 @@ import type { CategoryRow } from '../../types/database.types'
 import type { CategorySlice, ClassificationBreakdown } from '../reports/aggregate'
 import { axisProgress, axisSlices, shareLabel, sharePct, type AxisProgress } from './axisTargets'
 import { BUDGET_METHODS, type BudgetMethod } from './budgetMethods'
+import { tr } from '../../i18n'
 
 export interface MethodFit {
   method: BudgetMethod
@@ -62,13 +63,13 @@ export interface FitBadge {
 export function fitBadges(axis: AxisProgress): FitBadge[] {
   const missed = axis.lines.filter((l) => !l.ok)
   if (missed.length === 0) {
-    return [{ tone: 'good', text: `hợp nếp chi hiện tại — đạt cả ${axis.lines.length} mốc` }]
+    return [{ tone: 'good', text: tr('hợp nếp chi hiện tại — đạt cả {n} mốc', { n: axis.lines.length }) }]
   }
   return missed.map((l) => ({
     tone: 'warn' as const,
     text:
       l.direction === 'cap'
-        ? `${l.label} ${sharePct(l.share)}% — quá trần ${Math.round(l.targetShare * 100)}%`
-        : `giữ lại ${shareLabel(l.share)} — chưa tới sàn ${Math.round(l.targetShare * 100)}%`,
+        ? tr('{label} {pct}% — quá trần {cap}%', { label: l.label, pct: sharePct(l.share), cap: Math.round(l.targetShare * 100) })
+        : tr('giữ lại {pct} — chưa tới sàn {floor}%', { pct: shareLabel(l.share), floor: Math.round(l.targetShare * 100) }),
   }))
 }

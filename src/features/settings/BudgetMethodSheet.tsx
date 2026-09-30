@@ -20,6 +20,8 @@ import { shareLabel, type AxisLine, type AxisProgress } from '../budgets/axisTar
 import { BUDGET_METHODS, clampBps, resolveMethod } from '../budgets/budgetMethods'
 import { fitBadges } from '../budgets/methodFit'
 import { useMethodFit } from '../budgets/useMethodFit'
+import { categoryLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   profile: ProfileRow
@@ -49,7 +51,7 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
   const base = profile.base_currency
   const nameOf = (id: string): string | null => {
     const c = categories.find((x) => x.id === id)
-    return c ? `${c.icon ? `${c.icon} ` : ''}${c.name}` : null
+    return c ? `${c.icon ? `${c.icon} ` : ''}${categoryLabel(c.name)}` : null
   }
 
   function pickMethod(id: string) {
@@ -102,20 +104,20 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Phân bổ ngân sách</SectionTitle>
+          <SectionTitle role="block">{tr('Phân bổ ngân sách')}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
         <div className="flex flex-col gap-3">
           <Card as="section" padding="md">
             <SectionTitle role="micro" as="h3">
-              Chọn phương pháp
+              {tr('Chọn phương pháp')}
             </SectionTitle>
             {/* Câu định nghĩa kỳ ướm đứng ngoài <Guide>: không có nó thì các huy hiệu
                 số bên dưới không rõ đo trên cái gì. */}
@@ -123,28 +125,28 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
             {fitData ? (
               <>
                 <p className="mt-1 hidden text-sm text-fg-secondary eink-gon:block">
-                  Thu TB 3 tháng <Money amount={fitData.avgIncome} currency={base} />
-                  /tháng
+                  {trn('Thu TB 3 tháng {amount}/tháng', {
+                    amount: <Money amount={fitData.avgIncome} currency={base} />,
+                  })}
                 </p>
                 <p className="mt-1 text-sm text-fg-muted eink-gon:hidden">
-                  Mỗi tấm dưới đây đã ướm sẵn số 3 tháng gần nhất của bạn — thu trung bình{' '}
-                  <Money amount={fitData.avgIncome} currency={base} />
-                  /tháng.
+                  {trn('Mỗi tấm dưới đây đã ướm sẵn số 3 tháng gần nhất của bạn — thu trung bình {amount}/tháng.', {
+                    amount: <Money amount={fitData.avgIncome} currency={base} />,
+                  })}
                 </p>
               </>
             ) : fitData === null ? (
               <p className="mt-1 text-sm text-fg-muted">
-                Chưa có khoản thu nào trong 3 tháng gần nhất nên chưa ướm số được — chọn theo
-                mô tả từng phương pháp.
+                {tr('Chưa có khoản thu nào trong 3 tháng gần nhất nên chưa ướm số được — chọn theo mô tả từng phương pháp.')}
               </p>
             ) : (
-              <p className="mt-1 text-sm text-fg-muted">Đang gom số liệu 3 tháng gần nhất…</p>
+              <p className="mt-1 text-sm text-fg-muted">{tr('Đang gom số liệu 3 tháng gần nhất…')}</p>
             )}
 
             {/* role=radiogroup: sáu tấm là MỘT câu hỏi chọn-1, không phải sáu nút rời */}
             <div
               role="radiogroup"
-              aria-label="Phương pháp phân bổ"
+              aria-label={tr('Phương pháp phân bổ')}
               className="mt-2 flex flex-col gap-2"
             >
               {BUDGET_METHODS.map((m) => {
@@ -165,7 +167,7 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
                   >
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="text-sm font-semibold text-fg-primary">{m.name}</span>
-                      {on && <span className="shrink-0 text-sm font-medium text-fg-accent">✓ đang chọn</span>}
+                      {on && <span className="shrink-0 text-sm font-medium text-fg-accent">{tr('✓ đang chọn')}</span>}
                     </span>
                     <span className="mt-0.5 block text-sm text-fg-secondary">{m.blurb}</span>
                     {axis && m.id !== 'custom' && (
@@ -192,7 +194,7 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
 
           <Card as="section" padding="md">
             <SectionTitle role="micro" as="h3">
-              Các khoản của {method.name}
+              {tr('Các khoản của {name}', { name: method.name })}
             </SectionTitle>
             <ul className="mt-1">
               {method.buckets.map((b, i) => {
@@ -208,33 +210,39 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
                       <p className="text-sm font-semibold text-fg-primary">
                         {b.label}{' '}
                         <span className="font-normal text-fg-muted">
-                          · {b.direction === 'cap' ? 'trần' : 'sàn — cần vượt'}
+                          · {b.direction === 'cap' ? tr('trần') : tr('sàn — cần vượt')}
                         </span>
                       </p>
                       {/* Câu ví dụ là DỮ LIỆU của chính người dùng, không phải chữ dạy —
                           phải thấy cả ở chế độ Gọn, vì nó là thứ giải nghĩa cái tên khoản. */}
                       {b.source.kind === 'residual' ? (
                         <p className="mt-0.5 text-sm text-fg-muted">
-                          Phần còn lại sau khi tiêu
-                          {line && <> — 3 tháng qua bạn giữ được {shareLabel(line.share)}</>}
+                          {line
+                            ? tr('Phần còn lại sau khi tiêu — 3 tháng qua bạn giữ được {share}', {
+                                share: shareLabel(line.share),
+                              })
+                            : tr('Phần còn lại sau khi tiêu')}
                         </p>
                       ) : names.length > 0 ? (
                         <p className="mt-0.5 truncate text-sm text-fg-muted">
-                          Của bạn: {names.join(', ')}
+                          {tr('Của bạn: {names}', { names: names.join(', ') })}
                           {line && <> — {Math.round(line.share * 100)}%</>}
                         </p>
                       ) : (
                         <p className="mt-0.5 text-sm text-state-warn-fg">
-                          Chưa khoản chi nào mang nhãn này —{' '}
-                          <Link to="/settings/categories/classify" className="font-medium underline" onClick={onClose}>
-                            gắn ở Phân loại
-                          </Link>
+                          {trn('Chưa khoản chi nào mang nhãn này — {link}', {
+                            link: (
+                              <Link to="/settings/categories/classify" className="font-medium underline" onClick={onClose}>
+                                {tr('gắn ở Phân loại')}
+                              </Link>
+                            ),
+                          })}
                         </p>
                       )}
                     </div>
                     <div className="w-24 shrink-0">
                       <label htmlFor={`${uid}-${b.key}`} className="sr-only">
-                        Phần trăm cho {b.label}
+                        {tr('Phần trăm cho {label}', { label: b.label })}
                       </label>
                       <input
                         id={`${uid}-${b.key}`}
@@ -246,8 +254,9 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
                       />
                       {fitData && (
                         <p className="mt-0.5 text-right text-2xs text-fg-muted">
-                          ≈ <Money amount={Math.round((fitData.avgIncome * pctNum) / 100)} currency={base} />
-                          /th
+                          {trn('≈ {amount}/th', {
+                            amount: <Money amount={Math.round((fitData.avgIncome * pctNum) / 100)} currency={base} />,
+                          })}
                         </p>
                       )}
                     </div>
@@ -262,21 +271,25 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
               }
               className="mt-1 text-sm font-medium text-fg-accent"
             >
-              ↺ Về mặc định của phương pháp
+              {tr('↺ Về mặc định của phương pháp')}
             </button>
             {/* CHIỀU của các ô đứng ngoài <Guide>: gõ ngược trần/sàn thì mọi câu phán ở
                 Ngân sách đọc ngược lại — sai lặng lẽ. */}
             <p className="mt-1 text-sm text-fg-muted">
-              Các khoản chi là <b>trần</b>,{' '}
-              {method.buckets.find((b) => b.direction === 'floor')!.label} là <b>sàn</b>.
-              <Guide as="span"> Chi dưới trần là tốt, vượt sàn là tốt.</Guide>
+              {trn('Các khoản chi là {cap}, {label} là {floor}.', {
+                cap: <b>{tr('trần')}</b>,
+                label: method.buckets.find((b) => b.direction === 'floor')!.label,
+                floor: <b>{tr('sàn')}</b>,
+              })}
+              <Guide as="span"> {tr('Chi dưới trần là tốt, vượt sàn là tốt.')}</Guide>
             </p>
             {/* Không ép tổng = 100, nhưng lệch nhiều thì nhắc — nói về con số vừa gõ nên
                 chế độ Gọn cũng phải thấy. */}
             {Math.abs(axisSum - 100) > 0.5 && (
               <p className="mt-1 text-sm text-fg-warn">
-                Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều
-                thì các mốc khó dùng chung.
+                {tr('Tổng hiện là {pct}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì các mốc khó dùng chung.', {
+                  pct: Math.round(axisSum),
+                })}
               </p>
             )}
           </Card>
@@ -287,7 +300,7 @@ export function BudgetMethodSheet({ profile, onClose }: Props) {
             disabled={update.isPending}
             className={actionButtonClass('primary', 'w-full')}
           >
-            Lưu
+            {tr('Lưu')}
           </button>
         </div>
       </div>

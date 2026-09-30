@@ -9,6 +9,9 @@
 // Hệ quy chiếu: y TĂNG LÊN TRÊN (hệ của pypdf). Adapter phải lật trước khi gọi vào
 // đây — mọi hằng số dưới đây đã tinh chỉnh theo hệ này.
 
+// `.ts` có đuôi: CLI scripts/nhap-phieu-luong.mjs nạp thẳng file này bằng Node.
+import { tr } from '../../i18n/index.ts'
+
 export interface OChu {
   text: string
   x: number
@@ -156,10 +159,10 @@ function docKy(oChu: OChu[], tenFile: string) {
   const canhBao: string[] = []
   if (loaiPdf) {
     const mongDoi = kind === 'K' ? '給与' : '賞与'
-    if (loaiPdf !== mongDoi) canhBao.push(`tên file '${kind}' nhưng nội dung '${loaiPdf}'`)
+    if (loaiPdf !== mongDoi) canhBao.push(tr("tên file '{kind}' nhưng nội dung '{found}'", { kind: String(kind), found: loaiPdf }))
   }
   if (noiKy && tenKy && noiKy !== tenKy) {
-    canhBao.push(`kỳ lệch: tên=${tenKy} nội-dung=${noiKy}`)
+    canhBao.push(tr('kỳ lệch: tên={name} nội-dung={content}', { name: tenKy, content: noiKy }))
   }
   return {
     period: noiKy ?? tenKy,
@@ -180,26 +183,31 @@ function docKy(oChu: OChu[], tenFile: string) {
 function kiem(p: Omit<Phieu, 'loi'>): string[] {
   const loi: string[] = []
   const q = Object.values(p.ngoaiTong).reduce((s, v) => s + v, 0)
-  if (p.deductTotal === null) loi.push('thiếu 控除合計額')
+  if (p.deductTotal === null) loi.push(tr('thiếu 控除合計額'))
   else {
     const s = Object.values(p.tru).reduce((a, v) => a + v, 0)
     if (s !== p.deductTotal) {
-      loi.push(`tổng mục trừ ${s} != 控除合計額 ${p.deductTotal} (lệch ${s - p.deductTotal})`)
+      loi.push(tr('tổng mục trừ {sum} != 控除合計額 {total} (lệch {diff})', { sum: s, total: p.deductTotal, diff: s - p.deductTotal }))
     }
   }
   if (p.gross === null || p.deductTotal === null || p.net === null) {
-    loi.push('thiếu một trong 総支給/控除合計/差引支給')
+    loi.push(tr('thiếu một trong 総支給/控除合計/差引支給'))
   } else if (p.gross - p.deductTotal - q !== p.net) {
     loi.push(
-      `総支給−控除合計−過不足 != 差引支給 (${p.gross}−${p.deductTotal}−${q}=` +
-        `${p.gross - p.deductTotal - q}, thực=${p.net})`,
+      tr('総支給−控除合計−過不足 != 差引支給 ({gross}−{deduct}−{extra}={calc}, thực={net})', {
+        gross: p.gross,
+        deduct: p.deductTotal,
+        extra: q,
+        calc: p.gross - p.deductTotal - q,
+        net: p.net,
+      }),
     )
   }
   if (p.net !== null && p.bank !== null && p.net !== p.bank) {
     loi.push(`差引支給 ${p.net} != 銀行１振込額 ${p.bank}`)
   }
-  if (p.nhanLa.length) loi.push('nhãn lạ (không có trong bộ nhãn): ' + p.nhanLa.join(', '))
-  if (!p.period || !p.kind) loi.push('không đọc được kỳ/loại')
+  if (p.nhanLa.length) loi.push(tr('nhãn lạ (không có trong bộ nhãn): {labels}', { labels: p.nhanLa.join(', ') }))
+  if (!p.period || !p.kind) loi.push(tr('không đọc được kỳ/loại'))
   return loi
 }
 

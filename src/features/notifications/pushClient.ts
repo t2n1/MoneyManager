@@ -6,6 +6,7 @@
 // push_subscriptions vì vậy có nhiều dòng mỗi người.
 import { repo } from '../../data'
 import { decideBlocker, vapidKeyToBytes, type PushBlocker, type PushEnv } from './pushEligibility'
+import { tr } from '../../i18n'
 
 export interface PushState {
   blocker: PushBlocker
@@ -72,7 +73,7 @@ async function serviceWorkerReady(ms = 3000): Promise<ServiceWorkerRegistration>
           () =>
             reject(
               new Error(
-                'Trang này không có service worker (bản dev không sinh SW) — hãy thử trên bản build.',
+                tr('Trang này không có service worker (bản dev không sinh SW) — hãy thử trên bản build.'),
               ),
             ),
           ms,
@@ -101,11 +102,11 @@ export async function getPushState(): Promise<PushState> {
 export async function subscribeThisDevice(): Promise<void> {
   const blocker = decideBlocker(readPushEnv())
   if (blocker !== 'ok' && blocker !== 'bi-chan')
-    throw new Error('Thiết bị này chưa đủ điều kiện nhận thông báo.')
+    throw new Error(tr('Thiết bị này chưa đủ điều kiện nhận thông báo.'))
 
   // Xin quyền TRƯỚC mọi await khác, để còn nằm trong cử chỉ người dùng.
   const permission = await Notification.requestPermission()
-  if (permission !== 'granted') throw new Error('Bạn chưa cho phép hiện thông báo.')
+  if (permission !== 'granted') throw new Error(tr('Bạn chưa cho phép hiện thông báo.'))
 
   const registration = await serviceWorkerReady()
 
@@ -127,7 +128,7 @@ export async function subscribeThisDevice(): Promise<void> {
     // Không có khoá thì server chỉ gửi được push rỗng. Dẹp luôn đăng ký nửa vời này
     // để lần sau bấm lại là tạo mới, chứ không mắc mãi ở trạng thái vô dụng.
     await subscription.unsubscribe().catch(() => {})
-    throw new Error('Trình duyệt không cấp khoá mã hoá cho đăng ký này.')
+    throw new Error(tr('Trình duyệt không cấp khoá mã hoá cho đăng ký này.'))
   }
 
   await repo.savePushSubscription({

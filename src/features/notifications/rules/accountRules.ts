@@ -5,6 +5,7 @@ import { cardFunding, type CardLiability, type CardSourceLike } from '../../asse
 import { addDaysISO, nextCardDueDate } from '../../../lib/dates'
 import { nthDueDate } from '../../../lib/recurring'
 import type { CurrencyCode } from '../../../lib/money'
+import { accountLabel, tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Nhìn trước bao nhiêu ngày cho mục "tài khoản sắp không đủ tiền". */
@@ -46,7 +47,7 @@ function recurringImpact(
       // Quy tắc chưa đặt tên vẫn phải có nhãn: số tiền của nó ĐÃ cộng vào tổng, nên bỏ
       // nhãn là người dùng không cộng lại được các khoản liệt kê thành con số đang đọc.
       labels.push(
-        `${r.note || 'Khoản định kỳ'} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`,
+        `${r.note || tr('Khoản định kỳ')} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`,
       )
     } else {
       incoming += r.amount * hits
@@ -103,7 +104,7 @@ function shortfallFacts(
   return {
     owe,
     have,
-    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)}${listed}`,
+    detail: `${tr('{n} ngày tới phải trả {amount}', { n: SHORTFALL_HORIZON_DAYS, amount: input.formatMoney(owe, account.currency) })}${listed}`,
   }
 }
 
@@ -124,7 +125,10 @@ function pushShortfallIfNeeded(
     kind: 'action',
     type: 'account-shortfall',
     severity: 'high',
-    title: `${account.name} thiếu ${input.formatMoney(facts.owe - facts.have, account.currency)}`,
+    title: tr('{name} thiếu {amount}', {
+      name: accountLabel(account.name),
+      amount: input.formatMoney(facts.owe - facts.have, account.currency),
+    }),
     detail: facts.detail,
     onISO: untilISO,
     to: `/assets/account/${account.id}`,
@@ -149,8 +153,8 @@ export function accountRules(input: NotificationInput): AppNotification[] {
       kind: 'action',
       type: 'account-negative',
       severity: 'high',
-      title: `${a.name} đang âm ${input.formatMoney(-a.balance, a.currency)}`,
-      detail: 'Thường là ghi nhầm hoặc quên ghi một khoản thu.',
+      title: tr('{name} đang âm {amount}', { name: accountLabel(a.name), amount: input.formatMoney(-a.balance, a.currency) }),
+      detail: tr('Thường là ghi nhầm hoặc quên ghi một khoản thu.'),
       to: `/assets/account/${a.id}`,
     })
   }
@@ -195,7 +199,7 @@ export function accountRules(input: NotificationInput): AppNotification[] {
     // nếu không, chi tiết sẽ nhắc tới một thẻ mà số tiền không hề gồm nợ của nó.
     const cardNames = cards
       .filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency)
-      .map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`)
+      .map((c) => `${accountLabel(c.name)} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`)
     const source: AccountLike = {
       id: g.sourceId,
       name: g.sourceName,

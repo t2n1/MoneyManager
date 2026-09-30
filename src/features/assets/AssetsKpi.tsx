@@ -20,6 +20,8 @@ import { KpiCell, KpiStrip } from './KpiStrip'
 import { makeMoneyView } from './moneyView'
 import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
+import { accountLabel, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Lớp cột theo số ô có THẬT — ô nào không có dữ liệu thì không dựng. */
 const KPI_COLS: Record<number, string> = {
@@ -40,7 +42,7 @@ interface Props {
 
 /** Chỗ của một con số chưa có: đang tải thì "…", hỏng hẳn thì nói thẳng. Không bao giờ in số tạm. */
 function ChoSo({ failed }: { failed: boolean }) {
-  return <span className="text-sm text-fg-muted">{failed ? 'Chưa tải được' : '…'}</span>
+  return <span className="text-sm text-fg-muted">{failed ? tr('Chưa tải được') : '…'}</span>
 }
 
 export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
@@ -109,7 +111,7 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
 
   return (
     <KpiStrip cols={KPI_COLS[count] ?? KPI_COLS[4]}>
-      <KpiCell label="Tài sản ròng" foot={netWorthFoot}>
+      <KpiCell label={tr('Tài sản ròng')} foot={netWorthFoot}>
         {chuaDu ? (
           <ChoSo failed={loadFailed} />
         ) : (
@@ -118,20 +120,24 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
       </KpiCell>
 
       <KpiCell
-        label="Tổng tài sản"
+        label={tr('Tổng tài sản')}
         foot={
           !chuaDu && (
             <>
-              {accountCount} tài khoản · {purposeGroups.length} nhóm
+              {tr('{n} tài khoản', { n: accountCount })} · {tr('{n} nhóm', { n: purposeGroups.length })}
               {hasValuation && (
                 <>
-                  {' '}· lãi đầu tư{' '}
-                  <Money
-                    {...pnlView}
-                    tone={pnl >= 0 ? 'in' : 'out'}
-                    showSign
-                    approx={breakdown.pnlHasMissingRate || pnlView.approx}
-                  />
+                  {' · '}
+                  {trn('lãi đầu tư {amount}', {
+                    amount: (
+                      <Money
+                        {...pnlView}
+                        tone={pnl >= 0 ? 'in' : 'out'}
+                        showSign
+                        approx={breakdown.pnlHasMissingRate || pnlView.approx}
+                      />
+                    ),
+                  })}
                 </>
               )}
             </>
@@ -153,8 +159,8 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
         <KpiCell
           label={
             summary.nextDueISO
-              ? `Phải trả · ${dueRelativeLabel(todayISO, summary.nextDueISO)}`
-              : 'Phải trả · thẻ tín dụng'
+              ? tr('Phải trả · {when}', { when: dueRelativeLabel(todayISO, summary.nextDueISO) })
+              : tr('Phải trả · thẻ tín dụng')
           }
           tone="warn"
           badge={
@@ -165,23 +171,34 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
           foot={
             dueFunding && (
               <>
-                Từ {dueFunding.sourceName}{' '}
-                <Money {...mv.view(dueFunding.sourceBalance, dueFunding.currency)} tone="muted" /> ·{' '}
+                {trn('Từ {source} {balance}', {
+                  source: accountLabel(dueFunding.sourceName),
+                  balance: (
+                    <Money {...mv.view(dueFunding.sourceBalance, dueFunding.currency)} tone="muted" />
+                  ),
+                })}{' '}
+                ·{' '}
                 {dueFunding.enough ? (
                   <span className="text-state-good-fg">
-                    đủ trả, dư{' '}
-                    <Money
-                      {...mv.view(
-                        dueFunding.sourceBalance - dueFunding.totalOwed,
-                        dueFunding.currency,
-                      )}
-                      tone="good"
-                    />
+                    {trn('đủ trả, dư {amount}', {
+                      amount: (
+                        <Money
+                          {...mv.view(
+                            dueFunding.sourceBalance - dueFunding.totalOwed,
+                            dueFunding.currency,
+                          )}
+                          tone="good"
+                        />
+                      ),
+                    })}
                   </span>
                 ) : (
                   <span className="text-state-warn-fg">
-                    cần nạp thêm{' '}
-                    <Money {...mv.view(dueFunding.shortfall, dueFunding.currency)} tone="warn" />
+                    {trn('cần nạp thêm {amount}', {
+                      amount: (
+                        <Money {...mv.view(dueFunding.shortfall, dueFunding.currency)} tone="warn" />
+                      ),
+                    })}
                   </span>
                 )}
               </>
@@ -199,16 +216,16 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
 
       {showTail && tail === 'loans' && (
         <KpiCell
-          label={debtsSummary.owedToMe > 0 ? 'Cho vay còn lại' : 'Tổng nợ thẻ'}
+          label={debtsSummary.owedToMe > 0 ? tr('Cho vay còn lại') : tr('Tổng nợ thẻ')}
           foot={
             <>
               {debtsSummary.owedToMe > 0 && cardOwed > 0 && (
                 <>
-                  Tổng nợ thẻ <Money {...mv.view(cardOwed)} tone="out" /> ·{' '}
+                  {trn('Tổng nợ thẻ {amount}', { amount: <Money {...mv.view(cardOwed)} tone="out" /> })} ·{' '}
                 </>
               )}
               <Link to="/debts" className="font-medium text-fg-accent">
-                Nợ / cho vay ›
+                {tr('Nợ / cho vay ›')}
               </Link>
             </>
           }
@@ -224,10 +241,10 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
 
       {showTail && tail === 'invested' && (
         <KpiCell
-          label="Vốn đầu tư đã bỏ vào"
+          label={tr('Vốn đầu tư đã bỏ vào')}
           foot={
             <>
-              Giá trị nay <Money {...mv.view(capital.currentValue)} tone="muted" />
+              {trn('Giá trị nay {amount}', { amount: <Money {...mv.view(capital.currentValue)} tone="muted" /> })}
               {capital.growthPct != null && (
                 <>
                   {' '}·{' '}

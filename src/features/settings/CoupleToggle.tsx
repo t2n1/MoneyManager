@@ -14,10 +14,12 @@ import type { LucideIcon } from 'lucide-react'
 import { Card, PanelHeader } from '../../components/ui'
 import { useProfile, useUpdateProfile } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const OPTIONS: { value: boolean; label: string; hint: string; Icon: LucideIcon }[] = [
-  { value: false, label: 'Một mình', hint: 'Không hỏi khoản này của ai', Icon: User },
-  { value: true, label: 'Hai người', hint: 'Ghi thêm: mình / người ấy / chung', Icon: Users },
+  { value: false, label: tr('Một mình'), hint: tr('Không hỏi khoản này của ai'), Icon: User },
+  { value: true, label: tr('Hai người'), hint: tr('Ghi thêm: mình / người ấy / chung'), Icon: Users },
 ]
 
 export function CoupleToggle() {
@@ -32,12 +34,12 @@ export function CoupleToggle() {
     } catch {
       return
     }
-    showToast(value ? 'Đã bật ghi “của ai”' : 'Đã tắt ghi “của ai”', 'success')
+    showToast(value ? tr('Đã bật ghi “của ai”') : tr('Đã tắt ghi “của ai”'), 'success')
   }
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <PanelHeader right="dùng chung mọi thiết bị">Ghi sổ cùng ai</PanelHeader>
+      <PanelHeader right={tr('dùng chung mọi thiết bị')}>{tr('Ghi sổ cùng ai')}</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = on === opt.value
@@ -63,8 +65,9 @@ export function CoupleToggle() {
       </div>
       {/* E-ink + Gọn: bỏ câu giải thích — hai nút phía trên đã nói lựa chọn. */}
       <p className="px-3 pb-3 text-2xs text-fg-muted eink-gon:hidden">
-        Đây chỉ là <b>một chiều phân loại</b> trên sổ của bạn — chưa có tài khoản đăng nhập
-        thứ hai và chưa ai xem được sổ này. Tắt lại không mất dữ liệu đã gắn.
+        {trn('Đây chỉ là {b} trên sổ của bạn — chưa có tài khoản đăng nhập thứ hai và chưa ai xem được sổ này. Tắt lại không mất dữ liệu đã gắn.', {
+          b: <b>{tr('một chiều phân loại')}</b>,
+        })}
       </p>
     </Card>
   )

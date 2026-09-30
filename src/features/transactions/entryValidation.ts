@@ -7,6 +7,7 @@
 // cờ thô nên đổi sang tab Thu là nút vẫn ghi "Tạo lời nhắc" và tạo ra một khoản sắp CHI.
 //
 // Một hàm trả cả hai: đóng được thì đóng, và luôn kèm lý do.
+import { tr } from '../../i18n'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { categoryPickerOf, shapeOf, type EntryKind } from './entryShape'
 import type { PaymentValue } from './roleSave'
@@ -98,66 +99,66 @@ function kindMissing(s: EntryState): string | null {
   // danh mục (trước đây ngược lại) — quyết định có chủ đích, xem test "trả hộ: ví
   // nhận lại sai lấn thiếu danh mục" ở file test.
   if (s.kind === 'between') {
-    if (!s.toAccountId) return 'Còn thiếu: tài khoản ĐẾN.'
-    if (s.toAccountId === s.accountId) return 'Tài khoản đến đang trùng tài khoản nguồn.'
-    if (s.crossCurrency && s.toAmount <= 0) return 'Còn thiếu: số tiền nhận được.'
+    if (!s.toAccountId) return tr('Còn thiếu: tài khoản ĐẾN.')
+    if (s.toAccountId === s.accountId) return tr('Tài khoản đến đang trùng tài khoản nguồn.')
+    if (s.crossCurrency && s.toAmount <= 0) return tr('Còn thiếu: số tiền nhận được.')
   } else {
     switch (s.kind) {
       case 'split': {
         const { split } = s
         if (split.others <= 0)
           return split.settle === 'now'
-            ? 'Còn thiếu: phần người khác trả lại.'
-            : 'Còn thiếu: phần người khác nợ lại.'
+            ? tr('Còn thiếu: phần người khác trả lại.')
+            : tr('Còn thiếu: phần người khác nợ lại.')
         if (split.settle === 'later') {
           if (split.others > s.amount)
-            return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
-          if (!split.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
+            return tr('Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.')
+          if (!split.counterparty.trim()) return tr('Còn thiếu: tên người nợ mình (ô "Ai nợ mình").')
           break // danh mục: rơi xuống cổng chung — settle 'later' luôn cần (splitNeedsCategory).
         }
         if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
-          return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
+          return tr('Ví "Nhận lại vào" không còn hợp lệ — chọn lại.')
         if (split.others === s.amount && !split.receivedAccountId)
           // "chọn dạng Chi thường", KHÔNG "bấm Bỏ": nút "Bỏ" nằm trên banner vai trò, và
           // banner đó đã bị bỏ cùng lúc với dropdown "loại đặc biệt". Đường ra khỏi dạng
           // Trả hộ giờ là hàng Dạng, nên câu nhắc phải chỉ vào thứ đang có trên màn.
-          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc chọn dạng Chi thường nếu không cần ghi.'
+          return tr('Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc chọn dạng Chi thường nếu không cần ghi.')
         break
       }
       case 'owed':
-        if (!s.debt.counterparty.trim()) return 'Còn thiếu: tên người nợ (ai nợ bạn).'
+        if (!s.debt.counterparty.trim()) return tr('Còn thiếu: tên người nợ (ai nợ bạn).')
         // Ràng buộc DB `debts_earned_needs_income_category` (0049) chặn hàng thiếu danh
         // mục thu. Chặn ở đây nữa để người dùng đọc một câu tiếng Việt thay vì một lỗi
         // Postgres — và để nút Lưu mờ đúng lúc, chứ không mờ sau khi đã bấm.
-        if (!s.hasCategory) return 'Còn thiếu: danh mục thu (khách trả thì tiền vào đâu).'
+        if (!s.hasCategory) return tr('Còn thiếu: danh mục thu (khách trả thì tiền vào đâu).')
         break
       case 'lend':
       case 'borrow':
         if (!s.debt.counterparty.trim())
           return s.kind === 'borrow'
-            ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
-            : 'Còn thiếu: tên người vay (ai nợ mình).'
+            ? tr('Còn thiếu: tên chủ nợ (mình nợ ai).')
+            : tr('Còn thiếu: tên người vay (ai nợ mình).')
         break
       case 'family':
       case 'ownvn':
         if (s.kind === 'ownvn' && !s.remit.destId)
-          return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
-        if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
+          return tr('Còn thiếu: chọn tài khoản VND nhận tiền.')
+        if (s.remit.received <= 0) return tr('Còn thiếu: số nhận (VND).')
         break
       case 'repay':
       case 'collect':
         // Chưa chọn khoản nợ → không có gì để suy chiều bút toán (saveDebtPayment
         // ném lỗi nếu cứ lưu), nên chặn Ở ĐÂY, trước cả cổng danh mục chung.
-        if (!s.payment.debtId) return 'Còn thiếu: chọn khoản nợ.'
+        if (!s.payment.debtId) return tr('Còn thiếu: chọn khoản nợ.')
         // Trả xuyên tệ (nợ ¥, ví ₫): ô tiền lớn giữ số vào/ra ví, còn số xoá nợ là con
         // số THỨ HAI. Thiếu nó thì saveDebtPayment rơi về `base.amount` — tức ghi 15
         // triệu YEN vào một khoản nợ 100 nghìn yen, sổ nợ âm mà không có gì báo.
         if (s.payment.debtAmount !== null && s.payment.debtAmount <= 0)
-          return 'Còn thiếu: lần trả này xoá bao nhiêu nợ.'
+          return tr('Còn thiếu: lần trả này xoá bao nhiêu nợ.')
         // Trả vượt số còn lại: không chặn hẳn (có thể trả thừa thật), chỉ đòi xác nhận —
         // cùng luật với DebtPaymentSheet. Nút xác nhận nằm ngay trong khối chọn nợ.
         if (s.paymentOverpayPending)
-          return 'Số trả nhiều hơn số còn lại — bấm "Đúng, ghi trả thừa" nếu đúng vậy.'
+          return tr('Số trả nhiều hơn số còn lại — bấm "Đúng, ghi trả thừa" nếu đúng vậy.')
         break
     }
   }
@@ -172,8 +173,8 @@ function kindMissing(s: EntryState): string | null {
     (s.kind !== 'split' || splitNeedsCategory(s))
   if (needsCategory && !s.hasCategory) {
     return s.categoryGridEmpty
-      ? 'Loại này chưa có danh mục nào — tạo ở Cài đặt → Danh mục.'
-      : 'Còn thiếu: chọn danh mục ở lưới phía trên.'
+      ? tr('Loại này chưa có danh mục nào — tạo ở Cài đặt → Danh mục.')
+      : tr('Còn thiếu: chọn danh mục ở lưới phía trên.')
   }
   return null
 }
@@ -191,7 +192,9 @@ export function entryGate(s: EntryState): EntryGate {
       // .toLowerCase() chỉ khi nhãn ĐÚNG LÀ "Số tiền" — đó là danh từ chung giữa câu
       // ("còn thiếu số tiền"), còn các nhãn khác ("Tổng đã trả", "Số gửi"...) là tên
       // field riêng, viết hoa đúng như trên ô nhập.
-      return `Còn thiếu: ${shape.amountLabel === 'Số tiền' ? 'số tiền' : shape.amountLabel}.`
+      return shape.amountLabel === tr('Số tiền')
+        ? tr('Còn thiếu: số tiền.')
+        : tr('Còn thiếu: {field}.', { field: shape.amountLabel })
     }
     // Cổng tài khoản đọc từ BẢNG, không thêm một cờ song song kiểu `plannedMode`: dạng
     // `debtOnly` (Khách nợ công) không ghi giao dịch nào nên không có ví nào để đòi.
@@ -199,7 +202,7 @@ export function entryGate(s: EntryState): EntryGate {
     // ĐÂY LÀ CỔNG THỨ NHẤT. `handleSubmit` ở TransactionForm còn một cổng nữa
     // (`!noAccountNeeded && !effectiveAccountId`) — sửa một cổng mà quên cổng kia thì
     // nút Lưu sáng lên rồi bấm không có gì xảy ra: im lặng, không câu báo nào.
-    if (shape.writes !== 'debtOnly' && !s.hasAccount) return 'Còn thiếu: tài khoản.'
+    if (shape.writes !== 'debtOnly' && !s.hasAccount) return tr('Còn thiếu: tài khoản.')
     return kindMissing(s)
   })()
   return { canSave: missing === null, missing }

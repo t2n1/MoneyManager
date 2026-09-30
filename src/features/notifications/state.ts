@@ -122,6 +122,11 @@ export interface NotificationInputsReady {
    * cứng việc dọn dấu-đã-đọc của 20 loại thông báo còn lại.
    */
   benefitsOk: boolean
+  /**
+   * Lịch sử tài khoản quỹ chung (`input.sharedFund`) đã ngã ngũ chưa. Chưa bật hai người /
+   * chưa đặt quỹ thì không có gì để chờ → true. Cùng lý lẽ "lỗi hẳn cũng là ngã ngũ".
+   */
+  sharedFundOk: boolean
   /** Bảng trạng thái đã đọc/đã tắt: không có nó thì không biết đang dọn cái gì. */
   notificationStateOk: boolean
 }
@@ -172,6 +177,7 @@ export function notificationInputsReady(r: NotificationInputsReady): boolean {
     r.recentTxsOk &&
     r.lifetimeOk &&
     r.benefitsOk &&
+    r.sharedFundOk &&
     r.notificationStateOk
   )
 }

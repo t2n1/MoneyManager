@@ -8,6 +8,7 @@ import type { BudgetReport } from '../budgets/progress'
 import type { TagBudgetLine } from '../tags/budget'
 import type { LifetimeInput } from '../lifetime/project'
 import type { KetLuan } from '../quyen-loi/ketLuan'
+import type { FundAlert } from '../sharedFund/sharedFund'
 import type {
   AccountBalanceRow,
   CategoryRow,
@@ -48,6 +49,8 @@ export type NotificationType =
   | 'benefit-iryohi'
   | 'trip-gap'
   | 'price-step'
+  | 'fund-part-short'
+  | 'fund-part-surplus'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -106,6 +109,10 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'budget-over',
   'budget-parent-over',
   'tag-budget-over',
+  // Quỹ chung (0073): cùng họ "tiền đã góp có đủ cho nhịp chi không" với ngân sách, nên
+  // đứng ngay sau nhóm đó.
+  'fund-part-short',
+  'fund-part-surplus',
   'card-statement-day',
   'recurring-suggestion',
   'stale-entry',
@@ -275,6 +282,21 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     kind: 'action',
     label: tr('Nhãn vượt trần'),
     hint: tr('Chi mang một nhãn đã quá trần đặt cho nhãn đó (cả đợt hoặc tháng này, tùy nhãn).'),
+  },
+  'fund-part-short': {
+    cta: tr('Mở Quỹ chung'),
+    badge: tr('QUỸ CHUNG'),
+    source: tr('Quỹ chung'),
+    kind: 'action',
+    label: tr('Phần quỹ chung đang thiếu'),
+    hint: tr('Một phần của quỹ chung đang âm, hoặc 3 tháng liền chi nhiều hơn góp — nên tăng mức góp.'),
+  },
+  'fund-part-surplus': {
+    badge: tr('QUỸ CHUNG'),
+    source: tr('Quỹ chung'),
+    kind: 'info',
+    label: tr('Phần quỹ chung dư nhiều'),
+    hint: tr('3 tháng liền góp dư và phần dư đã hơn một tháng góp — có thể giảm mức góp.'),
   },
   'card-statement-day': {
     badge: tr('CHỐT SAO KÊ'),
@@ -487,6 +509,12 @@ export interface NotificationInput {
    * Tính sẵn cùng lý do với `tagBudgets`: cần 6 năm lần gửi tiền, `recentTxs` chỉ có 90 ngày.
    */
   benefits?: KetLuan[]
+  /**
+   * Lời nhắc quỹ chung (features/sharedFund/sharedFund.ts `fundAlertsFor`), ĐÃ TÍNH SẴN ở
+   * nơi gọi — cần cả lịch sử của tài khoản quỹ (còn lại là LUỸ KẾ), mà `recentTxs` chỉ có
+   * 90 ngày. undefined = chưa bật hai người / chưa đặt quỹ / chưa tải xong → luật im.
+   */
+  sharedFund?: { alerts: FundAlert[]; currency: CurrencyCode }
   /** Loại đã tắt trong cài đặt. */
   offTypes: NotificationType[]
 }

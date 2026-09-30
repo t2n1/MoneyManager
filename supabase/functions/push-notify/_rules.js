@@ -62,6 +62,10 @@ var NOTIFICATION_TYPES = [
   "budget-over",
   "budget-parent-over",
   "tag-budget-over",
+  // Quỹ chung (0073): cùng họ "tiền đã góp có đủ cho nhịp chi không" với ngân sách, nên
+  // đứng ngay sau nhóm đó.
+  "fund-part-short",
+  "fund-part-surplus",
   "card-statement-day",
   "recurring-suggestion",
   "stale-entry",
@@ -180,6 +184,21 @@ var NOTIFICATION_META = {
     kind: "action",
     label: tr("Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n"),
     hint: tr("Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n).")
+  },
+  "fund-part-short": {
+    cta: tr("M\u1EDF Qu\u1EF9 chung"),
+    badge: tr("QU\u1EF8 CHUNG"),
+    source: tr("Qu\u1EF9 chung"),
+    kind: "action",
+    label: tr("Ph\u1EA7n qu\u1EF9 chung \u0111ang thi\u1EBFu"),
+    hint: tr("M\u1ED9t ph\u1EA7n c\u1EE7a qu\u1EF9 chung \u0111ang \xE2m, ho\u1EB7c 3 th\xE1ng li\u1EC1n chi nhi\u1EC1u h\u01A1n g\xF3p \u2014 n\xEAn t\u0103ng m\u1EE9c g\xF3p.")
+  },
+  "fund-part-surplus": {
+    badge: tr("QU\u1EF8 CHUNG"),
+    source: tr("Qu\u1EF9 chung"),
+    kind: "info",
+    label: tr("Ph\u1EA7n qu\u1EF9 chung d\u01B0 nhi\u1EC1u"),
+    hint: tr("3 th\xE1ng li\u1EC1n g\xF3p d\u01B0 v\xE0 ph\u1EA7n d\u01B0 \u0111\xE3 h\u01A1n m\u1ED9t th\xE1ng g\xF3p \u2014 c\xF3 th\u1EC3 gi\u1EA3m m\u1EE9c g\xF3p.")
   },
   "card-statement-day": {
     badge: tr("CH\u1ED0T SAO K\xCA"),
@@ -567,9 +586,9 @@ function nthDueDate(startISO, frequency, n) {
   const [y, m, d] = startISO.split("-").map(Number);
   if (frequency === "weekly") return addDaysISO2(startISO, 7 * n);
   if (frequency === "monthly") {
-    const total = m - 1 + n;
-    const year2 = y + Math.floor(total / 12);
-    const month = total % 12 + 1;
+    const total2 = m - 1 + n;
+    const year2 = y + Math.floor(total2 / 12);
+    const month = total2 % 12 + 1;
     return `${year2}-${pad3(month)}-${pad3(Math.min(d, daysInMonth(year2, month)))}`;
   }
   const year = y + n;
@@ -1027,9 +1046,9 @@ function tagRules(input) {
 function monthKeyOf(input) {
   const [y, m, d] = input.todayISO.split("-").map(Number);
   const shift = d < input.monthStartDay ? -1 : 0;
-  const total = y * 12 + (m - 1) + shift;
-  const year = Math.floor(total / 12);
-  const month = total % 12 + 1;
+  const total2 = y * 12 + (m - 1) + shift;
+  const year = Math.floor(total2 / 12);
+  const month = total2 % 12 + 1;
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
@@ -2134,6 +2153,42 @@ function levelShiftRule(input) {
   ];
 }
 
+// src/features/notifications/rules/sharedFundRules.ts
+var TO2 = "/quy-chung";
+function sharedFundRules(input) {
+  const f = input.sharedFund;
+  if (!f) return [];
+  const name = (id) => {
+    const c = input.categories.find((x) => x.id === id);
+    return c ? categoryLabel(c.name) : tr("Danh m\u1EE5c \u0111\xE3 xo\xE1");
+  };
+  return f.alerts.map((a) => {
+    const amount = input.formatMoney(Math.abs(a.balance), f.currency);
+    if (a.kind === "surplus-streak")
+      return {
+        // Tin để biết, kèm kỳ = số dư: dư tiếp tăng thì là tin mới, còn đọc rồi thì thôi.
+        key: `fund-part-surplus:${a.partId}:${a.balance}`,
+        kind: "info",
+        type: "fund-part-surplus",
+        severity: "low",
+        title: tr("{name} d\u01B0 {amount}", { name: name(a.partId), amount }),
+        detail: tr("3 th\xE1ng li\u1EC1n g\xF3p d\u01B0. C\xF3 th\u1EC3 gi\u1EA3m m\u1EE9c g\xF3p ho\u1EB7c chuy\u1EC3n ph\u1EA7n d\u01B0 sang ti\u1EBFt ki\u1EC7m chung."),
+        to: TO2
+      };
+    return {
+      // Việc cần làm: mã theo phần + loại, không kèm kỳ — hết thiếu thì mã biến mất và
+      // trạng thái được dọn; thiếu lại thì đỏ như mới.
+      key: `fund-part-short:${a.partId}:${a.kind}`,
+      kind: "action",
+      type: "fund-part-short",
+      severity: a.kind === "negative" ? "medium" : "low",
+      title: a.kind === "negative" ? tr("{name} thi\u1EBFu {amount}", { name: name(a.partId), amount }) : tr("{name}: n\xEAn t\u0103ng m\u1EE9c g\xF3p", { name: name(a.partId) }),
+      detail: a.kind === "negative" ? tr("Qu\u1EF9 \u0111ang l\u1EA5y ti\u1EC1n ph\u1EA7n kh\xE1c b\xF9. G\xF3p th\xEAm cho ph\u1EA7n n\xE0y.") : tr("3 th\xE1ng li\u1EC1n chi nhi\u1EC1u h\u01A1n g\xF3p. N\xEAn t\u0103ng m\u1EE9c g\xF3p h\u1EB1ng th\xE1ng."),
+      to: TO2
+    };
+  });
+}
+
 // src/features/notifications/rules.ts
 var SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
 var TYPE_RANK = new Map(NOTIFICATION_TYPES.map((t, i) => [t, i]));
@@ -2173,7 +2228,8 @@ function buildNotifications(input) {
     ...dataRules(input),
     ...tripRules(input),
     ...priceStepRules(input),
-    ...levelShiftRule(input)
+    ...levelShiftRule(input),
+    ...sharedFundRules(input)
   ];
   return arrangeNotifications(all, input.offTypes);
 }
@@ -3135,6 +3191,115 @@ function taxCategoryIds(categories) {
   }
   return ids;
 }
+
+// src/features/sharedFund/sharedFund.ts
+var zero = () => ({ mine: 0, partner: 0 });
+function contributorOf(t) {
+  return t.owner === "partner" ? "partner" : "mine";
+}
+function isContribution(t, fundId) {
+  return t.type === "transfer" && t.to_account_id === fundId && t.account_id !== fundId;
+}
+function fundPartIds(txs, fundId) {
+  const out = /* @__PURE__ */ new Set();
+  for (const t of txs) if (t.fund_part_id && t.type === "transfer" && (t.to_account_id === fundId || t.account_id === fundId)) out.add(t.fund_part_id);
+  return out;
+}
+function partOfCategory(categoryId, parts, parentOf) {
+  let cur = categoryId;
+  for (let i = 0; cur && i < 16; i++) {
+    if (parts.has(cur)) return cur;
+    cur = parentOf.get(cur) ?? null;
+  }
+  return null;
+}
+function summarizeFund(txs, fundId, range, categories) {
+  const parts = fundPartIds(txs, fundId);
+  const parentOf = new Map(categories.map((c) => [c.id, c.parent_id]));
+  const rows = /* @__PURE__ */ new Map();
+  const row = (partId) => {
+    let r = rows.get(partId);
+    if (!r) {
+      r = { partId, contributed: zero(), spent: 0, withdrawn: 0, otherIn: 0, balance: 0 };
+      rows.set(partId, r);
+    }
+    return r;
+  };
+  for (const t of txs) {
+    if (t.occurred_on >= range.end) continue;
+    const inRange = t.occurred_on >= range.start;
+    if (isContribution(t, fundId)) {
+      const v = t.to_amount ?? t.amount;
+      const r = row(t.fund_part_id ?? null);
+      r.balance += v;
+      if (inRange) r.contributed[contributorOf(t)] += v;
+    } else if (t.account_id !== fundId) {
+      continue;
+    } else if (t.type === "transfer") {
+      if (t.to_account_id === fundId) continue;
+      const r = row(t.fund_part_id ?? null);
+      r.balance -= t.amount;
+      if (inRange) r.withdrawn += t.amount;
+    } else if (t.type === "expense") {
+      const v = t.amount * expenseSign(t);
+      const r = row(partOfCategory(t.category_id, parts, parentOf));
+      r.balance -= v;
+      if (inRange) r.spent += v;
+    } else {
+      const r = row(null);
+      r.balance += t.amount;
+      if (inRange) r.otherIn += t.amount;
+    }
+  }
+  const named = [...rows.values()].filter((r) => r.partId !== null);
+  named.sort((a, b) => total(b.contributed) - total(a.contributed) || b.spent - a.spent);
+  const un = rows.get(null);
+  const hasUn = un && (total(un.contributed) || un.spent || un.withdrawn || un.otherIn || un.balance);
+  const list = hasUn ? [...named, un] : named;
+  const contributed = zero();
+  let spent = 0;
+  let balance = 0;
+  for (const r of list) {
+    contributed.mine += r.contributed.mine;
+    contributed.partner += r.contributed.partner;
+    spent += r.spent;
+    balance += r.balance;
+  }
+  return { parts: list, contributed, spent, balance };
+}
+function total(c) {
+  return c.mine + c.partner;
+}
+var STREAK_MONTHS = 3;
+function fundAlerts(months) {
+  const last = months[months.length - 1];
+  if (!last) return [];
+  const out = [];
+  for (const p of last.parts) {
+    if (p.partId === null) continue;
+    if (p.balance < 0) {
+      out.push({ partId: p.partId, kind: "negative", balance: p.balance });
+      continue;
+    }
+    if (months.length < STREAK_MONTHS) continue;
+    const recent = months.slice(-STREAK_MONTHS).map((m) => m.parts.find((x) => x.partId === p.partId));
+    if (recent.some((r) => !r)) continue;
+    const nets = recent.map((r) => total(r.contributed) - r.spent - r.withdrawn);
+    if (nets.every((n) => n < 0)) out.push({ partId: p.partId, kind: "short-streak", balance: p.balance });
+    else if (nets.every((n) => n > 0) && p.balance > total(p.contributed))
+      out.push({ partId: p.partId, kind: "surplus-streak", balance: p.balance });
+  }
+  return out;
+}
+function fundAlertsFor(txs, fundId, categories, current, doneMonths) {
+  const now = summarizeFund(txs, fundId, current, categories);
+  const negatives = now.parts.filter((p) => p.partId !== null && p.balance < 0).map((p) => ({ partId: p.partId, kind: "negative", balance: p.balance }));
+  const seen = new Set(negatives.map((a) => a.partId));
+  const streaks = fundAlerts(doneMonths.map((r) => summarizeFund(txs, fundId, r, categories))).filter(
+    (a) => a.kind !== "negative" && !seen.has(a.partId)
+  );
+  return [...negatives, ...streaks];
+}
 export {
   FURUSATO_CATEGORY_NAME,
   IRYOHI_CATEGORY_NAMES,
@@ -3143,6 +3308,7 @@ export {
   PUSH_TAG,
   RECENT_TXS_DAYS,
   SO_NAM_HOAN_THUE,
+  STREAK_MONTHS,
   addDaysISO2 as addDaysISO,
   addMonths,
   benefitRange,
@@ -3155,6 +3321,7 @@ export {
   dueForPush,
   earliestNeededDate,
   fetchAllPages,
+  fundAlertsFor,
   getMonthRange,
   localPartsIn,
   missingRateCurrencies,

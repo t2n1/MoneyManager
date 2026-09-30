@@ -227,3 +227,30 @@ export function fundAlerts(months: readonly FundSummary[]): FundAlert[] {
   }
   return out
 }
+
+/**
+ * Lời nhắc của quỹ ở một thời điểm — MỘT hàm cho cả màn Quỹ chung, chuông/Bản tin và push
+ * phía server (serverBundle.ts), để ba chỗ không bao giờ nói ba câu khác nhau.
+ *
+ *   current   — kỳ đang xem/đang chạy: phần nào âm LUỸ KẾ tới hết kỳ này thì nói ngay.
+ *   doneMonths — STREAK_MONTHS tháng ĐÃ XONG gần nhất (cũ → mới), cho hai lời nhắc chuỗi.
+ *
+ * Một phần chỉ có một lời nhắc: đang âm thì câu "âm" đã bao câu "thiếu 3 tháng".
+ */
+export function fundAlertsFor(
+  txs: readonly FundTx[],
+  fundId: string,
+  categories: readonly Pick<CategoryRow, 'id' | 'parent_id'>[],
+  current: FundRange,
+  doneMonths: readonly FundRange[],
+): FundAlert[] {
+  const now = summarizeFund(txs, fundId, current, categories)
+  const negatives: FundAlert[] = now.parts
+    .filter((p) => p.partId !== null && p.balance < 0)
+    .map((p) => ({ partId: p.partId!, kind: 'negative', balance: p.balance }))
+  const seen = new Set(negatives.map((a) => a.partId))
+  const streaks = fundAlerts(doneMonths.map((r) => summarizeFund(txs, fundId, r, categories))).filter(
+    (a) => a.kind !== 'negative' && !seen.has(a.partId),
+  )
+  return [...negatives, ...streaks]
+}

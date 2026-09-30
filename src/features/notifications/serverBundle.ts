@@ -64,3 +64,5 @@ export { IRYOHI_CATEGORY_NAMES } from '../quyen-loi/iryohi'
 export { SO_NAM_HOAN_THUE } from '../quyen-loi/refund'
 export { taxCategoryIds } from '../tax/categories'
 export { calendarYearOf } from '../../lib/dates'
+// Quỹ chung (0073): cùng hàm với màn Quỹ chung và chuông trên trình duyệt.
+export { STREAK_MONTHS, fundAlertsFor } from '../sharedFund/sharedFund'

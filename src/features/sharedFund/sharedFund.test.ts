@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fundAlerts, mineSharePct, partOfCategory, summarizeFund, type FundSummary, type FundTx } from './sharedFund'
+import { fundAlerts, fundAlertsFor, mineSharePct, partOfCategory, summarizeFund, type FundSummary, type FundTx } from './sharedFund'
 
 const FUND = 'quy'
 const THANG_9 = { start: '2026-09-01', end: '2026-10-01' }
@@ -162,5 +162,26 @@ describe('fundAlerts', () => {
   it('dư liền 3 tháng nhưng dư còn nhỏ hơn một tháng góp → không nhắc (đệm mùa đông)', () => {
     const m = [thang(20_000, 19_000, 1_000), thang(20_000, 19_000, 2_000), thang(20_000, 19_000, 3_000)]
     expect(fundAlerts(m)).toEqual([])
+  })
+})
+
+describe('fundAlertsFor', () => {
+  const THANG = (m: string) => ({ start: `2026-${m}-01`, end: `2026-${String(Number(m) + 1).padStart(2, '0')}-01` })
+  const done = [THANG('06'), THANG('07'), THANG('08')]
+
+  it('âm luỹ kế ở kỳ đang chạy thì nói ngay, và chỉ một lời nhắc cho một phần', () => {
+    const txs = ['06', '07', '08', '09'].flatMap((m) => [gop('dien', 20_000, 'mine', `2026-${m}-01`), chi('dien', 23_000, `2026-${m}-20`)])
+    const a = fundAlertsFor(txs, FUND, CATS, THANG_9, done)
+    expect(a).toEqual([{ partId: 'dien', kind: 'negative', balance: -12_000 }])
+  })
+
+  it('không âm nhưng 3 tháng xong liền thiếu → short-streak', () => {
+    const txs = [gop('dien', 50_000, 'mine', '2026-05-01'), ...['06', '07', '08'].flatMap((m) => [gop('dien', 20_000, 'mine', `2026-${m}-01`), chi('dien', 22_000, `2026-${m}-20`)])]
+    expect(fundAlertsFor(txs, FUND, CATS, THANG_9, done).map((x) => x.kind)).toEqual(['short-streak'])
+  })
+
+  it('quỹ ổn thì im', () => {
+    const txs = ['06', '07', '08'].flatMap((m) => [gop('dien', 20_000, 'mine', `2026-${m}-01`), chi('dien', 20_000, `2026-${m}-20`)])
+    expect(fundAlertsFor(txs, FUND, CATS, THANG_9, done)).toEqual([])
   })
 })

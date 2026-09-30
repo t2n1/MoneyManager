@@ -48,6 +48,18 @@ const d: Dict = {
   'Góp quỹ chung tính là chi của phần đã góp; chi từ quỹ và khoản “chung” chỉ có ở Cả nhà. Hạn mức ngân sách vẫn là của cả nhà.':
     'Shared-fund contributions count as spending in the part they fund; fund spending and “shared” entries only appear under Household. Budget limits are still the household’s.',
   '+ {amount} góp quỹ chung': '+ {amount} to shared fund',
+  // Thông báo quỹ chung (chuông, Bản tin, push)
+  '3 tháng liền góp dư. Có thể giảm mức góp hoặc chuyển phần dư sang tiết kiệm chung.':
+    'Surplus 3 months in a row. Lower the contribution or move the surplus to shared savings.',
+  'Quỹ đang lấy tiền phần khác bù. Góp thêm cho phần này.':
+    'The fund is covering it from other parts. Contribute more to this part.',
+  'QUỸ CHUNG': 'SHARED FUND',
+  'Phần quỹ chung đang thiếu': 'Shared-fund part running short',
+  'Một phần của quỹ chung đang âm, hoặc 3 tháng liền chi nhiều hơn góp — nên tăng mức góp.':
+    'A shared-fund part is negative, or spending beat contributions 3 months in a row — raise the contribution.',
+  'Phần quỹ chung dư nhiều': 'Shared-fund part has a large surplus',
+  '3 tháng liền góp dư và phần dư đã hơn một tháng góp — có thể giảm mức góp.':
+    'Surplus 3 months in a row and more than a month’s contribution built up — you could lower it.',
 }
 
 export default d

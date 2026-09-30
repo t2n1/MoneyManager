@@ -16,7 +16,7 @@ import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 import type { CurrencyCode } from '../../lib/money'
 import { partnerLabel } from './labels'
-import { STREAK_MONTHS, fundAlerts, mineSharePct, summarizeFund, total, type FundAlert } from './sharedFund'
+import { STREAK_MONTHS, fundAlertsFor, mineSharePct, summarizeFund, total, type FundAlert } from './sharedFund'
 
 /** Đầu sổ — mọi giao dịch của quỹ đều sau mốc này. */
 const DAU_SO = '1900-01-01'
@@ -44,21 +44,17 @@ export function SharedFundPage() {
 
   // Nhắc chỉnh mức góp: chỉ nhìn các tháng ĐÃ XONG (xem fundAlerts). Kỳ đang xem chưa hết
   // thì lùi một tháng làm mốc.
+  // Nhắc chỉnh mức góp: chuỗi 3 tháng chỉ nhìn các tháng ĐÃ XONG — kỳ đang xem chưa hết thì
+  // lùi một tháng làm mốc. Cùng hàm với chuông/Bản tin (fundAlertsFor).
   const alerts = useMemo<FundAlert[]>(() => {
     if (!fundId) return []
     const today = toISODate(new Date())
     const lastDone = range.end <= today ? activeMonthKey : addMonths(activeMonthKey, -1)
-    const months = Array.from({ length: STREAK_MONTHS }, (_, i) =>
-      summarizeFund(txs, fundId, getMonthRange(addMonths(lastDone, i - (STREAK_MONTHS - 1)), monthStartDay), categories),
+    const done = Array.from({ length: STREAK_MONTHS }, (_, i) =>
+      getMonthRange(addMonths(lastDone, i - (STREAK_MONTHS - 1)), monthStartDay),
     )
-    // Âm luỹ kế thì nói NGAY theo kỳ đang xem — dòng bảng bên dưới đã ghi "đang thiếu",
-    // câu nhắc mà đợi tới hết tháng thì hai chỗ trên cùng màn nói hai điều khác nhau.
-    const negatives = (summary?.parts ?? [])
-      .filter((p) => p.partId !== null && p.balance < 0)
-      .map((p): FundAlert => ({ partId: p.partId!, kind: 'negative', balance: p.balance }))
-    const seen = new Set(negatives.map((a) => a.partId))
-    return [...negatives, ...fundAlerts(months).filter((a) => a.kind !== 'negative' && !seen.has(a.partId))]
-  }, [txs, fundId, activeMonthKey, range.end, monthStartDay, categories, summary])
+    return fundAlertsFor(txs, fundId, categories, range, done)
+  }, [txs, fundId, activeMonthKey, range, monthStartDay, categories])
 
   const catName = (id: string | null) => {
     if (id === null) return tr('Chưa gán phần')

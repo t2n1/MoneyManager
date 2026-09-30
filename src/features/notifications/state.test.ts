@@ -254,6 +254,7 @@ describe('notificationInputsReady', () => {
     recentTxsOk: true,
     lifetimeOk: true,
     benefitsOk: true,
+    sharedFundOk: true,
     notificationStateOk: true,
   }
 
@@ -273,8 +274,8 @@ describe('notificationInputsReady', () => {
   it('có đúng một cờ cho mỗi nguồn dữ liệu bộ luật đọc', () => {
     // Chốt số lượng: đổi NotificationInput mà không đổi đây thì phép thử này đỏ,
     // buộc người sửa phải đọc lại danh sách thay vì lặng lẽ bỏ sót một nguồn.
-    // 14 kể từ khi `input.benefits` (bốn luật Quyền lợi) thành nguồn dữ liệu thứ 14.
-    expect(flags).toHaveLength(14)
+    // 15 kể từ khi `input.sharedFund` (lời nhắc quỹ chung) thành nguồn dữ liệu thứ 15.
+    expect(flags).toHaveLength(15)
   })
 })
 

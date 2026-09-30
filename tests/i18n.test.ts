@@ -41,6 +41,7 @@ function scan(): Scan {
   for (const file of sourceFiles()) {
     const rel = relative(ROOT, file).replaceAll('\\', '/')
     const text = readFileSync(file, 'utf8')
+    const fileIgnored = /^\/\/ i18n-ignore-file/m.test(text)
     const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
     const where = (n: ts.Node) => `${rel}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`
     const ignored = (n: ts.Node) => {
@@ -66,6 +67,7 @@ function scan(): Scan {
       if (
         txt &&
         !inside &&
+        !fileIgnored &&
         VI.test(txt) &&
         !NOT_UI.some((d) => rel.startsWith(d)) &&
         !ts.isImportDeclaration(node.parent) &&
@@ -129,7 +131,8 @@ describe('i18n — từ điển tiếng Anh', () => {
 describe('i18n — độ phủ', () => {
   // Chuỗi tiếng Việt còn nằm ngoài tr(). Chỗ CỐ Ý giữ tiếng Việt (chuỗi so sánh trong
   // logic, dữ liệu khớp với DB, tên riêng) đánh dấu `// i18n-ignore` ở dòng đó hoặc dòng
-  // ngay trên, kèm lý do.
+  // ngay trên, kèm lý do. Cả file là dữ liệu (tên riêng sinh tự động…) thì một dòng
+  // `// i18n-ignore-file` ở đầu file.
   it('không còn chuỗi giao diện tiếng Việt chưa dịch', () => {
     expect(S.loose).toEqual([])
   })

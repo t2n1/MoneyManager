@@ -517,6 +517,10 @@
      nó là làm mượt một thanh tiến trình, không phải tín hiệu "cái gì vừa đổi", nên nó
      KHÔNG được lấy nhịp của §12 (dài hơn hẳn, và đúng như thế). */
   --motion-progress: 300ms;
+  /* Module của bảng Bản tin nhường chỗ / trượt vào chỗ mới khi kéo–thả, đổi cỡ, đổi trang.
+     Dài hơn --motion-drag (120ms) vì quãng dời là cả một thẻ trăm pixel chứ không phải
+     một dòng 44px — 120ms trên quãng đó đọc ra như GIẬT chứ không phải trượt. */
+  --motion-board: 200ms;
 }
 
 /* Keyframes là CSS thường, để ngoài @theme: chỉ có TÊN animation cần thành token để
@@ -644,6 +648,105 @@
   transition-property: left, width, top;
   transition-duration: var(--motion-block);
   transition-timing-function: var(--ease-out);
+}
+
+/* --- Bảng module của Bản tin (react-grid-layout) --------------------------------------
+   KHÔNG nạp css/styles.css của thư viện: nó tô ô giữ chỗ nền đỏ, viền góc đen và thời
+   lượng 200ms viết cứng. Chỉ khai phần bố cục cần thiết, màu đi qua token.
+
+   Chỉ trượt SAU khi trang yên (`.board-settled`, xem BulletinBoard.tsx): lúc mở màn các ô
+   nhảy từ chiều cao ước lượng sang chiều cao đo được, cho trượt thì cả trang bơi. */
+.board {
+  position: relative;
+}
+.board .react-grid-item {
+  transition: none;
+}
+.board.board-settled {
+  transition: height var(--motion-board) var(--ease-out);
+}
+.board.board-settled .react-grid-item {
+  transition-property: transform, width, height;
+  transition-duration: var(--motion-board);
+  transition-timing-function: var(--ease-out);
+}
+/* Tooltip biểu đồ của ô đang trỏ phải nổi trên ô bên cạnh — mỗi ô có transform là một
+   stacking context riêng, ô sau trong DOM mặc định vẽ đè lên. */
+.board .react-grid-item:hover,
+.board .react-grid-item:focus-within {
+  z-index: 1;
+}
+.board .react-grid-item.resizing,
+.board .react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  will-change: transform;
+}
+.board .react-grid-item.react-draggable-dragging {
+  box-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.35);
+  border-radius: var(--radius-lg);
+}
+.board .react-grid-item.react-grid-placeholder {
+  z-index: 2;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft-bg);
+  transition-duration: var(--motion-drag);
+  user-select: none;
+}
+.board .react-grid-item.react-grid-placeholder.placeholder-resizing {
+  transition: none;
+}
+.board .react-grid-item > .react-resizable-handle {
+  position: absolute;
+  z-index: 2;
+  width: 1.5rem;
+  height: 1.5rem;
+  touch-action: none;
+}
+.board .react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 0.3rem;
+  bottom: 0.3rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.board .react-resizable-hide > .react-resizable-handle {
+  display: none;
+}
+.board .react-grid-item > .react-resizable-handle-se {
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+.board .react-grid-item > .react-resizable-handle-e {
+  top: 50%;
+  right: -0.25rem;
+  margin-top: -0.75rem;
+  cursor: ew-resize;
+}
+.board .react-grid-item > .react-resizable-handle-e::after {
+  right: 0.45rem;
+  bottom: 0.25rem;
+  width: 0;
+  height: 1rem;
+  border-bottom: 0;
+}
+.board .react-grid-item > .react-resizable-handle-s {
+  bottom: -0.25rem;
+  left: 50%;
+  margin-left: -0.75rem;
+  cursor: ns-resize;
+}
+.board .react-grid-item > .react-resizable-handle-s::after {
+  right: 0.25rem;
+  bottom: 0.45rem;
+  width: 1rem;
+  height: 0;
+  border-right: 0;
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
@@ -1023,6 +1126,7 @@ html.dark .recharts-tooltip-item {
   --motion-popover: 0ms;
   --motion-toast: 0ms;
   --motion-progress: 0ms;
+  --motion-board: 0ms;
 }
 
 @theme inline {

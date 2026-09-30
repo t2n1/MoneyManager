@@ -311,6 +311,7 @@ Bảy token trong `index.css`, đặt tên **theo VIỆC** chứ không theo con
 | `--motion-todo` 200ms | việc cần làm: gạch ngang rồi co về 0 | `TodoPanel` |
 | `--motion-drag` 120ms | các dòng nhường chỗ khi kéo–thả (FLIP) | `DragList` |
 | `--motion-assume` 220ms | thả thanh trượt giả định | `LifetimeChartCard` |
+| `--motion-board` 200ms | module của bảng Bản tin trượt vào chỗ mới khi kéo–thả / đổi cỡ | `BulletinBoard` (CSS `.board` trong `index.css`) |
 
 Cộng `--motion-progress` 300ms cho vòng tải. **Đừng viết thời lượng bằng tay** —
 `duration-300` là ban cứng.

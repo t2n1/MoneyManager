@@ -74,8 +74,20 @@ export interface ModuleView {
   label: string
 }
 
+/** Nhóm trong bảng "Thêm module" — theo CÂU HỎI module trả lời, không theo dạng vẽ. */
+export type ModuleGroup = 'month' | 'spend' | 'income' | 'assets' | 'check'
+
+export const MODULE_GROUPS: readonly { id: ModuleGroup; label: string; desc: string }[] = [
+  { id: 'month', label: tr('Tháng này'), desc: tr('Còn bao nhiêu, đã tiêu bao nhiêu, việc gì cần làm.') },
+  { id: 'spend', label: tr('Chi tiêu'), desc: tr('Tiền đi đâu, đi nhanh tới mức nào.') },
+  { id: 'income', label: tr('Thu nhập & xu hướng'), desc: tr('Thu, chi và phần giữ lại qua nhiều tháng.') },
+  { id: 'assets', label: tr('Tài sản'), desc: tr('Tài khoản, tài sản ròng và quyền lợi.') },
+  { id: 'check', label: tr('Kiểm tra'), desc: tr('Con số trên màn đáng tin tới đâu.') },
+]
+
 export interface ModuleDef {
   type: ModuleType
+  group: ModuleGroup
   title: string
   desc: string
   /**
@@ -99,46 +111,46 @@ const V = (id: string, label: string): ModuleView => ({ id, label })
 
 // Thứ tự ở đây là thứ tự trong bảng "Thêm module": các khối quen thuộc trước, biểu đồ sau.
 export const MODULES: readonly ModuleDef[] = [
-  { type: 'today', title: tr('Hôm nay'), desc: tr('Tới ngày lương còn bao nhiêu, mỗi ngày được tiêu bao nhiêu, và câu kết luận tháng.'), fit: 'auto', w: 8, minW: 4, px: 180, single: true },
-  { type: 'kpi', title: tr('Bốn ô số'), desc: tr('Thu, chi, giữ lại và tài sản ròng của tháng đang xem.'), fit: 'auto', w: 8, minW: 4, px: 130, single: true },
-  { type: 'spending', title: tr('Chi tiêu'), desc: tr('Dải tám tháng và chi từng ngày của tháng đang chọn.'), fit: 'auto', w: 8, minW: 6, px: 520, single: true },
-  { type: 'recent', title: tr('Giao dịch gần đây'), desc: tr('Sáu khoản mới ghi nhất của tháng đang xem.'), fit: 'auto', w: 8, minW: 3, px: 380, single: true },
-  { type: 'todo', title: tr('Việc cần làm'), desc: tr('Những việc app thấy bạn nên làm ngay.'), fit: 'auto', w: 4, minW: 3, px: 260, single: true },
-  { type: 'budget', title: tr('Ngân sách'), desc: tr('Tháng này đã tiêu bao nhiêu so với hạn mức.'), fit: 'auto', w: 4, minW: 3, px: 300, single: true },
-  { type: 'drift', title: tr('Thu nhập & nếp chi'), desc: tr('Thu nhập và các khoản cố định đang trôi đi đâu qua nhiều tháng.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
-  { type: 'accounts', title: tr('Tài khoản'), desc: tr('Tài sản ròng và số dư từng tài khoản.'), fit: 'auto', w: 4, minW: 3, px: 340, single: true },
-  { type: 'quyenloi', title: tr('Quyền lợi'), desc: tr('Tình trạng các khoản quyền lợi năm nay.'), fit: 'auto', w: 4, minW: 3, px: 140, single: true },
-  { type: 'reliability', title: tr('Độ tin cậy dữ liệu'), desc: tr('Con số trên màn này đáng tin tới đâu.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
+  { type: 'today', group: 'month', title: tr('Hôm nay'), desc: tr('Tới ngày lương còn bao nhiêu, mỗi ngày được tiêu bao nhiêu, và câu kết luận tháng.'), fit: 'auto', w: 8, minW: 4, px: 180, single: true },
+  { type: 'kpi', group: 'month', title: tr('Bốn ô số'), desc: tr('Thu, chi, giữ lại và tài sản ròng của tháng đang xem.'), fit: 'auto', w: 8, minW: 4, px: 130, single: true },
+  { type: 'spending', group: 'spend', title: tr('Chi tiêu'), desc: tr('Dải tám tháng và chi từng ngày của tháng đang chọn.'), fit: 'auto', w: 8, minW: 6, px: 520, single: true },
+  { type: 'recent', group: 'spend', title: tr('Giao dịch gần đây'), desc: tr('Sáu khoản mới ghi nhất của tháng đang xem.'), fit: 'auto', w: 8, minW: 3, px: 380, single: true },
+  { type: 'todo', group: 'month', title: tr('Việc cần làm'), desc: tr('Những việc app thấy bạn nên làm ngay.'), fit: 'auto', w: 4, minW: 3, px: 260, single: true },
+  { type: 'budget', group: 'month', title: tr('Ngân sách'), desc: tr('Tháng này đã tiêu bao nhiêu so với hạn mức.'), fit: 'auto', w: 4, minW: 3, px: 300, single: true },
+  { type: 'drift', group: 'income', title: tr('Thu nhập & nếp chi'), desc: tr('Thu nhập và các khoản cố định đang trôi đi đâu qua nhiều tháng.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
+  { type: 'accounts', group: 'assets', title: tr('Tài khoản'), desc: tr('Tài sản ròng và số dư từng tài khoản.'), fit: 'auto', w: 4, minW: 3, px: 340, single: true },
+  { type: 'quyenloi', group: 'assets', title: tr('Quyền lợi'), desc: tr('Tình trạng các khoản quyền lợi năm nay.'), fit: 'auto', w: 4, minW: 3, px: 140, single: true },
+  { type: 'reliability', group: 'check', title: tr('Độ tin cậy dữ liệu'), desc: tr('Con số trên màn này đáng tin tới đâu.'), fit: 'auto', w: 4, minW: 3, px: 200, single: true },
   {
-    type: 'cashflow',
+    type: 'cashflow', group: 'income',
     title: tr('Thu & chi theo tháng'),
     desc: tr('Tám tháng gần nhất: thu, chi, chênh lệch và tỷ lệ giữ lại.'),
     fit: 'fill', w: 6, minW: 3, px: 300, single: false,
     views: [V('bars', tr('Cột')), V('line', tr('Đường')), V('area', tr('Vùng')), V('net', tr('Chênh lệch')), V('rate', tr('Tỷ lệ giữ lại'))],
   },
   {
-    type: 'categories',
+    type: 'categories', group: 'spend',
     title: tr('Chi theo danh mục'),
     desc: tr('Tiền tháng này đi vào đâu, gộp theo danh mục cha.'),
     fit: 'fill', w: 6, minW: 3, px: 300, single: false,
     views: [V('donut', tr('Vành khuyên')), V('bars', tr('Thanh ngang')), V('list', tr('Danh sách'))],
   },
   {
-    type: 'cumulative',
+    type: 'cumulative', group: 'spend',
     title: tr('Chi luỹ kế trong tháng'),
     desc: tr('Tổng chi cộng dồn từng ngày, đặt cạnh hạn mức cả tháng.'),
     fit: 'fill', w: 6, minW: 3, px: 280, single: false,
     views: [V('area', tr('Vùng')), V('line', tr('Đường')), V('bars', tr('Cột từng ngày'))],
   },
   {
-    type: 'networth',
+    type: 'networth', group: 'assets',
     title: tr('Tài sản ròng qua các tháng'),
     desc: tr('Các lần chụp tài sản ròng gần nhất.'),
     fit: 'fill', w: 6, minW: 3, px: 280, single: false,
     views: [V('area', tr('Vùng')), V('line', tr('Đường')), V('bars', tr('Cột'))],
   },
   {
-    type: 'assetMix',
+    type: 'assetMix', group: 'assets',
     title: tr('Cơ cấu tài sản'),
     desc: tr('Tài sản đang nằm ở những nhóm nào, bao nhiêu phần trăm.'),
     fit: 'fill', w: 6, minW: 3, px: 280, single: false,
@@ -469,6 +481,37 @@ export function removePage(s: BoardState, pageId: string): BoardState {
   const pages = s.pages.filter((p) => p.id !== pageId)
   const activeId = s.activeId === pageId ? pages[Math.max(0, i - 1)].id : s.activeId
   return { ...s, pages, activeId }
+}
+
+/**
+ * Tự xếp gọn: GIỮ nguyên cỡ từng ô, đi theo thứ tự đọc (trên xuống, trái sang) và thả
+ * từng ô vào chỗ trống ĐẦU TIÊN vừa nó. Lưới tự nén theo chiều dọc rồi, nên cái nút này
+ * chỉ có nghĩa ở khe NGANG: một biểu đồ nửa bề ngang để lại nửa hàng trống bên cạnh,
+ * module nhỏ phía dưới được kéo lên lấp vào.
+ */
+export function tidyCells(cells: readonly Cell[], cols: number): Cell[] {
+  const sorted = [...cells].sort((a, b) => a.y - b.y || a.x - b.x)
+  const out: Cell[] = []
+  for (const c of sorted) {
+    const w = Math.min(c.w, cols)
+    out.push({ i: c.i, w, h: c.h, ...firstFit(out, w, c.h, cols) })
+  }
+  return out
+}
+
+/** true = hai bố cục đặt mọi ô ở cùng chỗ, cùng cỡ (thứ tự mảng không tính). */
+export function sameCells(a: readonly Cell[], b: readonly Cell[]): boolean {
+  if (a.length !== b.length) return false
+  const m = new Map(a.map((c) => [c.i, c]))
+  return b.every((c) => {
+    const o = m.get(c.i)
+    return !!o && o.x === c.x && o.y === c.y && o.w === c.w && o.h === c.h
+  })
+}
+
+/** Đặt lại nguyên một trang như bản chụp — cho nút Hoàn tác. */
+export function replacePage(s: BoardState, page: BoardPage): BoardState {
+  return mapPage(s, page.id, () => page)
 }
 
 /** Dựng lại trang dựng sẵn về bố cục gốc. Trang tự lập thì chỉ xếp lại chỗ, giữ module. */

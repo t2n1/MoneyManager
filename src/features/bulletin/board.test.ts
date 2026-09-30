@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   COLS,
   MODULES,
+  MODULE_GROUPS,
   addModule,
   addPage,
   bpFor,
@@ -16,11 +17,14 @@ import {
   removeModule,
   removePage,
   renamePage,
+  replacePage,
   resetPage,
   rowsFor,
   scaleW,
   setLayout,
   setView,
+  sameCells,
+  tidyCells,
   viewOf,
   type BoardState,
   type Cell,
@@ -293,5 +297,49 @@ describe('bản lưu', () => {
     const out = loadBoard(JSON.stringify(raw), gen)
     expect(out.pages[0].modules.some((m) => m.id === 'z')).toBe(false)
     expect(out.activeId).toBe(out.pages[0].id)
+  })
+})
+
+describe('nhóm module', () => {
+  it('mỗi module thuộc một nhóm có thật, nhóm nào cũng có module', () => {
+    const ids = new Set(MODULE_GROUPS.map((g) => g.id))
+    for (const m of MODULES) expect(ids.has(m.group), m.type).toBe(true)
+    for (const g of MODULE_GROUPS) expect(MODULES.some((m) => m.group === g.id), g.id).toBe(true)
+  })
+})
+
+describe('tự xếp gọn', () => {
+  const c = (i: string, x: number, y: number, w: number, h: number): Cell => ({ i, x, y, w, h })
+
+  it('module nhỏ phía dưới lên lấp khe ngang cạnh biểu đồ nửa bề ngang', () => {
+    const cells = [c('a', 0, 0, 6, 20), c('b', 0, 20, 6, 10), c('d', 0, 30, 12, 10)]
+    const out = tidyCells(cells, 12)
+    expect(out.find((x) => x.i === 'b')).toMatchObject({ x: 6, y: 0 })
+    expect(out.find((x) => x.i === 'd')).toMatchObject({ x: 0, y: 20 })
+    expect(overlap(out)).toBe(false)
+  })
+
+  it('giữ nguyên cỡ và không làm chồng ô; đã gọn thì không đổi', () => {
+    const cells = [c('a', 0, 0, 8, 15), c('b', 8, 0, 4, 30), c('d', 0, 15, 8, 15)]
+    const out = tidyCells(cells, 12)
+    expect(sameCells(out, cells)).toBe(true)
+    for (const o of out) {
+      const src = cells.find((x) => x.i === o.i)!
+      expect([o.w, o.h]).toEqual([src.w, src.h])
+    }
+  })
+
+  it('sameCells so theo id, không theo thứ tự mảng', () => {
+    const a = [c('a', 0, 0, 6, 5), c('b', 6, 0, 6, 5)]
+    expect(sameCells(a, [...a].reverse())).toBe(true)
+    expect(sameCells(a, [c('a', 0, 0, 6, 5), c('b', 6, 1, 6, 5)])).toBe(false)
+  })
+
+  it('replacePage trả trang về đúng bản chụp (Hoàn tác)', () => {
+    const gen = counter()
+    const s = defaultBoard(gen)
+    const p = s.pages[0]
+    const removed = removeModule(s, p.id, p.modules[0].id)
+    expect(replacePage(removed, p).pages[0]).toBe(p)
   })
 })

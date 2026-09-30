@@ -751,54 +751,74 @@
   border-right: 0;
 }
 
-/* Tay nắm kéo module: một viên nhỏ ĐÈ lên giữa mép trên thẻ, nửa trên nằm trong khe
-   giữa hai hàng (GAP = 10px) — hiện/ẩn không làm thẻ nhích. Máy có chuột: chỉ hiện khi
-   trỏ vào module (cùng hai tay đổi cỡ). Máy cảm ứng không có "trỏ vào": hiện mờ thường
-   trực, không thì không ai biết kéo được ở đâu. */
-.board .board-drag {
+/* Viên công cụ của module (tay nắm kéo + nút ✕ bỏ module): ĐÈ lên giữa mép trên thẻ,
+   nửa trên nằm trong khe giữa hai hàng (GAP = 10px) — hiện/ẩn không làm thẻ nhích. Máy
+   có chuột: chỉ hiện khi trỏ vào module (cùng hai tay đổi cỡ) hoặc khi nút ✕ được focus.
+   Máy cảm ứng không có "trỏ vào": hiện mờ thường trực, không thì không ai biết kéo ở đâu. */
+.board .board-tools {
   position: absolute;
-  top: -0.625rem;
+  top: -0.75rem;
   left: 50%;
   z-index: 4;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 1.25rem;
-  margin-left: -1.375rem;
+  align-items: stretch;
+  height: 1.5rem;
+  transform: translateX(-50%);
   border: 1px solid var(--border-strong);
   border-radius: 9999px;
   background: var(--surface);
   color: var(--fg-muted);
+  overflow: hidden;
+  transition: opacity var(--motion-handle) var(--ease-out);
+}
+.board .board-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
   cursor: grab;
   touch-action: none;
   user-select: none;
-  transition: opacity var(--motion-handle) var(--ease-out);
+}
+.board .board-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  border-left: 1px solid var(--border-subtle);
+  color: var(--fg-muted);
+}
+.board .board-remove:hover {
+  background: var(--state-bad-bg);
+  color: var(--state-bad-fg);
 }
 .board .board-drag:active,
 .board .react-draggable-dragging .board-drag {
   cursor: grabbing;
   color: var(--fg-accent);
+}
+.board .react-draggable-dragging .board-tools {
   border-color: var(--accent);
 }
 .board .react-grid-item > .react-resizable-handle {
   transition: opacity var(--motion-handle) var(--ease-out);
 }
 @media (hover: hover) {
-  .board .board-drag,
+  .board .board-tools,
   .board .react-grid-item > .react-resizable-handle {
     opacity: 0;
   }
-  .board .react-grid-item:hover .board-drag,
+  .board .react-grid-item:hover .board-tools,
+  .board .board-tools:focus-within,
   .board .react-grid-item:hover > .react-resizable-handle,
   .board .react-grid-item.resizing > .react-resizable-handle,
-  .board .react-draggable-dragging .board-drag {
+  .board .react-draggable-dragging .board-tools {
     opacity: 1;
   }
 }
 @media (hover: none) {
-  .board .board-drag {
-    opacity: 0.7;
+  .board .board-tools {
+    opacity: 0.8;
   }
   .board .react-grid-item > .react-resizable-handle {
     opacity: 0.45;

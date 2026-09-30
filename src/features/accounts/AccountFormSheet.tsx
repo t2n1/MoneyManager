@@ -28,7 +28,7 @@ import {
 } from '../assets/shelter'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { tr, trx } from '../../i18n'
+import { accountLabel, assetGroupLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const CURRENCY_LIST = Object.keys(CURRENCIES) as CurrencyCode[]
@@ -59,7 +59,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
   async function handleDelete() {
     if (!account) return
     const ok = await confirmDialog({
-      title: tr('Xóa tài khoản «{name}»?', { name: account.name }),
+      title: tr('Xóa tài khoản «{name}»?', { name: accountLabel(account.name) }),
       message: tr('Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.'),
       confirmLabel: tr('Xóa'),
       danger: true,
@@ -236,6 +236,13 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
           placeholder={tr('Ví dụ: Ví MoMo')}
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
+        {/* Tên lưu DB giữ nguyên; chế độ Anh chỉ ĐỔI CHỮ HIỂN THỊ của tên mặc định — nói ra
+            để người sửa không tưởng tên mình gõ bị đổi mất. */}
+        {accountLabel(name.trim()) !== name.trim() && (
+          <p className="-mt-2 mb-3 text-2xs text-fg-muted">
+            {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: accountLabel(name.trim()) })}
+          </p>
+        )}
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
@@ -285,9 +292,15 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               placeholder={tr('Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư')}
               className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
             />
+            {assetGroupLabel(assetGroup.trim()) !== assetGroup.trim() && (
+              <p className="-mt-2 mb-3 text-2xs text-fg-muted">
+                {tr('Hiển thị là “{label}” ở giao diện tiếng Anh.', { label: assetGroupLabel(assetGroup.trim()) })}
+              </p>
+            )}
             <datalist id="asset-group-suggestions">
+              {/* `value` là tên lưu DB; `label` chỉ có khi tên hiển thị khác (chế độ Anh). */}
               {groupSuggestions.map((g) => (
-                <option key={g} value={g} />
+                <option key={g} value={g} label={assetGroupLabel(g) !== g ? assetGroupLabel(g) : undefined} />
               ))}
             </datalist>
           </>
@@ -365,7 +378,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               <option value="">{tr('— Không tự trả —')}</option>
               {paymentSourceOptions.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {accountLabel(a.name)}
                 </option>
               ))}
             </Select>
@@ -395,7 +408,7 @@ export function AccountFormSheet({ account, onClose, onDeleted }: FormProps) {
               <option value="">{tr('— Không nối —')}</option>
               {cashWalletOptions.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {accountLabel(a.name)}
                 </option>
               ))}
             </Select>

@@ -26,7 +26,7 @@ import { TEN_TK_HUU } from '../phieu-luong/nhap'
 import { useFundInvestData } from './useFundInvestData'
 import { KIND_CLASS, KIND_LABEL, ngay, pct, share } from './investFormat'
 import type { FundTradeRow } from '../../types/database.types'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const JPY = 'JPY' as const
@@ -279,7 +279,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                     )}
                     <span className="text-fg-muted">/1万口</span>
                     {pos.accountNames.length > 1 && (
-                      <span>· {pos.accountNames.join(' + ')}</span>
+                      <span>· {pos.accountNames.map(accountLabel).join(' + ')}</span>
                     )}
                   </p>
                 </button>
@@ -331,7 +331,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                     }
                     className="min-w-0 truncate text-sm font-semibold text-fg-primary"
                   >
-                    {b.accountName}
+                    {accountLabel(b.accountName)}
                   </Link>
                   <Money
                     amount={b.value}
@@ -405,7 +405,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                       {ngay(t.traded_on)}
                       {/* `shown`, không `filtered` — xem chú thích cùng chỗ ở
                           InvestStocksTab. */}
-                      {shown.length > 1 && ` · ${accountName(t.account_id)}`}
+                      {shown.length > 1 && ` · ${accountLabel(accountName(t.account_id))}`}
                     </p>
                   </div>
                   <div className="shrink-0 text-right text-2xs text-fg-secondary">

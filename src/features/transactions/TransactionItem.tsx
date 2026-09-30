@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } from 'lucide-react'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -65,7 +65,10 @@ export function TransactionItem({
   const style = amountDisplay(tx)
   const srcCur = accountOf(tx.account_id)?.currency ?? base
   const dstCur = tx.to_account_id ? (accountOf(tx.to_account_id)?.currency ?? srcCur) : srcCur
-  const accountName = (id: string | null) => accountOf(id)?.name ?? '?'
+  const accountName = (id: string | null) => {
+    const a = accountOf(id)
+    return a ? accountLabel(a.name) : '?'
+  }
 
   const row = (
     <button

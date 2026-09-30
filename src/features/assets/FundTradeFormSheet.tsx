@@ -22,7 +22,7 @@ import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../.
 import type { AccountRow, FundTradeKind, FundTradeRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { fundLineValue } from './fundHoldings'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 const KINDS = [
   { value: 'buy' as const, label: tr('Mua') },
@@ -157,7 +157,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         <SectionTitle role="block" className="mb-1">
           {trade ? tr('Sửa lệnh') : tr('Ghi lệnh')}
         </SectionTitle>
-        <p className="mb-3 text-sm text-fg-muted">{account.name}</p>
+        <p className="mb-3 text-sm text-fg-muted">{accountLabel(account.name)}</p>
 
         <div className="mb-3">
           <SegmentedControl items={KINDS} value={kind} onChange={setKind} label={tr('Loại lệnh')} />

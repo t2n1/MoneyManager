@@ -29,7 +29,7 @@ import { STATUS_FILL } from '../../components/ui/statusColors'
 import type { CardLiability } from './aggregate'
 import type { MoneyView } from './moneyView'
 import type { CardsPanel } from './useCardsPanel'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Bốn cột của bảng. rem chứ không px — bề rộng cột phải giãn theo Cỡ chữ (§designSystem).
@@ -163,7 +163,7 @@ export function CardsSection({ cards, panel, view }: Props) {
             <span className="text-sm text-fg-secondary">
               {trn('Rút {amount} / số dư {name} {balance}', {
                 amount: <Money {...view.view(g.totalOwed, g.currency)} className="font-semibold" />,
-                name: g.sourceName,
+                name: accountLabel(g.sourceName),
                 balance: <Money {...view.view(g.sourceBalance, g.currency)} tone="muted" />,
               })}
             </span>
@@ -208,7 +208,7 @@ export function CardsSection({ cards, panel, view }: Props) {
             className={`${COLS} items-center border-b border-border-subtle px-4 py-2 text-sm transition hover:bg-surface-sunken`}
           >
             <span className="min-w-0 truncate text-fg-secondary">
-              {c.name}
+              {accountLabel(c.name)}
               {!c.includeInTotals && (
                 <span className="ml-1 text-2xs font-normal text-fg-muted">{tr('(ngoài tổng)')}</span>
               )}

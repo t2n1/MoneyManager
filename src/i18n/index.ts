@@ -101,3 +101,22 @@ export function categoryLabel(name: string): string {
   const hit = dict[`cat|${name}`]
   return typeof hit === 'string' ? hit : name
 }
+
+/**
+ * Cùng lý do với categoryLabel(): tên tài khoản và tên nhóm tài sản là dữ liệu DB (tài khoản
+ * mặc định "Tiền mặt", nhóm "Tiêu dùng"…), nên chỉ đổi LÚC HIỂN THỊ, qua bảng `acc|…` / `grp|…`
+ * ở src/i18n/en/accounts.ts. Tên người dùng tự đặt → in đúng như đã gõ.
+ */
+export function accountLabel(name: string): string {
+  return dataLabel('acc', name)
+}
+
+export function assetGroupLabel(name: string): string {
+  return dataLabel('grp', name)
+}
+
+function dataLabel(prefix: string, name: string): string {
+  if (lang === 'vi') return name
+  const hit = dict[`${prefix}|${name}`]
+  return typeof hit === 'string' ? hit : name
+}

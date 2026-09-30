@@ -49,7 +49,7 @@ import {
   phieuLoi,
   type KhoanNeo,
 } from './nhap'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const TEN_YUCHO = /yucho/i
@@ -263,7 +263,7 @@ export function ImportPhieuLuongPage() {
     if (!yucho) return
     try {
       await createAccount.mutateAsync({ ...TK_HUU_MOI, currency: yucho.currency })
-      showToast(tr('Đã tạo tài khoản {name}', { name: TEN_TK_HUU }))
+      showToast(tr('Đã tạo tài khoản {name}', { name: accountLabel(TEN_TK_HUU) }))
     } catch (e) {
       showToast(e instanceof Error ? e.message : tr('Không tạo được tài khoản, thử lại.'), 'error')
     }
@@ -297,7 +297,7 @@ export function ImportPhieuLuongPage() {
       if (
         !(await confirmDialog({
           title: tr('Ghi {n} dòng vào sổ?', { n: soDong }),
-          message: tr('{n} phiếu lương, ghi vào tài khoản "{account}".', { n: dat.length, account: tenYucho }),
+          message: tr('{n} phiếu lương, ghi vào tài khoản "{account}".', { n: dat.length, account: accountLabel(tenYucho) }),
           confirmLabel: tr('Ghi'),
         }))
       )
@@ -472,7 +472,7 @@ export function ImportPhieuLuongPage() {
             {!dmPhuCap && (
               <li className="text-money-out">· {tr('thiếu danh mục thu “{name}”', { name: categoryLabel(DANH_MUC_PHU_CAP) })}</li>
             )}
-            {!tkHuu && <li className="text-money-out">· {tr('thiếu tài khoản “{name}”', { name: TEN_TK_HUU })}</li>}
+            {!tkHuu && <li className="text-money-out">· {tr('thiếu tài khoản “{name}”', { name: accountLabel(TEN_TK_HUU) })}</li>}
           </ul>
           {!dmPhuCap && (
             <ActionButton
@@ -491,7 +491,7 @@ export function ImportPhieuLuongPage() {
               disabled={createAccount.isPending}
               className={actionButtonClass('primary', 'mt-2')}
             >
-              {createAccount.isPending ? tr('Đang tạo…') : tr('Tạo tài khoản {name}', { name: TEN_TK_HUU })}
+              {createAccount.isPending ? tr('Đang tạo…') : tr('Tạo tài khoản {name}', { name: accountLabel(TEN_TK_HUU) })}
             </button>
           )}
         </Card>
@@ -657,7 +657,7 @@ export function ImportPhieuLuongPage() {
                 )}
                 {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (
                   <p className="mt-0.5 text-fg-secondary">
-                    {NHAN_HUU} {formatMoney(Math.abs(k.phieu.cap[NHAN_HUU]), 'JPY')} → {TEN_TK_HUU}
+                    {NHAN_HUU} {formatMoney(Math.abs(k.phieu.cap[NHAN_HUU]), 'JPY')} → {accountLabel(TEN_TK_HUU)}
                   </p>
                 )}
               </li>

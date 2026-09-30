@@ -12,7 +12,7 @@ import { dayMonthLabel, toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import type { AssetAccount } from './aggregate'
 import { decomposeFxReturn, FX_DECOMPOSE_WINDOW_DAYS, type FxDecomposition } from './fxDecompose'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -78,7 +78,7 @@ export function FxSplitSection({ accounts, base }: Props) {
           <div key={s.id} className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="min-w-0 truncate text-sm font-medium text-fg-primary">
-                {s.name}
+                {accountLabel(s.name)}
               </span>
               <span className="shrink-0 text-2xs text-fg-muted">
                 {dayMonthLabel(s.d.from)} → {dayMonthLabel(s.d.to)} ·{' '}

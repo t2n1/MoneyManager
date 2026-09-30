@@ -20,7 +20,7 @@ import { overpayConfirmed, overpayOf } from './aggregate'
 import { OverpayConfirm } from './OverpayConfirm'
 import { formatRateLine } from '../../lib/rates'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   debt: DebtRow
@@ -247,7 +247,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
                 onChange={(e) => setAccountId(e.target.value)} wrapClassName="w-full">
                 {matchingAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name}
+                    {accountLabel(a.name)}
                   </option>
                 ))}
               </Select>

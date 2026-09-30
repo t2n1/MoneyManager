@@ -40,7 +40,7 @@ import { SavingsGoalsSection } from './SavingsGoalsSection'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { useAssetsData } from './useAssetsData'
 import { groupDisplayName } from './aggregate'
-import { tr, decimalSep } from '../../i18n'
+import { accountLabel, decimalSep, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 
@@ -346,11 +346,11 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
                 />
               ),
               n: DELTA_DAYS,
-              group: <span className="text-fg-secondary">{tapTrung.groupName}</span>,
+              group: <span className="text-fg-secondary">{groupDisplayName(tapTrung.groupName)}</span>,
             })}
             {tapTrung.account && (
               <>
-                {' '}— {tapTrung.account.name}{' '}
+                {' '}— {accountLabel(tapTrung.account.name)}{' '}
                 <Money
                   amount={mv.view(Math.abs(tapTrung.account.delta)).amount}
                   currency={mv.cur}

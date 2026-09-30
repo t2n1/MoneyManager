@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { useSearchParams } from 'react-router-dom'
 import { BookmarkPlus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -530,7 +530,7 @@ export function SearchPage() {
                   className={filterChipClass(accountIds.includes(a.id))}
                 >
                   <span className="inline-flex items-center gap-1">
-                    <AccountTypeIcon type={a.type} className="h-4 w-4" /> {a.name} ·{' '}
+                    <AccountTypeIcon type={a.type} className="h-4 w-4" /> {accountLabel(a.name)} ·{' '}
                     {CURRENCIES[a.currency].symbol}
                   </span>
                 </button>

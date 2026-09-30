@@ -258,14 +258,7 @@ const d: Dict = {
   'Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.': 'The most common range covers only 18.6%, so this is a wide band.',
   // data/demoRepo — dữ liệu mẫu
   'Tiền mặt': 'Cash',
-  'Tiêu dùng': 'Spending',
   'Ngân hàng': 'Bank',
-  'Chứng khoán VN': 'VN brokerage',
-  'Tài sản Việt Nam': 'Vietnam assets',
-  'Đầu tư VN': 'VN investments',
-  'Dự trữ USD': 'USD reserve',
-  'Thẻ Rakuten': 'Rakuten Card',
-  'Tài sản Nhật': 'Japan assets',
   'Nhà ở': 'Housing',
   'Ăn uống': 'Food & dining',
   'Đi lại': 'Transport',
@@ -313,7 +306,6 @@ const d: Dict = {
   'Trả trước một phần': 'Partial prepayment',
   'Người dùng demo': 'Demo user',
   'calc|Chia': 'Divide',
-  'group|Dự phòng': 'Emergency fund',
 }
 
 export default d

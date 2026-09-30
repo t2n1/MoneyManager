@@ -53,7 +53,7 @@ import {
   dueBreakdown,
   statementDueAmount,
 } from './cardMonthCharge'
-import { ACCOUNT_TYPE_LABELS, cardFunding, type CardLiability } from './aggregate'
+import { ACCOUNT_TYPE_LABELS, cardFunding, groupDisplayName, type CardLiability } from './aggregate'
 import { accountCurrentValue, valueBasisLabel } from './currentValue'
 import { depreciate } from './depreciation'
 import { ngay } from './investFormat'
@@ -66,7 +66,7 @@ import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-import { tr, trx } from '../../i18n'
+import { accountLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Một dòng của phép cộng ra số bị rút: nhãn · dấu · số. Cột dấu riêng để các dấu thẳng hàng. */
@@ -317,7 +317,7 @@ export function AccountDetailPage() {
         title={
           account ? (
             <span className="inline-flex items-center gap-1.5">
-              <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
+              <AccountTypeIcon type={account.type} className="h-5 w-5" /> {accountLabel(account.name)}
             </span>
           ) : (
             tr('Tài khoản')
@@ -332,8 +332,8 @@ export function AccountDetailPage() {
           account && (
             <>
               {ACCOUNT_TYPE_LABELS[account.type]} · {account.currency}
-              {cardFundingGroup && tr(' · trả từ {source}', { source: cardFundingGroup.sourceName })}
-              {account.asset_group && ` · ${account.asset_group}`}
+              {cardFundingGroup && tr(' · trả từ {source}', { source: accountLabel(cardFundingGroup.sourceName) })}
+              {account.asset_group && ` · ${groupDisplayName(account.asset_group)}`}
             </>
           )
         }
@@ -460,7 +460,7 @@ export function AccountDetailPage() {
             {viTien && (
               <p className="flex items-center justify-between gap-2 text-sm">
                 <span className="text-fg-muted">{tr('Ví tiền')}</span>
-                <span className="text-fg-secondary">{viTien.name}</span>
+                <span className="text-fg-secondary">{accountLabel(viTien.name)}</span>
               </p>
             )}
             {/* Không in "Vốn gốc (đã bỏ vào)" ở đây nữa: đó là mốc theo SỐ DƯ SỔ, tức mốc
@@ -702,7 +702,7 @@ export function AccountDetailPage() {
               <div className="mt-1 border-t border-border-subtle pt-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="min-w-0 truncate text-fg-muted">
-                    {tr('Nguồn trả · {source}', { source: cardFundingGroup.sourceName })}
+                    {tr('Nguồn trả · {source}', { source: accountLabel(cardFundingGroup.sourceName) })}
                   </span>
                   <Money
                     amount={cardFundingGroup.sourceBalance}
@@ -725,12 +725,12 @@ export function AccountDetailPage() {
                       {cardFundingGroup.cardCount > 1
                         ? trn('Cần nạp thêm {amount} vào {source} mới đủ trả {count} thẻ dùng ví này.', {
                             amount: <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>,
-                            source: cardFundingGroup.sourceName,
+                            source: accountLabel(cardFundingGroup.sourceName),
                             count: cardFundingGroup.cardCount,
                           })
                         : trn('Cần nạp thêm {amount} vào {source} mới đủ trả kỳ tới.', {
                             amount: <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>,
-                            source: cardFundingGroup.sourceName,
+                            source: accountLabel(cardFundingGroup.sourceName),
                           })}
                     </p>
                   ))}

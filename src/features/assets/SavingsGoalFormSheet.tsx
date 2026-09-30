@@ -7,7 +7,7 @@ import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   accounts: AccountRow[]
@@ -87,7 +87,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         <Select id={`${uid}-acc`} value={accountId} onChange={(e) => setAccountId(e.target.value)} wrapClassName="mb-3 w-full">
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.name} ({a.currency})
+              {accountLabel(a.name)} ({a.currency})
             </option>
           ))}
         </Select>

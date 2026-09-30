@@ -36,7 +36,7 @@ import {
   PanelHeader,
   actionButtonClass,
 } from '../../components/ui'
-import { tr, trx } from '../../i18n'
+import { accountLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 // Điện thoại: tên + chip ở trên, số dư xuống dòng. Từ `lg`: bốn cột một hàng.
@@ -135,7 +135,7 @@ export function AccountsPage() {
                       type="button"
                       {...handle}
                       className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-                      aria-label={tr('Kéo để sắp thứ tự {name}', { name: a.name })}
+                      aria-label={tr('Kéo để sắp thứ tự {name}', { name: accountLabel(a.name) })}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
@@ -147,7 +147,7 @@ export function AccountsPage() {
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
                         <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0 text-fg-muted" />
-                        <span className="min-w-0 truncate text-sm text-fg-primary">{a.name}</span>
+                        <span className="min-w-0 truncate text-sm text-fg-primary">{accountLabel(a.name)}</span>
                         {a.is_hidden && (
                           <span className="shrink-0 rounded bg-surface-sunken px-1 text-2xs text-fg-muted">
                             {tr('ẩn')}
@@ -236,7 +236,7 @@ export function AccountsPage() {
                 <div key={a.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
                   <AccountTypeIcon type={a.type} className="h-4 w-4" />
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
-                    {a.name} · {a.currency}
+                    {accountLabel(a.name)} · {a.currency}
                   </span>
                   <button
                     type="button"

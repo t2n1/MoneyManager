@@ -8,13 +8,14 @@ import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, AccountType } from '../../types/database.types'
 import { depreciate } from './depreciation'
 import type { AccountCurrentValue } from './currentValue'
-import { tr, decimalSep } from '../../i18n'
+import { assetGroupLabel, tr, decimalSep } from '../../i18n'
 
 /** Nhãn hiển thị cho tài khoản chưa gán nhóm. */
 export const UNGROUPED_LABEL = 'Chưa phân nhóm' // i18n-ignore — khoá nhóm, lưu trong asset_group_settings.name
 
+/** Tên nhóm ĐỂ HIỂN THỊ: nhóm mặc định đổi sang tiếng Anh qua assetGroupLabel(). Không dùng để so/tra. */
 export function groupDisplayName(name: string): string {
-  return name === UNGROUPED_LABEL ? tr('Chưa phân nhóm') : name
+  return name === UNGROUPED_LABEL ? tr('Chưa phân nhóm') : assetGroupLabel(name)
 }
 
 /** Nhãn tiếng Việt cho từng loại tài khoản (chế độ xem "Theo loại"). */

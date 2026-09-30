@@ -163,8 +163,9 @@ describe('i18n — từ điển tiếng Anh', () => {
 
   it('từ điển không giữ khoá chết', () => {
     const used = new Set(S.keys.map((k) => k.key))
-    // `cat|…` là bảng tên danh mục mặc định (dữ liệu DB), tra qua categoryLabel(), không qua tr().
-    expect(Object.keys(EN).filter((k) => !used.has(k) && !k.startsWith('cat|'))).toEqual([])
+    // `cat|` / `acc|` / `grp|` là bảng tên mặc định (dữ liệu DB), tra qua categoryLabel() /
+    // accountLabel() / assetGroupLabel(), không qua tr().
+    expect(Object.keys(EN).filter((k) => !used.has(k) && !/^(cat|acc|grp)\|/.test(k))).toEqual([])
   })
 })
 

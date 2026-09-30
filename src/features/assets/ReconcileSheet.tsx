@@ -23,7 +23,7 @@ import {
   findAdjustCategory,
   reconcilePlan,
 } from './reconcile'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -174,7 +174,7 @@ export function ReconcileSheet({
           {isCard ? tr('Điều chỉnh số nợ') : tr('Điều chỉnh số dư')}
         </SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
-          {account.name} · {isCard ? tr('sổ đang ghi nợ') : tr('số dư sổ hiện tại')}{' '}
+          {accountLabel(account.name)} · {isCard ? tr('sổ đang ghi nợ') : tr('số dư sổ hiện tại')}{' '}
           {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
 

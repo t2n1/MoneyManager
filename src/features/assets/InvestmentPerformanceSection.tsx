@@ -10,13 +10,13 @@ import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../h
 import { toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
-import type { AssetAccount, AssetGroup } from './aggregate'
+import { groupDisplayName, type AssetAccount, type AssetGroup } from './aggregate'
 import { investmentScope } from './groupInsight'
 import { investCapital } from './investCapital'
 import { investTxRange, LOOKBACK_YEARS } from './investHistory'
 import type { MoneyView } from './moneyView'
 import { investmentPerformance, type CashFlow } from './xirr'
-import { getLang, tr, trx } from '../../i18n'
+import { accountLabel, getLang, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -252,14 +252,14 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
               <span key={o.name}>
                 {i > 0 && ', '}
                 {trn('{name} {amount} đang ở nhóm {group}', {
-                  name: <span className="text-fg-secondary">{o.name}</span>,
+                  name: <span className="text-fg-secondary">{accountLabel(o.name)}</span>,
                   amount: money(o.baseValue),
-                  group: o.groupName,
+                  group: groupDisplayName(o.groupName),
                 })}
               </span>
             )),
             gap: money(scope.gap),
-            group: scope.mainGroupName,
+            group: groupDisplayName(scope.mainGroupName),
           })}
         </p>
       )}

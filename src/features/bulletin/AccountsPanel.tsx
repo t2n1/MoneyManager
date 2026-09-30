@@ -13,11 +13,11 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, StatusDot } from '../../components/ui'
 import { AccountTypeIcon } from '../../components/icons'
-import type { AssetGroup } from '../assets/aggregate'
+import { groupDisplayName, type AssetGroup } from '../assets/aggregate'
 import { rebalancePlan } from '../assets/rebalance'
 import { useAssetGroupSettings } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/money'
-import { numLocale, tr, trx } from '../../i18n'
+import { accountLabel, numLocale, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Trần dòng — Bản tin là chỗ liếc; ai có 20 tài khoản thì mở tab Tài sản. */
@@ -97,7 +97,7 @@ export function AccountsPanel({
       {lech !== null && (
         <p className="mt-1.5 text-sm text-fg-primary">
           {trn('Cơ cấu lệch mục tiêu: «{name}» đang {actual} so mục tiêu {target} — {link}', {
-            name: lech.name,
+            name: groupDisplayName(lech.name),
             actual: (
               <Num tone="out">
                 {lech.actualPct.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
@@ -134,7 +134,7 @@ export function AccountsPanel({
               >
                 <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0 text-fg-muted" />
                 <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
-                  {a.name}
+                  {accountLabel(a.name)}
                 </span>
                 {staleIds.has(a.id) && (
                   <StatusDot tone="warn" label={tr('Chưa đối chiếu quá 30 ngày')} />

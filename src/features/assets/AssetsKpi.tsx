@@ -20,7 +20,7 @@ import { KpiCell, KpiStrip } from './KpiStrip'
 import { makeMoneyView } from './moneyView'
 import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Lớp cột theo số ô có THẬT — ô nào không có dữ liệu thì không dựng. */
@@ -172,7 +172,7 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
             dueFunding && (
               <>
                 {trn('Từ {source} {balance}', {
-                  source: dueFunding.sourceName,
+                  source: accountLabel(dueFunding.sourceName),
                   balance: (
                     <Money {...mv.view(dueFunding.sourceBalance, dueFunding.currency)} tone="muted" />
                   ),

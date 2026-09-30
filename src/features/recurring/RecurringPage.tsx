@@ -31,7 +31,7 @@ import type { RecurringRuleRow } from '../../types/database.types'
 import { BillCalendarCard } from './BillCalendarCard'
 import { RecurringFormSheet } from './RecurringFormSheet'
 import { Card, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -377,6 +377,7 @@ export function RecurringPage() {
         <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
+            const toAcc = accountOf(rule.to_account_id)
             const cat = categoryOf(rule.category_id)
             const next = nextDueDate(rule)
             const bill = billByRule.get(rule.id)
@@ -397,7 +398,7 @@ export function RecurringPage() {
                 >
                   <span className="block truncate text-sm text-fg-primary">
                     {rule.type === 'transfer'
-                      ? `${acc?.name ?? '?'} → ${accountOf(rule.to_account_id)?.name ?? '?'}`
+                      ? `${acc ? accountLabel(acc.name) : '?'} → ${toAcc ? accountLabel(toAcc.name) : '?'}`
                       : (cat ? categoryLabel(cat.name) : '?')}
                     {rule.note && (
                       <span className="text-fg-muted"> · {rule.note}</span>

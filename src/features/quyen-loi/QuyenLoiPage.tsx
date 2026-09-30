@@ -18,7 +18,7 @@ import { GanNguoiNhanSheet } from './GanNguoiNhanSheet'
 // NguoiThanSheet nằm ở components/ (dùng chung với form gửi tiền — CLAUDE.md cấm feature import UI của nhau).
 import { NguoiThanSheet } from '../../components/NguoiThanSheet'
 import type { RelativeRow } from '../../types/database.types'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const NHOM_NHAN: Record<string, string> = { '<16': tr('dưới 16'), '16-29': '16–29', '30-69': '30–69', '70+': tr('từ 70') }
@@ -289,7 +289,7 @@ export function QuyenLoiPage() {
               <ul className="mt-3 divide-y divide-border-subtle">
                 {ketQua.shelter.tai_khoan.map((t) => (
                   <li key={t.id} className="flex items-center gap-3 py-2 text-sm">
-                    <Link to={`/assets/account/${t.id}`} className="font-medium text-fg-primary hover:underline">{t.name}</Link>
+                    <Link to={`/assets/account/${t.id}`} className="font-medium text-fg-primary hover:underline">{accountLabel(t.name)}</Link>
                     <span className="ml-auto">
                       {trn('đã nạp {amount}', { amount: <Money amount={t.used} currency="JPY" /> })}
                       {t.remaining !== null ? <> · {trn('còn {amount}', { amount: <Money amount={t.remaining} currency="JPY" tone="in" /> })}</> : <> · {tr('chưa đặt hạn mức')}</>}

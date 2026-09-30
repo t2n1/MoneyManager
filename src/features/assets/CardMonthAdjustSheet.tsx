@@ -16,7 +16,7 @@ import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { monthAdjustDate, monthAdjustPlan } from './cardMonthCharge'
 import { ADJUST_CATEGORY_ICON, ADJUST_CATEGORY_NAME, findAdjustCategory } from './reconcile'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   account: AccountRow
@@ -114,7 +114,7 @@ export function CardMonthAdjustSheet({
         <SectionTitle role="block" className="mb-1">{tr('Chỉnh cho khớp sao kê')}</SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
           {tr('{name} · sao kê {month} ({period}) · app đang tính {amount}', {
-            name: account.name,
+            name: accountLabel(account.name),
             month: monthLabel.toLowerCase(),
             period: periodLabel,
             amount: formatMoney(charged, currency),

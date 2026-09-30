@@ -27,7 +27,7 @@ import {
 } from './merchantCategory'
 import { detectStatementFormat, type StatementFormat } from './statementFormat'
 import { Card, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 type Encoding = 'utf-8' | 'shift-jis'
@@ -350,7 +350,10 @@ export function ImportCsvPage() {
   const transferCount = preview.items.filter(
     (it, i) => dupes[i] === null && isInternal(it),
   ).length
-  const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? tr('tài khoản khác')
+  const nameOfAccount = (id: string) => {
+    const a = accounts.find((x) => x.id === id)
+    return a ? accountLabel(a.name) : tr('tài khoản khác')
+  }
 
   // ─── Danh mục: gom theo QUÁN, không theo dòng ────────────────────────────────
   // Gán tay từng dòng thì một xấp sao kê là cả buổi tối; gom theo quán thì mỗi quán
@@ -543,7 +546,7 @@ export function ImportCsvPage() {
                 <option value="">{tr('— Chọn tài khoản —')}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} ({a.currency})
+                    {accountLabel(a.name)} ({a.currency})
                   </option>
                 ))}
               </Select>

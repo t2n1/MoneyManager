@@ -49,7 +49,7 @@ import {
   PanelHeader,
   SegmentedControl,
 } from '../../components/ui'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 type Period = 'month' | 'year'
@@ -84,7 +84,7 @@ function ExportSection() {
     const csv = buildTransactionsCsv(sorted, {
       // CSV chỉ để đọc (không ai nhập lại) nên in nhãn hiển thị, như trên màn.
       categoryName: (id) => categoryLabel(categories.find((c) => c.id === id)?.name ?? ''),
-      accountName: (id) => accounts.find((a) => a.id === id)?.name ?? '',
+      accountName: (id) => accountLabel(accounts.find((a) => a.id === id)?.name ?? ''),
       currencyOf,
     })
     downloadTextFile(exportCsvFilename(period, monthKey, year), csv, 'text/csv')

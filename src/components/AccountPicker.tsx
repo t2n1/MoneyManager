@@ -7,7 +7,7 @@ import { groupOptionsByType } from '../features/accounts/groupByType'
 import { normalizeText } from '../features/transactions/filter'
 import type { AccountType } from '../types/database.types'
 import { type PanelBox, panelBox } from './accountPickerBox'
-import { tr } from '../i18n'
+import { accountLabel, tr } from '../i18n'
 
 type AccountOption = {
   id: string
@@ -83,7 +83,7 @@ export function AccountPicker({
   const needle = normalizeText(query)
   const groups = useMemo(() => {
     const matched = needle
-      ? options.filter((a) => normalizeText(a.name).includes(needle))
+      ? options.filter((a) => normalizeText(a.name).includes(needle) || normalizeText(accountLabel(a.name)).includes(needle))
       : options
     return groupOptionsByType(matched)
   }, [options, needle])
@@ -159,7 +159,7 @@ export function AccountPicker({
                 dấu … không bao giờ xuất hiện — chữ tràn ra ngoài viền nút. Đo ở cỡ chữ
                 "Rất lớn" trên màn 375px: nút tràn 31px, mũi chevron bị đẩy ra ngoài (§13). */}
             <span className="min-w-0 truncate">
-              {selected.name} · {CURRENCIES[selected.currency].symbol}
+              {accountLabel(selected.name)} · {CURRENCIES[selected.currency].symbol}
             </span>
           </>
         ) : (
@@ -242,7 +242,7 @@ export function AccountPicker({
                               : 'text-fg-primary'
                           }`}
                         >
-                          {a.name}
+                          {accountLabel(a.name)}
                         </span>
                         {bal !== undefined && (
                           <span

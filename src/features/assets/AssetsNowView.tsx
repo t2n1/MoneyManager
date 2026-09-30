@@ -62,7 +62,7 @@ import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
 import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
 import { SectionTitle } from '../../components/ui'
-import { tr, decimalSep } from '../../i18n'
+import { accountLabel, decimalSep, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /**
@@ -789,7 +789,7 @@ export function AssetsNowView({ viewCur }: Props) {
                       'outline',
                       'min-h-8 border-state-warn-border text-state-warn-fg',
                     )}
-                    aria-label={tr('Đối chiếu {name} — quá {n} ngày chưa đối chiếu', { name: a.name, n: DELTA_DAYS })}
+                    aria-label={tr('Đối chiếu {name} — quá {n} ngày chưa đối chiếu', { name: accountLabel(a.name), n: DELTA_DAYS })}
                   >
                     {tr('Đối chiếu')}
                   </Link>
@@ -825,7 +825,7 @@ export function AssetsNowView({ viewCur }: Props) {
                           className={`${
                             sortMode ? 'inline-flex' : 'hidden lg:inline-flex'
                           } ${COL.drag} min-h-11 shrink-0 cursor-grab touch-none items-center justify-center text-fg-disabled active:cursor-grabbing`}
-                          aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: a.name })}
+                          aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: accountLabel(a.name) })}
                         >
                           <GripVertical className="h-4 w-4" />
                         </button>
@@ -847,7 +847,7 @@ export function AssetsNowView({ viewCur }: Props) {
                       >
                         <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0 lg:mr-2" />
                         <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
-                          {a.name}
+                          {accountLabel(a.name)}
                           <span className="ml-1 text-2xs text-fg-muted">{a.currency}</span>
                           {!a.includeInTotals && (
                             <span className="ml-1 text-2xs text-fg-muted">{tr('(ngoài tổng)')}</span>
@@ -916,7 +916,7 @@ export function AssetsNowView({ viewCur }: Props) {
                           >
                             <Sparkline
                               values={stat.spark}
-                              label={tr('Số dư {name} 30 ngày qua', { name: a.name })}
+                              label={tr('Số dư {name} 30 ngày qua', { name: accountLabel(a.name) })}
                             />
                           </span>
                         )}

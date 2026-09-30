@@ -35,7 +35,7 @@ import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
 import { KIND_CLASS, KIND_LABEL, ngay, pct } from './investFormat'
 import type { StockTradeRow } from '../../types/database.types'
-import { numLocale, tr } from '../../i18n'
+import { accountLabel, numLocale, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 interface Props {
@@ -453,7 +453,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
                             chứ không theo `filtered`: một `?account=` cũ làm `filtered`
                             rỗng trong khi sổ lệnh dưới đây trải mọi tài khoản, và khi đó
                             không dòng nào nói mình thuộc tài khoản nào. */}
-                        {shown.length > 1 && ` · ${accountName(t.account_id)}`}
+                        {shown.length > 1 && ` · ${accountLabel(accountName(t.account_id))}`}
                       </span>
                     </p>
                     {t.note && <p className="truncate text-2xs text-fg-muted">{t.note}</p>}

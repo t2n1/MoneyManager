@@ -8,7 +8,7 @@ import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 interface Props {
   account: AccountRow
@@ -76,7 +76,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         </SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
           {tr('{name} · giá trị thị trường hiện tại ({currency})', {
-            name: account.name,
+            name: accountLabel(account.name),
             currency: CURRENCIES[currency].label,
           })}
         </p>

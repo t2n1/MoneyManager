@@ -15,7 +15,7 @@ import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../.
 import type { AccountRow, StockTradeKind, StockTradeRow } from '../../types/database.types'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { useEscClose } from '../../hooks/useEscClose'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 
 /** Phí giao dịch phổ biến ở Việt Nam ~0,15% giá trị lệnh. */
 const FEE_RATE = 0.0015
@@ -143,7 +143,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         <SectionTitle role="block" className="mb-1">
           {trade ? tr('Sửa lệnh') : tr('Ghi lệnh')}
         </SectionTitle>
-        <p className="mb-3 text-sm text-fg-muted">{account.name}</p>
+        <p className="mb-3 text-sm text-fg-muted">{accountLabel(account.name)}</p>
 
         <div className="mb-3">
           <SegmentedControl items={KINDS} value={kind} onChange={setKind} label={tr('Loại lệnh')} />

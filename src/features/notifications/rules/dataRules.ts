@@ -10,7 +10,7 @@
 // đồ thị import, nên đừng import gì từ lib/money hay assets/aggregate ở đây.
 import { addDaysISO } from '../../../lib/dates'
 import { lastReconciledMap } from '../reconciledAt'
-import { tr } from '../../../i18n'
+import { accountLabel, tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Bao nhiêu ngày không đối chiếu thì coi là cũ (§4.4 và §4.9 cùng dùng con số này). */
@@ -93,7 +93,7 @@ export function reconcileStaleRule(input: NotificationInput): AppNotification[] 
       severity: 'low',
       title:
         cu.length === 1
-          ? tr('{name} chưa đối chiếu quá {days} ngày', { name: cu[0].name, days: RECONCILE_STALE_DAYS })
+          ? tr('{name} chưa đối chiếu quá {days} ngày', { name: accountLabel(cu[0].name), days: RECONCILE_STALE_DAYS })
           : tr('{n} tài khoản chưa đối chiếu quá {days} ngày', { n: cu.length, days: RECONCILE_STALE_DAYS }),
       detail: tr('Số dư trên màn có thể đã lệch số thật.'),
       to: '/assets',

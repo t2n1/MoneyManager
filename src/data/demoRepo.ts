@@ -60,7 +60,7 @@ import type {
   TransactionTagRow,
 } from '../types/database.types'
 import { demoSessions, demoWalk } from './demoPrices'
-import { tr, trx } from '../i18n'
+import { tr } from '../i18n'
 import {
   type NewLifetimeVerdictSnapshot,
   BACKUP_VERSION,
@@ -371,17 +371,17 @@ function seed(): DemoDB {
   })
 
   const accounts = [
-    account(tr('Tiền mặt'), 'cash', 'JPY', 30_000, 0, tr('Tiêu dùng')), // ¥30.000
-    account(tr('Ngân hàng'), 'bank', 'JPY', 800_000, 1, tr('Tiêu dùng')), // ¥800.000
+    account('Tiền mặt', 'cash', 'JPY', 30_000, 0, 'Tiêu dùng'), // ¥30.000 // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    account('Ngân hàng', 'bank', 'JPY', 800_000, 1, 'Tiêu dùng'), // ¥800.000 // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
     // Tài khoản riêng cho sổ lệnh cổ phiếu Việt Nam (migration 0035) — tách khỏi
     // 'Đầu tư VN' bên dưới vì tài khoản đó đã có giao dịch/định giá gắn sẵn; nếu dùng
     // chung, test "xoá tài khoản còn sổ lệnh" sẽ luôn báo lỗi vì giao dịch trước.
-    account(tr('Chứng khoán VN'), 'investment', 'VND', 100_000_000, 2, tr('Tài sản Việt Nam')), // 100.000.000 ₫ (vốn gốc)
-    account(tr('Đầu tư VN'), 'investment', 'VND', 50_000_000, 3, tr('Đầu tư')), // 50.000.000 ₫ (vốn gốc)
-    account(tr('Dự trữ USD'), 'bank', 'USD', 200_000, 4, trx('group', 'Dự phòng')), // $2.000,00
+    account('Chứng khoán VN', 'investment', 'VND', 100_000_000, 2, 'Tài sản Việt Nam'), // 100.000.000 ₫ (vốn gốc) // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    account('Đầu tư VN', 'investment', 'VND', 50_000_000, 3, 'Đầu tư'), // 50.000.000 ₫ (vốn gốc) // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    account('Dự trữ USD', 'bank', 'USD', 200_000, 4, 'Dự phòng'), // $2.000,00 // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
     // Thẻ tín dụng: số dư ban đầu âm = đang nợ ¥45.000. Không thuộc nhóm tài sản.
     {
-      ...account(tr('Thẻ Rakuten'), 'card', 'JPY', -45_000, 5, null),
+      ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 5, null), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
       credit_limit: 500_000,
       statement_day: 31, // chốt cuối tháng (kẹp về ngày cuối)
       payment_due_day: 27, // trả ngày 27 (dời T7/CN sang T2 khi hiển thị)
@@ -389,7 +389,7 @@ function seed(): DemoDB {
     // Tài khoản NISA quỹ đầu tư Nhật (migration 0045) — vốn gốc đến từ fund_trades, không
     // từ initial_balance: Rakuten quét sạch tiền dư (自動出金) nên không có "tiền chưa
     // đầu tư" để gán ở đây.
-    account('NISA Rakuten', 'investment', 'JPY', 0, 6, tr('Tài sản Nhật')),
+    account('NISA Rakuten', 'investment', 'JPY', 0, 6, 'Tài sản Nhật'), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
   ]
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
   accounts[5].payment_account_id = accounts[1].id
@@ -764,10 +764,10 @@ function seed(): DemoDB {
     created_at: nowISO(),
   })
   const assetGroupSettings = [
-    groupSetting(tr('Tiêu dùng'), 0),
-    groupSetting(tr('Tài sản Việt Nam'), 1),
-    groupSetting(tr('Đầu tư'), 2),
-    groupSetting(trx('group', 'Dự phòng'), 3),
+    groupSetting('Tiêu dùng', 0), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    groupSetting('Tài sản Việt Nam', 1), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    groupSetting('Đầu tư', 2), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
+    groupSetting('Dự phòng', 3), // i18n-ignore — tên tài khoản/nhóm là dữ liệu; hiển thị qua accountLabel()/assetGroupLabel()
   ]
 
   // Khoản nợ mẫu: mình cho bạn vay ¥50.000 (đã nhận lại ¥20.000) và mình nợ công ty $500.

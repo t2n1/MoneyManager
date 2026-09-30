@@ -116,7 +116,7 @@ import { TagBreakdownCard } from './TagBreakdownCard'
 import { UncategorizedBacklogCard } from './UncategorizedBacklogCard'
 import { uncategorizedByMonth } from './uncategorized'
 import { ReportBlock } from './ReportBlock'
-import { categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Cửa sổ cho đường tí hon, cột TB 3 tháng và biểu đồ 6 tháng. */
@@ -337,7 +337,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, accounts, range.start, monthLastISO, base, rates],
   )
-  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? tr('Tài khoản đã xoá')
+  const accountName = (id: string) => {
+    const a = accounts.find((x) => x.id === id)
+    return a ? accountLabel(a.name) : tr('Tài khoản đã xoá')
+  }
 
   // Cam kết CHƯA bị trừ = khoản định kỳ có kỳ hạn rơi vào phần CÒN LẠI của kỳ. Lấy cả kỳ
   // rồi trừ đi phần đã trôi là đếm luôn những khoản đã trả — chúng đã nằm trong `spent`.

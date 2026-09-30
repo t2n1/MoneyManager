@@ -31,6 +31,14 @@ function categoryLabel(name) {
   const hit = dict[`cat|${name}`];
   return typeof hit === "string" ? hit : name;
 }
+function accountLabel(name) {
+  return dataLabel("acc", name);
+}
+function dataLabel(prefix, name) {
+  if (lang === "vi") return name;
+  const hit = dict[`${prefix}|${name}`];
+  return typeof hit === "string" ? hit : name;
+}
 
 // src/features/notifications/types.ts
 var RECENT_TXS_DAYS = 90;
@@ -663,7 +671,7 @@ function pushShortfallIfNeeded(out, input, account, owedBase, extraLabels, until
     type: "account-shortfall",
     severity: "high",
     title: tr("{name} thi\u1EBFu {amount}", {
-      name: account.name,
+      name: accountLabel(account.name),
       amount: input.formatMoney(facts.owe - facts.have, account.currency)
     }),
     detail: facts.detail,
@@ -683,7 +691,7 @@ function accountRules(input) {
       kind: "action",
       type: "account-negative",
       severity: "high",
-      title: tr("{name} \u0111ang \xE2m {amount}", { name: a.name, amount: input.formatMoney(-a.balance, a.currency) }),
+      title: tr("{name} \u0111ang \xE2m {amount}", { name: accountLabel(a.name), amount: input.formatMoney(-a.balance, a.currency) }),
       detail: tr("Th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu."),
       to: `/assets/account/${a.id}`
     });
@@ -709,7 +717,7 @@ function accountRules(input) {
   const sourcesSeen = /* @__PURE__ */ new Set();
   for (const g of groups) {
     sourcesSeen.add(g.sourceId);
-    const cardNames = cards.filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency).map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`);
+    const cardNames = cards.filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency).map((c) => `${accountLabel(c.name)} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`);
     const source = {
       id: g.sourceId,
       name: g.sourceName,
@@ -1039,7 +1047,7 @@ function cardRules(input) {
       kind: "info",
       type: "card-statement-day",
       severity: "low",
-      title: tr("H\xF4m nay {name} ch\u1ED1t sao k\xEA", { name: a.name }),
+      title: tr("H\xF4m nay {name} ch\u1ED1t sao k\xEA", { name: accountLabel(a.name) }),
       detail: tr("Mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o k\u1EF3 th\xE1ng sau."),
       onISO: input.todayISO,
       to: `/assets/account/${a.id}`
@@ -1884,7 +1892,7 @@ function reconcileStaleRule(input) {
       kind: "action",
       type: "data-reconcile",
       severity: "low",
-      title: cu.length === 1 ? tr("{name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { name: cu[0].name, days: RECONCILE_STALE_DAYS }) : tr("{n} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { n: cu.length, days: RECONCILE_STALE_DAYS }),
+      title: cu.length === 1 ? tr("{name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { name: accountLabel(cu[0].name), days: RECONCILE_STALE_DAYS }) : tr("{n} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 {days} ng\xE0y", { n: cu.length, days: RECONCILE_STALE_DAYS }),
       detail: tr("S\u1ED1 d\u01B0 tr\xEAn m\xE0n c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch s\u1ED1 th\u1EADt."),
       to: "/assets"
     }

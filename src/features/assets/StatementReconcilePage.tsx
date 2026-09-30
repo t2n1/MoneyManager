@@ -30,7 +30,7 @@ import { sourceLabelFor, type ParsedStatement } from './statementLine'
 import { overviewRows } from './statementOverview'
 import { emptyResult, reconcileBatch, type LedgerTx, type ReconcileResult } from './statementReconcile'
 import { prefillFromLine, reviewRows, type ReviewRow } from './statementReviewRows'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /**
@@ -400,7 +400,7 @@ export function StatementReconcilePage() {
       <PageHeader
         title={tr('Đối chiếu sao kê')}
         back={`/assets/account/${accountId}`}
-        subtitle={card ? tr('{name} · chỉ lưu tổng hoá đơn, không đụng giao dịch nào', { name: card.name }) : undefined}
+        subtitle={card ? tr('{name} · chỉ lưu tổng hoá đơn, không đụng giao dịch nào', { name: accountLabel(card.name) }) : undefined}
       />
 
       {/* Danh sách tài khoản chưa về thì `card` là null — mà null ở đây KHÔNG có nghĩa

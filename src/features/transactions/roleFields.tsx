@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown, Plus } from 'lucide-react'
@@ -326,10 +326,10 @@ export function SplitFields({
             id={`${uid}-recvacc`}
             value={value.receivedAccountId}
             onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })} wrapClassName="w-full">
-            <option value="">{tr('Chính {name}', { name: sourceName || tr('tài khoản đã trả') })}</option>
+            <option value="">{tr('Chính {name}', { name: sourceName ? accountLabel(sourceName) : tr('tài khoản đã trả') })}</option>
             {backAccounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}
+                {accountLabel(a.name)}
               </option>
             ))}
           </Select>
@@ -802,7 +802,7 @@ export function RemitFields({
                 <option value="">{tr('— chọn —')}</option>
                 {vndAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name}
+                    {accountLabel(a.name)}
                   </option>
                 ))}
               </Select>

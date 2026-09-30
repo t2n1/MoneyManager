@@ -16,7 +16,7 @@ import { pendingText, type LoadStatus } from '../../lib/loadStatus'
 import { InvestDividendTagger } from './InvestDividendTagger'
 import { share, sliceColor } from './investFormat'
 import type { PositionRow, PositionTableResult, TaggableCashflow } from './positionTable'
-import { tr } from '../../i18n'
+import { accountLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const VND = 'VND' as const
@@ -459,7 +459,7 @@ function TheDienThoai({
               )}
               {/* Chỉ nói tên tài khoản khi mã nằm ở NHIỀU nơi — một tài khoản thì câu đó
                   đúng với mọi dòng, tức là không nói thêm được gì. */}
-              {r.accountNames.length > 1 && <span>· {r.accountNames.join(' + ')}</span>}
+              {r.accountNames.length > 1 && <span>· {r.accountNames.map(accountLabel).join(' + ')}</span>}
             </p>
           </button>
         </li>

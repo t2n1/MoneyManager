@@ -9,7 +9,7 @@
 // thanh tiến độ. Tháng chưa bắt đầu thì chưa tiêu đồng nào, nên thanh tiến độ của trần
 // THÁNG luôn rỗng — vẽ ra chỉ là ba cái khung trắng. Câu hỏi ở đây là "tháng tới còn tiêu
 // được bao nhiêu trong trần này", và chỉ trần CẢ ĐỢT mới có tiến độ đáng vẽ.
-import { tr } from '../../i18n'
+import { tagLabel, tr } from '../../i18n'
 import { Link } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
 import { Guide } from '../../components/Guide'
@@ -61,7 +61,7 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${TAG_CHIP_CLASS[tagColor(l.color)]}`}
                   >
-                    {l.name}
+                    {tagLabel(l.name)}
                   </span>
                   {/* Số danh mục đang phủ (B35.1): không có nó thì `#❤️ ¥50,000` không nói
                       được nó chồng lên những hạn mức nào — mà đó chính là câu hỏi duy nhất

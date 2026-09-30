@@ -115,6 +115,15 @@ export function assetGroupLabel(name: string): string {
   return dataLabel('grp', name)
 }
 
+/** Tên nhãn / nhóm nhãn mặc định (nhóm "Với ai?", "Ở đâu?"…) — bảng `tag|…` / `tgrp|…` ở src/i18n/en/tags.ts. */
+export function tagLabel(name: string): string {
+  return dataLabel('tag', name)
+}
+
+export function tagGroupLabel(name: string): string {
+  return dataLabel('tgrp', name)
+}
+
 function dataLabel(prefix: string, name: string): string {
   if (lang === 'vi') return name
   const hit = dict[`${prefix}|${name}`]

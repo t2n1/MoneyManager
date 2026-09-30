@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { accountLabel, categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tagGroupLabel, tagLabel, tr } from '../../i18n'
 import { useSearchParams } from 'react-router-dom'
 import { BookmarkPlus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -84,7 +84,7 @@ export function SearchPage() {
     return [
       ...tagGroups.map((g) => ({
         key: g.id,
-        title: g.name,
+        title: tagGroupLabel(g.name),
         list: tags.filter((t) => t.group_id === g.id),
       })),
       {
@@ -462,7 +462,7 @@ export function SearchPage() {
                                 : TAG_CHIP_CLASS[tagColor(t.color)]
                             }`}
                           >
-                            {t.name}
+                            {tagLabel(t.name)}
                           </button>
                         )
                       })}
@@ -564,7 +564,8 @@ export function SearchPage() {
                 {tr('· lọc theo {tags}', {
                   tags: tagIds
                     .map((id) => tags.find((t) => t.id === id)?.name)
-                    .filter(Boolean)
+                    .filter((n): n is string => Boolean(n))
+                    .map(tagLabel)
                     .join(' + '),
                 })}
               </span>

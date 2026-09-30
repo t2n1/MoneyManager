@@ -21,7 +21,7 @@
 // hiện vài nhãn dùng nhiều nhất + nhãn đang chọn, còn lại nằm sau nút "Tất cả" kèm ô
 // tìm. Xếp hạng nằm trong `pickerSections`, số nhãn hiện sẵn trong `collapsedLimit`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { tr } from '../../i18n'
+import { tagGroupLabel, tagLabel, tr } from '../../i18n'
 import { Check, ChevronDown, ChevronUp, Plus, Search, Tag as TagIcon, X } from 'lucide-react'
 import {
   useCreateTag,
@@ -99,7 +99,7 @@ export function TagPicker({ value, onChange }: Props) {
       const all = expanded ? [...s.shown, ...s.rest] : s.shown
       return {
         ...s,
-        list: needle ? all.filter((t) => normalizeText(t.name).includes(needle)) : all,
+        list: needle ? all.filter((t) => normalizeText(t.name).includes(needle) || normalizeText(tagLabel(t.name)).includes(needle)) : all,
       }
     })
     // Mục nào không còn nhãn nào khớp thì ẩn cả tên, không để lại hàng trống. TRỪ hàng
@@ -177,7 +177,7 @@ export function TagPicker({ value, onChange }: Props) {
           on ? `border-transparent ${TAG_CHIP_CLASS[tagColor(t.color)]}` : CHIP_OFF
         }`}
       >
-        <span className="truncate">{t.name}</span>
+        <span className="truncate">{tagLabel(t.name)}</span>
       </button>
     )
   }
@@ -217,7 +217,7 @@ export function TagPicker({ value, onChange }: Props) {
         {rows.map((s) => {
           const groupId = s.group?.id ?? ''
           const adding = addingTo === groupId
-          const name = s.group?.name ?? tr('Khác')
+          const name = s.group ? tagGroupLabel(s.group.name) : tr('Khác')
           const labelId = `${uid}-${s.group?.id ?? 'other'}`
           const empty = s.list.length === 0 && !adding
           return (

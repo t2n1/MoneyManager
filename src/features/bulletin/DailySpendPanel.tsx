@@ -28,7 +28,7 @@ import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
-import { categoryLabel, numLocale, tr, trx } from '../../i18n'
+import { categoryLabel, numLocale, tagLabel, tr, trx } from '../../i18n'
 import { trn } from '../../i18n/react'
 import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
@@ -328,7 +328,7 @@ function DayCard({
                   className="size-1.5 rounded-[1px]"
                   style={{ backgroundColor: TAG_HEX[tagColor(t.color)] }}
                 />
-                {t.name}{' '}
+                {tagLabel(t.name)}{' '}
                 <Money
                   amount={t.amount}
                   currency={base}
@@ -1325,7 +1325,7 @@ function Headline({
 
   if (headline.kind === 'tagCap') {
     const capVars = {
-      name: headline.tagName,
+      name: tagLabel(headline.tagName),
       spent: <Money amount={headline.spent} currency={base} approx={approx} />,
       budget: <Money amount={headline.budget} currency={base} approx={approx} />,
     }
@@ -1369,7 +1369,7 @@ function Headline({
         {headline.runs.map((r, i) => (
           <span key={r.name}>
             {i > 0 && ', '}
-            {r.name} {r.span} (<Money amount={r.total} currency={base} approx={approx} />)
+            {tagLabel(r.name)} {r.span} (<Money amount={r.total} currency={base} approx={approx} />)
           </span>
         ))}{' '}
         {trn('— {pct} của cả tháng', { pct: <b className="text-fg-primary">{headline.pct}%</b> })}

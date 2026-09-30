@@ -165,7 +165,7 @@ describe('i18n — từ điển tiếng Anh', () => {
     const used = new Set(S.keys.map((k) => k.key))
     // `cat|` / `acc|` / `grp|` là bảng tên mặc định (dữ liệu DB), tra qua categoryLabel() /
     // accountLabel() / assetGroupLabel(), không qua tr().
-    expect(Object.keys(EN).filter((k) => !used.has(k) && !/^(cat|acc|grp)\|/.test(k))).toEqual([])
+    expect(Object.keys(EN).filter((k) => !used.has(k) && !/^(cat|acc|grp|tag|tgrp)\|/.test(k))).toEqual([])
   })
 })
 

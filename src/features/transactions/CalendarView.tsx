@@ -18,7 +18,7 @@
 // đổi dáng bằng class `lg:`; hai cột đổi chỗ bằng `display:contents` + `order` (cùng mẹo
 // `BudgetView` đang dùng), nên thứ tự đọc trên mobile khác desktop mà DOM chỉ có một bản.
 import { useMemo, useState } from 'react'
-import { tr } from '../../i18n'
+import { tagLabel, tr } from '../../i18n'
 import { Tag } from 'lucide-react'
 import { Card, deltaTone, Money, Num, signedPct } from '../../components/ui'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
@@ -258,7 +258,7 @@ export function CalendarView({
                     style={{ background: TAG_HEX[tagColor(s.color)] }}
                     aria-hidden
                   />
-                  {s.name}
+                  {tagLabel(s.name)}
                   {/* Số tiền chỉ ở desktop: ở 402px nó đẩy chip thứ hai ra khỏi màn. */}
                   <Num tone="muted" className="hidden text-2xs lg:inline">
                     {formatMoney(s.amount, base)}

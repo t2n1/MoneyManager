@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } from 'lucide-react'
-import { accountLabel, categoryLabel, tr } from '../../i18n'
+import { accountLabel, categoryLabel, tagLabel, tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -200,7 +200,7 @@ export function TransactionItem({
                 key={t.id}
                 className={`min-w-0 max-w-[9rem] truncate rounded-full px-1.5 py-px text-2xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
               >
-                {t.name}
+                {tagLabel(t.name)}
               </span>
             ))}
           </span>

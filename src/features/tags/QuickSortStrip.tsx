@@ -1,5 +1,5 @@
 // Dải xếp nhanh nhãn cũ. Sau migration 0039 mọi nhãn đang có đều ngoài nhóm; xếp
-import { tr } from '../../i18n'
+import { tagGroupLabel, tagLabel, tr } from '../../i18n'
 // từng cái qua màn quản lý thì phải cuộn tìm, còn ở đây chỉ việc bấm lướt.
 //
 // Vì sao có nút "Xong": "để ở Khác" và "chưa xem tới" là CÙNG một giá trị trong DB
@@ -59,7 +59,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         <span
           className={`rounded-full px-2.5 py-1 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(current.color)]}`}
         >
-          {current.name}
+          {tagLabel(current.name)}
         </span>
         <span className="text-sm text-fg-muted">{tr('{n} giao dịch', { n: used })}</span>
       </div>
@@ -72,7 +72,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             onClick={() => updateTag.mutate({ id: current.id, patch: { group_id: g.id } })}
             className={actionButtonClass('primary')}
           >
-            {g.name}
+            {tagGroupLabel(g.name)}
           </button>
         ))}
         <button

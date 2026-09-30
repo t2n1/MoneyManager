@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
-import { approxLabel, sumInBase, sumPerCurrency, type CurrencyOf } from './ledgerShared'
-import { Card, StatTile } from '../../components/ui'
+import { approxLabel, splitExpense, sumInBase, sumPerCurrency, type CurrencyOf } from './ledgerShared'
+import { Card, Money, StatTile } from '../../components/ui'
+import { useTransferCategoryIds } from '../../hooks/queries'
 
 interface Props {
   transactions: TransactionRow[]
@@ -14,19 +15,23 @@ interface Props {
 
 /** Thẻ tổng Thu / Chi / Chênh lệch cho khoảng đang xem (quy đổi base, thiếu tỷ giá → tách loại tiền). */
 export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props) {
-  const { income, expense } = useMemo(
-    () => ({
-      income: sumInBase(transactions, 'income', currencyOf, base, rates),
-      expense: sumInBase(transactions, 'expense', currencyOf, base, rates),
-    }),
-    [transactions, currencyOf, base, rates],
-  )
+  // Khoản thuộc danh mục CHUYỂN TÀI SẢN (kind 'transfer', vd. Gửi tiền về VN) tách khỏi ô
+  // Chi, cùng luật với Bản tin và Báo cáo ("Chuyển tài sản · không phải chi tiêu"). Trước
+  // đây Sổ gộp nó vào: cùng tháng Sổ ghi Chi ¥120,930 còn hai màn kia ghi ¥90,930. Tiền
+  // vẫn đi ra thật, nên nó hiện thành dòng phụ dưới ô Chi và vẫn trừ vào Chênh lệch —
+  // Chênh lệch nhờ vậy khớp "Phần để lại" của Báo cáo.
+  const transferIds = useTransferCategoryIds()
+  const { income, expense, moved } = useMemo(() => {
+    const { spending, moved } = splitExpense(transactions, transferIds, currencyOf, base, rates)
+    return { income: sumInBase(transactions, 'income', currencyOf, base, rates), expense: spending, moved }
+  }, [transactions, currencyOf, base, rates, transferIds])
 
+  const outflow = expense && moved ? expense.value + moved.value : null
   const net =
-    income && expense
-      ? `${income.hasForeign || expense.hasForeign ? '≈ ' : ''}${formatMoney(income.value - expense.value, base)}`
+    income && outflow !== null
+      ? `${income.hasForeign || expense?.hasForeign || moved?.hasForeign ? '≈ ' : ''}${formatMoney(income.value - outflow, base)}`
       : '—'
-  const netNegative = !!(income && expense && income.value - expense.value < 0)
+  const netNegative = !!(income && outflow !== null && income.value - outflow < 0)
 
   const thu = income
     ? approxLabel(income, base)
@@ -34,6 +39,13 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
   const chi = expense
     ? approxLabel(expense, base)
     : sumPerCurrency(transactions, 'expense', currencyOf)
+  const movedLine =
+    moved && moved.value !== 0 ? (
+      <span className="block text-2xs font-normal text-fg-muted">
+        + <Money amount={moved.value} currency={base} approx={moved.hasForeign} className="!text-2xs !text-fg-muted" />{' '}
+        chuyển tài sản
+      </span>
+    ) : null
 
   // HAI dáng theo cỡ màn (redesign 2): desktop là ba thẻ gradient rời, nhãn chữ hoa +
   // số 22px mono (đúng khuôn <StatTile>); mobile giữ MỘT thẻ ba cột — 390px không có
@@ -46,6 +58,7 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
         </StatTile>
         <StatTile label="Chi" className="bg-panel-gradient">
           <span className="text-money-out">{chi}</span>
+          {movedLine}
         </StatTile>
         <StatTile label="Chênh lệch" className="bg-panel-gradient">
           <span className={netNegative ? 'text-money-out' : undefined}>{net}</span>
@@ -59,6 +72,7 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
         <div className="border-x border-border-subtle">
           <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">Chi</div>
           <div className="mt-1 font-mono text-sm font-semibold text-money-out">{chi}</div>
+          {movedLine}
         </div>
         <div>
           <div className="text-2xs font-semibold uppercase tracking-label text-fg-muted">

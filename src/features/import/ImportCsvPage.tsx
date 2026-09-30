@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { repo } from '../../data'
 import { useAccounts, useCategories, useRangeTransactions } from '../../hooks/queries'
-import { addDaysISO, toISODate } from '../../lib/dates'
+import { addDaysISO, toISODate, formatDateLabel } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { expenseLeaves } from '../categories/leaf'
 import { expenseMedianForCurrency, isUnusuallyLarge } from './anomaly'
@@ -644,7 +644,7 @@ export function ImportCsvPage() {
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
                     {likelyRows.slice(0, 5).map(({ it, dup }) => (
                       <li key={`${it.key}-${dup?.matchedTxId}`} className="truncate">
-                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔ đã có
+                        {formatDateLabel(it.occurred_on)} · {formatMoney(it.amount, currency)} · {it.note} ↔ đã có
                         “{dup?.matchedNote || 'không ghi chú'}”
                         {dup && dup.dayGap > 0 && ` (lệch ${dup.dayGap} ngày)`}
                       </li>
@@ -698,7 +698,7 @@ export function ImportCsvPage() {
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-fg-warn">
                     {crossRows.slice(0, 5).map(({ it, dup }) => (
                       <li key={`${it.key}-${dup?.matchedTxId}`} className="truncate">
-                        {it.occurred_on} · {formatMoney(it.amount, currency)} · {it.note} ↔ “
+                        {formatDateLabel(it.occurred_on)} · {formatMoney(it.amount, currency)} · {it.note} ↔ “
                         {dup?.matchedNote || 'không ghi chú'}” ở ví{' '}
                         {dup && nameOfAccount(dup.matchedAccountId)}
                         {dup && dup.dayGap > 0 && ` (lệch ${dup.dayGap} ngày)`}
@@ -861,7 +861,7 @@ export function ImportCsvPage() {
                           key={i}
                           className={`border-t border-border-subtle ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
                         >
-                          <td className="py-1 tabular-nums">{it.occurred_on}</td>
+                          <td className="py-1 tabular-nums">{formatDateLabel(it.occurred_on)}</td>
                           <td className={`py-1 ${it.type === 'expense' ? 'text-money-out' : 'text-money-in'}`}>
                             {it.type === 'expense' ? 'Chi' : 'Thu'}
                           </td>

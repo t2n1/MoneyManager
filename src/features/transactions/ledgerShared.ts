@@ -27,6 +27,32 @@ export function splitDayHeader(dateISO: string): { date: string; weekday: string
   return { date: `${m}/${d}`, weekday: WEEKDAYS[new Date(y, m - 1, d).getDay()] }
 }
 
+/**
+ * Khoản CHI thuộc danh mục chuyển tài sản (`kind = 'transfer'`, vd. Gửi tiền về VN). Tiền
+ * đi ra thật nhưng không phải chi tiêu — ô Chi của Sổ tách nó ra cho khớp Bản tin và Báo
+ * cáo (cùng tập id `transferCategoryIds`).
+ */
+export function isAssetMove(
+  t: Pick<TransactionRow, 'type' | 'category_id'>,
+  transferIds: ReadonlySet<string>,
+): boolean {
+  return t.type === 'expense' && !!t.category_id && transferIds.has(t.category_id)
+}
+
+/** Tách tổng chi của kỳ thành chi tiêu và chuyển tài sản. null ở vế nào = thiếu tỷ giá. */
+export function splitExpense(
+  txs: TransactionRow[],
+  transferIds: ReadonlySet<string>,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates | undefined,
+): { spending: Sum | null; moved: Sum | null } {
+  return {
+    spending: sumInBase(txs.filter((t) => !isAssetMove(t, transferIds)), 'expense', currencyOf, base, rates),
+    moved: sumInBase(txs.filter((t) => isAssetMove(t, transferIds)), 'expense', currencyOf, base, rates),
+  }
+}
+
 export interface Sum {
   value: number
   hasForeign: boolean

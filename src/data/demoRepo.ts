@@ -112,7 +112,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v19' // v19: lệnh つみたて khớp tiền Nạp NISA. v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
+export const STORAGE_KEY = 'sct-demo-db-v20' // v20: rút tiền mặt hằng tháng. v19: lệnh つみたて khớp tiền Nạp NISA. v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
 const DEMO_USER = 'demo-user'
 
 /**
@@ -654,6 +654,20 @@ function seed(): DemoDB {
 
       // Ăn uống + đi chợ + đi lại: phần biến đổi, cũng tụt sau cú đổi nếp.
       const bienDoi = (cuNep ? 210_000 : 120_000) + wobble * 4_000
+      // Ăn ngoài + Tàu điện trả bằng tiền mặt (tài khoản mặc định của `tx`). Không rút bù
+      // thì 24 tháng dồn Tiền mặt xuống −¥2 triệu, và Bản tin mở ra luôn có một việc "gấp"
+      // giả. Rút đủ số của tháng (làm tròn lên nghìn) trước ngày chi đầu tiên.
+      const chiTienMat = Math.round(bienDoi * 0.4) + Math.round(bienDoi * 0.15)
+      out.push(
+        tx({
+          type: 'transfer',
+          amount: Math.ceil(chiTienMat / 1_000) * 1_000,
+          occurred_on: monthsAgoISO(i, 5),
+          note: 'Rút tiền mặt',
+          account_id: bank.id,
+          to_account_id: cash.id,
+        }),
+      )
       out.push(
         tx({
           type: 'expense',

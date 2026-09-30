@@ -1214,6 +1214,15 @@ describe('getAccountBalances — tự tính market_value cho tài khoản quỹ 
   })
 })
 
+describe('seed demo — số dư hợp lý', () => {
+  // Seed cũ chi Ăn ngoài + Tàu điện bằng tiền mặt 24 tháng mà không rút bù: Tiền mặt −¥2 triệu,
+  // Bản tin mở ra lúc nào cũng có việc "gấp" giả.
+  it('Tiền mặt không âm', async () => {
+    const row = (await demoRepo.getAccountBalances()).find((b) => b.name === 'Tiền mặt')
+    expect(row?.balance).toBeGreaterThanOrEqual(0)
+  })
+})
+
 describe('nhóm nhãn (migration 0039)', () => {
   it('tạo nhóm và đọc lại theo sort_order', async () => {
     const a = await demoRepo.createTagGroup({ name: 'Với ai?' })

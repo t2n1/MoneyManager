@@ -17,7 +17,7 @@ import {
   useTransactionTags,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { toISODate, formatDateLabel } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType, TxOwner } from '../../types/database.types'
@@ -615,7 +615,7 @@ export function SearchPage() {
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
+            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{formatDateLabel(day)}</div>
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem

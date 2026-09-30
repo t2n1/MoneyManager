@@ -167,7 +167,8 @@ export function SankeyCard({ base, approx = false, chiDaGhi, ...input }: Props) 
             <b className="text-money-in">
               <Num>{pctOf(nodes, 'tier:kept')}</Num>%
             </b>
-            .
+            {/* Khác % "Không tiêu" đầu trang đúng ở vế này — nói ra, không để người đọc tự dò. */}
+            {nodes.some((n) => n.id === 'tier:transfer') && ' sau cả chuyển tài sản'}.
           </>
         )}
       </p>

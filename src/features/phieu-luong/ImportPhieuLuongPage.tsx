@@ -49,6 +49,7 @@ import {
   phieuLoi,
   type KhoanNeo,
 } from './nhap'
+import { formatDateLabel } from '../../lib/dates'
 
 const TEN_YUCHO = /yucho/i
 
@@ -605,7 +606,7 @@ export function ImportPhieuLuongPage() {
                 {k.lyDo && <p className="mt-0.5 text-fg-secondary">{k.lyDo}</p>}
                 {k.trangThai === 'dat' && k.neo && (
                   <p className="mt-0.5 text-fg-muted">
-                    neo {k.neo.occurred_on} · giữ lại {formatMoney(k.thu!.amount, 'JPY')}
+                    neo {formatDateLabel(k.neo.occurred_on)} · giữ lại {formatMoney(k.thu!.amount, 'JPY')}
                     {k.thuKhac && ` · mua hàng ${formatMoney(k.thuKhac.amount, 'JPY')}`}
                   </p>
                 )}

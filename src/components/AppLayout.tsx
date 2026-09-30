@@ -194,7 +194,7 @@ export function AppLayout() {
     // <main>, không phải cả trang), tức iOS vẫn không rubber-band kéo theo thanh dưới.
     <MonthKeyProvider>
       <PerspectiveProvider>
-      <div className="flex h-dvh overflow-hidden bg-surface-page">
+      <div data-app-shell className="flex h-dvh overflow-hidden bg-surface-page">
         <AppRail />
 
         <div className="flex min-w-0 flex-1 flex-col">

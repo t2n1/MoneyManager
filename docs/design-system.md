@@ -430,6 +430,23 @@ chip (nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có sha
 `STATUS_FILL` **giữ nền đặc** — §2.6 nói chip *và* dot cùng đổi sang "nền tối + viền",
 nhưng áp vào chấm 8px là xoá luôn cái chấm.
 
+## Giao diện Nicole
+
+Hồng phấn, bo tròn, font Nunito (09/2026). Class `.nicole` trên `<html>`, **không kèm
+`.dark`** — cùng khuôn với e-ink: khối `.nicole` cuối `src/index.css` khai lại đúng tên
+token, nên component không phải biết gì.
+
+- **Nghĩa màu không đổi**: thu vẫn xanh lá, chi vẫn đỏ, cảnh báo vẫn hổ phách. Chỉ màu NHẤN
+  (nút chính, link, mục đang chọn) sang hồng `#c2185b`.
+- **Bo góc** đổi qua `--radius-*` (thẻ `rounded-xl` 12 → 20px, control `rounded-lg` 8 → 14px).
+  Viết `rounded-xl` như thường, đừng chêm `rounded-[20px]`.
+- **Font Nunito cho cả chữ lẫn số** (`--font-sans` và `--font-mono`). Chữ số mặc định của
+  Nunito đều bề nên cột số vẫn thẳng.
+- **Mục đang chọn** dạng `border-accent bg-state-good-bg` được CSS đổi sang nền hồng nhạt ở
+  một chỗ; primitive mới làm mục đang chọn thì dùng `--accent-soft-bg` là tự đúng.
+- Chấm bi nền vẽ trên `[data-app-shell]` (khung ngoài của AppLayout). Logo: `nicole:hue-rotate-180`.
+- Guard: `tests/nicoleTheme.test.ts` tự tính tương phản mọi cặp chữ/nền của khối `.nicole`.
+
 ## Giao diện E-ink
 
 Lựa chọn thứ tư ở Cài đặt → Giao diện (cạnh Sáng / Tối / Hệ thống), từ handoff "Sổ Gạo

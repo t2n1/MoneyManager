@@ -10,6 +10,10 @@
    thứ hai mà e-ink bỏ thêm — dòng nguồn, câu diễn giải, lời khuyên. Chọn Đầy đủ là hiện
    lại hết. Dùng `eink-gon:hidden`, và `hidden eink-gon:inline` cho bản rút gọn. */
 @custom-variant eink-gon (&:where(.eink[data-density="visual"] *));
+/* Giao diện Nicole (Cài đặt → Giao diện): class '.nicole' trên <html>, KHÔNG kèm '.dark'
+   — hồng phấn là nền sáng nên mọi nhánh light vẫn chạy. Màu, bo góc, font đều do token
+   của khối .nicole cuối file lo; biến thể chỉ dành cho chỗ cần đổi HÌNH (vd logo). */
+@custom-variant nicole (&:where(.nicole, .nicole *));
 
 /* ============================================================================
    DESIGN TOKENS
@@ -1329,6 +1333,124 @@ html.eink .recharts-default-tooltip {
   background-color: var(--surface-raised) !important;
   border: 1.5px solid var(--ink-900) !important;
   color: var(--fg-primary) !important;
+}
+
+/* ============================================================================
+   GIAO DIỆN NICOLE (09/2026) — hồng phấn, bo tròn, font Nunito tròn nét.
+   Cùng cách với e-ink: tên token GIỮ NGUYÊN, chỉ khai lại giá trị, nên mọi tiện ích
+   (text-fg-muted, bg-surface, rounded-xl…) tự đổi theo mà không component nào phải biết.
+
+   Nghĩa màu KHÔNG đổi theo cho "dễ thương": thu vẫn xanh lá, chi vẫn đỏ — chỉ có màu
+   NHẤN (nút, link, mục đang chọn) đổi sang hồng. Hồng nhấn (#c2185b) và đỏ chi (#b3261e)
+   cách nhau đủ xa về sắc để không đọc lẫn.
+
+   Tương phản tính thẳng từ sRGB, ca XẤU NHẤT là nền lún #fce4ef (guard:
+   tests/nicoleTheme.test.ts tự tính lại, đừng tin số ở đây):
+     chữ chính 12,1 · chữ phụ 7,4 · chữ mờ 5,3 · link 5,3 · thu 4,9 · chi 5,4 · cảnh báo 4,5
+     chữ trắng trên nút hồng 5,9
+   ============================================================================ */
+.nicole {
+  color-scheme: light;
+
+  /* Chữ: nâu mận thay đen — cùng độ đọc, bớt gắt trên nền hồng */
+  --fg-primary: #3d1f33;
+  --fg-secondary: #6a3a58;
+  --fg-muted: #8c4a6e;
+  --fg-on-track: #6a3a58;
+  --fg-inverse: #ffffff;
+  --fg-disabled: #c9a3b7;
+
+  /* Tiền — nghĩa giữ nguyên */
+  --money-in: #15734a;
+  --money-out: #b3261e;
+
+  /* Bề mặt: bốn nấc hồng phấn, cùng thứ tự page < chrome < surface, sunken lún nhất */
+  --surface: #ffffff;
+  --surface-page: #fff0f6;
+  --surface-chrome: #fff8fb;
+  --surface-sunken: #fce4ef;
+  --surface-grad-to: #fff7fa;
+  --border-subtle: #fbe4ee;
+  --border-panel: #f7d3e3;
+  --border-strong: #efb6cf;
+
+  /* Nhấn hồng */
+  --accent: #c2185b;
+  --accent-hover: #a3124b;
+  --fg-on-accent: #ffffff;
+  --fg-accent: #b8145a;
+  --fg-accent-on-track: #a3124b;
+  --accent-soft-bg: rgba(214, 51, 132, 0.1);
+  --accent-soft-ring: rgba(214, 51, 132, 0.32);
+  --accent-band-bg: rgba(214, 51, 132, 0.1);
+  --accent-muted-bg: #fcdbe9;
+  --accent-muted-fg: #b8145a;
+
+  /* Trạng thái: pastel, chữ đậm cùng tông */
+  --fg-warn: #9a5b00;
+  --state-good-bg: #e8f6ee;
+  --state-good-border: #c3e8d2;
+  --state-good-fg: #15734a;
+  --state-warn-bg: #fff4e2;
+  --state-warn-border: #f7dcae;
+  --state-warn-fg: #9a5b00;
+  --state-bad-bg: #ffedf0;
+  --state-bad-border: #f8c9d1;
+  --state-bad-fg: #a1242f;
+
+  /* Lát donut: dải mận → hồng, mỗi lát ≥3:1 trên thẻ trắng */
+  --chart-slice-1: #5a1238;
+  --chart-slice-2: #7f1a4f;
+  --chart-slice-3: #a52668;
+  --chart-slice-4: #c94a87;
+  --chart-slice-5: #d2669b;
+
+  /* Font: Nunito tròn nét cho cả chữ lẫn số (cùng cách e-ink trỏ cả hai về Literata).
+     Cột số vẫn thẳng hàng: chữ số MẶC ĐỊNH của Nunito đã đều bề (cả mười glyph rộng 600
+     đơn vị — đo từ file font 09/2026), nên không cần tới tính năng tnum. */
+  --font-sans: 'Nunito', 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-sans);
+  --tracking-number: -0.01em;
+
+  /* Bo góc: mỗi bậc tròn hơn hẳn — thẻ rounded-xl 12px → 20px, control rounded-lg 8 → 14 */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+/* Chấm bi hồng nhạt trên nền trang — vẽ lên khung app, KHÔNG lên thẻ (thẻ nền trắng). */
+html.nicole {
+  background-color: var(--surface-page);
+}
+html.nicole [data-app-shell] {
+  background-image: radial-gradient(rgba(214, 51, 132, 0.09) 1.5px, transparent 1.6px);
+  background-size: 22px 22px;
+}
+
+/* Mục ĐANG CHỌN của các nút chọn (Cài đặt, tab Chi/Thu, ô danh mục…) mượn bộ màu "tốt"
+   `border-accent bg-state-good-bg` — ở Sáng hai bộ cùng xanh nên không ai thấy. Ở Nicole
+   nhấn là hồng còn "tốt" vẫn xanh lá, để nguyên thì mục đang chọn thành một ô xanh lạc
+   giữa khung hồng. Bắt đúng tổ hợp đó ở một chỗ thay vì rải `nicole:` vào 11 file. */
+.nicole .border-accent.bg-state-good-bg {
+  background-color: var(--accent-soft-bg);
+}
+.nicole .border-accent.bg-state-good-bg.text-state-good-fg {
+  color: var(--fg-accent);
+}
+
+@layer base {
+  /* Bóng đổ ám hồng thay xám — ở @layer base để `shadow-*-color` tại chỗ vẫn thắng. */
+  .nicole *,
+  .nicole *::before,
+  .nicole *::after {
+    --tw-shadow-color: rgba(194, 24, 91, 0.1);
+  }
+  .nicole ::selection {
+    background-color: #f9c6dc;
+  }
 }
 
 /* In / xuất PDF (mục AP): nền trắng, chữ đen, bỏ nền tối để tiết kiệm mực */

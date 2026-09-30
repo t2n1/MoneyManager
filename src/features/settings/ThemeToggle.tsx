@@ -1,4 +1,4 @@
-import { BookOpen, Monitor, Moon, Sun } from 'lucide-react'
+import { BookOpen, Heart, Monitor, Moon, Sun } from 'lucide-react'
 import { Card, PanelHeader } from '../../components/ui'
 import type { LucideIcon } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
@@ -12,6 +12,8 @@ const OPTIONS: { value: ThemePref; label: string; Icon: LucideIcon }[] = [
   // Mực trên giấy xám kiểu máy đọc sách: góc vuông, không bóng, không chuyển động.
   // Không có bản tối — nên nó là một lựa chọn ngang hàng, không phải một công tắc riêng.
   { value: 'eink', label: 'E-ink', Icon: BookOpen },
+  // Hồng phấn, bo tròn, font Nunito. Là tên riêng nên không dịch — như 'E-ink'.
+  { value: 'nicole', label: 'Nicole', Icon: Heart },
 ]
 
 export function ThemeToggle() {
@@ -20,7 +22,7 @@ export function ThemeToggle() {
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
       <PanelHeader>{tr('Giao diện')}</PanelHeader>
-      <div className="grid grid-cols-2 gap-1 p-3 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-1 p-3 sm:grid-cols-5">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
           return (

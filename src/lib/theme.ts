@@ -4,14 +4,18 @@
 // - Khi chọn 'system', tự đổi theo cài đặt thiết bị.
 // - 'eink' áp class 'eink' (KHÔNG kèm 'dark'): giấy sáng, mực đen, góc vuông, không
 //   chuyển động — token nằm trong khối .eink của src/index.css.
+// - 'nicole' áp class 'nicole' (KHÔNG kèm 'dark'): hồng phấn, bo tròn, font Nunito —
+//   token nằm trong khối .nicole của src/index.css.
 
-export type ThemePref = 'light' | 'dark' | 'system' | 'eink'
+export type ThemePref = 'light' | 'dark' | 'system' | 'eink' | 'nicole'
+
+const PREFS: readonly ThemePref[] = ['light', 'dark', 'system', 'eink', 'nicole']
 
 const STORAGE_KEY = 'theme'
 
 export function getThemePref(): ThemePref {
   const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === 'light' || saved === 'dark' || saved === 'system' || saved === 'eink') return saved
+  if (PREFS.includes(saved as ThemePref)) return saved as ThemePref
   return 'system'
 }
 
@@ -20,7 +24,7 @@ function systemPrefersDark(): boolean {
 }
 
 /** Chế độ thực tế đang áp dụng (sau khi giải nghĩa 'system'). */
-export function resolveTheme(pref: ThemePref): 'light' | 'dark' | 'eink' {
+export function resolveTheme(pref: ThemePref): Exclude<ThemePref, 'system'> {
   if (pref === 'system') return systemPrefersDark() ? 'dark' : 'light'
   return pref
 }
@@ -29,15 +33,16 @@ export function resolveTheme(pref: ThemePref): 'light' | 'dark' | 'eink' {
 // index.html; Tối lấy --surface-page của thang mình. E-ink lấy màu giấy SAU KHI phủ hạt
 // (#e6e4dd tối đi ~5% → #dbd9d2): iOS tô vùng thanh trạng thái bằng màu này, lấy màu giấy
 // trần thì lộ một dải sáng hơn phần trang ngay dưới. Script đầu index.html viết lại đúng
-// mấy giá trị này, vì nó chạy trước khi CSS nạp.
-const THEME_COLOR = { light: '#008236', dark: '#0b0d0c', eink: '#dbd9d2' } as const
+// mấy giá trị này, vì nó chạy trước khi CSS nạp. Nicole lấy --surface-page hồng phấn.
+const THEME_COLOR = { light: '#008236', dark: '#0b0d0c', eink: '#dbd9d2', nicole: '#fff0f6' } as const
 
-/** Áp class 'dark' / 'eink' và cập nhật màu thanh trạng thái trình duyệt. */
+/** Áp class 'dark' / 'eink' / 'nicole' và cập nhật màu thanh trạng thái trình duyệt. */
 export function applyTheme(pref: ThemePref) {
   const mode = resolveTheme(pref)
   const root = document.documentElement
   root.classList.toggle('dark', mode === 'dark')
   root.classList.toggle('eink', mode === 'eink')
+  root.classList.toggle('nicole', mode === 'nicole')
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', THEME_COLOR[mode])
 }

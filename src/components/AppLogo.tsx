@@ -2,11 +2,12 @@
 // dùng chung một hình. Sửa hình thì sửa CẢ HAI file (favicon.svg là nguồn cho
 // icon PWA nên không import lẫn nhau được).
 export function AppLogo({ className }: { className?: string }) {
-  // E-ink hiện logo XÁM (handoff: không vẽ lại, chỉ lọc màu).
+  // E-ink hiện logo XÁM (handoff: không vẽ lại, chỉ lọc màu). Nicole xoay sắc 180°:
+  // bìa xanh rêu thành mận, gáy xanh lá thành hồng — cùng cách, không vẽ lại.
   return (
     <svg
       viewBox="0 0 512 512"
-      className={`eink:grayscale eink:contrast-125 ${className ?? ''}`.trim()}
+      className={`eink:grayscale eink:contrast-125 nicole:hue-rotate-180 ${className ?? ''}`.trim()}
       aria-hidden="true"
     >
       <rect width="512" height="512" rx="120" fill="#1d4a2c" />

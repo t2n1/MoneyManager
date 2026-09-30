@@ -27,6 +27,8 @@ import { Check, GripHorizontal, Pencil, Plus, RotateCcw, SlidersHorizontal, Tras
 import { ActionButton, Card, EmptyState, IconButton, SectionTitle, SegmentedControl } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { useEscClose } from '../../hooks/useEscClose'
+import { usePerspective } from '../../hooks/usePerspective'
+import type { Perspective } from '../sharedFund/perspective'
 import { confirmDialog, promptDialog, showToast } from '../../lib/dialog'
 import { showUndoToast } from '../../lib/undoToast'
 import { ModuleThumb } from './ModuleThumb'
@@ -76,20 +78,33 @@ const MARGIN = [GAP, GAP] as const
 const PADDING = [0, 0] as const
 const DRAG_HANDLE = '.board-drag'
 
-function useBoard() {
-  const [board, setBoard] = useState<BoardState>(readBoard)
-  const update = useCallback((f: (s: BoardState) => BoardState) => {
-    setBoard((s) => {
-      const n = f(s)
-      if (n !== s) writeBoard(n)
-      return n
-    })
-  }, [])
+function useBoard(view: Perspective) {
+  const [board, setBoard] = useState<BoardState>(() => readBoard(view))
+  const update = useCallback(
+    (f: (s: BoardState) => BoardState) => {
+      setBoard((s) => {
+        const n = f(s)
+        if (n !== s) writeBoard(n, view)
+        return n
+      })
+    },
+    [view],
+  )
   return [board, update] as const
 }
 
+/**
+ * Mỗi góc nhìn một bảng riêng (board.ts › storageKeyFor). Đổi góc thì dựng lại hẳn bảng
+ * (key) chứ không đồng bộ state: trang đang chọn, bảng Thêm module đang mở… đều thuộc về
+ * bảng của góc cũ.
+ */
 export function BulletinBoard({ slots }: { slots: Slots }) {
-  const [board, update] = useBoard()
+  const { view } = usePerspective()
+  return <Board key={view} view={view} slots={slots} />
+}
+
+function Board({ slots, view }: { slots: Slots; view: Perspective }) {
+  const [board, update] = useBoard(view)
   const page = board.pages.find((p) => p.id === board.activeId) ?? board.pages[0]
   const [tools, setTools] = useState(false)
   const [picker, setPicker] = useState(false)

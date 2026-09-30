@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   COLS,
   MODULES,
@@ -12,6 +12,10 @@ import {
   firstFit,
   layoutFor,
   loadBoard,
+  readBoard,
+  STORAGE_KEY,
+  storageKeyFor,
+  writeBoard,
   normalizePage,
   pxFor,
   removeModule,
@@ -341,5 +345,37 @@ describe('tự xếp gọn', () => {
     const p = s.pages[0]
     const removed = removeModule(s, p.id, p.modules[0].id)
     expect(replacePage(removed, p).pages[0]).toBe(p)
+  })
+})
+
+describe('mỗi góc nhìn một bảng', () => {
+  function fakeStorage() {
+    const m = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+    })
+    return m
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('Cả nhà giữ khoá cũ, góc riêng có khoá riêng', () => {
+    expect(storageKeyFor('all')).toBe(STORAGE_KEY)
+    expect(new Set([storageKeyFor('all'), storageKeyFor('mine'), storageKeyFor('partner')]).size).toBe(3)
+  })
+
+  it('góc riêng chưa lưu → bản sao bảng Cả nhà; sửa góc này không đụng góc kia', () => {
+    const m = fakeStorage()
+    const gen = counter()
+    const nha = addPage(defaultBoard(gen), { name: 'Nhà', preset: 'spend' }, gen)
+    writeBoard(nha, 'all')
+    expect(readBoard('mine')).toEqual(nha)
+
+    const minh = addPage(readBoard('mine'), { name: 'Của mình', preset: 'trends' }, gen)
+    writeBoard(minh, 'mine')
+    expect(readBoard('mine')).toEqual(minh)
+    expect(readBoard('all')).toEqual(nha)
+    expect(readBoard('partner')).toEqual(nha)
+    expect(m.has(storageKeyFor('partner'))).toBe(false)
   })
 })

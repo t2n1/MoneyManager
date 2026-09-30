@@ -13,6 +13,7 @@
 // Lưu ở localStorage (theo máy), không phải hồ sơ: bố cục gắn với cỡ màn hình, và điện
 // thoại với máy tính vốn đã có bố cục khác nhau.
 import { tr } from '../../i18n'
+import type { Perspective } from '../sharedFund/perspective'
 
 // ---- Lưới ----------------------------------------------------------------------------
 
@@ -621,17 +622,32 @@ export function loadBoard(raw: string | null, gen: IdGen = randomId): BoardState
   return { v: 1, pages, activeId }
 }
 
-export function readBoard(): BoardState {
+/**
+ * Mỗi góc nhìn (Cả nhà / Mình / người kia) một bảng riêng: góc Mình thường muốn thấy thứ
+ * khác Cả nhà (tiền của mình, không phải quỹ chung), xếp lại ở góc này không được xô lệch
+ * góc kia. Cả nhà giữ khoá cũ — bố cục đã xếp trước khi có góc nhìn vẫn còn nguyên.
+ */
+export function storageKeyFor(view: Perspective): string {
+  return view === 'all' ? STORAGE_KEY : `${STORAGE_KEY}:${view}`
+}
+
+/**
+ * Góc riêng chưa từng lưu thì mở ra bằng BẢN SAO bảng Cả nhà (không phải bảng mặc định):
+ * module đã chọn và chỗ đã xếp đi theo, từ đó mỗi góc sửa riêng.
+ */
+export function readBoard(view: Perspective = 'all'): BoardState {
   try {
+    const raw = localStorage.getItem(storageKeyFor(view))
+    if (raw || view === 'all') return loadBoard(raw)
     return loadBoard(localStorage.getItem(STORAGE_KEY))
   } catch {
     return defaultBoard()
   }
 }
 
-export function writeBoard(s: BoardState): void {
+export function writeBoard(s: BoardState, view: Perspective = 'all'): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+    localStorage.setItem(storageKeyFor(view), JSON.stringify(s))
   } catch {
     // Hết chỗ / chế độ riêng tư: bố cục vẫn chạy trong phiên này, chỉ không nhớ lần sau.
   }

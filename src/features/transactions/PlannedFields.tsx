@@ -9,7 +9,7 @@
 // KHÔNG có TagPicker riêng: nhãn của khoản sắp chi đi qua đúng <TagPicker> chung mà
 // TransactionForm đã bày ở cột phải (vô điều kiện ở cả mười dạng, xem Task 6) — thêm
 // một bộ chọn nhãn thứ hai ở đây là hỏi hai lần cùng một câu.
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import type { PlannedDraft } from './plannedFromEntry'
 import { anchoredDueOn } from './plannedDraftDefaults'
 import { PadMoneyField } from './roleFields'
@@ -239,7 +239,7 @@ export function PlannedFields({
         <option value="">{tr('— Chưa chọn —')}</option>
         {expenseCats.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.icon} {c.name}
+            {c.icon} {categoryLabel(c.name)}
           </option>
         ))}
       </Select>

@@ -16,7 +16,7 @@ import {
 } from './axisTargets'
 import { Card, Collapse, SectionTitle } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 interface Props {
   data: AxisProgress
@@ -188,7 +188,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm text-fg-secondary">
                               {c?.icon && <span className="mr-1">{c.icon}</span>}
-                              {c?.name ?? tr('Không rõ danh mục')}
+                              {c ? categoryLabel(c.name) : tr('Không rõ danh mục')}
                             </span>
                             {/* Thanh XÁM cố ý: xanh/hổ phách ở thanh trục mang nghĩa
                                 "đạt/vượt mốc", mà danh mục con không có mốc riêng nào cả. */}

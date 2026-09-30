@@ -19,7 +19,7 @@ import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import type { KetLuan } from './ketLuan'
 import { tienTietKiem } from './marginalRate'
 import { luatChoNam } from './rules/luat'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 /** Tên danh mục được đếm — theo TÊN, cùng lối FURUSATO_CATEGORY_NAME. KHÔNG đếm
  *  "Sức khỏe" (gym/thể chất không thuộc diện). */
@@ -108,15 +108,15 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
   const ly_do = [
     tr('Số có thể cao hơn thực tế: app đếm cả khoản không thuộc diện (thực phẩm chức năng…) và chưa trừ tiền bảo hiểm bù.'),
     tr('Ngược lại, tiền tàu đi viện (ghi ở {cat}) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100,000.', {
-      cat: 'Tàu điện', // i18n-ignore — tên danh mục trong DB
+      cat: categoryLabel('Tàu điện'), // i18n-ignore — tên danh mục trong DB, in qua categoryLabel()
     }),
   ]
   if (!co_danh_muc)
-    ly_do.push(tr('Chưa có danh mục "{names}" nên không đếm được.', { names: IRYOHI_CATEGORY_NAMES.join('" / "') }))
+    ly_do.push(tr('Chưa có danh mục "{names}" nên không đếm được.', { names: IRYOHI_CATEGORY_NAMES.map(categoryLabel).join('" / "') }))
   if (nhanh === 'self')
     ly_do.push(
       tr('Nhánh セルフメディケーション chỉ tính thuốc OTC có dấu ★ và cần 健康診断 trong năm — app đếm cả danh mục {cat} nên số thật thấp hơn.', {
-        cat: IRYOHI_CATEGORY_NAMES[0],
+        cat: categoryLabel(IRYOHI_CATEGORY_NAMES[0]),
       }),
     )
   if (nhanh === 'chinh' && khau_tru_self > 0)

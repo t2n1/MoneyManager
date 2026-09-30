@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 import { Guide } from '../../components/Guide'
 import {
@@ -764,7 +764,7 @@ export function TransactionForm({
     const othersShare = convertToBase(splitVal.others, srcCurrency, base, rates ?? {})
     if (add === null || othersShare === null) return null
     return categoryAlert({
-      categoryName: owner?.name ?? null,
+      categoryName: owner ? categoryLabel(owner.name) : null,
       currency: base,
       cap: line.budgeted,
       spent: line.spent,
@@ -898,7 +898,7 @@ export function TransactionForm({
       )
       return
     }
-    const suggested = selectedCat?.name ?? note.trim()
+    const suggested = selectedCat ? categoryLabel(selectedCat.name) : note.trim()
     const label = (
       await promptDialog({
         title: tr('Đặt tên mẫu'),

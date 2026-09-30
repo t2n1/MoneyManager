@@ -1,7 +1,7 @@
 // Luật ngân sách (mục 5, 6, 7 của spec) — THUẦN.
 // Chu kỳ tháng theo month_start_day, KHÔNG phải ngày 1 dương lịch.
 import { daysBetween, getMonthRange, monthKeyForDate } from '../../../lib/dates'
-import { tr } from '../../../i18n'
+import { categoryLabel, tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Tiêu vượt nhịp bao nhiêu điểm phần trăm thì báo. */
@@ -30,7 +30,7 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
 
   const out: AppNotification[] = []
   const nameOf = (id: string) =>
-    input.categories.find((c) => c.id === id)?.name ?? tr('Danh mục đã xóa')
+    categoryLabel(input.categories.find((c) => c.id === id)?.name ?? '') || tr('Danh mục đã xóa')
 
   // Tỷ lệ ngày đã qua trong kỳ hiện tại.
   const monthKey = monthKeyForDate(input.todayISO, input.monthStartDay)
@@ -74,7 +74,7 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
         // Nêu tối đa 2 mục con tiêu nhiều nhất — thứ duy nhất mục 7 nói thêm được so với
         // mục 5. Không con nào tiêu (chi gán trực tiếp vào cha) → bỏ hẳn phần "chủ yếu do".
         const topChildren = children
-          .map((c) => ({ name: c.name, spent: report.spentByCategory.get(c.id) ?? 0 }))
+          .map((c) => ({ name: categoryLabel(c.name), spent: report.spentByCategory.get(c.id) ?? 0 }))
           .filter((c) => c.spent > 0)
           .sort((a, b) => b.spent - a.spent)
           .slice(0, 2)

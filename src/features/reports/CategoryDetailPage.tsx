@@ -29,7 +29,7 @@ import { CategoryLineChart } from './CategoryLineChart'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import type { TransactionRow } from '../../types/database.types'
-import { getLang, tr } from '../../i18n'
+import { categoryLabel, getLang, tr } from '../../i18n'
 
 type Period = 'month' | 'year'
 
@@ -194,7 +194,7 @@ export function CategoryDetailPage() {
         title={
           <span className="inline-flex min-w-0 items-center gap-2">
             {category?.icon && <span>{category.icon}</span>}
-            <span className="truncate">{category?.name ?? '…'}</span>
+            <span className="truncate">{category ? categoryLabel(category.name) : '…'}</span>
           </span>
         }
       />

@@ -49,7 +49,7 @@ import {
   PanelHeader,
   SegmentedControl,
 } from '../../components/ui'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 type Period = 'month' | 'year'
@@ -82,7 +82,8 @@ function ExportSection() {
   function handleCsv() {
     const sorted = [...txs].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
     const csv = buildTransactionsCsv(sorted, {
-      categoryName: (id) => categories.find((c) => c.id === id)?.name ?? '',
+      // CSV chỉ để đọc (không ai nhập lại) nên in nhãn hiển thị, như trên màn.
+      categoryName: (id) => categoryLabel(categories.find((c) => c.id === id)?.name ?? ''),
       accountName: (id) => accounts.find((a) => a.id === id)?.name ?? '',
       currencyOf,
     })

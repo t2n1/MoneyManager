@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { tr, trx } from '../../i18n'
+import { categoryLabel, tr, trx } from '../../i18n'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
@@ -581,7 +581,10 @@ export function LedgerPage() {
           monthKey={activeMonthKey}
           heat={heat}
           topCategories={topCategories}
-          nameOf={(id) => categoryOf(id)?.name ?? tr('Chưa rõ')}
+          nameOf={(id) => {
+            const c = categoryOf(id)
+            return c ? categoryLabel(c.name) : tr('Chưa rõ')
+          }}
           iconOf={(id) => categoryOf(id)?.icon}
           expenseTotal={expenseBreakdown.total}
           base={base}

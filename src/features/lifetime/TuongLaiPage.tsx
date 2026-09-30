@@ -127,7 +127,7 @@ import { useConsoleKeys } from './useConsoleKeys'
 import { baselineRange, DEFAULT_END_AGE, makeCurrencyOf, useLifetime } from './useLifetime'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
 import { YearTablePane } from './YearTableView'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /**
@@ -1675,7 +1675,7 @@ function TuongLaiConsole({
     selEvent.currency === baselinePhase.currency
       ? baseline.byCategory
           .filter((c) => c.annualMinor > 0)
-          .map((c) => ({ name: c.name, annualMinor: c.annualMinor }))
+          .map((c) => ({ name: categoryLabel(c.name), annualMinor: c.annualMinor }))
       : []
 
   const dockEvent =

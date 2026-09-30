@@ -19,7 +19,7 @@ import type { RecurringFrequency, RecurringMode } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 const TYPE_TABS: { value: TransactionType; label: string }[] = [
@@ -266,16 +266,16 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
                 const kids = childrenOf(parent.id)
                 // Cha có con: chỉ chọn được con (như màn Nhập); cha không con: chọn trực tiếp
                 return kids.length > 0 ? (
-                  <optgroup key={parent.id} label={`${parent.icon} ${parent.name}`}>
+                  <optgroup key={parent.id} label={`${parent.icon} ${categoryLabel(parent.name)}`}>
                     {kids.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.icon} {c.name}
+                        {c.icon} {categoryLabel(c.name)}
                       </option>
                     ))}
                   </optgroup>
                 ) : (
                   <option key={parent.id} value={parent.id}>
-                    {parent.icon} {parent.name}
+                    {parent.icon} {categoryLabel(parent.name)}
                   </option>
                 )
               })}

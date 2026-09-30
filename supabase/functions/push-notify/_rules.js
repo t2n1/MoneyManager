@@ -26,6 +26,11 @@ function trx(ctx, vi, vars) {
   if (hit === void 0) return fill(pick(vi, vars), vars);
   return fill(typeof hit === "string" ? hit : vars?.n === 1 ? hit.one : hit.other, vars);
 }
+function categoryLabel(name) {
+  if (lang === "vi") return name;
+  const hit = dict[`cat|${name}`];
+  return typeof hit === "string" ? hit : name;
+}
 
 // src/features/notifications/types.ts
 var RECENT_TXS_DAYS = 90;
@@ -902,7 +907,7 @@ function budgetRules(input) {
   if (!report) return [];
   if (report.hasMissingRate) return [];
   const out = [];
-  const nameOf = (id) => input.categories.find((c) => c.id === id)?.name ?? tr("Danh m\u1EE5c \u0111\xE3 x\xF3a");
+  const nameOf = (id) => categoryLabel(input.categories.find((c) => c.id === id)?.name ?? "") || tr("Danh m\u1EE5c \u0111\xE3 x\xF3a");
   const monthKey = monthKeyForDate(input.todayISO, input.monthStartDay);
   const range = getMonthRange(monthKey, input.monthStartDay);
   const totalDays = daysBetween(range.start, range.end);
@@ -921,7 +926,7 @@ function budgetRules(input) {
         budget: input.formatMoney(l.budgeted, input.base)
       });
       if (children.length > 0) {
-        const topChildren = children.map((c) => ({ name: c.name, spent: report.spentByCategory.get(c.id) ?? 0 })).filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 2);
+        const topChildren = children.map((c) => ({ name: categoryLabel(c.name), spent: report.spentByCategory.get(c.id) ?? 0 })).filter((c) => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 2);
         const blame = topChildren.length > 1 ? tr(" \u2014 ch\u1EE7 y\u1EBFu do {a} v\xE0 {b}", { a: topChildren[0].name, b: topChildren[1].name }) : topChildren.length > 0 ? tr(" \u2014 ch\u1EE7 y\u1EBFu do {a}", { a: topChildren[0].name }) : "";
         out.push({
           key: `budget-parent-over:${l.categoryId}`,
@@ -2983,16 +2988,16 @@ function tinhIryohi(input) {
   const ly_do = [
     tr("S\u1ED1 c\xF3 th\u1EC3 cao h\u01A1n th\u1EF1c t\u1EBF: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026) v\xE0 ch\u01B0a tr\u1EEB ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9."),
     tr("Ng\u01B0\u1EE3c l\u1EA1i, ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (ghi \u1EDF {cat}) ch\u01B0a \u0111\u01B0\u1EE3c c\u1ED9ng, v\xE0 n\u1EBFu thu nh\u1EADp th\u1EA5p th\xEC ng\u01B0\u1EE1ng th\u1EADt c\xF3 th\u1EC3 d\u01B0\u1EDBi \xA5100,000.", {
-      cat: "T\xE0u \u0111i\u1EC7n"
-      // i18n-ignore — tên danh mục trong DB
+      cat: categoryLabel("T\xE0u \u0111i\u1EC7n")
+      // i18n-ignore — tên danh mục trong DB, in qua categoryLabel()
     })
   ];
   if (!co_danh_muc)
-    ly_do.push(tr('Ch\u01B0a c\xF3 danh m\u1EE5c "{names}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.', { names: IRYOHI_CATEGORY_NAMES.join('" / "') }));
+    ly_do.push(tr('Ch\u01B0a c\xF3 danh m\u1EE5c "{names}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.', { names: IRYOHI_CATEGORY_NAMES.map(categoryLabel).join('" / "') }));
   if (nhanh === "self")
     ly_do.push(
       tr("Nh\xE1nh \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ch\u1EC9 t\xEDnh thu\u1ED1c OTC c\xF3 d\u1EA5u \u2605 v\xE0 c\u1EA7n \u5065\u5EB7\u8A3A\u65AD trong n\u0103m \u2014 app \u0111\u1EBFm c\u1EA3 danh m\u1EE5c {cat} n\xEAn s\u1ED1 th\u1EADt th\u1EA5p h\u01A1n.", {
-        cat: IRYOHI_CATEGORY_NAMES[0]
+        cat: categoryLabel(IRYOHI_CATEGORY_NAMES[0])
       })
     );
   if (nhanh === "chinh" && khau_tru_self > 0)

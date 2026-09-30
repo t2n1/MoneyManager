@@ -29,7 +29,7 @@ import type { PlannedExpenseRow } from '../../types/database.types'
 import { groupPlannedByMonth, plannedOutlook, plannedRowStatus, type PlannedRowStatus } from './planned'
 import { PlannedFormSheet } from './PlannedFormSheet'
 import { EmptyState, PageHeader } from '../../components/ui'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Cửa sổ của con số ở đầu màn. 3 tháng = đủ xa để lo, đủ gần để tin. */
@@ -184,7 +184,7 @@ export function PlannedPage() {
                           {st.level === 'overdue' && (
                             <span className="text-money-out">{tr(' · quá hạn {n} ngày', { n: st.overdueDays })}</span>
                           )}
-                          {cat && ` · ${cat.icon} ${cat.name}`}
+                          {cat && ` · ${cat.icon} ${categoryLabel(cat.name)}`}
                           {p.note && ` · ${p.note}`}
                         </p>
                       </button>

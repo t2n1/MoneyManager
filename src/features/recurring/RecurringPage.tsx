@@ -31,7 +31,7 @@ import type { RecurringRuleRow } from '../../types/database.types'
 import { BillCalendarCard } from './BillCalendarCard'
 import { RecurringFormSheet } from './RecurringFormSheet'
 import { Card, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -317,7 +317,7 @@ export function RecurringPage() {
                   <span className="text-lg">{cat?.icon ?? '🔁'}</span>
                   <div className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-fg-primary">
-                      {cat?.name ?? '?'}
+                      {cat ? categoryLabel(cat.name) : '?'}
                       {s.note && <span className="text-fg-muted"> · {s.note}</span>}
                     </span>
                     <span className="block text-sm text-fg-muted">
@@ -398,7 +398,7 @@ export function RecurringPage() {
                   <span className="block truncate text-sm text-fg-primary">
                     {rule.type === 'transfer'
                       ? `${acc?.name ?? '?'} → ${accountOf(rule.to_account_id)?.name ?? '?'}`
-                      : (cat?.name ?? '?')}
+                      : (cat ? categoryLabel(cat.name) : '?')}
                     {rule.note && (
                       <span className="text-fg-muted"> · {rule.note}</span>
                     )}

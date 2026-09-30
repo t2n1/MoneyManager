@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { categoryChips, childCounts, type RecentCategory } from './recentCategories'
@@ -106,7 +106,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
             }`}
           >
             <span className="text-sm leading-none">{r.icon}</span>
-            {r.name}
+            {categoryLabel(r.name)}
           </button>
         ))}
         <button
@@ -130,7 +130,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
               className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-sm font-medium text-fg-secondary transition active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span>{' '}
-              {drillParent.name}
+              {categoryLabel(drillParent.name)}
             </button>
             <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
               {drillChildren.map((c) => (
@@ -213,7 +213,7 @@ function CategoryTile({
       }`}
     >
       <span className="text-xl leading-none">{icon}</span>
-      <span className="w-full truncate text-center">{name}</span>
+      <span className="w-full truncate text-center">{categoryLabel(name)}</span>
       {/* Số danh mục con thay chevron 10px: tile CÓ con và tile KHÔNG con (Phí chuyển tiền ·
           Phí thủ tục · Khác) trước đây trông y hệt mà hành vi khác — bấm cái này thì mở
           thêm một tầng, bấm cái kia thì chọn xong. */}

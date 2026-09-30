@@ -4,7 +4,7 @@
 
 import type { Phieu } from './boc'
 // `.ts` có đuôi: CLI scripts/nhap-phieu-luong.mjs nạp thẳng file này bằng Node.
-import { tr } from '../../i18n/index.ts'
+import { categoryLabel, tr } from '../../i18n/index.ts'
 
 export interface DongMoi {
   type: 'income' | 'expense'
@@ -264,7 +264,7 @@ export function dungDong(
     if (so === 0) continue
     const { nhom, danhMuc } = mapNhan(nhan)
     const id = idTheoTen.get(danhMuc)
-    if (!id) throw new Error(tr("thieu danh muc '{category}' (cho nhan '{label}')", { category: danhMuc, label: nhan }))
+    if (!id) throw new Error(tr("thieu danh muc '{category}' (cho nhan '{label}')", { category: categoryLabel(danhMuc), label: nhan }))
     chi.push({
       type: 'expense',
       amount: Math.abs(so),
@@ -457,7 +457,7 @@ function dungCap(
     // bị rút hẳn khỏi Thu, chứ không bao giờ là một khoản thu nhập mới.
     if (diLai > 0) {
       if (!idPhuCap) {
-        throw new Error(tr("thiếu danh mục thu '{category}' (cho {label})", { category: DANH_MUC_PHU_CAP, label: NHAN_DI_LAI }))
+        throw new Error(tr("thiếu danh mục thu '{category}' (cho {label})", { category: categoryLabel(DANH_MUC_PHU_CAP), label: NHAN_DI_LAI }))
       }
       cap.push({
         ...chung, type: 'income', amount: diLai, exclude_from_stats: true,

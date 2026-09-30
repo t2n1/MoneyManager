@@ -25,6 +25,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { dailyExpenseTotals } from '../reports/aggregate'
 import { planRebalance, type RebalanceLine, type RebalanceProposal } from './rebalance'
 import { useCommitments } from './useCommitments'
+import { categoryLabel } from '../../i18n'
 
 /** null khi không phải tháng hiện tại, chưa có báo cáo, hoặc chưa có gì đáng đề nghị. */
 export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
@@ -89,7 +90,8 @@ export function useRebalance(monthKey: MonthKey): RebalanceProposal | null {
 
         return {
           categoryId: l.categoryId,
-          name: cat?.name ?? l.categoryId,
+          // Chỉ để in ra câu đề nghị (rebalance.ts không so tên) — nên đổi sang nhãn hiển thị ở đây.
+          name: cat ? categoryLabel(cat.name) : l.categoryId,
           // `budgeted` đã gồm phần dồn; `amount` là tiền của riêng tháng này và là
           // trần thật cho việc rút.
           amount: amountOf.get(l.categoryId) ?? l.budgeted,

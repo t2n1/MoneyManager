@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { useSearchParams } from 'react-router-dom'
 import { BookmarkPlus, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -484,7 +484,7 @@ export function SearchPage() {
                     aria-pressed={categoryIds.includes(c.id)}
                     className={filterChipClass(categoryIds.includes(c.id))}
                   >
-                    {c.icon} {c.name}
+                    {c.icon} {categoryLabel(c.name)}
                   </button>
                 ))}
               </div>

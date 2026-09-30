@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronLeft } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
@@ -176,7 +176,7 @@ export function EntryPage({ onClose }: Props = {}) {
     const acc = accounts.find((a) => a.id === values.account_id)
     return {
       id,
-      label: cat?.name ?? tr('Chuyển khoản'),
+      label: cat ? categoryLabel(cat.name) : tr('Chuyển khoản'),
       icon: cat?.icon ?? '💸',
       amount: values.amount,
       currency: acc?.currency ?? 'JPY',
@@ -218,7 +218,7 @@ export function EntryPage({ onClose }: Props = {}) {
     savedSeq.current += 1
     return {
       id: `${kind}-${savedSeq.current}`,
-      label: cat?.name ?? shapeOf(kind).label,
+      label: cat ? categoryLabel(cat.name) : shapeOf(kind).label,
       icon: cat?.icon ?? '💸',
       amount: base.amount,
       currency: base.srcCurrency,

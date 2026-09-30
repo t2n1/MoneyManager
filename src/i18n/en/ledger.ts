@@ -271,6 +271,7 @@ const d: Dict = {
   'Thêm danh mục con': 'Add subcategory',
   'Thêm danh mục': 'Add category',
   'Tên danh mục': 'Category name',
+  'Hiển thị là “{label}” ở giao diện tiếng Anh.': 'Shown as “{label}” in the English interface.',
   'Danh mục này có danh mục con nên là danh mục chính.': 'This category has subcategories, so it\'s a top-level category.',
   'Danh mục cha': 'Parent category',
   '— Danh mục chính —': '— Top-level category —',

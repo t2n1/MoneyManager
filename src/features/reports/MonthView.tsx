@@ -116,7 +116,7 @@ import { TagBreakdownCard } from './TagBreakdownCard'
 import { UncategorizedBacklogCard } from './UncategorizedBacklogCard'
 import { uncategorizedByMonth } from './uncategorized'
 import { ReportBlock } from './ReportBlock'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Cửa sổ cho đường tí hon, cột TB 3 tháng và biểu đồ 6 tháng. */
@@ -291,7 +291,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         const cat = categoryOf(row.categoryId)
         return {
           categoryId: row.categoryId,
-          name: cat?.name ?? tr('Danh mục đã xoá'),
+          name: cat ? categoryLabel(cat.name) : tr('Danh mục đã xoá'),
           icon: cat?.icon ?? '📦',
           thisMonth: row.thisMonth,
           pct: total > 0 ? Math.round((row.thisMonth / total) * 100) : 0,
@@ -760,7 +760,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                         className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0 last:pb-0"
                       >
                         <span className="min-w-0 truncate text-sm text-fg-primary">
-                          {cat?.icon ?? '📦'} {cat?.name ?? tr('Danh mục đã xoá')}
+                          {cat?.icon ?? '📦'} {cat ? categoryLabel(cat.name) : tr('Danh mục đã xoá')}
                         </span>
                         <Money
                           amount={a.amount}

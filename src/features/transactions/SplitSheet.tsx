@@ -7,7 +7,7 @@
 // splitTransaction.ts.
 
 import { useMemo, useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 import { Plus, Trash2 } from 'lucide-react'
 import { ActionButton, Money, SectionTitle, Select, actionButtonClass } from '../../components/ui'
@@ -43,7 +43,7 @@ export function SplitSheet({ tx, currency, onClose, onDone }: Props) {
 
   const catOptions = categories
     .filter((c) => c.type === tx.type && !c.is_archived)
-    .map((c) => ({ value: c.id, label: `${c.icon} ${c.name}` }))
+    .map((c) => ({ value: c.id, label: `${c.icon} ${categoryLabel(c.name)}` }))
 
   const setPart = (i: number, patch: Partial<SplitPart>) =>
     setParts((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)))

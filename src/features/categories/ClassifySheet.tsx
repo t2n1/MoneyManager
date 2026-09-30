@@ -14,7 +14,7 @@
 // Draft nằm trong chính component, nơi gọi truyền `key` để mở danh mục khác là state mới:
 // nhấc draft lên trên thành hai nguồn phải đồng bộ tay mỗi lần mở.
 import { useState } from 'react'
-import { tr } from '../../i18n'
+import { categoryLabel, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 import { useEscClose } from '../../hooks/useEscClose'
 import type { CategoryKind, CategoryRow, CostType, NeedLevel } from '../../types/database.types'
@@ -105,10 +105,10 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
         <div className="mb-1 flex items-center justify-between">
           <SectionTitle role="block">
             {target.mode === 'group' ? (
-              <>{tr('Áp cho cả nhóm {name}', { name: target.parent.name })}</>
+              <>{tr('Áp cho cả nhóm {name}', { name: categoryLabel(target.parent.name) })}</>
             ) : (
               <>
-                <span aria-hidden>{target.category.icon}</span> {target.category.name}
+                <span aria-hidden>{target.category.icon}</span> {categoryLabel(target.category.name)}
               </>
             )}
           </SectionTitle>
@@ -133,7 +133,7 @@ export function ClassifySheet({ target, onClose, onSave, onApplyGroup, onClear, 
             {trn('thuộc nhóm {group}', {
               group: (
                 <>
-                  <span aria-hidden>{target.parent.icon}</span> {target.parent.name}
+                  <span aria-hidden>{target.parent.icon}</span> {categoryLabel(target.parent.name)}
                 </>
               ),
             })}

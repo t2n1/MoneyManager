@@ -18,7 +18,7 @@ import type { TransactionRow } from '../../types/database.types'
 import { detectRaise, lifestyleDrift } from './drift'
 import { detectRecurringFees } from './recurringFees'
 import { INFL_SPEAK_PCT, personalInflation } from './personalInflation'
-import { numLocale, tr } from '../../i18n'
+import { categoryLabel, numLocale, tr } from '../../i18n'
 import { trn } from '../../i18n/react'
 
 /** Chỉ bày chừng này chuỗi phí to nhất — panel cột phụ, không phải trang kiểm kê. */
@@ -64,8 +64,10 @@ export function DriftPanel({ txs, className = '' }: Props) {
     }
   }, [txs, accounts, base, rates, todayISO, monthStartDay, transferIds])
 
-  const catName = (id: string | null) =>
-    (id !== null ? categories.find((c) => c.id === id)?.name : undefined) ?? tr('Chưa rõ')
+  const catName = (id: string | null) => {
+    const c = id !== null ? categories.find((x) => x.id === id) : undefined
+    return c ? categoryLabel(c.name) : tr('Chưa rõ')
+  }
 
   const noiVeDrift = drift !== null && drift.verdict !== null
   // Lạm phát cá nhân dưới ngưỡng là nhiễu, không phải tin — panel không nói.

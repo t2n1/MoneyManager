@@ -29,6 +29,8 @@ import type { PlannedExpenseRow } from '../../types/database.types'
 import { groupPlannedByMonth, plannedOutlook, plannedRowStatus, type PlannedRowStatus } from './planned'
 import { PlannedFormSheet } from './PlannedFormSheet'
 import { EmptyState, PageHeader } from '../../components/ui'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /** Cửa sổ của con số ở đầu màn. 3 tháng = đủ xa để lo, đủ gần để tin. */
 const OUTLOOK_MONTHS = 3
@@ -72,16 +74,16 @@ export function PlannedPage() {
   async function drop(p: PlannedExpenseRow) {
     try {
       await update.mutateAsync({ id: p.id, patch: { status: 'dropped' } })
-      showToast(`Đã bỏ "${p.title}"`)
+      showToast(tr('Đã bỏ "{name}"', { name: p.title }))
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
   const header = (
-    <PageHeader title="Sắp chi" back="/so">
+    <PageHeader title={tr('Sắp chi')} back="/so">
       <ActionButton variant="primary" onClick={() => setSheet({ planned: null })}>
-        <Plus className="h-4 w-4" /> Thêm
+        <Plus className="h-4 w-4" /> {tr('Thêm')}
       </ActionButton>
     </PageHeader>
   )
@@ -96,7 +98,7 @@ export function PlannedPage() {
       {header}
 
       {isLoading ? (
-        <EmptyState>Đang tải…</EmptyState>
+        <EmptyState>{tr('Đang tải…')}</EmptyState>
       ) : months.length === 0 ? (
         <Card as="section">
           {/* Câu CHỈ ĐƯỜNG dưới đây KHÔNG bọc Guide — xem chú thích trong components/Guide.tsx:
@@ -104,13 +106,12 @@ export function PlannedPage() {
               (mặc định) chỉ thấy đúng "Chưa có khoản nào." và không biết bấm gì. Phần DẠY dài
               vẫn bọc như cũ. */}
           <p className="text-sm text-fg-muted">
-            Chưa có khoản nào. Bấm <b className="font-semibold text-fg-secondary">Thêm</b> ở trên để
-            ghi khoản sắp phải chi.
+            {trn('Chưa có khoản nào. Bấm {add} ở trên để ghi khoản sắp phải chi.', {
+              add: <b className="font-semibold text-fg-secondary">{tr('Thêm')}</b>,
+            })}
             <Guide as="span">
               {' '}
-              Thêm những thứ bạn biết là sắp phải chi — sửa nhà, chuyển nhà, đóng phí — để không
-              phải nhớ trong đầu. Khoản nào cần app kêu thì bật "Nhắc tôi"; khoản chỉ để nhìn thì
-              thôi.
+              {tr('Thêm những thứ bạn biết là sắp phải chi — sửa nhà, chuyển nhà, đóng phí — để không phải nhớ trong đầu. Khoản nào cần app kêu thì bật "Nhắc tôi"; khoản chỉ để nhìn thì thôi.')}
             </Guide>
           </p>
         </Card>
@@ -118,19 +119,19 @@ export function PlannedPage() {
         <>
           {/* Con số duy nhất đáng đặt lên đầu */}
           <Card as="section">
-            <SectionTitle>{OUTLOOK_MONTHS} tháng tới cần chừng</SectionTitle>
+            <SectionTitle>{tr('{n} tháng tới cần chừng', { n: OUTLOOK_MONTHS })}</SectionTitle>
             <p className="mt-1 flex items-baseline gap-2">
               <Money amount={outlook.totalBase} currency={base} className="text-kpi font-medium tracking-number" />
-              <span className="text-sm text-fg-muted">{outlook.count} khoản</span>
+              <span className="text-sm text-fg-muted">{tr('{n} khoản', { n: outlook.count })}</span>
             </p>
             {outlook.hasMissingRate && (
               <p className="mt-1 text-2xs text-fg-muted">
-                Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.
+                {tr('Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.')}
               </p>
             )}
             {/* E-ink + Gọn: bỏ lời giải thích cách cộng tổng. */}
             <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
-              Gồm cả khoản đã quá hạn mà chưa chi — vẫn là tiền chưa trả.
+              {tr('Gồm cả khoản đã quá hạn mà chưa chi — vẫn là tiền chưa trả.')}
             </p>
           </Card>
 
@@ -165,12 +166,12 @@ export function PlannedPage() {
                           {p.remind_days_before === null ? (
                             <BellOff
                               className="h-3 w-3 shrink-0 text-fg-muted"
-                              aria-label="Không nhắc"
+                              aria-label={tr('Không nhắc')}
                             />
                           ) : (
                             <Bell
                               className="h-3 w-3 shrink-0 text-fg-accent"
-                              aria-label="Có nhắc"
+                              aria-label={tr('Có nhắc')}
                             />
                           )}
                         </p>
@@ -179,9 +180,9 @@ export function PlannedPage() {
                               lưu trữ, in ra thành "1/10" là bịa độ chính xác. */}
                           {p.due_precision === 'day'
                             ? ngay(p.due_on)
-                            : `trong tháng ${Number(p.due_on.slice(5, 7))}`}
+                            : tr('trong tháng {m}', { m: Number(p.due_on.slice(5, 7)) })}
                           {st.level === 'overdue' && (
-                            <span className="text-money-out"> · quá hạn {st.overdueDays} ngày</span>
+                            <span className="text-money-out">{tr(' · quá hạn {n} ngày', { n: st.overdueDays })}</span>
                           )}
                           {cat && ` · ${cat.icon} ${cat.name}`}
                           {p.note && ` · ${p.note}`}
@@ -196,7 +197,7 @@ export function PlannedPage() {
                             className="text-sm font-semibold"
                           />
                         ) : (
-                          <span className="text-2xs text-fg-muted">chưa rõ</span>
+                          <span className="text-2xs text-fg-muted">{tr('chưa rõ')}</span>
                         )}
                       </span>
 
@@ -204,8 +205,8 @@ export function PlannedPage() {
                           xảy ra sau khi giao dịch được lưu — xem EntryPage. */}
                       <Link
                         to={`/entry?planned=${p.id}`}
-                        aria-label={`Ghi khoản ${p.title}`}
-                        title="Đã chi — ghi vào sổ"
+                        aria-label={tr('Ghi khoản {name}', { name: p.title })}
+                        title={tr('Đã chi — ghi vào sổ')}
                         className={iconButtonClass('ghost-accent', 'shrink-0')}
                       >
                         <Check className="h-5 w-5" />
@@ -213,8 +214,8 @@ export function PlannedPage() {
                       <button
                         type="button"
                         onClick={() => drop(p)}
-                        aria-label={`Bỏ khoản ${p.title}`}
-                        title="Không cần nữa"
+                        aria-label={tr('Bỏ khoản {name}', { name: p.title })}
+                        title={tr('Không cần nữa')}
                         className={iconButtonClass('ghost', 'shrink-0 text-fg-muted')}
                       >
                         <X className="h-5 w-5" />

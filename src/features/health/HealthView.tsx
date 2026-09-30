@@ -66,6 +66,8 @@ import { buildHealthSnapshot } from './snapshot'
 import { HealthTable, type HealthRow } from './HealthTable'
 import { JobLossPanel, ScoreBand, WeakestCard } from './HealthBlocks'
 import { weakestAction } from './weakestAction'
+import { numLocale, tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 // Mục lục của tab: 6 chỉ số cộng thẻ điểm. Nhãn ngắn hơn tiêu đề thẻ vì đây là hàng
 // chip cuộn ngang ("Khả năng trả nợ ngắn hạn" → "Nợ ngắn hạn").
@@ -76,11 +78,11 @@ import { weakestAction } from './weakestAction'
 // tiền, khác mẫu số (chi cố định vs tổng chi), nên rời nhau ra là hai con số 10,7 và 2,0
 // đọc thành mâu thuẫn.
 const SECTIONS: readonly IndexItem[] = [
-  { id: 'hl-yeu-nhat', label: 'Chỗ yếu nhất' },
-  { id: 'hl-diem', label: 'Điểm' },
-  { id: 'hl-bang', label: 'Sáu chỉ số' },
-  { id: 'hl-mat-viec', label: 'Nếu mất việc' },
-  { id: 'hl-nhip', label: 'Nhịp chi' },
+  { id: 'hl-yeu-nhat', label: tr('Chỗ yếu nhất') },
+  { id: 'hl-diem', label: tr('Điểm') },
+  { id: 'hl-bang', label: tr('Sáu chỉ số') },
+  { id: 'hl-mat-viec', label: tr('Nếu mất việc') },
+  { id: 'hl-nhip', label: tr('Nhịp chi') },
 ]
 
 /** Số tháng lịch sử tối đa dùng để chấm điểm. */
@@ -88,9 +90,10 @@ const WINDOW_MONTHS = 12
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 /** Số thập phân một chữ số kiểu Việt (dấu phẩy). */
-const num1 = (v: number) => v.toFixed(1).replace('.', ',')
+const num1 = (v: number) =>
+  v.toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })
 /** Trên 5 năm thì con số cụ thể vô nghĩa — nói "≥ 60 tháng" cho gọn. */
-const months1 = (v: number) => (v >= 60 ? '≥ 60 tháng' : `${num1(v)} tháng`)
+const months1 = (v: number) => (v >= 60 ? tr('≥ 60 tháng') : tr('{n} tháng', { n: num1(v) }))
 
 export function HealthView() {
   const { data: profile } = useProfile()
@@ -261,25 +264,25 @@ export function HealthView() {
   const scoreItems: ScoreItem[] = [
     {
       key: 'fund',
-      label: 'Quỹ dự phòng',
+      label: tr('Quỹ dự phòng'),
       weight: 25,
       score: scoreFromZones(fund, fundZones),
     },
     {
       key: 'runway',
-      label: 'Nếu mất việc',
+      label: tr('Nếu mất việc'),
       weight: 20,
       score: runway === null ? null : scoreFromZones(runway.p50, runwayZones),
     },
     {
       key: 'conc',
-      label: 'Phụ thuộc một nguồn thu',
+      label: tr('Phụ thuộc một nguồn thu'),
       weight: 20,
       score: conc === null ? null : scoreFromZones(conc.topShare, concZones),
     },
     {
       key: 'dti',
-      label: 'Nợ trên thu nhập',
+      label: tr('Nợ trên thu nhập'),
       weight: 15,
       // Không có nợ là điểm ĐẦY, không phải thiếu dữ liệu: mẫu số bằng 0 nhưng
       // tình trạng thì rõ ràng tốt.
@@ -287,13 +290,13 @@ export function HealthView() {
     },
     {
       key: 'liq',
-      label: 'Khả năng trả nợ ngắn hạn',
+      label: tr('Khả năng trả nợ ngắn hạn'),
       weight: 10,
       score: snap.debtDueWithin12m <= 0 ? 100 : scoreFromZones(liq, liqZones),
     },
     {
       key: 'burden',
-      label: 'Gánh nặng thuế & an sinh',
+      label: tr('Gánh nặng thuế & an sinh'),
       weight: 10,
       score: snap.taxAndSocial <= 0 ? null : scoreFromZones(burden, burdenZones),
     },
@@ -403,7 +406,7 @@ export function HealthView() {
   }, [isFetched, score, snap.hasMissingRate, thisMonthOn])
 
   if (!isFetched) {
-    return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
+    return <p className="p-6 text-center text-sm text-fg-muted">{tr('Đang tính…')}</p>
   }
 
   // ------------------------------------------------------------------ sáu dòng bảng
@@ -414,7 +417,7 @@ export function HealthView() {
   const rows: HealthRow[] = [
     {
       key: 'liq',
-      label: 'Khả năng trả nợ ngắn hạn',
+      label: tr('Khả năng trả nợ ngắn hạn'),
       display: liq === null ? '—' : `${num1(liq)}×`,
       value: liq,
       zones: liqZones,
@@ -422,14 +425,16 @@ export function HealthView() {
       weight: 10,
       meaning: (
         <>
-          Tiền mặt dùng được ÷ nợ tới hạn 12 tháng. Mốc <b>1×</b> là đủ trả, <b>2×</b> là
-          thoải mái.
+          {trn('Tiền mặt dùng được ÷ nợ tới hạn 12 tháng. Mốc {one} là đủ trả, {two} là thoải mái.', {
+            one: <b>1×</b>,
+            two: <b>2×</b>,
+          })}
         </>
       ),
     },
     {
       key: 'conc',
-      label: 'Phụ thuộc một nguồn thu',
+      label: tr('Phụ thuộc một nguồn thu'),
       display: conc === null ? '—' : pct(conc.topShare),
       value: conc?.topShare ?? null,
       zones: concZones,
@@ -437,16 +442,18 @@ export function HealthView() {
       weight: 20,
       meaning: (
         <>
-          Phần thu nhập đến từ nguồn lớn nhất
-          {conc !== null && conc.sourceCount > 0 && <> trong {conc.sourceCount} nguồn</>}. Càng
-          gần 100% thì mất một nguồn là mất gần hết.
+          {conc !== null && conc.sourceCount > 0
+            ? tr('Phần thu nhập đến từ nguồn lớn nhất trong {n} nguồn. Càng gần 100% thì mất một nguồn là mất gần hết.', {
+                n: conc.sourceCount,
+              })
+            : tr('Phần thu nhập đến từ nguồn lớn nhất. Càng gần 100% thì mất một nguồn là mất gần hết.')}
         </>
       ),
     },
     {
       key: 'fund',
-      label: 'Quỹ dự phòng',
-      note: 'tiền mặt ÷ chi cố định',
+      label: tr('Quỹ dự phòng'),
+      note: tr('tiền mặt ÷ chi cố định'),
       display: fund === null ? '—' : months1(fund),
       value: fund,
       zones: fundZones,
@@ -454,12 +461,14 @@ export function HealthView() {
       weight: 25,
       meaning: (
         <>
-          Giả định <b>thu bằng 0</b>: tiền mặt + ngân hàng + IC + ví điện tử chia cho chi CỐ
-          ĐỊNH mỗi tháng. Đầu tư không tính vì phải bán mới ra tiền.
+          {trn(
+            'Giả định {zero}: tiền mặt + ngân hàng + IC + ví điện tử chia cho chi CỐ ĐỊNH mỗi tháng. Đầu tư không tính vì phải bán mới ra tiền.',
+            { zero: <b>{tr('thu bằng 0')}</b> },
+          )}
           {showFree && freeFund !== null && (
             <>
               {' '}
-              Trừ phần đang gom cho mục tiêu thì còn <b>{months1(freeFund)}</b>.
+              {trn('Trừ phần đang gom cho mục tiêu thì còn {value}.', { value: <b>{months1(freeFund)}</b> })}
             </>
           )}
         </>
@@ -467,17 +476,17 @@ export function HealthView() {
     },
     {
       key: 'dti',
-      label: 'Nợ trên thu nhập năm',
+      label: tr('Nợ trên thu nhập năm'),
       display: dti === null ? '—' : pct(dti),
       value: dti,
       zones: dtiZones,
       verdict: dtiVerdict,
       weight: 15,
-      meaning: <>Tổng dư nợ ÷ thu nhập một năm. Dưới 50% là thoải mái, trên 150% là nặng.</>,
+      meaning: <>{tr('Tổng dư nợ ÷ thu nhập một năm. Dưới 50% là thoải mái, trên 150% là nặng.')}</>,
     },
     {
       key: 'burden',
-      label: 'Thuế & an sinh trên lương gộp',
+      label: tr('Thuế & an sinh trên lương gộp'),
       display: burden === null ? '—' : pct(burden),
       value: burden,
       zones: burdenZones,
@@ -485,15 +494,16 @@ export function HealthView() {
       weight: 10,
       meaning: (
         <>
-          Thuế + bảo hiểm đã nộp ÷ lương gộp. Nó không phải chỉ số “tốt/xấu” của bạn — nó cho
-          biết phần thu nhập không bao giờ đi qua tay bạn.
+          {tr(
+            'Thuế + bảo hiểm đã nộp ÷ lương gộp. Nó không phải chỉ số “tốt/xấu” của bạn — nó cho biết phần thu nhập không bao giờ đi qua tay bạn.',
+          )}
         </>
       ),
     },
     {
       key: 'runway',
-      label: 'Cầm cự nếu mất việc',
-      note: 'tiền mặt ÷ tổng chi, không có lương',
+      label: tr('Cầm cự nếu mất việc'),
+      note: tr('tiền mặt ÷ tổng chi, không có lương'),
       display: runway === null ? '—' : months1(runway.p50),
       value: runway?.p50 ?? null,
       zones: runwayZones,
@@ -501,10 +511,10 @@ export function HealthView() {
       weight: 20,
       meaning: (
         <>
-          Giả định <b>thu bằng 0</b>: mỗi tháng tiền mặt dùng được bị trừ TỔNG CHI của một
-          tháng bốc ngẫu nhiên trong {snap.monthsCounted} tháng chi thật của bạn, tới khi hết.
-          Cùng rổ tiền với quỹ dự phòng, khác mẫu số — quỹ dự phòng chỉ chia cho chi cố định.
-          Xem khối mô phỏng bên dưới để kéo thử.
+          {trn(
+            'Giả định {zero}: mỗi tháng tiền mặt dùng được bị trừ TỔNG CHI của một tháng bốc ngẫu nhiên trong {n} tháng chi thật của bạn, tới khi hết. Cùng rổ tiền với quỹ dự phòng, khác mẫu số — quỹ dự phòng chỉ chia cho chi cố định. Xem khối mô phỏng bên dưới để kéo thử.',
+            { zero: <b>{tr('thu bằng 0')}</b>, n: snap.monthsCounted },
+          )}
         </>
       ),
     },
@@ -517,49 +527,49 @@ export function HealthView() {
     switch (weakestRow?.key) {
       case 'liq':
         return [
-          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
-          { label: 'Nợ tới hạn 12 tháng', value: snap.debtDueWithin12m },
+          { label: tr('Tiền mặt dùng được'), value: snap.liquidAssets },
+          { label: tr('Nợ tới hạn 12 tháng'), value: snap.debtDueWithin12m },
           {
-            label: 'Với nhịp giữ lại hiện tại',
+            label: tr('Với nhịp giữ lại hiện tại'),
             value: null,
             text:
-              action?.etaMonths != null ? `${action.etaMonths} tháng` : 'chưa tính được',
+              action?.etaMonths != null ? tr('{n} tháng', { n: action.etaMonths }) : tr('chưa tính được'),
           },
         ]
       case 'fund':
         return [
-          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
-          { label: 'Chi cố định mỗi tháng', value: snap.monthlyFixedExpense },
+          { label: tr('Tiền mặt dùng được'), value: snap.liquidAssets },
+          { label: tr('Chi cố định mỗi tháng'), value: snap.monthlyFixedExpense },
           {
-            label: 'Còn thiếu để đủ 6 tháng',
+            label: tr('Còn thiếu để đủ 6 tháng'),
             value: Math.max(0, snap.monthlyFixedExpense * 6 - snap.liquidAssets),
           },
         ]
       case 'dti':
         return [
-          { label: 'Tổng dư nợ', value: snap.totalDebt },
-          { label: 'Thu nhập một năm', value: snap.annualIncome },
-          { label: 'Trả nợ mỗi tháng', value: snap.monthlyDebtPayment },
+          { label: tr('Tổng dư nợ'), value: snap.totalDebt },
+          { label: tr('Thu nhập một năm'), value: snap.annualIncome },
+          { label: tr('Trả nợ mỗi tháng'), value: snap.monthlyDebtPayment },
         ]
       case 'conc':
         return [
-          { label: 'Nguồn thu lớn nhất', value: null, text: conc ? pct(conc.topShare) : '—' },
-          { label: 'Số nguồn thu', value: null, text: conc ? String(conc.sourceCount) : '—' },
-          { label: 'Thu nhập mỗi tháng', value: snap.monthlyIncome },
+          { label: tr('Nguồn thu lớn nhất'), value: null, text: conc ? pct(conc.topShare) : '—' },
+          { label: tr('Số nguồn thu'), value: null, text: conc ? String(conc.sourceCount) : '—' },
+          { label: tr('Thu nhập mỗi tháng'), value: snap.monthlyIncome },
         ]
       case 'runway':
         // Mất việc là thu = 0 — in "Thu mỗi tháng" ở đây là in đúng con số mà chỉ số này
         // giả định đã mất.
         return [
-          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
-          { label: 'Tổng chi mỗi tháng', value: snap.monthlyExpense },
-          { label: 'Chi cố định mỗi tháng', value: snap.monthlyFixedExpense },
+          { label: tr('Tiền mặt dùng được'), value: snap.liquidAssets },
+          { label: tr('Tổng chi mỗi tháng'), value: snap.monthlyExpense },
+          { label: tr('Chi cố định mỗi tháng'), value: snap.monthlyFixedExpense },
         ]
       default:
         return [
-          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
-          { label: 'Chi mỗi tháng', value: snap.monthlyExpense },
-          { label: 'Thu mỗi tháng', value: snap.monthlyIncome },
+          { label: tr('Tiền mặt dùng được'), value: snap.liquidAssets },
+          { label: tr('Chi mỗi tháng'), value: snap.monthlyExpense },
+          { label: tr('Thu mỗi tháng'), value: snap.monthlyIncome },
         ]
     }
   })()
@@ -569,7 +579,7 @@ export function HealthView() {
       {/* Cửa sổ thời gian nói ngay tại đây: tab này KHÔNG theo tháng đang chọn ở tab Tháng
           này, nên phải tự nói mình đọc dữ liệu nào. */}
       <Num tone="muted" className="text-2xs">
-        {snap.monthsCounted} tháng gần nhất · cập nhật {dayMonthLabel(todayISO)}
+        {tr('{n} tháng gần nhất · cập nhật {date}', { n: snap.monthsCounted, date: dayMonthLabel(todayISO) })}
       </Num>
 
       {/* Mẫu số của quỹ dự phòng VÀ của khả năng trả nợ ngắn hạn đều là `liquidAssets`.
@@ -577,19 +587,19 @@ export function HealthView() {
           thanh khoản là chỉ số nhạy nhất của tab này. */}
       {snap.liquidityInferredAccounts > 0 && (
         <p className="rounded-lg bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
-          <b>{snap.liquidityInferredAccounts} tài khoản</b> chưa khai “rút ra được ngay”, nên
-          “tiền mặt dùng được” đang suy từ loại tài khoản. Tiền gửi có kỳ hạn vì thế đang được
-          đếm là tiền tiêu ngay — hai chỉ số dưới đây sẽ cao hơn thực tế.{' '}
+          {trn(
+            '{accounts} chưa khai “rút ra được ngay”, nên “tiền mặt dùng được” đang suy từ loại tài khoản. Tiền gửi có kỳ hạn vì thế đang được đếm là tiền tiêu ngay — hai chỉ số dưới đây sẽ cao hơn thực tế.',
+            { accounts: <b>{tr('{n} tài khoản', { n: snap.liquidityInferredAccounts })}</b> },
+          )}{' '}
           <Link to="/settings/accounts" className="font-medium underline">
-            Khai ở Cài đặt → Tài khoản: bấm vào TÊN tài khoản có dấu “rút ngay?”
+            {tr('Khai ở Cài đặt → Tài khoản: bấm vào TÊN tài khoản có dấu “rút ngay?”')}
           </Link>
         </p>
       )}
 
       {snap.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
-          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
-          thiếu.
+          {tr('Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể thiếu.')}
         </div>
       )}
 
@@ -606,7 +616,7 @@ export function HealthView() {
             title={weakestRow.label}
             headline={
               <>
-                {weakestRow.label} đang là <b>{weakestRow.display}</b>
+                {trn('{name} đang là {value}', { name: weakestRow.label, value: <b>{weakestRow.display}</b> })}
                 {action === null ? (
                   '.'
                 ) : (
@@ -648,7 +658,7 @@ export function HealthView() {
       </Section>
 
       <Section id="hl-bang">
-        <ReportBlock no="01" title="Sáu chỉ số · trái là xấu, phải là tốt ở cả sáu dòng">
+        <ReportBlock no="01" title={tr('Sáu chỉ số · trái là xấu, phải là tốt ở cả sáu dòng')}>
           <HealthTable rows={rows} />
           {/* CÂU BẮT BUỘC (B15.2) — hai chỉ số cùng rổ, khác mẫu số. Không bọc <Guide>:
               thiếu nó thì "5,0 tháng" cạnh "≥60 tháng" đọc ra như hai số đá nhau, và người
@@ -662,22 +672,29 @@ export function HealthView() {
                 KHAI RỔ thì luôn in, ở mọi trường hợp: đó là yêu cầu B15.2. */}
             {fund !== null && runway !== null && fund > runway.p50 + 1 ? (
               <b>
-                Vì sao quỹ dự phòng {months1(fund)} mà cầm cự chỉ {months1(runway.p50)}:{' '}
+                {tr('Vì sao quỹ dự phòng {fund} mà cầm cự chỉ {runway}:', {
+                  fund: months1(fund),
+                  runway: months1(runway.p50),
+                })}{' '}
               </b>
             ) : (
-              <b>Hai chỉ số quỹ dự phòng và cầm cự đo gì: </b>
+              <b>{tr('Hai chỉ số quỹ dự phòng và cầm cự đo gì:')} </b>
             )}
-            cả hai đều giả định <b>thu bằng 0</b> và đếm <b>cùng một rổ tiền</b> — tiền mặt,
-            ngân hàng, IC, ví điện tử; tiền đầu tư không nằm trong cả hai. Khác nhau ở{' '}
-            <b>mẫu số</b>: quỹ dự phòng chỉ chia cho chi CỐ ĐỊNH (phần không cắt được), còn phần
-            cầm cự trừ TỔNG CHI thật của {snap.monthsCounted} tháng gần nhất. Ở khối dưới, kéo
-            đầu tư về 0% thì mô phỏng ra đúng con số cầm cự.
+            {trn(
+              'cả hai đều giả định {zero} và đếm {basket} — tiền mặt, ngân hàng, IC, ví điện tử; tiền đầu tư không nằm trong cả hai. Khác nhau ở {denominator}: quỹ dự phòng chỉ chia cho chi CỐ ĐỊNH (phần không cắt được), còn phần cầm cự trừ TỔNG CHI thật của {n} tháng gần nhất. Ở khối dưới, kéo đầu tư về 0% thì mô phỏng ra đúng con số cầm cự.',
+              {
+                zero: <b>{tr('thu bằng 0')}</b>,
+                basket: <b>{tr('cùng một rổ tiền')}</b>,
+                denominator: <b>{tr('mẫu số')}</b>,
+                n: snap.monthsCounted,
+              },
+            )}
           </p>
         </ReportBlock>
       </Section>
 
       <Section id="hl-mat-viec">
-        <ReportBlock no="02" title="Nếu mất việc — thử các nếp chi">
+        <ReportBlock no="02" title={tr('Nếu mất việc — thử các nếp chi')}>
           <JobLossPanel
             // Mức chi mặc định là state của thanh trượt; dữ liệu đổi (cache làm mới) thì
             // dựng lại khối để thanh trượt về đúng mức mới thay vì giữ mức cũ.
@@ -711,14 +728,20 @@ export function HealthView() {
             cả cửa sổ, nên nó nói được về nếp — thứ duy nhất khiến con số này đáng in. */}
         {rhythm.noSpend.total > 0 && (
           <p className="mt-2.5 px-1 text-sm text-fg-secondary">
-            Ngày không phát sinh chi:{' '}
-            <b>
-              <Num>{rhythm.noSpend.days}</Num>/<Num>{rhythm.noSpend.total}</Num> ngày
-            </b>
+            {trn('Ngày không phát sinh chi: {count}', {
+              count: (
+                <b>
+                  {trn('{days}/{n} ngày', {
+                    days: <Num>{rhythm.noSpend.days}</Num>,
+                    n: <Num>{rhythm.noSpend.total}</Num>,
+                  })}
+                </b>
+              ),
+            })}
             {rhythm.noSpend.days > 0 && (
               <>
                 {' '}
-                · chuỗi dài nhất <Num>{rhythm.noSpend.longestRun}</Num> ngày liền
+                {trn('· chuỗi dài nhất {n} ngày liền', { n: <Num>{rhythm.noSpend.longestRun}</Num> })}
               </>
             )}
             .
@@ -729,13 +752,15 @@ export function HealthView() {
       {/* E-ink + Gọn: bỏ ghi chú phương pháp, chỉ giữ tỷ lệ trả nợ — số này không có ở đâu khác. */}
       {dsr !== null && dsr > 0 && (
         <p className="hidden px-1 pb-2 text-2xs text-fg-secondary eink-gon:block">
-          Trả nợ chiếm {pct(dsr)} thu nhập tháng
+          {tr('Trả nợ chiếm {pct} thu nhập tháng', { pct: pct(dsr) })}
         </p>
       )}
       <p className="px-1 pb-2 text-2xs text-fg-muted eink-gon:hidden">
-        {snap.monthsCounted} tháng gần nhất · quy đổi ≈ {base} · mô phỏng không tính lạm phát
-        và thuế bán tài sản
-        {dsr !== null && dsr > 0 && <> · trả nợ chiếm {pct(dsr)} thu nhập tháng</>}
+        {tr('{n} tháng gần nhất · quy đổi ≈ {base} · mô phỏng không tính lạm phát và thuế bán tài sản', {
+          n: snap.monthsCounted,
+          base,
+        })}
+        {dsr !== null && dsr > 0 && <>{tr(' · trả nợ chiếm {pct} thu nhập tháng', { pct: pct(dsr) })}</>}
       </p>
     </div>
   )

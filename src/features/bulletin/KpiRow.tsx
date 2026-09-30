@@ -12,6 +12,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 import { pendingText } from '../../lib/loadStatus'
+import { tr } from '../../i18n'
 
 /** Nhãn eyebrow + số 22px mono — khung chung của cả bốn ô. */
 function Tile({
@@ -55,8 +56,8 @@ function Tile({
  * từ dấu của delta — cùng một dấu "+" mang hai nghĩa trái ngược ở hai ô.
  */
 function Delta({ pct, invert = false }: { pct: number | null; invert?: boolean }) {
-  if (pct === null) return <span className="font-mono text-2xs text-fg-muted">chưa so được</span>
-  if (pct === 0) return <span className="font-mono text-2xs text-fg-muted">như tháng trước</span>
+  if (pct === null) return <span className="font-mono text-2xs text-fg-muted">{tr('chưa so được')}</span>
+  if (pct === 0) return <span className="font-mono text-2xs text-fg-muted">{tr('như tháng trước')}</span>
   const good = invert ? pct < 0 : pct > 0
   return (
     <span className={`font-mono text-2xs ${good ? 'text-money-in' : 'text-money-out'}`}>
@@ -136,7 +137,7 @@ export function KpiRow({
       className="grid grid-cols-2 md:grid-cols-4 md:divide-x md:divide-border-subtle"
     >
       <Tile
-        label="Thu tháng"
+        label={tr('Thu tháng')}
         swapOn={pending ? null : income.value}
         foot={
           pending ? null : (
@@ -145,11 +146,11 @@ export function KpiRow({
                   bình thường, mà "-100%" đọc như tai nạn. Câu kết luận đầu màn đã dùng
                   đúng chữ "chưa có thu" — hai chỗ phải nói cùng một giọng. */}
               {income.value === 0 ? (
-                <span className="font-mono text-2xs text-fg-muted">chưa có thu</span>
+                <span className="font-mono text-2xs text-fg-muted">{tr('chưa có thu')}</span>
               ) : (
                 <Delta pct={income.deltaPct} />
               )}
-              <Sparkline values={income.spark} label="Thu 8 tháng gần đây" />
+              <Sparkline values={income.spark} label={tr('Thu 8 tháng gần đây')} />
             </>
           )
         }
@@ -158,13 +159,13 @@ export function KpiRow({
       </Tile>
 
       <Tile
-        label="Chi tháng"
+        label={tr('Chi tháng')}
         swapOn={pending ? null : expense.value}
         foot={
           pending ? null : (
             <>
               <Delta pct={expense.deltaPct} invert />
-              <Sparkline values={expense.spark} label="Chi 8 tháng gần đây" />
+              <Sparkline values={expense.spark} label={tr('Chi 8 tháng gần đây')} />
             </>
           )
         }
@@ -173,7 +174,7 @@ export function KpiRow({
       </Tile>
 
       <Tile
-        label={keptScope ? `Giữ lại ${keptScope}` : 'Giữ lại'}
+        label={keptScope ? tr('Giữ lại {scope}', { scope: keptScope }) : tr('Giữ lại')}
         swapOn={pending ? null : keptPct}
         foot={
           pending ? null : (
@@ -194,7 +195,7 @@ export function KpiRow({
                   aria-hidden
                 />
               </span>
-              <Sparkline values={keptSpark} label="Tiền giữ lại 8 tháng gần đây" />
+              <Sparkline values={keptSpark} label={tr('Tiền giữ lại 8 tháng gần đây')} />
             </>
           )
         }
@@ -217,16 +218,16 @@ export function KpiRow({
       </Tile>
 
       <Tile
-        label="Tài sản ròng"
+        label={tr('Tài sản ròng')}
         swapOn={netWorth}
         foot={
           <>
             {/* Thiếu tỷ giá thì assets/useAssetsData báo không tin cậy — nói ra thay vì
                 in một con số thiếu vài tài khoản. */}
             <span className="font-mono text-2xs text-fg-muted">
-              {netWorthPending ? 'đang tải' : netWorth === null ? 'chưa tính được' : 'sau nợ và cho vay'}
+              {netWorthPending ? tr('đang tải') : netWorth === null ? tr('chưa tính được') : tr('sau nợ và cho vay')}
             </span>
-            <Sparkline values={netWorthSpark} label="Tài sản ròng gần đây" />
+            <Sparkline values={netWorthSpark} label={tr('Tài sản ròng gần đây')} />
           </>
         }
       >

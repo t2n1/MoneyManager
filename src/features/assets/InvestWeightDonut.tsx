@@ -17,6 +17,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import { share, sliceColor, SLICE_NEUTRAL } from './investFormat'
 import { CHUA_RO, sectorWeights } from './sectors'
+import { tr } from '../../i18n'
 
 /** Bao nhiêu lát được vẽ riêng trước khi phần còn lại gộp vào "Khác". */
 const SO_LAT_RIENG = 5
@@ -44,11 +45,11 @@ export function InvestWeightDonut({ positions, cash, industryBySymbol }: Props) 
 
   const theoMa = gopLat(
     coPhieu.map((p) => ({ ten: p.symbol, value: p.value })),
-    (n) => `Khác (${n} mã)`,
+    (n) => tr('Khác ({n} mã)', { n }),
   )
   // Tiền mặt âm nghĩa là sổ lệnh thiếu lần nạp — một lát âm không vẽ được, và khu Giá trị
   // danh mục đã nói ra chuyện đó rồi.
-  if (cash > 0) theoMa.push({ ten: 'Tiền mặt', value: cash, mau: SLICE_NEUTRAL })
+  if (cash > 0) theoMa.push({ ten: tr('Tiền mặt'), value: cash, mau: SLICE_NEUTRAL })
 
   const nganh = sectorWeights(
     coPhieu.map((p) => ({ symbol: p.symbol, value: p.value })),
@@ -56,15 +57,15 @@ export function InvestWeightDonut({ positions, cash, industryBySymbol }: Props) 
   )
   const theoNganh = gopLat(
     nganh.map((s) => ({ ten: s.name, value: s.value })),
-    (n) => `Khác (${n} ngành)`,
+    (n) => tr('Khác ({n} ngành)', { n }),
   )
 
   return (
     <Card as="section">
-      <SectionTitle>Tỷ trọng</SectionTitle>
+      <SectionTitle>{tr('Tỷ trọng')}</SectionTitle>
       <div className="mt-2 grid gap-5 lg:grid-cols-2 lg:gap-6">
-        <Vong tieuDe="Theo mã · gồm tiền mặt" lats={theoMa} />
-        <Vong tieuDe="Theo ngành · chỉ cổ phiếu" lats={theoNganh} />
+        <Vong tieuDe={tr('Theo mã · gồm tiền mặt')} lats={theoMa} />
+        <Vong tieuDe={tr('Theo ngành · chỉ cổ phiếu')} lats={theoNganh} />
       </div>
     </Card>
   )

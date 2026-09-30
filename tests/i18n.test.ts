@@ -8,10 +8,24 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { EN } from '../src/i18n/en'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = join(ROOT, 'src')
+
+type Translation = string | { one: string; other: string }
+
+// Gộp từ điển giống src/i18n/en/index.ts, nhưng tự đọc thư mục: bản kia dùng
+// `import.meta.glob` của Vite, mà tsconfig.node.json (nơi test này được kiểm kiểu) không có.
+const EN_DIR = join(SRC, 'i18n', 'en')
+const EN_PARTS: [string, Record<string, Translation>][] = await Promise.all(
+  readdirSync(EN_DIR)
+    .filter((f) => f.endsWith('.ts') && f !== 'index.ts')
+    .map(async (f): Promise<[string, Record<string, Translation>]> => [
+      f,
+      ((await import(join(EN_DIR, f))) as { default: Record<string, Translation> }).default,
+    ]),
+)
+const EN: Record<string, Translation> = Object.assign({}, ...EN_PARTS.map(([, d]) => d))
 
 /** Thư mục không phải giao diện: MCP server trả lời cho AI, không cho người xem web. */
 const NOT_UI = ['src/mcp/', 'src/i18n/']
@@ -27,7 +41,7 @@ function sourceFiles(dir = SRC): string[] {
 }
 
 const VI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
-const FN = new Set(['tr', 'trn'])
+const FN = new Set(['tr', 'trn', 'trx'])
 
 interface Scan {
   keys: { key: string; where: string }[]
@@ -51,11 +65,19 @@ function scan(): Scan {
     }
     const visit = (node: ts.Node, inside: boolean) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && FN.has(node.expression.text)) {
-        const [first, ...rest] = node.arguments
-        if (first && (ts.isStringLiteral(first) || ts.isNoSubstitutionTemplateLiteral(first))) {
-          res.keys.push({ key: first.text, where: where(first) })
-        } else if (first) {
-          res.dynamic.push(where(first))
+        // trx(ngữ cảnh, câu, biến) → khoá `ngữ cảnh|câu`
+        const isCtx = node.expression.text === 'trx'
+        const lit = (a: ts.Expression | undefined) =>
+          a && (ts.isStringLiteral(a) || ts.isNoSubstitutionTemplateLiteral(a)) ? a.text : null
+        const [head, ...tail] = node.arguments
+        const ctx = isCtx ? lit(head) : ''
+        const first = isCtx ? tail[0] : head
+        const rest = isCtx ? tail.slice(1) : tail
+        const text = lit(first)
+        if (text !== null && ctx !== null) {
+          res.keys.push({ key: isCtx ? `${ctx}|${text}` : text, where: where(first ?? node) })
+        } else {
+          res.dynamic.push(where(node))
         }
         for (const a of rest) visit(a, false)
         return
@@ -101,12 +123,13 @@ describe('i18n — từ điển tiếng Anh', () => {
       const v = EN[key]
       if (v === undefined) continue
       const forms = typeof v === 'string' ? [v] : [v.one, v.other]
-      const want = [...new Set(placeholders(key))].sort().join(',')
+      const source = key.includes('|') ? key.slice(key.indexOf('|') + 1) : key
+      const want = [...new Set(placeholders(source))].sort().join(',')
       for (const f of forms) {
         // dạng số ít được phép bỏ {n} ("one day")
         const got = [...new Set(placeholders(f))].sort()
         const ok = typeof v !== 'string' && f === v.one
-          ? got.every((p) => placeholders(key).includes(p))
+          ? got.every((p) => placeholders(source).includes(p))
           : got.join(',') === want
         if (!ok) bad.push(`${key}  →  ${f}`)
       }
@@ -119,6 +142,22 @@ describe('i18n — từ điển tiếng Anh', () => {
       .flatMap(([k, v]) => (typeof v === 'string' ? [[k, v]] : [[k, v.one], [k, v.other]]))
       .filter(([, v]) => VI.test(v))
       .map(([k, v]) => `${k}  →  ${v}`)
+    expect(bad).toEqual([])
+  })
+
+  it('một khoá chỉ có MỘT bản dịch dù khai ở nhiều file', () => {
+    // Các file gộp bằng Object.assign — khai khác nhau thì file nào đọc sau lặng lẽ thắng.
+    // Cùng chữ mà nghĩa khác theo chỗ dùng thì tách bằng trx(ngữ cảnh, …).
+    const seen = new Map<string, string>()
+    const bad: string[] = []
+    for (const [file, d] of EN_PARTS) {
+      for (const [k, v] of Object.entries(d)) {
+        const j = JSON.stringify(v)
+        const prev = seen.get(k)
+        if (prev !== undefined && prev !== j) bad.push(`${file}: ${k}  →  ${j} ≠ ${prev}`)
+        seen.set(k, j)
+      }
+    }
     expect(bad).toEqual([])
   })
 

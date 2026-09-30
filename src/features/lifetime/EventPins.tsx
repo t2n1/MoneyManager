@@ -52,6 +52,7 @@ import { isActivationKey } from './keyboardActivation'
 import { eventTint } from './planColors'
 import { PIN_END_W, PIN_ROW_H, PIN_TOP, PIN_W, magnetToPhaseStart, pinEndX } from './plotFrame'
 import { useYearDrag } from './useYearDrag'
+import { tr } from '../../i18n'
 
 /**
  * HÌNH của các dấu, PIXEL — cùng hệ đo với `PIN_W`/`PIN_END_W` ở `plotFrame.ts` (lời ghi ở
@@ -177,11 +178,13 @@ export function EventPins({
         const endX = coChot ? pinEndX(cx, xs(e.endYear as number), rightEdge) : cx
         const khoang =
           e.endYear === null
-            ? `${e.startYear} → hết đời`
+            ? tr('{year} → hết đời', { year: e.startYear })
             : e.endYear > e.startYear
               ? `${e.startYear}–${e.endYear}`
               : `${e.startYear}`
-        const moTa = `Mốc "${e.label}" · ${khoang}${off ? ' · ĐANG TẮT, không tính vào phép chiếu' : ''}`
+        const moTa = off
+          ? tr('Mốc "{label}" · {range} · ĐANG TẮT, không tính vào phép chiếu', { label: e.label, range: khoang })
+          : tr('Mốc "{label}" · {range}', { label: e.label, range: khoang })
 
         return (
           <div key={e.id}>
@@ -280,7 +283,7 @@ export function EventPins({
             <button
               type="button"
               aria-pressed={selectedId === e.id}
-              title={`${moTa} · bấm để sửa, kéo để dời năm, ←/→ dời một năm`}
+              title={tr('{desc} · bấm để sửa, kéo để dời năm, ←/→ dời một năm', { desc: moTa })}
               aria-label={moTa}
               style={
                 {
@@ -383,8 +386,8 @@ export function EventPins({
             {coChot && (
               <button
                 type="button"
-                title={`Năm kết thúc của "${e.label}" — đang là ${e.endYear}. Kéo để đổi, ←/→ đổi một năm.`}
-                aria-label={`Năm kết thúc của mốc "${e.label}": ${e.endYear}`}
+                title={tr('Năm kết thúc của "{label}" — đang là {year}. Kéo để đổi, ←/→ đổi một năm.', { label: e.label, year: e.endYear as number })}
+                aria-label={tr('Năm kết thúc của mốc "{label}": {year}', { label: e.label, year: e.endYear as number })}
                 style={
                   {
                     top: top + (PIN_W - PIN_END_W) / 2,

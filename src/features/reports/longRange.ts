@@ -13,6 +13,7 @@ import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { CurrencyCode } from '../../lib/money'
 import { detectChangePoints } from './trends'
+import { tr } from '../../i18n'
 
 /** Một điểm của chuỗi tháng mà file này cần — cố ý hẹp hơn `MonthlyPoint`. */
 export interface RangePoint {
@@ -54,7 +55,7 @@ export function longScopeOptions(
 ): LongScopeOption[] {
   const total = points.length
   const out: LongScopeOption[] = [
-    { key: '12m', label: '12 tháng', months: Math.min(12, total) },
+    { key: '12m', label: tr('12 tháng'), months: Math.min(12, total) },
   ]
 
   if (regimeIndex !== null) {
@@ -63,14 +64,14 @@ export function longScopeOptions(
       const k = points[regimeIndex].key
       out.push({
         key: 'regime',
-        label: `Từ khi đổi nếp · ${k.year}/${String(k.month).padStart(2, '0')}`,
+        label: tr('Từ khi đổi nếp · {month}', { month: `${k.year}/${String(k.month).padStart(2, '0')}` }),
         months: monthsSince,
       })
     }
   }
 
   if (total > ALL_SCOPE_MIN_MONTHS) {
-    out.push({ key: 'all', label: 'Tất cả', months: total })
+    out.push({ key: 'all', label: tr('Tất cả'), months: total })
   }
   return out
 }

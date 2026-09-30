@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowLeftRight, type LucideIcon } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { tr } from '../../i18n'
 import {
   DIRECTION_HINT, DIRECTION_LABEL, chipAriaLabel, defaultKindOf, directionOf, kindsOf, shapeOf,
   type Direction, type EntryKind,
@@ -40,7 +41,7 @@ export function DirectionTabs({
         // size lg: ô 46px, trên sàn vùng chạm 44px. Đây là control chính của màn, không nằm trong danh
         // sách miễn trừ vùng chạm.
         size="lg"
-        label="Hướng tiền"
+        label={tr('Hướng tiền')}
         value={direction}
         onChange={(d) => onChange(defaultKindOf(d))}
         items={DIRS.map((d) => {
@@ -65,7 +66,7 @@ export function DirectionTabs({
       {kinds.length > 1 && (
         <div
           role="radiogroup"
-          aria-label="Dạng giao dịch"
+          aria-label={tr('Dạng giao dịch')}
           // `flex-wrap` VẪN CẦN, dù hàng đã vừa một dòng ở 375px: cỡ chữ "Rất lớn"
           // (`--app-font-scale` 1.25) và màn 320px đều làm nó tràn lại, và lúc đó xuống
           // dòng là đường duy nhất đúng — rút nhãn thêm nữa thì mất nghĩa.

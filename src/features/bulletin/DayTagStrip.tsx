@@ -18,6 +18,8 @@ import type { DayTagCells, TagDayRow } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
 import { TAG_HEX, tagColor } from '../tags/colors'
 import { AXIS_CAP, AXIS_GAP, AXIS_LEAD, AXIS_TOTAL, CELL_GAP_PX } from './dayAxisCols'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   cells: DayTagCells
@@ -46,8 +48,9 @@ const CAP_COL = AXIS_CAP
 
 /** "83% trần tháng" · "97% trần đợt" · "không trần". */
 function capLabel(line: TagBudgetLine | undefined): string {
-  if (!line || line.budget <= 0) return 'không trần'
-  return `${Math.round(line.ratio * 100)}% trần ${line.period === 'monthly' ? 'tháng' : 'đợt'}`
+  if (!line || line.budget <= 0) return tr('không trần')
+  const pct = Math.round(line.ratio * 100)
+  return line.period === 'monthly' ? tr('{pct}% trần tháng', { pct }) : tr('{pct}% trần đợt', { pct })
 }
 
 function TagRow({
@@ -188,21 +191,24 @@ export function DayTagStrip({
           ))}
 
           {cells.hidden > 0 && (
-            <p className="pt-1 text-2xs text-fg-muted">còn {cells.hidden} nhãn nữa</p>
+            <p className="pt-1 text-2xs text-fg-muted">{tr('còn {n} nhãn nữa', { n: cells.hidden })}</p>
           )}
 
           {/* HAI con số, không phải một (B44.2). Bỏ câu cuối thì "¥86.100 có nhãn" và
               "bốn nhãn cộng ¥126.700" đọc ra như một lỗi tính. */}
           <p className="pt-1.5 text-2xs text-fg-muted">
-            {pct}% chi có nhãn (
-            <Money amount={cells.taggedTotal} currency={base} approx={approx} /> /{' '}
-            <Money amount={spendTotal} currency={base} approx={approx} />)
+            {trn('{pct}% chi có nhãn ({tagged} / {total})', {
+              pct,
+              tagged: <Money amount={cells.taggedTotal} currency={base} approx={approx} />,
+              total: <Money amount={spendTotal} currency={base} approx={approx} />,
+            })}
             {overlap > 0 && (
               <>
-                {' · '}các nhãn cộng lại{' '}
-                <Money amount={cells.rowsTotal} currency={base} approx={approx} /> — lệch{' '}
-                <Money amount={overlap} currency={base} approx={approx} /> là khoản mang
-                nhiều nhãn cùng lúc
+                {' · '}
+                {trn('các nhãn cộng lại {sum} — lệch {diff} là khoản mang nhiều nhãn cùng lúc', {
+                  sum: <Money amount={cells.rowsTotal} currency={base} approx={approx} />,
+                  diff: <Money amount={overlap} currency={base} approx={approx} />,
+                })}
               </>
             )}
           </p>
@@ -214,19 +220,23 @@ export function DayTagStrip({
       {untagged > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
           <p className="text-2xs text-fg-muted">
-            <Money
-              amount={untagged}
-              currency={base}
-              approx={approx}
-              className="font-medium text-fg-secondary"
-            />{' '}
-            chưa gắn nhãn · {untaggedCount} giao dịch
+            {trn('{amount} chưa gắn nhãn · {n} giao dịch', {
+              amount: (
+                <Money
+                  amount={untagged}
+                  currency={base}
+                  approx={approx}
+                  className="font-medium text-fg-secondary"
+                />
+              ),
+              n: untaggedCount,
+            })}
           </p>
           <Link
             to={`/search?from=${fromISO}&to=${toISO}`}
             className="flex min-h-11 items-center text-2xs font-medium text-fg-accent hover:underline md:min-h-0 md:py-1"
           >
-            Gắn nhanh →
+            {tr('Gắn nhanh →')}
           </Link>
         </div>
       )}

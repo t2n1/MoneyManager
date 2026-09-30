@@ -8,6 +8,7 @@
 // trên mobile không nói được.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { pickActive } from './sectionActive'
+import { tr } from '../../i18n'
 
 /**
  * Bọc một khối để mục lục nhảy tới được. `scroll-mt-16` (64px) vì mục lục dính cao 57px
@@ -104,7 +105,7 @@ export function SectionIndex({ items }: Props) {
 
   return (
     <nav
-      aria-label="Mục lục trang"
+      aria-label={tr('Mục lục trang')}
       // Dính vào đầu vùng cuộn (<main> là vùng cuộn, không phải cả trang — xem AppLayout).
       // -mx-3 để nền trải hết bề ngang, nếu không thì nội dung lộ ra hai bên khi cuộn dưới.
       //

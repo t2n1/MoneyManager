@@ -14,6 +14,7 @@
 import type { CategorySlice, ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'
 import { bucketForNeed, type AxisKey, type BudgetMethod, type MethodBucket } from './budgetMethods'
+import { tr } from '../../i18n'
 
 export type { AxisKey } from './budgetMethods'
 
@@ -39,11 +40,11 @@ export interface AxisMissSummary {
 export function axisMissSummary(lines: readonly AxisLine[]): AxisMissSummary | null {
   if (lines.length === 0) return null
   const missed = lines.filter((l) => !l.ok)
-  if (missed.length === 0) return { missed, phrase: `đạt cả ${lines.length} mốc` }
+  if (missed.length === 0) return { missed, phrase: tr('đạt cả {n} mốc', { n: lines.length }) }
   if (missed.length === 1) {
-    return { missed, phrase: `chưa đạt mốc ${missed[0].label}` }
+    return { missed, phrase: tr('chưa đạt mốc {label}', { label: missed[0].label }) }
   }
-  return { missed, phrase: `lệch ${missed.length} mốc` }
+  return { missed, phrase: tr('lệch {n} mốc', { n: missed.length }) }
 }
 
 export interface AxisLine {
@@ -78,7 +79,7 @@ export interface AxisLine {
  */
 export function shareLabel(share: number): string {
   const pct = sharePct(share)
-  return pct < 0 ? `Âm ${-pct}%` : `${pct}%`
+  return pct < 0 ? tr('Âm {pct}%', { pct: -pct }) : `${pct}%`
 }
 
 /**

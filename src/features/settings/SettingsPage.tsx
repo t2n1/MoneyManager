@@ -20,6 +20,7 @@ import { BudgetMethodSheet } from './BudgetMethodSheet'
 import { SETTINGS_NAV } from './SettingsLayout'
 import { ThemeToggle } from './ThemeToggle'
 import { Card, PageHeader, PanelHeader, SectionTitle } from '../../components/ui'
+import { tr } from '../../i18n'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
@@ -48,7 +49,7 @@ export function SettingsPage() {
   // cache thiếu `sourceUpdatedAt` (hai trang kia lùi về `fetchedAt` nên vẫn nói được tuổi),
   // nó đo theo ngày trọn nên tỷ giá 5 giờ tuổi thành "Cập nhật hôm nay" trong khi trang Tài
   // sản ghi "5 giờ trước", và ngưỡng "đã cũ" so `>=` trong khi bên kia so `>`.
-  const rateAge = useRatesFreshness()?.details.find((d) => d.label === 'Tỷ giá') ?? null
+  const rateAge = useRatesFreshness()?.details.find((d) => d.source === 'rates') ?? null
   const rateStale = rateAge?.tone === 'warn'
 
   // Đây là mặt "Chung" — một trong bảy mục của Cài đặt. Từ `lg`, danh sách bảy mục nằm
@@ -65,24 +66,23 @@ export function SettingsPage() {
   // thành một mạch cuộn dài mấy màn.
   return (
     <div className="flex w-full flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Cài đặt" flush />
+      <PageHeader title={tr('Cài đặt')} flush />
 
       {isDemoMode && (
         <div className="rounded-lg border border-state-warn-border bg-state-warn-bg p-3 text-sm text-state-warn-fg">
-          <p className="font-semibold">Chế độ demo</p>
+          <p className="font-semibold">{tr('Chế độ demo')}</p>
           <p className="mt-1">
-            Dữ liệu chỉ lưu trên trình duyệt này. Khi kết nối Supabase (tạo .env.local), app sẽ tự
-            chuyển sang dữ liệu thật đồng bộ giữa các thiết bị.
+            {tr('Dữ liệu chỉ lưu trên trình duyệt này. Khi kết nối Supabase (tạo .env.local), app sẽ tự chuyển sang dữ liệu thật đồng bộ giữa các thiết bị.')}
           </p>
           <button
             type="button"
             onClick={async () => {
               if (
                 !(await confirmDialog({
-                  title: 'Xóa toàn bộ dữ liệu demo?',
-                  message: 'Sẽ seed lại từ đầu.',
+                  title: tr('Xóa toàn bộ dữ liệu demo?'),
+                  message: tr('Sẽ seed lại từ đầu.'),
                   danger: true,
-                  confirmLabel: 'Xóa & seed lại',
+                  confirmLabel: tr('Xóa & seed lại'),
                 }))
               )
                 return
@@ -92,7 +92,7 @@ export function SettingsPage() {
             }}
             className="mt-2 min-h-11 rounded-md border border-state-warn-border px-3 py-1.5 text-sm font-medium text-state-warn-fg transition hover:bg-state-warn-bg"
           >
-            Xóa dữ liệu demo
+            {tr('Xóa dữ liệu demo')}
           </button>
         </div>
       )}
@@ -104,7 +104,7 @@ export function SettingsPage() {
           sang đúng ngữ cảnh (Tài sản / Sổ) vì chúng là dữ liệu tài chính thật, không phải
           cấu hình — xem docs/information-architecture.md §1.1. */}
       <section className="overflow-hidden rounded-lg border border-border-panel bg-surface lg:hidden">
-        <SectionTitle className="px-3 pt-3">Quản lý</SectionTitle>
+        <SectionTitle className="px-3 pt-3">{tr('Quản lý')}</SectionTitle>
         <div className="mt-1 divide-y divide-border-subtle">
           {SETTINGS_NAV.filter((item) => !item.index).map((item) => (
             <Link
@@ -143,7 +143,7 @@ export function SettingsPage() {
           <CoupleToggle />
 
           <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-            <PanelHeader>Hồ sơ</PanelHeader>
+            <PanelHeader>{tr('Hồ sơ')}</PanelHeader>
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -153,7 +153,10 @@ export function SettingsPage() {
               <span className="flex-1">
                 <span className="block text-sm text-fg-primary">{profile?.display_name ?? '—'}</span>
                 <span className="block text-sm text-fg-muted">
-                  Tháng bắt đầu ngày {profile?.month_start_day ?? 1} · Tiền gốc {profile?.base_currency ?? '—'}
+                  {tr('Tháng bắt đầu ngày {day} · Tiền gốc {cur}', {
+                    day: profile?.month_start_day ?? 1,
+                    cur: profile?.base_currency ?? '—',
+                  })}
                 </span>
               </span>
               <ChevronRight className="h-5 w-5 text-fg-muted" />
@@ -163,13 +166,13 @@ export function SettingsPage() {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirmDialog({ title: 'Đăng xuất?', confirmLabel: 'Đăng xuất', danger: true })) {
+                    if (await confirmDialog({ title: tr('Đăng xuất?'), confirmLabel: tr('Đăng xuất'), danger: true })) {
                       await getSupabase().auth.signOut()
                     }
                   }}
                   className="min-h-11 rounded-md border border-state-bad-border px-3 py-1.5 text-sm text-state-bad-fg transition hover:bg-state-bad-bg"
                 >
-                  Đăng xuất
+                  {tr('Đăng xuất')}
                 </button>
               </div>
             )}
@@ -177,7 +180,7 @@ export function SettingsPage() {
 
           {rateLines.length > 0 && (
             <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-              <PanelHeader>Tỷ giá quy đổi</PanelHeader>
+              <PanelHeader>{tr('Tỷ giá quy đổi')}</PanelHeader>
               <div className="flex items-start gap-3 p-3">
                 <ArrowLeftRight className="mt-0.5 h-5 w-5 shrink-0 text-fg-muted" />
                 <div className="min-w-0 flex-1">
@@ -196,8 +199,7 @@ export function SettingsPage() {
                   {rateStale && rateAge !== null && (
                     <div className="mt-2 rounded-md border border-state-warn-border bg-state-warn-bg p-2">
                       <p className="text-sm text-state-warn-fg">
-                        Cập nhật {rateAge.age} — mạng hoặc nguồn tỷ giá đang lỗi, số quy đổi có
-                        thể sai.
+                        {tr('Cập nhật {age} — mạng hoặc nguồn tỷ giá đang lỗi, số quy đổi có thể sai.', { age: rateAge.age })}
                       </p>
                       <button
                         type="button"
@@ -209,7 +211,7 @@ export function SettingsPage() {
                             (trả nguyên cache cũ) — màn hình không đổi gì cả nên nút coi như
                             hỏng. Khoá nút + đổi chữ lúc đang lấy để người dùng biết đã bấm
                             trúng, dù kết quả cuối có thể vẫn là cache cũ. */}
-                        {ratesFetching > 0 ? 'Đang lấy…' : 'Thử lấy lại'}
+                        {ratesFetching > 0 ? tr('Đang lấy…') : tr('Thử lấy lại')}
                       </button>
                     </div>
                   )}

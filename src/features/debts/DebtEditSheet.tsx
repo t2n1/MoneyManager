@@ -6,6 +6,7 @@ import type { DebtDirection, DebtRow } from '../../types/database.types'
 import { DebtDetailInputs } from '../transactions/roleFields'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   debt: DebtRow
@@ -71,14 +72,14 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <SectionTitle role="block" className="mb-3">Sửa khoản nợ</SectionTitle>
+        <SectionTitle role="block" className="mb-3">{tr('Sửa khoản nợ')}</SectionTitle>
 
         {/* Chiều */}
         <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-surface-sunken p-1">
           {(
             [
-              ['i_owe', 'Mình nợ'],
-              ['owed_to_me', 'Cho vay'],
+              ['i_owe', tr('Mình nợ')],
+              ['owed_to_me', tr('Cho vay')],
             ] as [DebtDirection, string][]
           ).map(([val, label]) => (
             <button
@@ -97,27 +98,27 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         </div>
 
         <label htmlFor={`${uid}-party`} className="mb-1 block text-sm font-medium text-fg-muted">
-          {direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
+          {direction === 'i_owe' ? tr('Chủ nợ (mình nợ ai)') : tr('Con nợ (ai nợ mình)')}
         </label>
         <input
           id={`${uid}-party`}
           autoFocus
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
-          placeholder="Tên người / công ty"
+          placeholder={tr('Tên người / công ty')}
           className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Số tiền gốc ({CURRENCIES[debt.currency].symbol})
+          {tr('Số tiền gốc ({currency})', { currency: CURRENCIES[debt.currency].symbol })}
         </span>
         <div className="mb-3">
           <MoneyField
             value={principal}
             onChange={setPrincipal}
             currency={debt.currency}
-            ariaLabel="Số tiền gốc"
+            ariaLabel={tr('Số tiền gốc')}
             onEnter={handleSave}
             className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary"
           />
@@ -137,19 +138,19 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         </div>
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
-          Ghi chú (không bắt buộc)
+          {tr('Ghi chú (không bắt buộc)')}
         </label>
         <input
           id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: mượn lúc chuyển nhà"
+          placeholder={tr('Ví dụ: mượn lúc chuyển nhà')}
           className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
         {/* E-ink + Gọn: bỏ lời giải thích — form không có ô loại tiền để đổi. */}
         <p className="mt-2 text-sm text-fg-muted eink-gon:hidden">
-          Không đổi được loại tiền của khoản nợ đã tạo.
+          {tr('Không đổi được loại tiền của khoản nợ đã tạo.')}
         </p>
 
         <div className="mt-4 flex justify-end gap-2">
@@ -158,7 +159,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <button
             type="button"
@@ -166,7 +167,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             disabled={!canSave}
             className={actionButtonClass('primary')}
           >
-            {saving ? 'Đang lưu…' : 'Lưu'}
+            {saving ? tr('Đang lưu…') : tr('Lưu')}
           </button>
         </div>
       </div>

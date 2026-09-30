@@ -7,6 +7,7 @@ import { formatMoney } from '../../lib/money'
 import type { LimitPatch } from './capSplit'
 import type { Suggestion } from './suggest'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   monthKey: string
@@ -79,7 +80,7 @@ export function BudgetEditSheet({
   }
 
   async function handleDelete() {
-    if (!(await confirmDialog({ title: 'Xóa hạn mức này?', danger: true, confirmLabel: 'Xóa' })))
+    if (!(await confirmDialog({ title: tr('Xóa hạn mức này?'), danger: true, confirmLabel: tr('Xóa') })))
       return
     try {
       if (budgetId) await remove.mutateAsync(budgetId)
@@ -101,25 +102,25 @@ export function BudgetEditSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Hạn mức: {categoryLabel}</SectionTitle>
+          <SectionTitle role="block">{tr('Hạn mức: {name}', { name: categoryLabel })}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
         {hint && <p className="mb-2 text-sm text-fg-muted">{hint}</p>}
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Hạn mức tháng ({base})</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Hạn mức tháng ({currency})', { currency: base })}</span>
         <MoneyField
           value={amount}
           onChange={setAmount}
           currency={base}
-          ariaLabel="Hạn mức tháng"
+          ariaLabel={tr('Hạn mức tháng')}
           onEnter={handleSave}
           className={MONEY_FIELD_CLASS}
         />
@@ -134,7 +135,7 @@ export function BudgetEditSheet({
             {suggestion && suggestion.months.length > 0 && (
               <>
                 <p className="text-2xs text-fg-muted">
-                  {suggestion.months.length} tháng gần đây:{' '}
+                  {tr('{n} tháng gần đây:', { n: suggestion.months.length })}{' '}
                   {suggestion.months
                     .map((m) => `${m.monthKey} ${formatMoney(m.amount, base)}`)
                     .join(' · ')}
@@ -145,7 +146,7 @@ export function BudgetEditSheet({
                     onClick={() => setAmount(suggestion.average)}
                     className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
                   >
-                    Dùng {formatMoney(suggestion.average, base)} (trung bình)
+                    {tr('Dùng {amount} (trung bình)', { amount: formatMoney(suggestion.average, base) })}
                   </button>
                   {suggestion.max !== suggestion.average && (
                     <button
@@ -153,7 +154,7 @@ export function BudgetEditSheet({
                       onClick={() => setAmount(suggestion.max)}
                       className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
                     >
-                      Dùng {formatMoney(suggestion.max, base)} (cao nhất)
+                      {tr('Dùng {amount} (cao nhất)', { amount: formatMoney(suggestion.max, base) })}
                     </button>
                   )}
                 </div>
@@ -168,7 +169,7 @@ export function BudgetEditSheet({
                       : ''
                   }`}
                 >
-                  Cùng tháng năm ngoái ({lastYear.label}):{' '}
+                  {tr('Cùng tháng năm ngoái ({label}):', { label: lastYear.label })}{' '}
                   {lastYear.approx && '≈'}
                   {formatMoney(lastYear.amount, base)}
                 </p>
@@ -178,7 +179,7 @@ export function BudgetEditSheet({
                     onClick={() => setAmount(lastYear.amount)}
                     className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
                   >
-                    Dùng {formatMoney(lastYear.amount, base)} (năm ngoái)
+                    {tr('Dùng {amount} (năm ngoái)', { amount: formatMoney(lastYear.amount, base) })}
                   </button>
                 </div>
               </>
@@ -188,7 +189,7 @@ export function BudgetEditSheet({
 
         <label className="mt-3 flex items-center gap-2 text-sm text-fg-secondary">
           <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
-          Dồn phần chưa tiêu sang tháng sau
+          {tr('Dồn phần chưa tiêu sang tháng sau')}
         </label>
 
         <div className="mt-4 flex gap-2">
@@ -198,7 +199,7 @@ export function BudgetEditSheet({
               onClick={handleDelete}
               className={actionButtonClass('danger')}
             >
-              Xóa
+              {tr('Xóa')}
             </button>
           )}
           <button
@@ -206,7 +207,7 @@ export function BudgetEditSheet({
             onClick={handleSave}
             className={actionButtonClass('primary', 'flex-1')}
           >
-            Lưu
+            {tr('Lưu')}
           </button>
         </div>
       </div>

@@ -6,6 +6,7 @@
 // định việc đó có ĐÁNG GÕ CỬA người dùng lúc này không.
 import type { AppNotification, NotificationSeverity } from './types'
 import type { NotificationStateRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 /** Kể tối đa bao nhiêu việc trong nội dung thông báo gộp trước khi chuyển sang đếm. */
 export const PUSH_BODY_ITEMS = 3
@@ -112,10 +113,10 @@ export function planPush(
   // người ta tắt thông báo, và trên iOS mỗi push là một dòng riêng trên khoá màn hình.
   const named = fresh.slice(0, PUSH_BODY_ITEMS).map((n) => n.title)
   const rest = fresh.length - named.length
-  const parts = rest > 0 ? [...named, `và ${rest} việc nữa`] : named
+  const parts = rest > 0 ? [...named, tr('và {n} việc nữa', { n: rest })] : named
 
   return {
-    title: `${fresh.length} việc cần để ý`,
+    title: tr('{n} việc cần để ý', { n: fresh.length }),
     body: parts.join(' · '),
     to: PUSH_LIST_ROUTE,
     severity,

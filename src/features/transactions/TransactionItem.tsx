@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } from 'lucide-react'
+import { tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -157,17 +158,17 @@ export function TransactionItem({
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : tx.category_id
               ? (cat?.name ?? '?')
-              : 'Chưa phân loại'}
+              : tr('Chưa phân loại')}
           {tx.note && <span className="text-fg-muted"> · {tx.note}</span>}
           {tx.recurring_rule_id && (
             <Repeat
-              aria-label="Giao dịch định kỳ"
+              aria-label={tr('Giao dịch định kỳ')}
               className="ml-1 inline h-3 w-3 align-baseline text-fg-muted"
             />
           )}
           {tx.is_debt_flow && (
             <HandCoins
-              aria-label="Dòng tiền nợ/cho vay — không tính vào Thu/Chi"
+              aria-label={tr('Dòng tiền nợ/cho vay — không tính vào Thu/Chi')}
               className="ml-1 inline h-3 w-3 align-baseline text-fg-warn"
             />
           )}
@@ -176,11 +177,11 @@ export function TransactionItem({
               — tên danh mục của nó đã là "Điều chỉnh số dư" rồi. */}
           {tx.is_refund && (
             <Undo2
-              aria-label="Hoàn tiền — trừ vào chi của danh mục này"
+              aria-label={tr('Hoàn tiền — trừ vào chi của danh mục này')}
               className="ml-1 inline h-3 w-3 align-baseline text-fg-muted"
             />
           )}
-          {tx.exclude_from_stats && <span className="sr-only"> (không tính vào Thu/Chi)</span>}
+          {tx.exclude_from_stats && <span className="sr-only">{tr(' (không tính vào Thu/Chi)')}</span>}
         </span>
         {/* Dòng phụ: tài khoản + chip nhãn. Nhãn cắt ngang danh mục nên chỉ thấy
             nó ở báo cáo là không đủ — phải thấy ngay trên dòng để biết khoản này
@@ -227,7 +228,7 @@ export function TransactionItem({
         className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1 bg-state-good-bg text-2xs font-medium text-state-good-fg"
       >
         <Copy className="h-3.5 w-3.5" />
-        Nhân bản
+        {tr('Nhân bản')}
       </span>
       <span className="relative block bg-surface">{row}</span>
     </span>

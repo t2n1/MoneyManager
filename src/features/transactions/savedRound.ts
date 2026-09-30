@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import type { CurrencyCode } from '../../lib/money'
 
 /**
@@ -38,5 +39,5 @@ export function removeSaved(list: SavedEntry[], id: string): SavedEntry[] {
  */
 export function countLabel(list: SavedEntry[], total: number = list.length): string | null {
   if (total <= 0) return null
-  return `${total} khoản lượt này`
+  return tr('{n} khoản lượt này', { n: total })
 }

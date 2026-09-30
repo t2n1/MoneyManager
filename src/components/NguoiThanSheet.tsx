@@ -8,14 +8,15 @@ import { useEscClose } from '../hooks/useEscClose'
 import { useCreateRelative, useUpdateRelative } from '../hooks/queries'
 import { showToast } from '../lib/dialog'
 import type { RelativeRow, Relationship } from '../types/database.types'
+import { tr } from '../i18n'
 
 export const QUAN_HE: readonly (readonly [Relationship, string])[] = [
-  ['parent', 'Cha / mẹ'],
-  ['spouse', 'Vợ / chồng'],
-  ['child', 'Con'],
-  ['sibling', 'Anh / chị / em'],
-  ['grandparent', 'Ông / bà'],
-  ['other', 'Người thân khác'],
+  ['parent', tr('Cha / mẹ')],
+  ['spouse', tr('Vợ / chồng')],
+  ['child', tr('Con')],
+  ['sibling', tr('Anh / chị / em')],
+  ['grandparent', tr('Ông / bà')],
+  ['other', tr('Người thân khác')],
 ]
 
 interface Props {
@@ -49,11 +50,11 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
       const row = relative
         ? await update.mutateAsync({ id: relative.id, patch: input })
         : await create.mutateAsync(input)
-      showToast(relative ? 'Đã sửa người thân' : 'Đã thêm người thân')
+      showToast(relative ? tr('Đã sửa người thân') : tr('Đã thêm người thân'))
       onSaved?.(row)
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+      setError(e instanceof Error ? e.message : tr('Lưu thất bại, thử lại.'))
       setSaving(false)
     }
   }
@@ -64,7 +65,7 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
       await update.mutateAsync({ id: relative.id, patch: { is_archived: !relative.is_archived } })
       onClose()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
@@ -83,22 +84,22 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <SectionTitle role="block" className="mb-3">
-          {relative ? 'Sửa người thân' : 'Thêm người thân'}
+          {relative ? tr('Sửa người thân') : tr('Thêm người thân')}
         </SectionTitle>
         <Guide className="mb-3 text-sm text-fg-muted">
-          Khấu trừ người phụ thuộc tính riêng từng người, theo tuổi tại 31/12 — nên cần năm sinh.
+          {tr('Khấu trừ người phụ thuộc tính riêng từng người, theo tuổi tại 31/12 — nên cần năm sinh.')}
         </Guide>
 
-        <label className={labelCls} htmlFor="nt-name">Tên gọi</label>
+        <label className={labelCls} htmlFor="nt-name">{tr('Tên gọi')}</label>
         <input
           id="nt-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Mẹ, Em Hùng…"
+          placeholder={tr('Mẹ, Em Hùng…')}
           className={inputCls}
         />
 
-        <label className={labelCls} htmlFor="nt-year">Năm sinh</label>
+        <label className={labelCls} htmlFor="nt-year">{tr('Năm sinh')}</label>
         <input
           id="nt-year"
           inputMode="numeric"
@@ -108,7 +109,7 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
           className={inputCls}
         />
 
-        <label className={labelCls} htmlFor="nt-rel">Quan hệ</label>
+        <label className={labelCls} htmlFor="nt-rel">{tr('Quan hệ')}</label>
         <Select
           id="nt-rel"
           value={relationship}
@@ -120,15 +121,15 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
           ))}
         </Select>
 
-        <label className={labelCls} htmlFor="nt-country">Đang sống ở</label>
+        <label className={labelCls} htmlFor="nt-country">{tr('Đang sống ở')}</label>
         <Select
           id="nt-country"
           value={country}
           onChange={(e) => setCountry(e.target.value as 'VN' | 'JP')}
           wrapClassName="mb-3 w-full"
         >
-          <option value="VN">Việt Nam (ngoài Nhật)</option>
-          <option value="JP">Nhật — ngoài phạm vi khấu trừ này</option>
+          <option value="VN">{tr('Việt Nam (ngoài Nhật)')}</option>
+          <option value="JP">{tr('Nhật — ngoài phạm vi khấu trừ này')}</option>
         </Select>
 
         {error && <p className="mb-2 text-sm text-money-out">{error}</p>}
@@ -136,12 +137,12 @@ export function NguoiThanSheet({ relative, onClose, onSaved }: Props) {
         <div className="flex items-center justify-between gap-2">
           {relative ? (
             <ActionButton variant="outline" onClick={handleArchive}>
-              {relative.is_archived ? 'Hiện lại' : 'Ẩn người này'}
+              {relative.is_archived ? tr('Hiện lại') : tr('Ẩn người này')}
             </ActionButton>
           ) : <span />}
           <div className="flex gap-2">
-            <ActionButton variant="outline" onClick={onClose}>Đóng</ActionButton>
-            <ActionButton variant="primary" onClick={handleSave} disabled={!canSave}>Lưu</ActionButton>
+            <ActionButton variant="outline" onClick={onClose}>{tr('Đóng')}</ActionButton>
+            <ActionButton variant="primary" onClick={handleSave} disabled={!canSave}>{tr('Lưu')}</ActionButton>
           </div>
         </div>
       </div>

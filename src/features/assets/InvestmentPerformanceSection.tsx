@@ -16,6 +16,8 @@ import { investCapital } from './investCapital'
 import { investTxRange, LOOKBACK_YEARS } from './investHistory'
 import type { MoneyView } from './moneyView'
 import { investmentPerformance, type CashFlow } from './xirr'
+import { getLang, tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** Tài khoản đầu tư đang được tính vào tổng tài sản. */
@@ -111,24 +113,25 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
   if (accounts.length === 0) return null
 
   const money = (v: number) => view.fmt(Math.round(v))
+  const dec = (x: number, d: number) => (getLang() === 'vi' ? x.toFixed(d).replace('.', ',') : x.toFixed(d))
   // Thanh tỷ trọng: vốn gốc theo SỔ vs phần lời — khớp với trang chi tiết tài khoản
   const barTotal = Math.max(1, costBasis + Math.max(0, growth))
   const capitalPct = (costBasis / barTotal) * 100
 
   const rateRows: { label: string; value: number | null; note: string }[] = [
-    { label: 'Danh nghĩa', value: perf.annualReturn, note: 'con số trên bảng giá' },
+    { label: tr('Danh nghĩa'), value: perf.annualReturn, note: tr('con số trên bảng giá') },
     {
-      label: 'Sau thuế',
+      label: tr('Sau thuế'),
       value: perf.afterTaxReturn,
-      note: `trừ ${((profile?.capital_gains_tax_bps ?? 2032) / 100).toFixed(2).replace('.', ',')}% thuế lãi vốn`,
+      note: tr('trừ {pct}% thuế lãi vốn', { pct: dec((profile?.capital_gains_tax_bps ?? 2032) / 100, 2) }),
     },
     {
-      label: 'Sau lạm phát',
+      label: tr('Sau lạm phát'),
       value: perf.realReturn,
       note:
         profile?.annual_inflation_bps == null
-          ? 'cần khai lạm phát trong Cài đặt'
-          : `sức mua thật, lạm phát ${(profile.annual_inflation_bps / 100).toFixed(1).replace('.', ',')}%`,
+          ? tr('cần khai lạm phát trong Cài đặt')
+          : tr('sức mua thật, lạm phát {pct}%', { pct: dec(profile.annual_inflation_bps / 100, 1) }),
     },
   ]
 
@@ -137,11 +140,11 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
   return (
     <Card as="section" elevation="panel" padding="lg">
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <SectionTitle role="micro">Hiệu quả đầu tư</SectionTitle>
+        <SectionTitle role="micro">{tr('Hiệu quả đầu tư')}</SectionTitle>
         {/* Khu này nói về TIỀN (bỏ vào bao nhiêu, sinh ra bao nhiêu, %/năm). Câu
             "đang giữ mã nào / quỹ nào" nằm ở trang Đầu tư. */}
         <Link to="/invest" className="shrink-0 text-2xs font-medium text-fg-accent">
-          Danh mục đầu tư
+          {tr('Danh mục đầu tư')}
         </Link>
       </div>
 
@@ -153,7 +156,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
         <span className="flex items-center gap-1.5 text-fg-secondary">
           <span className="h-2 w-2 rounded-full bg-sky-500" aria-hidden />
-          Vốn bỏ vào <b className="tabular-nums">{money(costBasis)}</b>
+          {trn('Vốn bỏ vào {amount}', { amount: <b className="tabular-nums">{money(costBasis)}</b> })}
           {/* Tỷ trọng của thanh in bằng CHỮ ngay cạnh nhãn của nó: bản trước chỉ có
               thanh, nên "vốn chiếm bao nhiêu phần giá trị hiện tại" phải ước bằng mắt.
               CHỈ khi đang lời: `barTotal` kẹp phần lời về 0 khi lỗ (thanh không vẽ được
@@ -161,7 +164,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
               số học mà đọc thành "danh mục toàn vốn, không mất gì", ngay cạnh dòng
               "Thị trường lấy đi ¥464.905". */}
           {growth >= 0 && (
-            <span className="text-fg-muted">· {capitalPct.toFixed(1).replace('.', ',')}%</span>
+            <span className="text-fg-muted">· {dec(capitalPct, 1)}%</span>
           )}
         </span>
         <span
@@ -170,14 +173,14 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
           }`}
         >
           <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden />
-          {growth >= 0 ? 'Thị trường cho thêm' : 'Thị trường lấy đi'}{' '}
+          {growth >= 0 ? tr('Thị trường cho thêm') : tr('Thị trường lấy đi')}{' '}
           <b className="tabular-nums">{money(Math.abs(growth))}</b>
         </span>
       </div>
       <p className="mt-1 text-2xs text-fg-muted">
-        Giá trị hiện tại {money(currentValue)}
+        {tr('Giá trị hiện tại {amount}', { amount: money(currentValue) })}
         {growthPct != null && <> · {signedPct(pct1(growthPct))}</>}
-        {!dangTai && perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
+        {!dangTai && perf.withdrawn > 0 && <> · {tr('đã rút ra {amount} trong kỳ', { amount: money(perf.withdrawn) })}</>}.
       </p>
 
       {/* Ba mức lợi nhuận — CHỈ khi có con số. Bản trước luôn dựng ba ô rồi in "—" vào cả
@@ -186,7 +189,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
           nên ba dấu gạch là ba bản của một tin. */}
       {dangTai ? (
         <p className="mt-3 border-t border-border-subtle pt-3 text-2xs text-fg-muted">
-          Đang tính <span className="text-fg-secondary">%/năm</span>…
+          {trn('Đang tính {x}…', { x: <span className="text-fg-secondary">{tr('%/năm')}</span> })}
         </p>
       ) : perf.annualReturn !== null ? (
         <>
@@ -212,7 +215,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
               </div>
             ))}
           </div>
-          <p className="mt-1 text-center text-2xs text-fg-muted">mỗi năm</p>
+          <p className="mt-1 text-center text-2xs text-fg-muted">{trx('rate', 'mỗi năm')}</p>
         </>
       ) : (
         // Câu này nói ĐÚNG lý do mà code có, không phải một ngưỡng nghe hợp lý. XIRR trả
@@ -220,22 +223,21 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
         // một ngày, hoặc phương trình không có nghiệm trong khoảng dò (xem xirr.ts) — nên
         // không có mốc "≥12 tháng" nào để hứa.
         <p className="mt-3 border-t border-border-subtle pt-3 text-2xs leading-snug text-fg-muted">
-          Chưa quy ra <span className="text-fg-secondary">%/năm</span>
+          {trn('Chưa quy ra {x}', { x: <span className="text-fg-secondary">{tr('%/năm')}</span> })}
           {/* E-ink + Gọn: giữ trạng thái "chưa quy ra", bỏ lời giải thích vì sao. */}
           <span className="eink-gon:hidden">
             {' '}—{' '}
             {flows.length === 0
-              ? 'cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc một giao dịch Chuyển khoản).'
-              : `lịch sử mới ${flows.length} dòng tiền, còn quá ngắn hoặc biến động quá lớn nên con số quy ra cả năm sẽ vô nghĩa.`}{' '}
-            Danh nghĩa · sau thuế{' '}
-            {((profile?.capital_gains_tax_bps ?? 2032) / 100).toFixed(2).replace('.', ',')}%
-            {profile?.annual_inflation_bps != null && (
-              <>
-                {' '}· sau lạm phát{' '}
-                {(profile.annual_inflation_bps / 100).toFixed(1).replace('.', ',')}%
-              </>
-            )}{' '}
-            sẽ hiện khi đủ dữ liệu.
+              ? tr('cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc một giao dịch Chuyển khoản).')
+              : tr('lịch sử mới {n} dòng tiền, còn quá ngắn hoặc biến động quá lớn nên con số quy ra cả năm sẽ vô nghĩa.', { n: flows.length })}{' '}
+            {profile?.annual_inflation_bps != null
+              ? tr('Danh nghĩa · sau thuế {tax}% · sau lạm phát {inflation}% sẽ hiện khi đủ dữ liệu.', {
+                  tax: dec((profile?.capital_gains_tax_bps ?? 2032) / 100, 2),
+                  inflation: dec(profile.annual_inflation_bps / 100, 1),
+                })
+              : tr('Danh nghĩa · sau thuế {tax}% sẽ hiện khi đủ dữ liệu.', {
+                  tax: dec((profile?.capital_gains_tax_bps ?? 2032) / 100, 2),
+                })}
           </span>
         </p>
       )}
@@ -244,50 +246,63 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
           groupInsight.investmentScope — trả null khi mọi tài khoản đầu tư cùng một nhóm. */}
       {scope && (
         <p className="mt-2 text-2xs leading-snug text-fg-muted eink-gon:hidden">
-          Tính theo <span className="text-fg-secondary">loại</span> tài khoản nên gồm{' '}
-          {scope.outsiders.map((o, i) => (
-            <span key={o.name}>
-              {i > 0 && ', '}
-              <span className="text-fg-secondary">{o.name}</span> {money(o.baseValue)} đang ở
-              nhóm {o.groupName}
-            </span>
-          ))}{' '}
-          — vì vậy lệch đúng {money(scope.gap)} với nhóm {scope.mainGroupName} ở bảng dưới.
+          {trn('Tính theo {type} tài khoản nên gồm {list} — vì vậy lệch đúng {gap} với nhóm {group} ở bảng dưới.', {
+            type: <span className="text-fg-secondary">{tr('loại')}</span>,
+            list: scope.outsiders.map((o, i) => (
+              <span key={o.name}>
+                {i > 0 && ', '}
+                {trn('{name} {amount} đang ở nhóm {group}', {
+                  name: <span className="text-fg-secondary">{o.name}</span>,
+                  amount: money(o.baseValue),
+                  group: o.groupName,
+                })}
+              </span>
+            )),
+            gap: money(scope.gap),
+            group: scope.mainGroupName,
+          })}
         </p>
       )}
 
       {!dangTai && hasMissingRate && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.
+          {tr('Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.')}
         </p>
       )}
 
       {profile?.annual_inflation_bps == null && (
         <Guide className="mt-2 text-2xs text-fg-muted">
-          <Link to="/settings" className="font-medium text-fg-accent">
-            Khai mức lạm phát trong Cài đặt
-          </Link>{' '}
-          để thấy lợi nhuận thật sau khi trừ trượt giá.
+          {trn('{link} để thấy lợi nhuận thật sau khi trừ trượt giá.', {
+            link: (
+              <Link to="/settings" className="font-medium text-fg-accent">
+                {tr('Khai mức lạm phát trong Cài đặt')}
+              </Link>
+            ),
+          })}
         </Guide>
       )}
 
-      <ExplainBox label="Cách tính">
+      <ExplainBox label={tr('Cách tính')}>
         <p>
-          <b>%/năm</b> tính bằng XIRR — có tính cả thời điểm bỏ tiền. Bỏ 1 triệu từ 3 năm trước khác
-          hẳn bỏ 1 triệu tháng trước dù cùng lời 100k, phép chia thô không phân biệt được điều đó.
+          {trn(
+            '{b} tính bằng XIRR — có tính cả thời điểm bỏ tiền. Bỏ 1 triệu từ 3 năm trước khác hẳn bỏ 1 triệu tháng trước dù cùng lời 100k, phép chia thô không phân biệt được điều đó.',
+            { b: <b>{tr('%/năm')}</b> },
+          )}
         </p>
         <p>
-          <b>Dòng tiền</b> lấy từ giao dịch Chuyển khoản ra/vào tài khoản đầu tư trong {LOOKBACK_YEARS}{' '}
-          năm gần nhất. Cổ tức ghi thẳng vào tài khoản đầu tư không tính là tiền bỏ vào — nó là phần
-          lời danh mục tự sinh.
+          {trn(
+            '{b} lấy từ giao dịch Chuyển khoản ra/vào tài khoản đầu tư trong {n} năm gần nhất. Cổ tức ghi thẳng vào tài khoản đầu tư không tính là tiền bỏ vào — nó là phần lời danh mục tự sinh.',
+            { b: <b>{tr('Dòng tiền')}</b>, n: LOOKBACK_YEARS },
+          )}
         </p>
         <p>
-          <b>Sau thuế</b> chỉ đánh vào phần lời (đang lỗ thì không nộp gì). <b>Sau lạm phát</b> dùng
-          công thức (1+lãi)/(1+lạm phát)−1 chứ không phải phép trừ, nên hơi thấp hơn bạn nhẩm.
+          {trn(
+            '{a} chỉ đánh vào phần lời (đang lỗ thì không nộp gì). {b} dùng công thức (1+lãi)/(1+lạm phát)−1 chứ không phải phép trừ, nên hơi thấp hơn bạn nhẩm.',
+            { a: <b>{tr('Sau thuế')}</b>, b: <b>{tr('Sau lạm phát')}</b> },
+          )}
         </p>
         <p>
-          Đối chiếu nhanh: gửi tiết kiệm ở Nhật gần 0%/năm, nên bất kỳ con số dương nào sau lạm phát
-          cũng đã là hơn để tiền nằm im.
+          {tr('Đối chiếu nhanh: gửi tiết kiệm ở Nhật gần 0%/năm, nên bất kỳ con số dương nào sau lạm phát cũng đã là hơn để tiền nằm im.')}
         </p>
       </ExplainBox>
     </Card>

@@ -13,6 +13,8 @@ import { Money, SectionTitle, actionButtonClass } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import type { CurrencyCode } from '../../lib/money'
 import { splitByAverage, splitEvenly, type SplitChild, type SplitPart } from './capSplit'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export interface SplitRow {
   categoryId: string
@@ -78,13 +80,13 @@ export function SplitGroupSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <SectionTitle role="block">Chia trần nhóm: {parentLabel}</SectionTitle>
+          <SectionTitle role="block">{tr('Chia trần nhóm: {group}', { group: parentLabel })}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Đóng
+            {tr('Đóng')}
           </button>
         </div>
 
@@ -101,7 +103,7 @@ export function SplitGroupSheet({
                   }
                   className="shrink-0 rounded-md px-2 py-1 text-2xs text-fg-muted hover:bg-surface-sunken"
                 >
-                  TB <Money amount={r.average} currency={base} className="!text-2xs" />
+                  {trn('TB {amount}', { amount: <Money amount={r.average} currency={base} className="!text-2xs" /> })}
                 </button>
               )}
               {/* Bề rộng đặt ở KHUNG NGOÀI, không truyền qua `className`: class đó rơi
@@ -115,7 +117,7 @@ export function SplitGroupSheet({
                   onChange={(v) => setAmounts((a) => ({ ...a, [r.categoryId]: v }))}
                   currency={base}
                   autoOpen={false}
-                  ariaLabel={`Hạn mức ${r.label}`}
+                  ariaLabel={tr('Hạn mức {name}', { name: r.label })}
                   className={MONEY_FIELD_CLASS}
                 />
               </span>
@@ -125,14 +127,17 @@ export function SplitGroupSheet({
 
         {/* Hệ quả của con số đang gõ, nói ngay tại chỗ gõ. */}
         <p className="mt-3 text-sm text-fg-secondary">
-          Tổng <Money amount={total} currency={base} className="font-semibold" />
+          {trn('Tổng {amount}', { amount: <Money amount={total} currency={base} className="font-semibold" /> })}
           {total === cap ? (
-            <span className="text-fg-muted"> — khớp trần {parentLabel}</span>
+            <span className="text-fg-muted">{tr(' — khớp trần {group}', { group: parentLabel })}</span>
           ) : (
             <span className="text-fg-muted">
               {' '}
-              — trần {parentLabel} sẽ thành <Money amount={total} currency={base} /> (đang{' '}
-              <Money amount={cap} currency={base} />)
+              {trn('— trần {group} sẽ thành {total} (đang {cap})', {
+                group: parentLabel,
+                total: <Money amount={total} currency={base} />,
+                cap: <Money amount={cap} currency={base} />,
+              })}
             </span>
           )}
         </p>
@@ -143,14 +148,14 @@ export function SplitGroupSheet({
             onClick={() => fill(splitEvenly(cap, rows.map((r) => r.categoryId)))}
             className={actionButtonClass()}
           >
-            Chia đều
+            {tr('Chia đều')}
           </button>
           <button
             type="button"
             onClick={() => fill(splitByAverage(cap, asChildren()))}
             className={actionButtonClass()}
           >
-            Theo TB 6 tháng
+            {tr('Theo TB 6 tháng')}
           </button>
           <button
             type="button"
@@ -158,7 +163,7 @@ export function SplitGroupSheet({
             disabled={saving}
             className={actionButtonClass('primary', 'flex-1')}
           >
-            Lưu
+            {tr('Lưu')}
           </button>
         </div>
       </div>

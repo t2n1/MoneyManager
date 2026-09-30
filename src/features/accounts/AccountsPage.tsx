@@ -36,6 +36,8 @@ import {
   PanelHeader,
   actionButtonClass,
 } from '../../components/ui'
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 // Điện thoại: tên + chip ở trên, số dư xuống dòng. Từ `lg`: bốn cột một hàng.
 // `grid` KHÔNG nằm trong hằng số — `hidden` và `grid` cùng là tiện ích display, cái nào
@@ -87,26 +89,28 @@ export function AccountsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <PageHeader title="Tài khoản" back="/settings">
+      <PageHeader title={trx('list', 'Tài khoản')} back="/settings">
         <button
           type="button"
           onClick={() => setEditing('new')}
           className={actionButtonClass('primary')}
         >
-          <Plus className="h-4 w-4" /> Thêm
+          <Plus className="h-4 w-4" /> {tr('Thêm')}
         </button>
       </PageHeader>
 
       {active.length > 0 && (
         <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
-          Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự tài khoản trong cùng một
-          loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục <b>Loại</b>.
+          {trn('Nhấn giữ biểu tượng {grip} rồi kéo–thả để sắp thứ tự tài khoản trong cùng một loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục {type}.', {
+            grip: <b>⁚⁚</b>,
+            type: <b>{tr('Loại')}</b>,
+          })}
         </Guide>
       )}
 
       {active.length === 0 && (
         <Card padding="none" className="overflow-hidden">
-          <EmptyState compact>Chưa có tài khoản</EmptyState>
+          <EmptyState compact>{tr('Chưa có tài khoản')}</EmptyState>
         </Card>
       )}
 
@@ -131,7 +135,7 @@ export function AccountsPage() {
                       type="button"
                       {...handle}
                       className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-                      aria-label={`Kéo để sắp thứ tự ${a.name}`}
+                      aria-label={tr('Kéo để sắp thứ tự {name}', { name: a.name })}
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
@@ -146,12 +150,12 @@ export function AccountsPage() {
                         <span className="min-w-0 truncate text-sm text-fg-primary">{a.name}</span>
                         {a.is_hidden && (
                           <span className="shrink-0 rounded bg-surface-sunken px-1 text-2xs text-fg-muted">
-                            ẩn
+                            {tr('ẩn')}
                           </span>
                         )}
                         {!a.include_in_totals && (
                           <span className="shrink-0 rounded bg-surface-sunken px-1 text-2xs text-fg-muted">
-                            ngoài tổng
+                            {tr('ngoài tổng')}
                           </span>
                         )}
                         {/* Dấu "rút ngay?" — chỗ DUY NHẤT nói ra tài khoản nào còn thiếu cờ.
@@ -162,7 +166,7 @@ export function AccountsPage() {
                             lệch nhau được. Dấu tự mất khi khai xong. */}
                         {needsLiquidityAnswer(a) && (
                           <span className="shrink-0 rounded bg-state-warn-bg px-1 text-2xs text-state-warn-fg">
-                            rút ngay?
+                            {tr('rút ngay?')}
                           </span>
                         )}
                       </span>
@@ -198,7 +202,7 @@ export function AccountsPage() {
                       <ActionButton
                         onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
                       >
-                        Lưu trữ
+                        {tr('Lưu trữ')}
                       </ActionButton>
                     </span>
                   </div>
@@ -218,11 +222,11 @@ export function AccountsPage() {
           >
             {showArchived ? (
               <>
-                Ẩn đã lưu trữ <ChevronUp className="h-4 w-4" />
+                {tr('Ẩn đã lưu trữ')} <ChevronUp className="h-4 w-4" />
               </>
             ) : (
               <>
-                Đã lưu trữ ({archived.length}) <ChevronDown className="h-4 w-4" />
+                {tr('Đã lưu trữ ({n})', { n: archived.length })} <ChevronDown className="h-4 w-4" />
               </>
             )}
           </button>
@@ -239,7 +243,7 @@ export function AccountsPage() {
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
                     className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-sm text-fg-accent hover:bg-accent-muted-bg"
                   >
-                    Khôi phục
+                    {tr('Khôi phục')}
                   </button>
                 </div>
               ))}

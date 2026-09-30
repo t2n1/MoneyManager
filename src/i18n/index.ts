@@ -19,17 +19,10 @@ export type Lang = 'vi' | 'en'
 export type Translation = string | { one: string; other: string }
 export type Dict = Record<string, Translation>
 
-const STORAGE_KEY = 'sct-lang'
-
-function readLang(): Lang {
-  try {
-    return globalThis.localStorage?.getItem(STORAGE_KEY) === 'en' ? 'en' : 'vi'
-  } catch {
-    return 'vi'
-  }
-}
-
-const lang: Lang = readLang()
+// Mặc định Việt. Phía trình duyệt, ./load.ts đọc lựa chọn đã lưu và gọi `initLang` TRƯỚC khi
+// module nào của app được đánh giá. File này cố ý không chạm localStorage/location: edge
+// function (Deno) gói nó vào bundle, và tests/pushBundle.test.ts cấm các token đó.
+let lang: Lang = 'vi'
 let dict: Dict = {}
 
 export function getLang(): Lang {
@@ -41,15 +34,17 @@ export function numLocale(): string {
   return lang === 'en' ? 'en-US' : 'vi-VN'
 }
 
-/** Đổi ngôn ngữ = lưu rồi tải lại trang (xem đầu file vì sao). */
-export function setLang(next: Lang) {
-  if (next === lang) return
-  try {
-    localStorage.setItem(STORAGE_KEY, next)
-  } catch {
-    return
-  }
-  location.reload()
+/**
+ * Dấu thập phân hiển thị: phẩy cho tiếng Việt ("15,4%"), chấm cho tiếng Anh ("15.4%").
+ * Dùng ở các chỗ tự dựng số lẻ: `x.toFixed(1).replace('.', decimalSep())`.
+ */
+export function decimalSep(): string {
+  return lang === 'en' ? '.' : ','
+}
+
+/** Chỉ ./load.ts (và test) gọi. */
+export function initLang(next: Lang) {
+  lang = next
 }
 
 /** Chỉ ./load.ts (và test) gọi. */
@@ -79,4 +74,16 @@ export function pick(vi: string, vars?: Record<string, unknown>): string {
  */
 export function tr(vi: string, vars?: Vars): string {
   return fill(pick(vi, vars), vars)
+}
+
+/**
+ * Như `tr()` nhưng kèm NGỮ CẢNH, cho cùng một chữ tiếng Việt mà tiếng Anh phải nói khác nhau:
+ * "Danh mục" là Category ở Sổ nhưng Portfolio ở Đầu tư → `trx('portfolio', 'Danh mục')`.
+ * Khoá trong từ điển là `ngữ cảnh|câu gốc`; chế độ Việt vẫn trả đúng câu gốc.
+ */
+export function trx(ctx: string, vi: string, vars?: Vars): string {
+  if (lang === 'vi') return fill(vi, vars)
+  const hit = dict[`${ctx}|${vi}`]
+  if (hit === undefined) return fill(pick(vi, vars), vars)
+  return fill(typeof hit === 'string' ? hit : vars?.n === 1 ? hit.one : hit.other, vars)
 }

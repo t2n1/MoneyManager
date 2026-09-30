@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { tr } from '../../i18n'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { Card } from '../../components/ui'
 import { categoryChips, childCounts, type RecentCategory } from './recentCategories'
@@ -81,7 +82,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
       <Card padding="lg" className="text-center text-sm text-fg-muted">
         {emptyNote}
         <Link to="/settings/categories" className="mt-1 block font-medium text-fg-accent underline">
-          Mở Cài đặt → Danh mục
+          {tr('Mở Cài đặt → Danh mục')}
         </Link>
       </Card>
     )
@@ -114,7 +115,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
           aria-expanded={expanded}
           className="flex h-8 shrink-0 items-center gap-1 rounded-full border-2 border-border-strong bg-surface px-2.5 text-sm text-fg-secondary transition active:scale-95"
         >
-          Khác
+          {tr('Khác')}
           <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       </div>
@@ -143,7 +144,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
               ))}
               {drillChildren.length === 0 && (
                 <p className="col-span-full py-4 text-center text-sm text-fg-muted">
-                  Nhóm này chưa có danh mục con
+                  {tr('Nhóm này chưa có danh mục con')}
                 </p>
               )}
             </div>

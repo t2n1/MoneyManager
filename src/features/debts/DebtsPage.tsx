@@ -8,6 +8,8 @@ import { CURRENCIES, formatMoney } from '../../lib/money'
 import { Card, EmptyState, Money, PageHeader, STATUS_FILL, SectionTitle, actionButtonClass } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
 import { debtBalance, debtSummary, disbursedOf, remainingOf } from './aggregate'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export function DebtsPage() {
   const debtsQ = useDebts()
@@ -38,19 +40,19 @@ export function DebtsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <PageHeader title="Nợ / cho vay" back="/assets">
+      <PageHeader title={tr('Nợ / cho vay')} back="/assets">
         <Link
           to="/entry?role=debt"
           className={actionButtonClass('primary')}
         >
-          <Plus className="h-4 w-4" /> Thêm
+          <Plus className="h-4 w-4" /> {tr('Thêm')}
         </Link>
       </PageHeader>
 
       {/* Tổng quan quy đổi base */}
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <p className="text-sm font-medium text-fg-muted">Mình nợ</p>
+          <p className="text-sm font-medium text-fg-muted">{tr('Mình nợ')}</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-out">
             {!ready ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
@@ -58,7 +60,7 @@ export function DebtsPage() {
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
           {/* "Cho vay" là nhãn CŨ, và nó sai kể từ 0049: con số này giờ gộp hai thứ
               khác bản chất — tiền mình đưa ra, và tiền công người ta chưa trả. */}
-          <p className="text-sm font-medium text-fg-muted">Người ta nợ tôi</p>
+          <p className="text-sm font-medium text-fg-muted">{tr('Người ta nợ tôi')}</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-in">
             {!ready ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
@@ -66,22 +68,29 @@ export function DebtsPage() {
       </div>
       {ready && summary.hasOpen && (
         <p className="-mt-2 mb-4 px-1 text-sm text-fg-muted">
-          {summary.net < 0 ? 'Nợ ròng' : 'Cho vay ròng'} {approx}
-          {formatMoney(Math.abs(summary.net), base)} · quy đổi {CURRENCIES[base].label}
-          {summary.hasMissingRate && ' · một phần chưa có tỷ giá'}
+          {summary.net < 0
+            ? tr('Nợ ròng {amount} · quy đổi {currency}', {
+                amount: `${approx}${formatMoney(Math.abs(summary.net), base)}`,
+                currency: CURRENCIES[base].label,
+              })
+            : tr('Cho vay ròng {amount} · quy đổi {currency}', {
+                amount: `${approx}${formatMoney(Math.abs(summary.net), base)}`,
+                currency: CURRENCIES[base].label,
+              })}
+          {summary.hasMissingRate && tr(' · một phần chưa có tỷ giá')}
         </p>
       )}
 
       <DebtSection
-        title="Mình nợ"
-        emptyLabel="Không có khoản nào bạn đang nợ"
+        title={tr('Mình nợ')}
+        emptyLabel={tr('Không có khoản nào bạn đang nợ')}
         debts={ready ? iOwe : []}
         payments={payments}
         load={load}
       />
       <DebtSection
-        title="Người ta nợ mình"
-        emptyLabel="Chưa cho ai vay"
+        title={tr('Người ta nợ mình')}
+        emptyLabel={tr('Chưa cho ai vay')}
         debts={ready ? owedToMe : []}
         payments={payments}
         load={load}
@@ -94,7 +103,7 @@ export function DebtsPage() {
             onClick={() => setShowSettled((v) => !v)}
             className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-fg-muted"
           >
-            {showSettled ? 'Ẩn đã tất toán' : `Đã tất toán (${settled.length})`}
+            {showSettled ? tr('Ẩn đã tất toán') : tr('Đã tất toán ({n})', { n: settled.length })}
             {showSettled ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
           {showSettled && (
@@ -113,16 +122,19 @@ export function DebtsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-fg-secondary">{d.counterparty}</span>
                       <span className="block text-2xs text-fg-muted">
-                        gốc <Money amount={disbursedOf(d, payments)} currency={d.currency} tone="muted" />
+                        {trn('gốc {amount}', {
+                          amount: <Money amount={disbursedOf(d, payments)} currency={d.currency} tone="muted" />,
+                        })}
                       </span>
                     </span>
                     <span className="shrink-0 text-right text-sm text-fg-muted">
-                      Đã tất toán ·{' '}
-                      {b.overpaid > 0 ? (
-                        <>trả thừa <Money amount={b.overpaid} currency={d.currency} tone="warn" /></>
-                      ) : (
-                        <>còn <Money amount={b.remaining} currency={d.currency} tone="muted" /></>
-                      )}
+                      {b.overpaid > 0
+                        ? trn('Đã tất toán · trả thừa {amount}', {
+                            amount: <Money amount={b.overpaid} currency={d.currency} tone="warn" />,
+                          })
+                        : trn('Đã tất toán · còn {amount}', {
+                            amount: <Money amount={b.remaining} currency={d.currency} tone="muted" />,
+                          })}
                     </span>
                     <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
                   </Link>
@@ -172,13 +184,13 @@ function DebtSection({ title, emptyLabel, debts, payments, load }: SectionProps)
                     người dùng phải phân biệt được nó với một khoản cho vay bằng mắt. */}
                 {d.origin === 'earned' && (
                   <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-sm font-semibold text-state-warn-fg">
-                    tiền công
+                    {tr('tiền công')}
                   </span>
                 )}
                 {overpaid > 0 ? (
                   // Trả thừa: đừng giấu thành ¥0 — người dùng cần biết để trả lại / đòi lại.
                   <span className="shrink-0 text-sm font-semibold text-fg-warn">
-                    Trả thừa <Money amount={overpaid} currency={d.currency} tone="warn" />
+                    {trn('Trả thừa {amount}', { amount: <Money amount={overpaid} currency={d.currency} tone="warn" /> })}
                   </span>
                 ) : (
                   <span
@@ -205,7 +217,7 @@ function DebtSection({ title, emptyLabel, debts, payments, load }: SectionProps)
                   />
                 </div>
                 <span className="shrink-0 text-sm text-fg-muted">
-                  gốc {formatMoney(disbursed, d.currency)}
+                  {tr('gốc {amount}', { amount: formatMoney(disbursed, d.currency) })}
                 </span>
                 {/* NGÀY đi qua `dayMonthLabel` như mọi chỗ khác trong app. Trước đây là
                     `d.due_on.slice(5)`, tức cắt thô chuỗi ISO ra "09-04" — một định dạng
@@ -222,8 +234,8 @@ function DebtSection({ title, emptyLabel, debts, payments, load }: SectionProps)
                     }`}
                   >
                     {overdue
-                      ? `quá hạn ${daysBetween(d.due_on, toISODate(new Date()))} ngày`
-                      : `hạn ${dayMonthLabel(d.due_on)}`}
+                      ? tr('quá hạn {n} ngày', { n: daysBetween(d.due_on, toISODate(new Date())) })
+                      : tr('hạn {date}', { date: dayMonthLabel(d.due_on) })}
                   </span>
                 )}
               </div>

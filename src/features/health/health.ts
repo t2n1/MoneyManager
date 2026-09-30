@@ -1,6 +1,7 @@
 // Chỉ số "sức khỏe tài chính" — thuần, không phụ thuộc React, unit-test được.
 // Mọi số tiền là minor units theo BASE currency (đã quy đổi trước khi gọi).
 // Nguyên tắc chung: thiếu dữ liệu → trả null (UI hiện "—" kèm lý do), KHÔNG đoán.
+import { tr } from '../../i18n'
 
 /** Kết luận màu của một chỉ số. 'unknown' = chưa đủ dữ liệu để chấm. */
 export type Verdict = 'good' | 'warn' | 'bad' | 'unknown'
@@ -20,10 +21,10 @@ export interface Zone {
 }
 
 export const VERDICT_LABELS: Record<Verdict, string> = {
-  good: 'Tốt',
-  warn: 'Cần chú ý',
-  bad: 'Rủi ro',
-  unknown: 'Chưa đủ dữ liệu',
+  good: tr('Tốt'),
+  warn: tr('Cần chú ý'),
+  bad: tr('Rủi ro'),
+  unknown: tr('Chưa đủ dữ liệu'),
 }
 
 /**

@@ -6,6 +6,7 @@
 //
 // Module này KHÔNG tự đọc cache tỷ giá: nó nhận mốc thời gian qua tham số, nên test được
 // mà không cần localStorage, và nơi gọi (hooks/useDataFreshness.ts) tự chọn nguồn mốc.
+import { tr } from '../i18n'
 import { STALE_RATE_DAYS } from './rates'
 
 const MIN = 60_000
@@ -18,12 +19,12 @@ export { STALE_RATE_DAYS }
 
 /** "3 giờ trước" / "hôm qua" / "5 ngày trước". Mốc ở tương lai → "vừa xong". */
 export function ageLabel(ms: number): string {
-  if (ms < MIN) return 'vừa xong'
-  if (ms < HOUR) return `${Math.floor(ms / MIN)} phút trước`
-  if (ms < DAY) return `${Math.floor(ms / HOUR)} giờ trước`
+  if (ms < MIN) return tr('vừa xong')
+  if (ms < HOUR) return tr('{n} phút trước', { n: Math.floor(ms / MIN) })
+  if (ms < DAY) return tr('{n} giờ trước', { n: Math.floor(ms / HOUR) })
   const days = Math.floor(ms / DAY)
-  if (days === 1) return 'hôm qua'
-  return `${days} ngày trước`
+  if (days === 1) return tr('hôm qua')
+  return tr('{n} ngày trước', { n: days })
 }
 
 export interface FreshnessInput {
@@ -38,6 +39,8 @@ export interface FreshnessInput {
 }
 
 export interface FreshnessDetail {
+  /** Nguồn — để so sánh trong code; `label` là chữ hiển thị (đã dịch). */
+  source: 'rates' | 'prices'
   label: string
   age: string
   tone: 'ok' | 'warn'
@@ -71,7 +74,8 @@ export function freshnessSummary(input: FreshnessInput): FreshnessSummary | null
   if (input.ratesFetchedAt !== null) {
     const ms = input.nowMs - input.ratesFetchedAt
     details.push({
-      label: 'Tỷ giá',
+      source: 'rates',
+      label: tr('Tỷ giá'),
       age: ageLabel(ms),
       tone: ms > STALE_RATE_DAYS * DAY ? 'warn' : 'ok',
     })
@@ -80,8 +84,9 @@ export function freshnessSummary(input: FreshnessInput): FreshnessSummary | null
   if (input.priceSession !== null) {
     const days = daysSinceISO(input.priceSession, input.todayISO)
     details.push({
-      label: 'Giá cổ phiếu',
-      age: days === 0 ? 'hôm nay' : ageLabel(days * DAY),
+      source: 'prices',
+      label: tr('Giá cổ phiếu'),
+      age: days === 0 ? tr('hôm nay') : ageLabel(days * DAY),
       // Mã kẹt giá cũ là tín hiệu mạnh hơn tuổi của phiên: phiên có thể mới mà vài mã
       // vẫn chưa có giá, và đó mới là lúc tổng tài sản bị tính hụt.
       tone: input.staleSymbolCount > 0 ? 'warn' : 'ok',

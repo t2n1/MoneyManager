@@ -12,6 +12,7 @@
 // cả hai cách đánh mã. Nhưng ĐỪNG "dọn cho nhất quán" thành `monthKeyForDate`: mã đổi là
 // mọi dòng "đã tắt" của người dùng hiện tại mất tác dụng và tin đã tắt sống lại. Có phép
 // thử với monthStartDay = 25 ghim đúng chuyện này ở cardRules.test.ts.
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -34,8 +35,8 @@ export function cardRules(input: NotificationInput): AppNotification[] {
       kind: 'info',
       type: 'card-statement-day',
       severity: 'low',
-      title: `Hôm nay ${a.name} chốt sao kê`,
-      detail: 'Mua từ mai sẽ trả vào kỳ tháng sau.',
+      title: tr('Hôm nay {name} chốt sao kê', { name: a.name }),
+      detail: tr('Mua từ mai sẽ trả vào kỳ tháng sau.'),
       onISO: input.todayISO,
       to: `/assets/account/${a.id}`,
     })

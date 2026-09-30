@@ -9,6 +9,8 @@
 // hàng khi thêm một ô nữa làm ô méo hơn. Cắt lát tuần tự thì rẻ hơn nhưng 16 khoản bằng
 // nhau trong khung 600×300 ra 16 sợi tỉ lệ 8:1 — có test giữ đúng chỗ này.
 
+import { tr } from '../../i18n'
+
 export interface Rect {
   x: number
   y: number
@@ -27,7 +29,7 @@ export interface TreemapTile extends Rect, TreemapLeaf {}
 
 /** Nhóm cha gộp lại khi nó quá nhỏ để vẽ ra hình — xem `collapseSmallGroups`. */
 export const SMALL_GROUP_ID = '__nhom-nho__'
-export const SMALL_GROUP_LABEL = 'Nhóm nhỏ khác'
+export const SMALL_GROUP_LABEL = tr('Nhóm nhỏ khác')
 
 const EPS = 1e-9
 

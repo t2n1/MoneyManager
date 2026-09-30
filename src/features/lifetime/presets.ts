@@ -24,6 +24,7 @@
 import type { NewLifeEvent, NewLifePhase } from '../../data/repo'
 import type { CurrencyCode } from '../../lib/currencies'
 import type { TagColorKey } from '../tags/colors'
+import { tr } from '../../i18n'
 
 export interface PresetContext {
   scenarioId: string
@@ -143,7 +144,7 @@ function ev(ctx: PresetContext, over: Partial<NewLifeEvent> & Pick<NewLifeEvent,
     kind: 'expense',
     amount_minor: 0,
     currency,
-    note: 'Số mặc định, kiểm tra lại',
+    note: tr('Số mặc định, kiểm tra lại'),
     // Mẫu chỉ điền giá trị khởi đầu — sự kiện vẫn giữ tỷ giá RIÊNG của nó (migration
     // 0032). Tính theo tiền của CHÍNH sự kiện (biến `currency` ở trên), không phải
     // ctx.currency, nên đúng cả khi mẫu ép cứng currency sang JPY/VND — xem fxForEvent().
@@ -316,9 +317,9 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'cuoi',
     group: 'event',
-    label: 'Cưới',
-    hint: 'Tạo một chặng đời mới (thu chi nền đổi) và một khoản chi cho đám cưới.',
-    yearLabel: 'Năm cưới',
+    label: tr('Cưới'),
+    hint: tr('Tạo một chặng đời mới (thu chi nền đổi) và một khoản chi cho đám cưới.'),
+    yearLabel: tr('Năm cưới'),
     color: 'pink',
     icon: 'cuoi-hoi',
     build: (ctx) => ({
@@ -326,7 +327,7 @@ const RAW_PRESETS: LifePreset[] = [
         {
           scenario_id: ctx.scenarioId,
           start_year: ctx.year,
-          label: 'Cưới',
+          label: tr('Cưới'),
           country: ctx.country,
           currency: ctx.currency,
           // Hộ hai người: thu tăng vì có thu nhập thứ hai, chi tăng nhưng không gấp đôi.
@@ -337,7 +338,7 @@ const RAW_PRESETS: LifePreset[] = [
       ],
       events: [
         ev(ctx, {
-          label: 'Chi phí cưới',
+          label: tr('Chi phí cưới'),
           amount_minor: WEDDING_COST_JPY,
           // Ép cứng JPY vì độ lớn của WEDDING_COST_JPY viết theo yên (QUY ƯỚC ĐƠN VỊ ở
           // đầu file). Không rơi về ctx.currency: một chặng VND sẽ biến ¥3.000.000 thành
@@ -354,16 +355,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'sinh-con',
     group: 'event',
-    label: 'Sinh con',
-    hint: 'Tạo chùm sự kiện theo mốc tuổi con: trợ cấp, chi phí nuôi từng bậc, đại học.',
-    yearLabel: 'Năm sinh của con',
+    label: tr('Sinh con'),
+    hint: tr('Tạo chùm sự kiện theo mốc tuổi con: trợ cấp, chi phí nuôi từng bậc, đại học.'),
+    yearLabel: tr('Năm sinh của con'),
     color: 'green',
     icon: 'sinh-con',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Trợ cấp trẻ em (児童手当)',
+          label: tr('Trợ cấp trẻ em (児童手当)'),
           kind: 'income',
           end_year: ctx.year + JIDO_TEATE_END_AGE,
           amount_minor: JIDO_TEATE_ANNUAL_JPY,
@@ -378,20 +379,20 @@ const RAW_PRESETS: LifePreset[] = [
         // của Nhật (xem CHILD_COST_* ở trên và QUY ƯỚC ĐƠN VỊ ở đầu file). Rơi về
         // ctx.currency thì một chặng VND biến ¥600.000/năm thành ₫600.000/năm (~24 đô).
         ev(ctx, {
-          label: 'Nuôi con 0–6 tuổi',
+          label: tr('Nuôi con 0–6 tuổi'),
           end_year: ctx.year + 6,
           amount_minor: CHILD_COST_0_6_JPY,
           currency: 'JPY',
         }),
         ev(ctx, {
-          label: 'Nuôi con 7–15 tuổi',
+          label: tr('Nuôi con 7–15 tuổi'),
           start_year: ctx.year + 7,
           end_year: ctx.year + 15,
           amount_minor: CHILD_COST_7_15_JPY,
           currency: 'JPY',
         }),
         ev(ctx, {
-          label: 'Nuôi con 16–17 tuổi',
+          label: tr('Nuôi con 16–17 tuổi'),
           start_year: ctx.year + 16,
           // Kết thúc ở +17 (KHÔNG phải +18) — năm con 18 tuổi đã tính vào "Con vào đại
           // học" ngay dưới. Xem ghi chú tại CHILD_COST_16_17_JPY: chủ ý khớp khít.
@@ -400,7 +401,7 @@ const RAW_PRESETS: LifePreset[] = [
           currency: 'JPY',
         }),
         ev(ctx, {
-          label: 'Con vào đại học',
+          label: tr('Con vào đại học'),
           start_year: ctx.year + 18,
           end_year: ctx.year + 21,
           amount_minor: CHILD_COST_UNIVERSITY_JPY,
@@ -412,16 +413,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'mua-nha',
     group: 'event',
-    label: 'Mua nhà',
-    hint: 'Nhà là tài sản LÊN giá, mua bằng vay trả góp — số hằng năm là thuế/chi phí giữ nhà. Nhớ khai ô "thay cho" bằng tiền thuê đang trả, kẻo tính hai lần phần nhà ở.',
-    yearLabel: 'Năm mua',
+    label: tr('Mua nhà'),
+    hint: tr('Nhà là tài sản LÊN giá, mua bằng vay trả góp — số hằng năm là thuế/chi phí giữ nhà. Nhớ khai ô "thay cho" bằng tiền thuê đang trả, kẻo tính hai lần phần nhà ở.'),
+    yearLabel: tr('Năm mua'),
     color: 'amber',
     icon: 'mua-nha',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Mua nhà',
+          label: tr('Mua nhà'),
           // Ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
           currency: 'JPY',
           // MỘT dòng duy nhất — cùng hình dạng với 'mua-xe' và cùng lý do. Bản trước của
@@ -449,7 +450,7 @@ const RAW_PRESETS: LifePreset[] = [
           // để người dùng thấy có việc phải làm, rồi bảng sửa có nút lấy số THẬT từ danh
           // mục điền vào (`chiTheoDanhMuc`).
           replaces_minor: 0,
-          replaces_label: 'Nhà ở',
+          replaces_label: tr('Nhà ở'),
           // Thuế/chi phí giữ nhà là giá HÔM NAY cho các năm tương lai — phồng theo lạm
           // phát. Khoản trả vay lãi cố định KHÔNG đi qua cờ này: engine tự tính và tự
           // nhân lạm phát riêng ở project.ts.
@@ -461,16 +462,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'mua-xe',
     group: 'event',
-    label: 'Mua xe',
-    hint: 'Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).',
-    yearLabel: 'Năm mua',
+    label: tr('Mua xe'),
+    hint: tr('Một mốc mua xe bằng vay trả góp — xe là tài sản MẤT giá dần, số hằng năm là chi phí giữ xe (bảo hiểm, bảo dưỡng).'),
+    yearLabel: tr('Năm mua'),
     color: 'sky',
     icon: 'xe-hoi',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Mua xe',
+          label: tr('Mua xe'),
           // Ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
           currency: 'JPY',
           // MỘT dòng duy nhất, không phải hai: tiền trả trước THẬT
@@ -519,9 +520,9 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'nghi-huu',
     group: 'living',
-    label: 'Nghỉ hưu',
-    hint: 'Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.',
-    yearLabel: 'Năm nghỉ hưu',
+    label: tr('Nghỉ hưu'),
+    hint: tr('Chặng mới với thu nền 0, kèm lương hưu chạy tới hết đời.'),
+    yearLabel: tr('Năm nghỉ hưu'),
     color: 'indigo',
     icon: 'nghi-huu',
     build: (ctx) => ({
@@ -529,7 +530,7 @@ const RAW_PRESETS: LifePreset[] = [
         {
           scenario_id: ctx.scenarioId,
           start_year: ctx.year,
-          label: 'Nghỉ hưu',
+          label: tr('Nghỉ hưu'),
           country: ctx.country,
           currency: ctx.currency,
           annual_income_minor: 0,
@@ -540,7 +541,7 @@ const RAW_PRESETS: LifePreset[] = [
       ],
       events: [
         ev(ctx, {
-          label: 'Lương hưu',
+          label: tr('Lương hưu'),
           kind: 'income',
           // Từ 65 tuổi, hoặc từ năm nghỉ nếu nghỉ SAU 65. Nghỉ sớm thì khoảng giữa hai
           // mốc là những năm thu 0, sống bằng tài sản — đúng câu hỏi mà mẫu này phải
@@ -561,14 +562,14 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'chuyen-nuoc',
     group: 'event',
-    label: 'Chuyển nước',
+    label: tr('Chuyển nước'),
     // Câu hint cũ hứa "Chặng mới với tiền và tỷ giá giả định khác" — mẫu KHÔNG làm thế:
     // `build()` dưới đây dựng chặng với đúng `ctx.currency`/`ctx.fxToDisplay` của chặng
     // hiện tại và `country: null`. Nó không biết bạn chuyển sang nước nào nên không đoán
     // được đơn vị tiền, và đoán một tỷ giá giả định cho một nước chưa rõ thì tệ hơn là
     // không đoán. Nói ra đúng việc nó làm, kèm việc người dùng phải tự làm tiếp.
-    hint: 'Chặng mới giữ nguyên thu chi nền và tiền hiện tại — tự sửa quốc gia, tiền và tỷ giá của chặng sau khi tạo. Kèm chi phí chuyển một lần.',
-    yearLabel: 'Năm chuyển',
+    hint: tr('Chặng mới giữ nguyên thu chi nền và tiền hiện tại — tự sửa quốc gia, tiền và tỷ giá của chặng sau khi tạo. Kèm chi phí chuyển một lần.'),
+    yearLabel: tr('Năm chuyển'),
     color: 'gray',
     icon: 'may-bay',
     build: (ctx) => ({
@@ -576,7 +577,7 @@ const RAW_PRESETS: LifePreset[] = [
         {
           scenario_id: ctx.scenarioId,
           start_year: ctx.year,
-          label: 'Chuyển nước',
+          label: tr('Chuyển nước'),
           country: null,
           currency: ctx.currency,
           annual_income_minor: ctx.currentIncomeMinor,
@@ -586,7 +587,7 @@ const RAW_PRESETS: LifePreset[] = [
       ],
       events: [
         ev(ctx, {
-          label: 'Chi phí chuyển nhà, thủ tục',
+          label: tr('Chi phí chuyển nhà, thủ tục'),
           amount_minor: MOVING_COST_JPY,
           // Ép cứng JPY. Bản trước CỐ Ý để rơi về ctx.currency ("dùng đúng tiền của
           // chặng"), nhưng độ lớn 2.500.000 vẫn được viết theo yên — nên với một chặng
@@ -604,16 +605,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'ho-tro-bo-me',
     group: 'event',
-    label: 'Hỗ trợ bố mẹ ở VN',
-    hint: 'Khoản gửi về hằng năm, mặc định tiền VND, có năm kết thúc.',
-    yearLabel: 'Năm bắt đầu gửi',
+    label: tr('Hỗ trợ bố mẹ ở VN'),
+    hint: tr('Khoản gửi về hằng năm, mặc định tiền VND, có năm kết thúc.'),
+    yearLabel: tr('Năm bắt đầu gửi'),
     color: 'red',
     icon: 'cham-cha-me',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Hỗ trợ bố mẹ',
+          label: tr('Hỗ trợ bố mẹ'),
           // Thời hạn 20 năm: ước lượng, chưa tra nguồn (2026-07-29) — không dựa trên số
           // liệu tuổi thọ hay nhu cầu cụ thể nào, chỉ là một mốc tạm để mẫu có năm kết
           // thúc thay vì chạy vô hạn.
@@ -631,16 +632,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'du-lich',
     group: 'event',
-    label: 'Du lịch',
-    hint: 'Một khoản chi lặp lại mỗi vài năm, không phải một lần.',
-    yearLabel: 'Năm đầu',
+    label: tr('Du lịch'),
+    hint: tr('Một khoản chi lặp lại mỗi vài năm, không phải một lần.'),
+    yearLabel: tr('Năm đầu'),
     color: 'sky',
     icon: 'du-lich',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Du lịch',
+          label: tr('Du lịch'),
           currency: 'JPY',
           amount_minor: TRAVEL_COST_JPY,
           end_year: ctx.year + 20,
@@ -658,16 +659,16 @@ const RAW_PRESETS: LifePreset[] = [
   {
     id: 'hoc-them',
     group: 'event',
-    label: 'Học thêm',
-    hint: 'Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.',
-    yearLabel: 'Năm bắt đầu',
+    label: tr('Học thêm'),
+    hint: tr('Học phí một khoá học thêm, kèm khoản thu nhập hụt đi trong lúc học.'),
+    yearLabel: tr('Năm bắt đầu'),
     color: 'amber',
     icon: 'hoc-phi',
     build: (ctx) => ({
       phases: [],
       events: [
         ev(ctx, {
-          label: 'Học phí học thêm',
+          label: tr('Học phí học thêm'),
           currency: 'JPY',
           amount_minor: FURTHER_STUDY_TUITION_ANNUAL_JPY,
           end_year: ctx.year + (FURTHER_STUDY_YEARS - 1),
@@ -676,7 +677,7 @@ const RAW_PRESETS: LifePreset[] = [
           inflate: true,
         }),
         ev(ctx, {
-          label: 'Giảm thu nhập khi đi học',
+          label: tr('Giảm thu nhập khi đi học'),
           // CHỌN 'expense', KHÔNG PHẢI 'income' mang số âm: migration 0031 ép
           // `check (amount_minor >= 0)` ngay trên cột này (xem src/data/repo.ts,
           // NewLifeEvent.amount_minor), nên "thu nhập âm" không gõ được vào DB — kind:

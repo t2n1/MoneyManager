@@ -17,6 +17,7 @@ import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { topBarTitle, usesMonth } from './navItems'
 import { useOpenEntryOverlay } from '../lib/entryOverlay'
+import { tr } from '../i18n'
 
 /** Nút ‹ › của bộ đổi tháng — hai đầu của MỘT viên pill liền khối (redesign 2), ngăn
  *  với nhãn tháng bằng kẻ dọc thay vì đứng rời. 32px, chỉ dùng bằng chuột. */
@@ -65,7 +66,7 @@ export function AppTopBar() {
           <button
             type="button"
             onClick={() => stepMonth(-1)}
-            aria-label="Tháng trước"
+            aria-label={tr('Tháng trước')}
             className={`${STEP_BTN} border-r border-border-subtle`}
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
@@ -78,7 +79,7 @@ export function AppTopBar() {
           <button
             type="button"
             onClick={() => stepMonth(1)}
-            aria-label="Tháng sau"
+            aria-label={tr('Tháng sau')}
             className={`${STEP_BTN} border-l border-border-subtle`}
           >
             <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
@@ -99,8 +100,8 @@ export function AppTopBar() {
           ref={searchRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Tìm giao dịch"
-          aria-label="Tìm giao dịch"
+          placeholder={tr('Tìm giao dịch')}
+          aria-label={tr('Tìm giao dịch')}
           className="min-w-0 flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-muted"
         />
         {/* Nhắc phím tắt, không phải nút. aria-hidden vì trình đọc màn hình đọc "⌘K"
@@ -138,7 +139,7 @@ export function AppTopBar() {
           className="ml-1 flex h-8 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-bold text-fg-on-accent transition active:scale-95"
         >
           <Plus className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.2} />
-          Giao dịch
+          {tr('Giao dịch')}
         </button>
       </div>
     </header>

@@ -11,7 +11,7 @@
 import { standardMonthlyFromPension } from '../tax/shakaiHoken'
 
 /** Danh mục mà `nhap.ts` gán cho CẢ 厚生年金保険 và 厚生年金基金. */
-export const PENSION_CATEGORY = 'Hưu trí (年金)'
+export const PENSION_CATEGORY = 'Hưu trí (年金)' // i18n-ignore — tên danh mục khớp dữ liệu trong DB
 
 export interface PensionTx {
   /** Khoá tháng do tầng gọi tính bằng `monthKeyForDate(occurred_on, monthStartDay)`. */

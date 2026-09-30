@@ -31,6 +31,7 @@ import { bucketForNeed, type BudgetMethod } from './budgetMethods'
 import type { BudgetDisplayItem } from './budgetDisplay'
 import type { CoverageGap } from './commitments'
 import type { Suggestion } from './suggest'
+import { tr, trx } from '../../i18n'
 
 export type PlanBlockKey = AxisKey | 'unclassified' | 'markers'
 
@@ -152,9 +153,9 @@ export function planGroups({
   const order: PlanBlockKey[] = [...expenseBuckets.map((b) => b.key), 'unclassified', 'markers']
   const labelOf = (key: PlanBlockKey): string =>
     key === 'unclassified'
-      ? 'Chưa phân loại'
+      ? trx('class', 'Chưa phân loại')
       : key === 'markers'
-        ? 'Mốc con'
+        ? tr('Mốc con')
         : expenseBuckets.find((b) => b.key === key)!.label
   // MỘT phép tra dùng chung với axisSlices — tiểu tổng khối khớp dòng trục từng đồng.
   const blockKeyOf = (cat: CategoryRow): PlanBlockKey =>

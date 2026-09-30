@@ -26,6 +26,8 @@ import { KE_CA_HOM_NAY, dayMonthLabel, dueDateLabel } from '../../lib/dates'
 import type { ToiNgayLuong } from './bulletin'
 import { budgetBarRatio } from '../budgets/progress'
 import type { CurrencyCode } from '../../lib/money'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   data: ToiNgayLuong
@@ -99,15 +101,16 @@ export function HomNayPanel({
   // ngày. Để mặc định 1 thì mốc trùng đúng đầu tháng lịch — app không biết gì về lương của
   // họ, nên gọi mốc đó là "ngày lương" là hứa một thứ chưa biết. §14 "chưa biết ≠ 0" đọc cả
   // cho câu chữ, không riêng con số.
-  const moc = monthStartDay === 1 ? 'cuối tháng' : 'ngày lương'
+  const moc = monthStartDay === 1 ? tr('cuối tháng') : tr('ngày lương')
+  const days = <span className="font-semibold text-fg-primary">{tr('{n} ngày', { n: soNgay })}</span>
 
   // Dòng eyebrow: mốc thời gian của khối, cùng khuôn nhãn 11px hoa của các ô KPI.
   // Kỳ trùng tháng lịch (monthStartDay = 1) thì không bắt người đọc học chữ "kỳ".
   const eyebrow = (
     <p className="text-2xs uppercase tracking-label text-fg-muted">
-      Hôm nay · {dueDateLabel(todayISO)}
+      {tr('Hôm nay · {date}', { date: dueDateLabel(todayISO) })}
       {monthStartDay !== 1 && (
-        <> · kỳ {dayMonthLabel(kyBatDauISO)} → {dayMonthLabel(ngayLuongISO)}</>
+        <> · {tr('kỳ {from} → {to}', { from: dayMonthLabel(kyBatDauISO), to: dayMonthLabel(ngayLuongISO) })}</>
       )}
     </p>
   )
@@ -123,7 +126,7 @@ export function HomNayPanel({
   const spentBar = conLai < 0 ? 'bg-money-out' : hutTruocLuong ? 'bg-fg-warn' : 'bg-money-in'
   const bars = !chuaDatHanMuc && (
     <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 font-mono text-2xs text-fg-muted">
-      <span>Thời gian</span>
+      <span>{tr('Thời gian')}</span>
       <span
         data-limit-track
         className="relative h-1.5 overflow-hidden rounded-full bg-surface-sunken"
@@ -138,9 +141,9 @@ export function HomNayPanel({
       {/* "ngày 23/30" = hôm nay là ngày thứ 23 — KHÔNG "23 ngày đã qua": theo quy ước
           chung thì đã qua 22 ngày và còn 8 ngày kể cả hôm nay (lib/dates periodDays). */}
       <Num tone="neutral">
-        ngày {ngayDaQua}/{tongNgay}
+        {tr('ngày {n}/{total}', { n: ngayDaQua, total: tongNgay })}
       </Num>
-      <span>Hạn mức</span>
+      <span>{tr('Hạn mức')}</span>
       <LimitBar ratio={spentRatio} size="sm" fillClassName={spentBar} warn={hutTruocLuong && conLai >= 0}>
         {/* Vạch mốc thời gian — nhô ra hai đầu 2px để không lẫn vào thanh màu. E-ink:
             vạch mực 2px nhô 5px (handoff LimitBar `marker`). */}
@@ -163,7 +166,7 @@ export function HomNayPanel({
         {eyebrow}
         {headlinePending ? (
           <p className="text-sm text-fg-muted">
-            {headlineFailed ? 'Chưa tính được kết luận tháng.' : 'Đang tính kết luận tháng…'}
+            {headlineFailed ? tr('Chưa tính được kết luận tháng.') : tr('Đang tính kết luận tháng…')}
           </p>
         ) : (
           headline && (
@@ -179,14 +182,13 @@ export function HomNayPanel({
         // nói thẳng là chưa biết, và đưa đúng MỘT lối ra. Số ngày vẫn giữ: đó là phần
         // duy nhất biết chắc mà không cần hạn mức nào.
         <p className="mt-2.5 text-sm text-fg-secondary">
-          Còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY} tới{' '}
-          {moc} —{' '}
+          {trn('Còn {days} {incl} tới {moc} —', { days, incl: KE_CA_HOM_NAY, moc })}{' '}
           {/* E-ink + Gọn: bỏ vế giải thích, link ngay sau đã nói việc cần làm. */}
           <span className="eink-gon:hidden">
-            chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu được bao nhiêu.
+            {tr('chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu được bao nhiêu.')}
           </span>{' '}
           <Link to="/budget" className="font-medium text-fg-accent hover:underline">
-            Đặt hạn mức
+            {tr('Đặt hạn mức')}
           </Link>
         </p>
       ) : conLai < 0 ? (
@@ -198,9 +200,7 @@ export function HomNayPanel({
             <Money amount={Math.abs(conLai)} currency={base} tone="out" approx={approx} />
           </p>
           <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary">
-            Đã vượt hạn mức kỳ này — còn{' '}
-            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY} mới
-            tới {moc}.
+            {trn('Đã vượt hạn mức kỳ này — còn {days} {incl} mới tới {moc}.', { days, incl: KE_CA_HOM_NAY, moc })}
           </p>
           {bars}
         </>
@@ -214,19 +214,31 @@ export function HomNayPanel({
               // Trần ¥0 chưa chi (chi rồi thì đã rơi vào nhánh "vượt" ở trên). "Hạn mức còn
               // ¥0" đọc như vừa tiêu hết — sai: chưa tiêu gì, đúng như đã hứa.
               <>
-                Trần kỳ này là {so(0)} và chưa chi đồng nào — còn{' '}
-                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}{' '}
-                tới {moc}.
+                {trn('Trần kỳ này là {amount} và chưa chi đồng nào — còn {days} {incl} tới {moc}.', {
+                  amount: so(0),
+                  days,
+                  incl: KE_CA_HOM_NAY,
+                  moc,
+                })}
               </>
             ) : camKet > 0 ? (
               <>
-                Hạn mức còn {so(conLai)} tới {moc} nhưng {so(camKet, 'warn')} đã cam kết — còn{' '}
-                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}.
+                {trn('Hạn mức còn {amount} tới {moc} nhưng {committed} đã cam kết — còn {days} {incl}.', {
+                  amount: so(conLai),
+                  moc,
+                  committed: so(camKet, 'warn'),
+                  days,
+                  incl: KE_CA_HOM_NAY,
+                })}
               </>
             ) : (
               <>
-                Hạn mức còn {so(conLai)} tới {moc} — còn{' '}
-                <span className="font-semibold text-fg-primary">{soNgay} ngày</span> {KE_CA_HOM_NAY}.
+                {trn('Hạn mức còn {amount} tới {moc} — còn {days} {incl}.', {
+                  amount: so(conLai),
+                  moc,
+                  days,
+                  incl: KE_CA_HOM_NAY,
+                })}
               </>
             )}
           </p>
@@ -243,41 +255,40 @@ export function HomNayPanel({
               tone={hutTruocLuong ? 'warn' : 'good'}
               approx={approx}
             />
-            <span className="font-sans text-sm font-medium text-fg-muted"> / ngày</span>
+            <span className="font-sans text-sm font-medium text-fg-muted"> {tr('/ ngày')}</span>
           </p>
           {/* E-ink + Gọn: câu dài dưới số lớn rút về hai con số của nó (số thay cho câu). */}
           <p className="mt-2 hidden font-mono text-xs text-fg-secondary eink-gon:block">
-            còn <span className="font-semibold text-fg-primary">{soNgay} ngày</span> · nhịp{' '}
-            {so(nhipHienTai)}/ngày
+            {trn('còn {days} · nhịp {pace}/ngày', { days, pace: so(nhipHienTai) })}
             {hutTruocLuong && canTruocLuong !== null && (
               <span className="font-semibold text-fg-warn">
                 {' '}
-                · cạn {canTruocLuong} ngày trước {moc}
+                {tr('· cạn {n} ngày trước {moc}', { n: canTruocLuong, moc })}
               </span>
             )}
           </p>
           <p className="mt-2 max-w-[32.5rem] text-sm text-fg-secondary eink-gon:hidden">
-            Mức tiêu mỗi ngày cho{' '}
-            <span className="font-semibold text-fg-primary">{soNgay} ngày</span> còn lại{' '}
-            {KE_CA_HOM_NAY} tới {moc}
+            {trn('Mức tiêu mỗi ngày cho {days} còn lại {incl} tới {moc}', { days, incl: KE_CA_HOM_NAY, moc })}
             {/* Bằng chứng cho phép chia: không có vế này thì người đọc lấy hạn mức còn
                 chia số ngày ra một con số KHÁC và tưởng app tính sai. Cùng câu chữ với
                 trang Ngân sách ("đã trừ … cam kết chưa ra"). */}
-            {camKet > 0 && <> (đã trừ {so(camKet)} cam kết chưa ra)</>}.{' '}
+            {camKet > 0 && <> {trn('(đã trừ {amount} cam kết chưa ra)', { amount: so(camKet) })}</>}.{' '}
             {/* Nhịp hiện tại luôn có mặt: nó là mẫu số của cả hai kết luận bên cạnh, và
                 bản vẽ đặt nó ở đây để người đọc TỰ so với mức chia đều ngay trên. */}
-            Nhịp hiện tại {so(nhipHienTai)}/ngày
+            {trn('Nhịp hiện tại {pace}/ngày', { pace: so(nhipHienTai) })}
             {hutTruocLuong && canTruocLuong !== null ? (
               <>
                 {' '}
-                — giữ nhịp này thì hạn mức cạn{' '}
-                <span className="font-semibold text-fg-warn">
-                  {canTruocLuong} ngày trước {moc}
-                </span>
-                .
+                {trn('— giữ nhịp này thì hạn mức cạn {when}.', {
+                  when: (
+                    <span className="font-semibold text-fg-warn">
+                      {tr('{n} ngày trước {moc}', { n: canTruocLuong, moc })}
+                    </span>
+                  ),
+                })}
               </>
             ) : (
-              <> — đang trong nhịp.</>
+              <> {tr('— đang trong nhịp.')}</>
             )}
           </p>
           {bars}

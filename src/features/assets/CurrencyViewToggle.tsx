@@ -13,6 +13,7 @@
 // cache hôm nay lên đó là quy đổi hai lần và cãi nhau với giả định của kịch bản.
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
+import { tr } from '../../i18n'
 
 interface Props {
   base: CurrencyCode
@@ -33,7 +34,7 @@ export function CurrencyViewToggle({ base, rates, value, onChange }: Props) {
   return (
     <div
       role="group"
-      aria-label="Xem thử bằng tiền khác"
+      aria-label={tr('Xem thử bằng tiền khác')}
       // Cùng khung với <SegmentedControl> đứng cạnh nó ở header: viền panel + ruột trong
       // suốt, ô đang chọn nổi lên bằng nền sunken. Không dùng chính SegmentedControl vì
       // nó là `role="tablist"` — ba đồng tiền không phải ba tab, và một nút ở đây có thể

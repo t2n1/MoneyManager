@@ -11,6 +11,7 @@
 // thì chúng đang chắn đường tới thứ người ta mở màn này để xem.
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle } from '../../components/ui'
+import { tr } from '../../i18n'
 import { formatMonthLabel, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import type { CategorySlice } from '../reports/aggregate'
@@ -18,7 +19,7 @@ import { categoryTint } from './categoryTint'
 import { HEAT_LEVELS, type Heatmap } from './ledgerHeat'
 
 /** Nhãn hàng thứ, CN đứng đầu — khớp `leadingBlanks` của `monthHeatmap`. */
-const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] as const
+const WEEKDAYS = [tr('CN'), tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7')]
 
 /**
  * Nền của ô theo mức chi.
@@ -71,7 +72,7 @@ export function LedgerAside({
       {/* --- Tháng trong một hình --------------------------------------------------- */}
       <Card padding="panel" as="section" className="bg-panel-gradient">
         <SectionTitle role="micro">
-          {formatMonthLabel(monthKey)} trong một hình
+          {tr('{month} trong một hình', { month: formatMonthLabel(monthKey) })}
         </SectionTitle>
 
         <div className="mt-2.5 grid grid-cols-7 gap-1.5">
@@ -91,8 +92,8 @@ export function LedgerAside({
               // mà người không phân biệt được sắc đỏ vẫn phải đọc được ngày nào nặng.
               title={
                 c.future
-                  ? `${c.iso} · chưa tới`
-                  : `${c.iso} · chi ${c.expense.toLocaleString('en-US')}`
+                  ? tr('{date} · chưa tới', { date: c.iso })
+                  : tr('{date} · chi {amount}', { date: c.iso, amount: c.expense.toLocaleString('en-US') })
               }
               className={`flex h-7 items-center justify-center rounded-lg font-mono text-2xs text-fg-primary ${
                 c.future
@@ -109,17 +110,17 @@ export function LedgerAside({
 
         <div className="mt-2.5 flex items-center gap-3 border-t border-border-subtle pt-2.5 text-2xs text-fg-muted">
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded bg-money-out/35" aria-hidden /> chi
+            <span className="h-2.5 w-2.5 rounded bg-money-out/35" aria-hidden /> {tr('chi')}
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded bg-money-in/25" aria-hidden /> thu &gt; chi
+            <span className="h-2.5 w-2.5 rounded bg-money-in/25" aria-hidden /> {tr('thu > chi')}
           </span>
           <span className="flex items-center gap-1">
             <span
               className="h-2.5 w-2.5 rounded border border-dashed border-border-panel"
               aria-hidden
             />{' '}
-            chưa tới
+            {tr('chưa tới')}
           </span>
         </div>
       </Card>
@@ -131,7 +132,7 @@ export function LedgerAside({
       {topCategories.length > 0 && (
         <Card padding="panel" as="section" className="bg-panel-gradient">
           <SectionTitle role="micro">
-            Top danh mục {formatMonthLabel(monthKey).toLowerCase()}
+            {tr('Top danh mục {month}', { month: formatMonthLabel(monthKey).toLowerCase() })}
           </SectionTitle>
           <ul className="mt-2.5 flex flex-col gap-3">
             {topCategories.map((s) => {
@@ -167,7 +168,7 @@ export function LedgerAside({
                   <div
                     className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
                     role="img"
-                    aria-label={`${pct}% tổng chi`}
+                    aria-label={tr('{pct}% tổng chi', { pct })}
                   >
                     <div
                       className={`h-full rounded-full ${categoryTint(s.categoryId).bar}`}
@@ -182,7 +183,7 @@ export function LedgerAside({
             to="/reports?view=month"
             className="mt-3 inline-block text-2xs font-semibold text-fg-accent hover:underline"
           >
-            Xem cơ cấu đầy đủ →
+            {tr('Xem cơ cấu đầy đủ →')}
           </Link>
         </Card>
       )}

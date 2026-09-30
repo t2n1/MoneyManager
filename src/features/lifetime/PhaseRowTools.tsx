@@ -24,6 +24,7 @@
 import { ActionButton } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { EVENT_WORDS, PHASE_WORDS } from './planWords'
+import { tr } from '../../i18n'
 
 export function PhaseRowTools({
   onAddPhase,
@@ -43,9 +44,8 @@ export function PhaseRowTools({
           mặc định của app là chế độ Gọn, và câu "bấm gì để bắt đầu" không được biến mất. */}
       {eventCount === 0 && (
         <p className="basis-full rounded-md border border-dashed border-border-strong px-3 py-2 text-sm text-fg-secondary">
-          <span className="font-medium text-fg-primary">Kế hoạch chưa có mốc nào.</span>{' '}
-          Bấm một năm trên đồ thị, hoặc bấm “+ Thêm từ mẫu” bên dưới để thêm cưới, sinh
-          con, mua nhà, nghỉ hưu…
+          <span className="font-medium text-fg-primary">{tr('Kế hoạch chưa có mốc nào.')}</span>{' '}
+          {tr('Bấm một năm trên đồ thị, hoặc bấm “+ Thêm từ mẫu” bên dưới để thêm cưới, sinh con, mua nhà, nghỉ hưu…')}
         </p>
       )}
       <span className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
@@ -53,7 +53,7 @@ export function PhaseRowTools({
       </span>
 
       <ActionButton onClick={onAddPhase} title={`${PHASE_WORDS.question} — ${PHASE_WORDS.hint}`}>
-        + Chặng
+        {tr('+ Chặng')}
       </ActionButton>
 
       {/* Một tiêu đề gộp CẢ HAI câu hỏi: cái người dùng cần biết trước khi bấm là "cửa này
@@ -61,9 +61,12 @@ export function PhaseRowTools({
       <ActionButton
         variant="outline"
         onClick={onOpenPresetBoard}
-        title={`Mẫu có sẵn cho cả hai loại — "${PHASE_WORDS.question}" và "${EVENT_WORDS.question}"`}
+        title={tr('Mẫu có sẵn cho cả hai loại — "{phase}" và "{event}"', {
+          phase: PHASE_WORDS.question,
+          event: EVENT_WORDS.question,
+        })}
       >
-        + Thêm từ mẫu
+        {tr('+ Thêm từ mẫu')}
       </ActionButton>
 
       {/* Câu này là thứ duy nhất trên màn nói ra luật xương sống của cả mô hình: chặng
@@ -72,9 +75,7 @@ export function PhaseRowTools({
           NGẮN của cùng cặp câu này thì luôn hiện, ở chú giải đồ thị và ở tiêu đề hai nhóm
           trong cửa mẫu (`planWords.ts`). */}
       <Guide className="basis-full">
-        Chặng đặt thu/chi NỀN của một quãng đời và nối tiếp nhau kín trục. Mốc chỉ cộng
-        thêm dòng tiền, không bao giờ sửa nền — thu nhập hay mức sống đổi lâu dài thì tạo
-        chặng mới.
+        {tr('Chặng đặt thu/chi NỀN của một quãng đời và nối tiếp nhau kín trục. Mốc chỉ cộng thêm dòng tiền, không bao giờ sửa nền — thu nhập hay mức sống đổi lâu dài thì tạo chặng mới.')}
       </Guide>
     </div>
   )

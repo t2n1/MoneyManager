@@ -10,6 +10,7 @@
 // mép đầu (không biết nó dài từ trước không), nên mép phải nằm NGOÀI vùng dữ liệu thật.
 import { addDaysISO } from '../../../lib/dates'
 import { doKhoangVang, nhanNgayVang } from '../../reports/ngayDiVang'
+import { tr } from '../../../i18n'
 import { RECENT_TXS_DAYS, type AppNotification, type NotificationInput } from '../types'
 
 export function tripRules(input: NotificationInput): AppNotification[] {
@@ -28,8 +29,12 @@ export function tripRules(input: NotificationInput): AppNotification[] {
     kind: 'action' as const,
     type: 'trip-gap' as const,
     severity: 'low' as const,
-    title: `${g.soNgay} ngày không có giao dịch nào (${nhanNgayVang(g.startISO)} → ${nhanNgayVang(g.endISO)}) — đi vắng?`,
-    detail: 'Đánh dấu là chuyến đi thì các phép so sánh bỏ những ngày này ra.',
+    title: tr('{n} ngày không có giao dịch nào ({from} → {to}) — đi vắng?', {
+      n: g.soNgay,
+      from: nhanNgayVang(g.startISO),
+      to: nhanNgayVang(g.endISO),
+    }),
+    detail: tr('Đánh dấu là chuyến đi thì các phép so sánh bỏ những ngày này ra.'),
     onISO: g.startISO,
     to: '/reports?view=long',
   }))

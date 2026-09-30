@@ -13,6 +13,8 @@ import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 import { jobLossRunway, scaleExpenses, type Verdict } from './health'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 /**
  * Ba vùng của dải điểm — cùng hai mốc 40/70 với `verdictFromScore`, nên "70" trên dải và
@@ -54,7 +56,13 @@ export function ScoreBand({
           <span className="pb-1 text-sm text-fg-muted">/100</span>
         </div>
         <StatusChip tone={verdict === 'unknown' ? 'info' : verdict}>
-          {verdict === 'good' ? 'Tốt' : verdict === 'warn' ? 'Cần chú ý' : verdict === 'bad' ? 'Rủi ro' : 'Chưa đủ'}
+          {verdict === 'good'
+            ? tr('Tốt')
+            : verdict === 'warn'
+              ? tr('Cần chú ý')
+              : verdict === 'bad'
+                ? tr('Rủi ro')
+                : tr('Chưa đủ')}
         </StatusChip>
       </div>
 
@@ -75,23 +83,33 @@ export function ScoreBand({
         />
       </div>
       <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-muted">
-        <span>0 · Rủi ro</span>
+        <span>0 · {tr('Rủi ro')}</span>
         <span>40</span>
         <span>70</span>
-        <span>100 · Tốt</span>
+        <span>100 · {tr('Tốt')}</span>
       </div>
 
       <p className="mt-2.5 text-sm text-fg-secondary">
-        Chấm được <b>{counted}/{total}</b> chỉ số.
+        {trn('Chấm được {n} chỉ số.', {
+          n: (
+            <b>
+              {counted}/{total}
+            </b>
+          ),
+        })}
         {trend !== null && (
           <>
             {' '}
-            {trend.monthsAgo} tháng qua{' '}
-            <b className={score >= trend.then ? 'text-money-in' : 'text-money-out'}>
-              {score >= trend.then ? '+' : '−'}
-              {Math.abs(score - trend.then)} điểm
-            </b>{' '}
-            (từ {trend.then}).
+            {trn('{n} tháng qua {delta} (từ {from}).', {
+              n: trend.monthsAgo,
+              delta: (
+                <b className={score >= trend.then ? 'text-money-in' : 'text-money-out'}>
+                  {score >= trend.then ? '+' : '−'}
+                  {tr('{n} điểm', { n: Math.abs(score - trend.then) })}
+                </b>
+              ),
+              from: trend.then,
+            })}
           </>
         )}
       </p>
@@ -100,9 +118,9 @@ export function ScoreBand({
           nói được. */}
       {trend === null && (
         <Guide className="mt-1.5 text-2xs text-fg-muted">
-          Chưa có xu hướng: app tính điểm mới mỗi lần mở tab và chưa lưu lịch sử điểm, nên
-          không biết được tháng này so tháng trước là lên hay xuống. Khối xu hướng ẩn thay vì
-          vẽ một thẻ rỗng.
+          {tr(
+            'Chưa có xu hướng: app tính điểm mới mỗi lần mở tab và chưa lưu lịch sử điểm, nên không biết được tháng này so tháng trước là lên hay xuống. Khối xu hướng ẩn thay vì vẽ một thẻ rỗng.',
+          )}
         </Guide>
       )}
     </Card>
@@ -136,7 +154,7 @@ export function WeakestCard({
       className="border-state-danger-border bg-state-danger-bg"
     >
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-        <SectionTitle>Chỗ yếu nhất</SectionTitle>
+        <SectionTitle>{tr('Chỗ yếu nhất')}</SectionTitle>
         <span className="text-2xs text-fg-muted">{title}</span>
       </div>
       <p className="text-sm text-fg-primary">{headline}</p>
@@ -161,8 +179,9 @@ export function WeakestCard({
       {/* E-ink + Gọn: bỏ câu diễn giải — cột Trạng thái của bảng đã nói. */}
       {onlyRisk && (
         <p className="mt-2 text-2xs text-fg-secondary eink-gon:hidden">
-          Đây là chỉ số <b>duy nhất</b> đang ở mức rủi ro — năm chỉ số còn lại đều từ “cần chú
-          ý” trở lên.
+          {trn('Đây là chỉ số {only} đang ở mức rủi ro — năm chỉ số còn lại đều từ “cần chú ý” trở lên.', {
+            only: <b>{tr('duy nhất')}</b>,
+          })}
         </p>
       )}
     </Card>
@@ -242,20 +261,20 @@ export function JobLossPanel({
   const assets = liquidAssets + Math.round((investableAssets * sellPct) / 100)
 
   const scenarios: Scenario[] = [
-    { key: 'now', label: 'Giữ nguyên nếp chi', monthlyExpense: expense },
+    { key: 'now', label: tr('Giữ nguyên nếp chi'), monthlyExpense: expense },
     {
       key: 'rent',
-      label: 'Thêm tiền thuê tăng 10%',
+      label: tr('Thêm tiền thuê tăng 10%'),
       monthlyExpense: Math.round(expense * 1.1),
-      note: 'kịch bản hợp đồng thuê tăng',
+      note: tr('kịch bản hợp đồng thuê tăng'),
     },
     ...(oldRegimeExpense !== null
       ? [
           {
             key: 'old',
-            label: 'Nếp cũ trước khi đổi',
+            label: tr('Nếp cũ trước khi đổi'),
             monthlyExpense: Math.round(oldRegimeExpense),
-            note: 'để thấy cú đổi nếp mua được bao nhiêu thời gian',
+            note: tr('để thấy cú đổi nếp mua được bao nhiêu thời gian'),
           },
         ]
       : []),
@@ -287,9 +306,9 @@ export function JobLossPanel({
     <Card as="section" elevation="panel" padding="panel">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <SectionTitle>
-          Tài sản cạn sau bao lâu
+          {tr('Tài sản cạn sau bao lâu')}
         </SectionTitle>
-        <span className="text-2xs text-fg-muted">mô phỏng · không có thu nhập mới</span>
+        <span className="text-2xs text-fg-muted">{tr('mô phỏng · không có thu nhập mới')}</span>
       </div>
 
       <ul className="flex flex-col gap-2">
@@ -307,8 +326,8 @@ export function JobLossPanel({
                   {sc.months === null
                     ? '—'
                     : survived
-                      ? `không cạn trong ${sc.horizon} tháng`
-                      : `${sc.months} tháng`}
+                      ? tr('không cạn trong {n} tháng', { n: sc.horizon })
+                      : tr('{n} tháng', { n: sc.months })}
                 </Num>
               </span>
               <span className="h-2 overflow-hidden rounded-full bg-surface-sunken">
@@ -328,13 +347,13 @@ export function JobLossPanel({
         <span>15</span>
         <span>30</span>
         <span>45</span>
-        <span>60 tháng</span>
+        <span>{tr('{n} tháng', { n: 60 })}</span>
       </div>
 
       <div className="mt-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-            <span className="text-2xs text-fg-muted">Chi mỗi tháng</span>
+            <span className="text-2xs text-fg-muted">{tr('Chi mỗi tháng')}</span>
             <Money amount={expense} currency={base} className="text-sm" />
           </span>
           <input
@@ -354,7 +373,7 @@ export function JobLossPanel({
 
         <label className="flex flex-col gap-1">
           <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-            <span className="text-2xs text-fg-muted">Bán được bao nhiêu phần đầu tư</span>
+            <span className="text-2xs text-fg-muted">{tr('Bán được bao nhiêu phần đầu tư')}</span>
             <Num>{sellPct}%</Num>
           </span>
           <input
@@ -375,12 +394,15 @@ export function JobLossPanel({
       </div>
 
       <p className="mt-2 text-sm text-fg-secondary">
-        Đang tính trên <b>{formatMoney(assets, base)}</b> tài sản dùng được
+        {trn('Đang tính trên {amount} tài sản dùng được', { amount: <b>{formatMoney(assets, base)}</b> })}
         {investableAssets > 0 && (
           <span className="eink-gon:hidden">
             {' '}
-            (tiền lỏng {formatMoney(liquidAssets, base)} + {sellPct}% của{' '}
-            {formatMoney(investableAssets, base)} đầu tư)
+            {tr('(tiền lỏng {liquid} + {pct}% của {invest} đầu tư)', {
+              liquid: formatMoney(liquidAssets, base),
+              pct: sellPct,
+              invest: formatMoney(investableAssets, base),
+            })}
           </span>
         )}
         .
@@ -396,27 +418,31 @@ export function JobLossPanel({
         <p className="mt-1.5 rounded-md border border-state-good-border bg-state-good-bg px-2.5 py-2 text-2xs text-state-good-fg eink-gon:hidden">
           {investableAssets > 0 ? (
             <>
-              Ở <b>0%</b> đầu tư, mô phỏng chỉ còn tiền lỏng.{' '}
+              {trn('Ở {pct} đầu tư, mô phỏng chỉ còn tiền lỏng.', { pct: <b>0%</b> })}{' '}
             </>
           ) : (
-            <>Mô phỏng đang chỉ tính tiền lỏng. </>
+            <>{tr('Mô phỏng đang chỉ tính tiền lỏng.')} </>
           )}
           {expense === defaultExpense ? (
             <>
-              Dòng đầu vì thế bằng đúng <b>{runwayLabel}</b> của “Cầm cự nếu mất việc” ở bảng
-              trên.
+              {trn('Dòng đầu vì thế bằng đúng {value} của “Cầm cự nếu mất việc” ở bảng trên.', {
+                value: <b>{runwayLabel}</b>,
+              })}
             </>
           ) : (
             <>
-              Kéo “Chi mỗi tháng” về <Money amount={defaultExpense} currency={base} className="font-semibold" /> thì dòng đầu
-              bằng đúng <b>{runwayLabel}</b> của “Cầm cự nếu mất việc” ở bảng trên.
+              {trn('Kéo “Chi mỗi tháng” về {amount} thì dòng đầu bằng đúng {value} của “Cầm cự nếu mất việc” ở bảng trên.', {
+                amount: <Money amount={defaultExpense} currency={base} className="font-semibold" />,
+                value: <b>{runwayLabel}</b>,
+              })}
             </>
           )}
           {fundLabel !== null && (
             <>
               {' '}
-              Quỹ dự phòng (<b>{fundLabel}</b>) là số khác: nó chỉ chia cho chi cố định, còn ở
-              đây trừ cả tổng chi.
+              {trn('Quỹ dự phòng ({value}) là số khác: nó chỉ chia cho chi cố định, còn ở đây trừ cả tổng chi.', {
+                value: <b>{fundLabel}</b>,
+              })}
             </>
           )}
         </p>
@@ -424,15 +450,15 @@ export function JobLossPanel({
 
       {investableAssets <= 0 && (
         <p className="mt-1.5 text-2xs text-fg-muted eink-gon:hidden">
-          Chưa có tài khoản đầu tư nào nên thanh trượt thứ hai không có gì để kéo.
+          {tr('Chưa có tài khoản đầu tư nào nên thanh trượt thứ hai không có gì để kéo.')}
         </p>
       )}
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Mô phỏng đặt thu nhập về <b>0</b> và mỗi tháng trừ một mức chi bốc từ{' '}
-        {monthsCounted} tháng chi thật (dịch theo mức bạn chọn), chạy 2.000 kịch bản. KHÔNG tính lạm phát, KHÔNG tính thuế khi bán tài sản, và
-        không tính trợ cấp thất nghiệp — nên đọc nó là mốc thô để so ba nếp chi với nhau, không
-        phải một dự báo.
+        {trn(
+          'Mô phỏng đặt thu nhập về {zero} và mỗi tháng trừ một mức chi bốc từ {n} tháng chi thật (dịch theo mức bạn chọn), chạy 2.000 kịch bản. KHÔNG tính lạm phát, KHÔNG tính thuế khi bán tài sản, và không tính trợ cấp thất nghiệp — nên đọc nó là mốc thô để so ba nếp chi với nhau, không phải một dự báo.',
+          { zero: <b>0</b>, n: monthsCounted },
+        )}
       </Guide>
     </Card>
   )

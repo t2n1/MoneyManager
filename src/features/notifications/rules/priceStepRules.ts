@@ -6,6 +6,7 @@
 // Cửa sổ recentTxs (90 ngày) phải chứa đủ 2+2 lần quanh bậc → chỉ bậc MỚI (~2 tháng
 // gần nhất) mới nổ tin; bậc cũ nằm ở thẻ tab Dài hạn, không làm phiền Bản tin.
 import { doBacGia } from '../../reports/giaDoiBac'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput } from '../types'
 
 export function priceStepRules(input: NotificationInput): AppNotification[] {
@@ -16,8 +17,15 @@ export function priceStepRules(input: NotificationInput): AppNotification[] {
     kind: 'info' as const,
     type: 'price-step' as const,
     severity: 'low' as const,
-    title: `${b.nhan} đổi giá: ${formatMoney(b.giaCu, b.currency)} → ${formatMoney(b.giaMoi, b.currency)}`,
-    detail: `${b.chenhMoiNam > 0 ? 'Nặng thêm' : 'Nhẹ đi'} ${formatMoney(Math.abs(b.chenhMoiNam), b.currency)}/năm nếu giữ giá này.`,
+    title: tr('{name} đổi giá: {from} → {to}', {
+      name: b.nhan,
+      from: formatMoney(b.giaCu, b.currency),
+      to: formatMoney(b.giaMoi, b.currency),
+    }),
+    detail:
+      b.chenhMoiNam > 0
+        ? tr('Nặng thêm {amount}/năm nếu giữ giá này.', { amount: formatMoney(Math.abs(b.chenhMoiNam), b.currency) })
+        : tr('Nhẹ đi {amount}/năm nếu giữ giá này.', { amount: formatMoney(Math.abs(b.chenhMoiNam), b.currency) }),
     onISO: b.tuNgayISO,
     to: '/reports?view=long',
   }))

@@ -14,6 +14,7 @@
 // Bảng dựng sẵn cố tình CHỈ chứa quán không thể hiểu nhầm. ＴＥＭＵ, Amazon,
 // メルカリ bán đủ thứ nên không có mặt ở đây — để người dùng chọn một lần, rồi
 // nguồn (1) tự nhớ cho lần sau.
+// i18n-ignore-file — chuỗi tiếng Việt trong file này là TÊN DANH MỤC khớp với DB, không phải chữ hiển thị.
 import type { ImportItem } from './csvImport'
 
 /**

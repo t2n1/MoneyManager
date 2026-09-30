@@ -12,6 +12,7 @@
 // lệch nhau.
 import { DEFAULT_SWR_BPS, fireYear, firstNegativeYear } from './insights'
 import type { LifetimeInput, LifetimePhase, YearRow } from './project'
+import { getLang, tr } from '../../i18n'
 
 /**
  * Kết luận của một bản chiếu, dạng DỮ LIỆU — không phải câu chữ.
@@ -42,7 +43,7 @@ export interface LifetimeVerdict {
  * `DEFAULT_SWR_BPS` (quy tắc 4% → 25 lần) chứ không gõ cứng, để câu chữ luôn khớp đúng
  * ngưỡng mà `fireYear` dùng.
  */
-export const FIRE_MEANING = `tài sản đủ ${10_000 / DEFAULT_SWR_BPS} lần chi một năm`
+export const FIRE_MEANING = tr('tài sản đủ {n} lần chi một năm', { n: 10_000 / DEFAULT_SWR_BPS })
 
 /**
  * Câu kết luận TRƠN (không JSX) — dùng cho tiêu đề dải thống kê của console và bản đọc
@@ -52,12 +53,13 @@ export const FIRE_MEANING = `tài sản đủ ${10_000 / DEFAULT_SWR_BPS} lần 
  * nghĩa tới đó. Không bao giờ nói "hết đời".
  */
 export function verdictHeadline(v: LifetimeVerdict | null): string {
-  if (v === null) return 'Chưa chiếu được năm nào'
+  if (v === null) return tr('Chưa chiếu được năm nào')
   if (v.negativeYear !== null) {
-    return `Nhánh bi quan cạn tiền từ năm ${v.negativeYear} (tuổi ${v.negativeAge})`
+    return tr('Nhánh bi quan cạn tiền từ năm {year} (tuổi {age})', { year: v.negativeYear, age: v.negativeAge ?? '' })
   }
-  const fire = v.fireYear !== null ? 'và có đạt tự do tài chính' : 'nhưng chưa đạt tự do tài chính'
-  return `Theo kịch bản hiện tại, tài sản chưa cạn tới tuổi ${v.endAge} kể cả khi bi quan, ${fire}`
+  return v.fireYear !== null
+    ? tr('Theo kịch bản hiện tại, tài sản chưa cạn tới tuổi {age} kể cả khi bi quan, và có đạt tự do tài chính', { age: v.endAge })
+    : tr('Theo kịch bản hiện tại, tài sản chưa cạn tới tuổi {age} kể cả khi bi quan, nhưng chưa đạt tự do tài chính', { age: v.endAge })
 }
 
 /**
@@ -96,10 +98,10 @@ export function lifetimeVerdict(
  */
 export function verdictShort(v: LifetimeVerdict): string {
   const fire =
-    v.fireYear !== null ? `tự do tài chính ${v.fireYear}` : 'chưa đạt tự do tài chính'
+    v.fireYear !== null ? tr('tự do tài chính {year}', { year: v.fireYear }) : tr('chưa đạt tự do tài chính')
   return v.negativeYear !== null
-    ? `Cạn tiền ${v.negativeYear} · ${fire}`
-    : `Chưa cạn tới tuổi ${v.endAge} · ${fire}`
+    ? tr('Cạn tiền {year} · {fire}', { year: v.negativeYear, fire })
+    : tr('Chưa cạn tới tuổi {age} · {fire}', { age: v.endAge, fire })
 }
 
 /** Khoảng năm của một chặng: `[startYear, endYear]`. `end` null = chạy tới hết đời. */
@@ -155,7 +157,8 @@ export function phaseSavings(phase: LifetimePhase): PhaseSavings {
  *  công thức mới. Xuất ra để `PlanSummaryCard.tsx` dùng cho cả hàng "Lợi suất thực" (luôn
  *  chạy) lẫn `inflationRow` bên dưới (chỉ chạy khi `nominalTerms` bật). */
 export function pctPerYear(bps: number): string {
-  return `${(bps / 100).toFixed(1).replace('.', ',')}%/năm`
+  const pct = (bps / 100).toFixed(1)
+  return tr('{pct}%/năm', { pct: getLang() === 'en' ? pct : pct.replace('.', ',') })
 }
 
 /**
@@ -183,6 +186,6 @@ export interface InflationRow {
 }
 
 export function inflationRow(nominalTerms: boolean, inflationBps: number): InflationRow {
-  if (!nominalTerms) return { active: false, text: 'Giữ giá hôm nay' }
+  if (!nominalTerms) return { active: false, text: tr('Giữ giá hôm nay') }
   return { active: true, text: pctPerYear(inflationBps) }
 }

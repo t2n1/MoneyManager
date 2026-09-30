@@ -32,7 +32,7 @@ describe('Chi từng ngày — chỗ đứng trong Bản tin', () => {
   // lại là mất mối liên hệ đó khỏi màn hình.
   it('dải 8 tháng nằm TRONG thẻ, trên phần ngày', () => {
     const strip = at(the, '<CashflowStrip')
-    expect(strip).toBeGreaterThan(at(the, '<SectionTitle>Chi tiêu'))
+    expect(strip).toBeGreaterThan(at(the, "<SectionTitle>{tr('Chi tiêu')}"))
     expect(strip).toBeLessThan(the.indexOf('ref={plotRef}'))
   })
 
@@ -90,7 +90,7 @@ describe('Chi từng ngày — cột, không phải đường', () => {
   it('cắt trục bằng axisCeiling và NÓI RA cả hai số', () => {
     expect(the).toContain('axisCeiling')
     expect(the, 'B42.3: nhãn phải nói cả mức cắt lẫn số thật của ngày bị cắt').toMatch(
-      /cắt ở \{formatCompact\(ceiling, base\)\}/,
+      /cắt ở \{ceiling\} \(\{date\}: \{amount\}\)[\s\S]{0,40}ceiling: formatCompact\(ceiling, base\)/,
     )
     expect(the, 'B42.2: cột bị cắt có vạch chéo, không phải cột phẳng').toContain(
       'repeating-linear-gradient(135deg',

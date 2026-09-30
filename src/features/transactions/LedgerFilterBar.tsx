@@ -1,3 +1,5 @@
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 // Lọc tại chỗ + dòng cảnh báo "chưa phân loại" — hai bổ sung của 10a (§4.2 mục 2 và 3)
 // đứng cạnh nhau vì chúng là MỘT thao tác: dòng cảnh báo bấm vào là bật đúng cái chip
 // bên trên nó, rồi người dùng sửa ngay tại danh sách.
@@ -12,9 +14,9 @@ import type { LedgerFilter, UncategorizedSummary } from './ledgerView'
 import { isFilterActive } from './ledgerView'
 
 const TYPES: { value: TransactionRow['type']; label: string }[] = [
-  { value: 'expense', label: 'Chi' },
-  { value: 'income', label: 'Thu' },
-  { value: 'transfer', label: 'Chuyển khoản' },
+  { value: 'expense', label: tr('Chi') },
+  { value: 'income', label: tr('Thu') },
+  { value: 'transfer', label: tr('Chuyển khoản') },
 ]
 
 /** Chip pill 20px (§1.3). Bật = bề mặt trạng thái accent, tắt = viền control. */
@@ -74,7 +76,7 @@ export function LedgerFilterBar({
             on={value.uncategorized}
             onClick={() => onChange({ ...value, uncategorized: !value.uncategorized })}
           >
-            Chưa phân loại
+            {tr('Chưa phân loại')}
           </Chip>
         )}
         {active && (
@@ -83,14 +85,14 @@ export function LedgerFilterBar({
             onClick={() => onChange({ type: null, uncategorized: false })}
             className="ml-auto min-h-11 shrink-0 px-2 text-sm font-medium text-fg-accent"
           >
-            Bỏ lọc
+            {tr('Bỏ lọc')}
           </button>
         )}
       </div>
 
       {active && (
         <p className="px-1 font-mono text-2xs text-fg-muted" aria-live="polite">
-          {shownCount}/{totalCount} khoản
+          {tr('{shown}/{total} khoản', { shown: shownCount, total: totalCount })}
         </p>
       )}
 
@@ -105,17 +107,20 @@ export function LedgerFilterBar({
           className="flex min-h-11 items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-left text-sm text-state-warn-fg transition"
         >
           <span className="min-w-0 flex-1">
-            {uncategorized.count} khoản chưa gắn danh mục —{' '}
-            <Money
-              amount={uncategorized.amount}
-              currency={base}
-              tone="neutral"
-              approx={uncategorized.hasMissingRate}
-              className="text-state-warn-fg"
-            />{' '}
-            không vào được báo cáo hay ngân sách
+            {trn('{n} khoản chưa gắn danh mục — {amount} không vào được báo cáo hay ngân sách', {
+              n: uncategorized.count,
+              amount: (
+                <Money
+                  amount={uncategorized.amount}
+                  currency={base}
+                  tone="neutral"
+                  approx={uncategorized.hasMissingRate}
+                  className="text-state-warn-fg"
+                />
+              ),
+            })}
           </span>
-          <span className="shrink-0 text-sm font-semibold">Xem →</span>
+          <span className="shrink-0 text-sm font-semibold">{tr('Xem →')}</span>
         </button>
       )}
     </div>

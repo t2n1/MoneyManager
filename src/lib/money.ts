@@ -1,6 +1,7 @@
 // Tiền luôn lưu ở ĐƠN VỊ NHỎ NHẤT (minor units, khớp bigint trong DB):
 // JPY = yên, VND = đồng, USD = cent. Không bao giờ dùng float.
 // Nhập liệu kiểu ATM: chuỗi chữ số chính là minor units ("1050" USD → $10,50).
+import { getLang } from '../i18n'
 import { isPrivacyEnabled } from './privacy'
 import { getCompactStyle } from './compactStyle'
 import { CURRENCIES, groupThousands, type CurrencyCode } from './currencies'
@@ -179,10 +180,11 @@ function trimJa(scaled: number): string {
  */
 function formatCompactVi(major: number, abs: number): string {
   if (Math.round(abs) < 1_000) return groupInt(Math.round(major), 'JPY')
+  const en = getLang() === 'en'
   const BAC: [number, string][] = [
     [1_000, 'k'],
-    [1_000_000, 'tr'],
-    [1_000_000_000, 'tỷ'],
+    [1_000_000, en ? 'M' : 'tr'],
+    [1_000_000_000, en ? 'B' : 'tỷ'], // i18n-ignore — hậu tố số tiếng Việt; tiếng Anh dùng M/B
   ]
   for (let i = 0; i < BAC.length; i++) {
     const [don, ten] = BAC[i]
@@ -190,12 +192,13 @@ function formatCompactVi(major: number, abs: number): string {
     const laBacCuoi = i === BAC.length - 1
     if (!laBacCuoi && Math.round(scaled) >= 1_000) continue
     const sign = major < 0 ? '-' : ''
-    return `${sign}${trimVi(scaled)}${ten}`
+    return `${sign}${trimVi(scaled, en)}${ten}`
   }
   return groupInt(Math.round(major), 'JPY')
 }
 
-function trimVi(scaled: number): string {
+function trimVi(scaled: number, en = false): string {
   if (scaled >= 100) return String(Math.round(scaled))
-  return scaled.toFixed(1).replace(/.0$/, '').replace('.', ',')
+  const s = scaled.toFixed(1).replace(/.0$/, '')
+  return en ? s : s.replace('.', ',')
 }

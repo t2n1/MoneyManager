@@ -9,6 +9,8 @@ import type { Rates } from '../../lib/rates'
 import type { CategoryRow, RecurringRuleRow, TransactionRow } from '../../types/database.types'
 import type { CurrencyOf } from './aggregate'
 import { doBacGia } from './giaDoiBac'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 export function GiaDoiBacCard({
   txs,
@@ -30,7 +32,7 @@ export function GiaDoiBacCard({
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <SectionTitle>Khoản lặp đều đã đổi giá</SectionTitle>
+      <SectionTitle>{tr('Khoản lặp đều đã đổi giá')}</SectionTitle>
       <ul className="mt-2 flex flex-col divide-y divide-border-subtle">
         {items.map((b) => (
           <li key={`${b.nhan}:${b.tuNgayISO}`} className="flex flex-col gap-0.5 py-2">
@@ -57,17 +59,22 @@ export function GiaDoiBacCard({
                 trả mấy lần, nặng/nhẹ bao nhiêu mỗi năm) — mất nó là mất một nửa kết
                 luận, không phải "gọn hơn". */}
             <p className="text-2xs text-fg-muted">
-              Đổi từ {b.tuNgayISO.slice(0, 7).replace('-', '/')} · đã trả{' '}
-              <Num tone="neutral">{b.soLanGiaMoi}</Num> lần theo giá mới ·{' '}
-              {/* chenhMoiNam CÓ DẤU sẵn: đừng bật showSign (ra '--'); số dương thì
-                  thêm '+' bằng chữ — đọc JSDoc showSign của Money.tsx. */}
-              {b.chenhMoiNam > 0 && <span className="text-fg-warn">+</span>}
-              <Money
-                amount={b.chenhMoiNam}
-                currency={b.currency}
-                tone={b.chenhMoiNam > 0 ? 'warn' : 'in'}
-              />
-              /năm nếu giữ giá này
+              {trn('Đổi từ {month} · đã trả {times} lần theo giá mới · {diff}/năm nếu giữ giá này', {
+                month: b.tuNgayISO.slice(0, 7).replace('-', '/'),
+                times: <Num tone="neutral">{b.soLanGiaMoi}</Num>,
+                diff: (
+                  <>
+                    {/* chenhMoiNam CÓ DẤU sẵn: đừng bật showSign (ra '--'); số dương thì
+                        thêm '+' bằng chữ — đọc JSDoc showSign của Money.tsx. */}
+                    {b.chenhMoiNam > 0 && <span className="text-fg-warn">+</span>}
+                    <Money
+                      amount={b.chenhMoiNam}
+                      currency={b.currency}
+                      tone={b.chenhMoiNam > 0 ? 'warn' : 'in'}
+                    />
+                  </>
+                ),
+              })}
             </p>
           </li>
         ))}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { tr } from '../../i18n'
 import { useTransferCategoryIds } from '../../hooks/queries'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
@@ -93,7 +94,7 @@ export function SummaryView({
   if (noCategory > 0) {
     rows.push({
       id: '__no-category__',
-      name: 'Chưa phân loại',
+      name: tr('Chưa phân loại'),
       icon: '📦',
       amount: noCategory,
       // Xám thay vì một màu trong PALETTE: nó không phải danh mục. Dùng token chứ
@@ -112,21 +113,21 @@ export function SummaryView({
           onClick={() => setKind('expense')}
           className={`flex-1 rounded-md py-2.5 ${kind === 'expense' ? 'bg-surface text-money-out shadow-sm' : 'text-fg-muted'}`}
         >
-          Chi
+          {tr('Chi')}
         </button>
         <button
           type="button"
           onClick={() => setKind('income')}
           className={`flex-1 rounded-md py-2.5 ${kind === 'income' ? 'bg-surface text-money-in shadow-sm' : 'text-fg-muted'}`}
         >
-          Thu
+          {tr('Thu')}
         </button>
       </div>
 
       {/* Tổng */}
       <Card padding="lg" className="text-center">
         <div className="text-sm text-fg-muted">
-          Tổng {kind === 'expense' ? 'chi' : 'thu'} tháng này
+          {kind === 'expense' ? tr('Tổng chi tháng này') : tr('Tổng thu tháng này')}
         </div>
         <div
           className={`mt-1 text-kpi font-mono font-medium tracking-number tabular-nums ${kind === 'expense' ? 'text-money-out' : 'text-money-in'}`}
@@ -138,22 +139,22 @@ export function SummaryView({
 
       {breakdown.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
-          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
+          {tr('Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.')}
         </div>
       )}
 
       {isLoading ? (
-        <EmptyState>Đang tải…</EmptyState>
+        <EmptyState>{tr('Đang tải…')}</EmptyState>
       ) : rows.length === 0 ? (
         <EmptyState>
-          Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
+          {kind === 'expense' ? tr('Chưa có chi tiêu trong tháng này') : tr('Chưa có thu nhập trong tháng này')}
         </EmptyState>
       ) : (
         // Có hai cách chia dưới đây (danh mục rồi nhãn) nên khối này cần tên,
         // không còn là danh sách duy nhất như trước.
         <Card as="section" padding="lg">
         <SectionTitle className="mb-3">
-          {kind === 'expense' ? 'Chi' : 'Thu'} theo danh mục
+          {kind === 'expense' ? tr('Chi theo danh mục') : tr('Thu theo danh mục')}
         </SectionTitle>
         <ul className="flex flex-col gap-3">
           {rows.map((r) => (
@@ -186,7 +187,7 @@ export function SummaryView({
         <TagBreakdownCard
           data={tagData}
           base={base}
-          periodNoun="tháng này"
+          periodNoun={tr('tháng này')}
           noTags={tags.length === 0}
           rangeFrom={rangeFrom}
           rangeTo={rangeTo}

@@ -85,6 +85,8 @@ import { LIFE_PRESETS, type LifePreset, type PresetContext, type PresetResult } 
 import { presetWeight } from './presetWeight'
 import { applySpanToResult } from './quickAddApply'
 import { applySpanToPreset, spanYears, type SpanApply, type YearSpan } from './quickAddRange'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** Khoảng năm đã chọn. Hai đầu TRÙNG nhau = một cú bấm, không phải một khoảng. */
@@ -141,19 +143,19 @@ export function QuickAddBoard({
               (chữ mono) — viết hoa cả cụm thì nó đọc ra như một mã, không phải một câu. */}
           <SectionTitle role="card" as="h3" className="min-w-0 flex-1">
             {years <= 1 ? (
-              <>
-                Thêm vào năm <Num>{span.startYear}</Num> · tuổi{' '}
-                <Num>{span.startYear - birthYear}</Num>
-              </>
+              trn('Thêm vào năm {year} · tuổi {age}', {
+                year: <Num>{span.startYear}</Num>,
+                age: <Num>{span.startYear - birthYear}</Num>,
+              })
             ) : (
-              <>
-                Thêm cho <Num>{`${span.startYear}–${span.endYear}`}</Num> ·{' '}
-                <Num>{years}</Num> năm · tuổi{' '}
-                <Num>{`${span.startYear - birthYear}–${span.endYear - birthYear}`}</Num>
-              </>
+              trn('Thêm cho {range} · {years} năm · tuổi {ages}', {
+                range: <Num>{`${span.startYear}–${span.endYear}`}</Num>,
+                years: <Num>{years}</Num>,
+                ages: <Num>{`${span.startYear - birthYear}–${span.endYear - birthYear}`}</Num>,
+              })
             )}
           </SectionTitle>
-          <IconButton variant="ghost" aria-label="Đóng bảng chọn nhanh" title="Đóng (Esc)" onClick={onClose}>
+          <IconButton variant="ghost" aria-label={tr('Đóng bảng chọn nhanh')} title={tr('Đóng (Esc)')} onClick={onClose}>
             <X className="h-4 w-4" aria-hidden="true" />
           </IconButton>
         </div>
@@ -170,14 +172,13 @@ export function QuickAddBoard({
             ghi gì — là chữ DẠY thật, bọc `<Guide>`, biến mất ở chế độ Gọn (mặc định của
             app) đúng như mọi đoạn dạy khác. KHÔNG nâng PROSE_MAX. */}
         <p className="mt-1 text-2xs leading-relaxed text-fg-muted">
-          Chọn một mẫu để thêm vào bản nháp.
+          {tr('Chọn một mẫu để thêm vào bản nháp.')}
         </p>
         <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
           {years <= 1
-            ? 'Số mặc định, kiểm lại rồi kéo trên đồ thị. Chưa có gì được ghi cho tới khi bấm Lưu.'
-            : 'Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.'}{' '}
-          Mẫu mức sống chỉ nhận năm BẮT ĐẦU: một chặng chạy tới khi chặng kế tiếp bắt đầu,
-          nên nó không có "năm kết thúc" để nhận.
+            ? tr('Số mặc định, kiểm lại rồi kéo trên đồ thị. Chưa có gì được ghi cho tới khi bấm Lưu.')
+            : tr('Khoảng bạn vừa kéo vào đúng chỗ của từng mẫu: "Mua nhà"/"Mua xe" nhận làm kỳ hạn vay, "Sinh con" nhận làm tuổi nuôi tới, còn lại nhận làm năm bắt đầu – năm kết thúc.')}{' '}
+          {tr('Mẫu mức sống chỉ nhận năm BẮT ĐẦU: một chặng chạy tới khi chặng kế tiếp bắt đầu, nên nó không có "năm kết thúc" để nhận.')}
         </Guide>
 
         {/* Vùng cuộn: mười bảy mẫu ở Cỡ chữ 1,25× cao hơn cả vùng vẽ. Chặn bằng
@@ -223,9 +224,9 @@ export function QuickAddBoard({
             nó: nó không phải một mẫu (lời ghi 4), và nó là đường thoát chứ không phải lựa
             chọn mặc định. */}
         <div className="mt-2">
-          <ActionButton onClick={() => onAddBlank(span)} title="Một mốc rỗng, tự khai tên và số">
+          <ActionButton onClick={() => onAddBlank(span)} title={tr('Một mốc rỗng, tự khai tên và số')}>
             <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Mốc trống
+            {tr('Mốc trống')}
           </ActionButton>
         </div>
       </Card>
@@ -275,7 +276,7 @@ function PhasePresetRow({
       <button
         type="button"
         onClick={() => onAdd(preset, year)}
-        title={`Chặng mới từ năm ${year} — thu/chi ${preset.note} mỗi năm. Số mặc định, kiểm lại.`}
+        title={tr('Chặng mới từ năm {year} — thu/chi {note} mỗi năm. Số mặc định, kiểm lại.', { year, note: preset.note })}
         className="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_8.25rem] items-center gap-2 px-2 py-1.5 text-left transition hover:bg-surface-sunken"
       >
         {/* Vòng NÉT ĐỨT, không phải một icon chủ đề: đó đúng là thứ chặng này sẽ mang trên
@@ -329,12 +330,12 @@ function PresetRow({
   const kem =
     preset.group === 'event'
       ? result.phases.length > 0
-        ? 'đổi luôn mức sống'
+        ? tr('đổi luôn mức sống')
         : null
       : result.events.length === 1
-        ? `kèm "${result.events[0].label}"`
+        ? tr('kèm "{label}"', { label: result.events[0].label })
         : result.events.length > 1
-          ? 'kèm các khoản riêng'
+          ? tr('kèm các khoản riêng')
           : null
 
   return (
@@ -376,11 +377,9 @@ function PresetRow({
         )}
         <span className="text-right text-2xs text-fg-muted">
           {so === null ? null : so.kind === 'perYear' ? (
-            '/năm'
+            tr('/năm')
           ) : so.years > 1 ? (
-            <>
-              <Num tone="muted">{so.years}</Num> năm
-            </>
+            trn('{years} năm', { years: <Num tone="muted">{so.years}</Num> })
           ) : null}
         </span>
       </button>

@@ -11,6 +11,7 @@ import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import type { CurrencyCode } from '../../lib/currencies'
 import { inflationRow, pctPerYear } from './summary'
+import { tr } from '../../i18n'
 
 export interface BiggestExpenseSummary {
   label: string
@@ -66,33 +67,33 @@ export function PlanSummaryCard({
   const inflation = inflationRow(nominalTerms, inflationBps)
   return (
     <Card as="section" padding="panel" elevation="panel">
-      <SectionTitle role="micro">Tóm tắt kế hoạch</SectionTitle>
+      <SectionTitle role="micro">{tr('Tóm tắt kế hoạch')}</SectionTitle>
 
       {/* `divide-border-subtle` — cùng token "kẻ hàng" mà BigExpenseMapSection.tsx đã
           dùng cho danh sách ngay bên dưới màn này (§8: #171d18 chưa có tên riêng, dùng
           lại token gần nhất thay vì thêm một token mới cho cùng một việc). */}
       <div className="mt-1.5 divide-y divide-border-subtle">
-        <SummaryRow label="Chặng đời">
-          <Num>{phaseCount} chặng</Num>
+        <SummaryRow label={tr('Chặng đời')}>
+          <Num>{tr('{n} chặng', { n: phaseCount })}</Num>
         </SummaryRow>
 
-        <SummaryRow label="Mốc">
-          <Num>{eventCount} mốc</Num>
+        <SummaryRow label={tr('Mốc')}>
+          <Num>{tr('{n} mốc', { n: eventCount })}</Num>
         </SummaryRow>
 
-        <SummaryRow label="Tự do tài chính">
+        <SummaryRow label={tr('Tự do tài chính')}>
           {fireYear === null ? (
             // "chưa đạt" là CHỮ, không phải số — không được qua <Num> (xem đầu file
             // Num.tsx: "Con số KHÔNG phải tiền"). Tô cảnh báo cho khớp bản vẽ (#ffc84d).
-            <span className="text-fg-warn">chưa đạt</span>
+            <span className="text-fg-warn">{tr('chưa đạt')}</span>
           ) : (
             <Num tone="in">
-              {fireYear} · {fireAge}t
+              {tr('{year} · {age}t', { year: fireYear, age: fireAge ?? '' })}
             </Num>
           )}
         </SummaryRow>
 
-        <SummaryRow label={`Lúc ${endAge} tuổi`}>
+        <SummaryRow label={tr('Lúc {age} tuổi', { age: endAge })}>
           {assetsAtEndMinor === null ? (
             <Num tone="muted">—</Num>
           ) : (
@@ -110,7 +111,7 @@ export function PlanSummaryCard({
             chuẩn bị), không phải tổng chi tiêu suốt đời. Bản đồ khoản lớn trả lời câu
             "cần để dành mỗi tháng bao nhiêu" (savings runway), không phải "cái gì tốn
             nhiều tiền nhất". Nhãn này sẽ misdescribe con số nếu ghi "Khoản lớn nhất". */}
-        <SummaryRow label="Cần dành nhiều nhất">
+        <SummaryRow label={tr('Cần dành nhiều nhất')}>
           {biggestExpense === null ? (
             <Num tone="muted">—</Num>
           ) : (
@@ -126,7 +127,7 @@ export function PlanSummaryCard({
           )}
         </SummaryRow>
 
-        <SummaryRow label="Lợi suất thực">
+        <SummaryRow label={tr('Lợi suất thực')}>
           <Num>{pctPerYear(realReturnBps)}</Num>
         </SummaryRow>
 
@@ -139,7 +140,7 @@ export function PlanSummaryCard({
             tính ở `inflationRow` (summary.ts). "Giữ giá hôm nay" là CHỮ, không phải số —
             không đi qua `<Num>` (xem đầu Num.tsx: "Con số KHÔNG phải tiền"), cùng lý do
             "chưa đạt" ở hàng Tự do tài chính phía trên cũng đứng ngoài `<Num>`. */}
-        <SummaryRow label="Lạm phát chi tiêu">
+        <SummaryRow label={tr('Lạm phát chi tiêu')}>
           {inflation.active ? (
             <Num>{inflation.text}</Num>
           ) : (
@@ -149,7 +150,7 @@ export function PlanSummaryCard({
       </div>
 
       <Guide className="mt-2 block text-2xs leading-relaxed text-fg-muted">
-        Bấm một chặng hoặc mốc để sửa · Esc đóng · ⌘Z hoàn tác
+        {tr('Bấm một chặng hoặc mốc để sửa · Esc đóng · ⌘Z hoàn tác')}
       </Guide>
     </Card>
   )

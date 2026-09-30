@@ -43,6 +43,8 @@ import { useEscClose } from '../../hooks/useEscClose'
 import type { BudgetStatus } from '../budgets/progress'
 import { tagSpendTotals, type TagBudgetLine } from './budget'
 import { useTagBudgets } from './useTagBudgets'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 import { QuickSortStrip, readQuickSortDone, writeQuickSortDone } from './QuickSortStrip'
 import {
@@ -60,8 +62,8 @@ import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
 const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
-  ['total', 'Cả đợt', 'Trần cho toàn bộ đời nhãn, không reset — hợp với nhãn theo dịp'],
-  ['monthly', 'Mỗi tháng', 'Trần cho từng tháng, hết tháng reset — hợp với nhãn lặp đều'],
+  ['total', tr('Cả đợt'), tr('Trần cho toàn bộ đời nhãn, không reset — hợp với nhãn theo dịp')],
+  ['monthly', tr('Mỗi tháng'), tr('Trần cho từng tháng, hết tháng reset — hợp với nhãn lặp đều')],
 ]
 
 // Cùng bảng màu với khối tiến độ ở tab Ngân sách (TagBudgetLines): hai chỗ nói cùng một
@@ -87,7 +89,7 @@ const GRID =
  */
 function DangTinh() {
   return (
-    <span className="text-fg-muted" aria-label="Đang tính">
+    <span className="text-fg-muted" aria-label={tr('Đang tính')}>
       …
     </span>
   )
@@ -163,7 +165,7 @@ export function TagsPage() {
     })),
     {
       key: '__other__',
-      title: 'Khác',
+      title: tr('Khác'),
       groupId: null,
       rows: active.filter((t) => !t.group_id || !groups.some((g) => g.id === t.group_id)),
     },
@@ -182,7 +184,7 @@ export function TagsPage() {
       setDraft('')
       setAdding(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không tạo được nhãn')
+      setError(e instanceof Error ? e.message : tr('Không tạo được nhãn'))
     }
   }
 
@@ -195,25 +197,24 @@ export function TagsPage() {
       setGroupDraft('')
       setAddingGroup(false)
     } catch (e) {
-      setGroupError(e instanceof Error ? e.message : 'Không tạo được nhóm')
+      setGroupError(e instanceof Error ? e.message : tr('Không tạo được nhóm'))
     }
   }
 
   async function removeGroup(id: string, name: string) {
     const inGroup = tags.filter((t) => t.group_id === id).length
     const ok = await confirmDialog({
-      title: `Xóa nhóm "${name}"?`,
+      title: tr('Xóa nhóm "{name}"?', { name }),
       message:
         inGroup > 0
-          ? `${inGroup} nhãn đang ở nhóm này. Nhãn KHÔNG bị xóa — chúng chuyển sang mục ` +
-            '"Khác", giao dịch và trần chi giữ nguyên.'
-          : 'Nhóm này chưa có nhãn nào.',
-      confirmLabel: 'Xóa nhóm',
+          ? tr('{n} nhãn đang ở nhóm này. Nhãn KHÔNG bị xóa — chúng chuyển sang mục "Khác", giao dịch và trần chi giữ nguyên.', { n: inGroup })
+          : tr('Nhóm này chưa có nhãn nào.'),
+      confirmLabel: tr('Xóa nhóm'),
       danger: true,
     })
     if (!ok) return
     await deleteGroup.mutateAsync(id)
-    showToast(`Đã xóa nhóm "${name}"`)
+    showToast(tr('Đã xóa nhóm "{name}"', { name }))
   }
 
   async function remove(t: TagRow) {
@@ -222,29 +223,26 @@ export function TagsPage() {
     // một số chưa có là hỏi sai. Nút Xóa đã tắt trong lúc này; dòng này chặn nốt.
     if (used === null && !demLoi) return
     const ok = await confirmDialog({
-      title: `Xóa nhãn "${t.name}"?`,
+      title: tr('Xóa nhãn "{name}"?', { name: t.name }),
       message:
         used === null
-          ? 'Không đếm được số giao dịch đang mang nhãn này. Mọi giao dịch mang nó vẫn giữ ' +
-            'nguyên, nhưng sẽ MẤT nhãn. Chỉ muốn dẹp nó khỏi form nhập thì bấm Lưu trữ thay vì Xóa.'
+          ? tr('Không đếm được số giao dịch đang mang nhãn này. Mọi giao dịch mang nó vẫn giữ nguyên, nhưng sẽ MẤT nhãn. Chỉ muốn dẹp nó khỏi form nhập thì bấm Lưu trữ thay vì Xóa.')
           : used > 0
-            ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — ` +
-              'tổng chi theo nhãn này sẽ không còn cộng được. Chỉ muốn dẹp nó khỏi form nhập thì ' +
-              'bấm Lưu trữ thay vì Xóa.'
-            : 'Nhãn này chưa gắn với giao dịch nào.',
-      confirmLabel: 'Xóa',
+            ? tr('{n} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — tổng chi theo nhãn này sẽ không còn cộng được. Chỉ muốn dẹp nó khỏi form nhập thì bấm Lưu trữ thay vì Xóa.', { n: used })
+            : tr('Nhãn này chưa gắn với giao dịch nào.'),
+      confirmLabel: tr('Xóa'),
       danger: true,
     })
     if (!ok) return
     await deleteTag.mutateAsync(t.id)
     setEditing(null)
-    showToast(`Đã xóa nhãn "${t.name}"`)
+    showToast(tr('Đã xóa nhãn "{name}"', { name: t.name }))
   }
 
   function setArchived(t: TagRow, is_archived: boolean) {
     updateTag.mutate({ id: t.id, patch: { is_archived } })
     setEditing(null)
-    showToast(is_archived ? `Đã lưu trữ nhãn "${t.name}"` : `Đã dùng lại nhãn "${t.name}"`)
+    showToast(is_archived ? tr('Đã lưu trữ nhãn "{name}"', { name: t.name }) : tr('Đã dùng lại nhãn "{name}"', { name: t.name }))
   }
 
   /** Ô cột "Trần" — thanh tiến độ + một dòng chữ, hoặc gạch ngang khi chưa đặt. */
@@ -269,11 +267,15 @@ export function TagsPage() {
           />
         </span>
         <span className="mt-0.5 block truncate text-2xs text-fg-muted">
-          <Num tone={line.status === 'over' ? 'out' : 'muted'}>
-            {Math.round(line.ratio * 100)}%
-          </Num>{' '}
-          của {formatMoney(line.budget, base)}
-          {line.period === 'monthly' && ' · tháng này'}
+          {trn('{pct} của {amount}', {
+            pct: (
+              <Num tone={line.status === 'over' ? 'out' : 'muted'}>
+                {Math.round(line.ratio * 100)}%
+              </Num>
+            ),
+            amount: formatMoney(line.budget, base),
+          })}
+          {line.period === 'monthly' && tr(' · tháng này')}
         </span>
       </span>
     )
@@ -302,14 +304,17 @@ export function TagsPage() {
           </span>
           {/* Dòng phụ chỉ ở điện thoại — từ `lg` hai con số này đã là hai cột. */}
           <span className="text-2xs text-fg-muted lg:hidden">
-            {used === null ? <DangTinh /> : <Num tone="muted">{used}</Num>} gd
+            {trn('{n} gd', { n: used === null ? <DangTinh /> : <Num tone="muted">{used}</Num> })}
             {line && tienXong && (
               <>
                 {' · '}
-                <Num tone={line.status === 'over' ? 'out' : 'muted'}>
-                  {Math.round(line.ratio * 100)}%
-                </Num>{' '}
-                trần
+                {trn('{pct} trần', {
+                  pct: (
+                    <Num tone={line.status === 'over' ? 'out' : 'muted'}>
+                      {Math.round(line.ratio * 100)}%
+                    </Num>
+                  ),
+                })}
               </>
             )}
           </span>
@@ -345,14 +350,14 @@ export function TagsPage() {
                 try {
                   await updateGroup.mutateAsync({ id: s.groupId!, patch: { name } })
                 } catch (err) {
-                  setGroupError(err instanceof Error ? err.message : 'Không đổi được tên nhóm')
+                  setGroupError(err instanceof Error ? err.message : tr('Không đổi được tên nhóm'))
                   input.value = s.title
                 }
               } else {
                 input.value = s.title
               }
             }}
-            aria-label={`Tên nhóm ${s.title}`}
+            aria-label={tr('Tên nhóm {name}', { name: s.title })}
             className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xs uppercase tracking-label text-fg-muted hover:border-border-strong"
           />
         ) : (
@@ -361,7 +366,7 @@ export function TagsPage() {
           </SectionTitle>
         )}
         <span className="shrink-0 text-2xs text-fg-muted">
-          <Num tone="muted">{s.rows.length}</Num> nhãn
+          {trn('{n} nhãn', { n: <Num tone="muted">{s.rows.length}</Num> })}
         </span>
         {/* Để nguyên 44×44 của IconButton, KHÔNG bó nhỏ lại. Bản trước nối thêm
             `min-h-9 min-w-9 px-0` cho khỏi cao hơn ô tên 36px bên cạnh — cả BA class đó
@@ -375,7 +380,7 @@ export function TagsPage() {
         {s.groupId && (
           <IconButton
             variant="ghost"
-            aria-label={`Xóa nhóm ${s.title}`}
+            aria-label={tr('Xóa nhóm {name}', { name: s.title })}
             onClick={() => removeGroup(s.groupId!, s.title)}
             className="hover:text-money-out"
           >
@@ -388,14 +393,14 @@ export function TagsPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="Nhãn" back="/settings">
+      <PageHeader title={tr('Nhãn')} back="/settings">
         <ActionButton
           onClick={() => {
             setAddingGroup(true)
             setGroupDraft('')
           }}
         >
-          <Plus className="h-4 w-4" /> Nhóm
+          <Plus className="h-4 w-4" /> {tr('Nhóm')}
         </ActionButton>
         <ActionButton
           variant="primary"
@@ -404,16 +409,14 @@ export function TagsPage() {
             setDraft('')
           }}
         >
-          <Plus className="h-4 w-4" /> Nhãn
+          <Plus className="h-4 w-4" /> {tr('Nhãn')}
         </ActionButton>
       </PageHeader>
 
       <Guide className="rounded-lg bg-surface-sunken p-3 text-sm text-fg-secondary">
-        Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
-        danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
-        Nhóm là CÂU HỎI, nhãn là câu trả lời — nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”, và khi
-        nhập giao dịch mỗi nhóm hiện thành một hàng chip riêng. Xong chuyến thì <b>lưu trữ</b>{' '}
-        nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
+        {trn('Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến. Nhóm là CÂU HỎI, nhãn là câu trả lời — nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”, và khi nhập giao dịch mỗi nhóm hiện thành một hàng chip riêng. Xong chuyến thì {archive} nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.', {
+          archive: <b>{tr('lưu trữ')}</b>,
+        })}
       </Guide>
 
       {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
@@ -431,17 +434,17 @@ export function TagsPage() {
               if (e.key === 'Enter') void add()
               if (e.key === 'Escape') setAdding(false)
             }}
-            aria-label="Tên nhãn mới"
-            placeholder="Tên nhãn mới…"
+            aria-label={tr('Tên nhãn mới')}
+            placeholder={tr('Tên nhãn mới…')}
             className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm sm:basis-48"
           />
           <Select
             value={newTagGroup}
             onChange={(e) => setNewTagGroup(e.target.value)}
-            aria-label="Nhóm cho nhãn mới"
+            aria-label={tr('Nhóm cho nhãn mới')}
             wrapClassName="min-w-0 flex-1 basis-28"
           >
-            <option value="">— Khác —</option>
+            <option value="">{tr('— Khác —')}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -453,9 +456,9 @@ export function TagsPage() {
             onClick={add}
             disabled={!draft.trim() || createTag.isPending}
           >
-            Thêm
+            {tr('Thêm')}
           </ActionButton>
-          <ActionButton onClick={() => setAdding(false)}>Hủy</ActionButton>
+          <ActionButton onClick={() => setAdding(false)}>{tr('Hủy')}</ActionButton>
         </Card>
       )}
       {error && <p className="text-sm text-money-out">{error}</p>}
@@ -470,8 +473,8 @@ export function TagsPage() {
               if (e.key === 'Enter') void addGroup()
               if (e.key === 'Escape') setAddingGroup(false)
             }}
-            aria-label="Tên nhóm mới"
-            placeholder="Tên nhóm mới… (“Với ai?”, “Ở đâu?”)"
+            aria-label={tr('Tên nhóm mới')}
+            placeholder={tr('Tên nhóm mới… (“Với ai?”, “Ở đâu?”)')}
             className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm sm:basis-48"
           />
           <ActionButton
@@ -479,9 +482,9 @@ export function TagsPage() {
             onClick={addGroup}
             disabled={!groupDraft.trim() || createGroup.isPending}
           >
-            Thêm nhóm
+            {tr('Thêm nhóm')}
           </ActionButton>
-          <ActionButton onClick={() => setAddingGroup(false)}>Hủy</ActionButton>
+          <ActionButton onClick={() => setAddingGroup(false)}>{tr('Hủy')}</ActionButton>
         </Card>
       )}
       {groupError && <p className="text-sm text-money-out">{groupError}</p>}
@@ -493,14 +496,13 @@ export function TagsPage() {
       {/* Đang tải thì nói đang tải: bảng rỗng lúc này sẽ hiện câu "Chưa có nhãn nào" —
           một kết luận về sổ, trong khi app chưa đọc được gì. */}
       {dangTaiNhan || dangTaiNhom ? (
-        <EmptyState>Đang tải…</EmptyState>
+        <EmptyState>{tr('Đang tải…')}</EmptyState>
       ) : tags.length === 0 && groups.length === 0 ? (
         // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
         // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
         // trống trơn, chỉ còn đúng một câu này.
         <EmptyState>
-          Chưa có nhãn nào. Bấm “Nhãn” ở trên để tạo — nhãn để gom giao dịch theo chuyến đi,
-          theo người, theo dự án.
+          {tr('Chưa có nhãn nào. Bấm “Nhãn” ở trên để tạo — nhãn để gom giao dịch theo chuyến đi, theo người, theo dự án.')}
         </EmptyState>
       ) : (
         <>
@@ -510,16 +512,16 @@ export function TagsPage() {
             <div
               className={`hidden ${GRID} border-b border-border-panel bg-surface-chrome px-3 py-2.5 text-2xs uppercase tracking-label text-fg-muted lg:grid`}
             >
-              <span>Nhãn</span>
-              <span className="justify-self-end">GD</span>
-              <span className="justify-self-end">Đã chi</span>
-              <span>Trần</span>
+              <span>{tr('Nhãn')}</span>
+              <span className="justify-self-end">{tr('GD')}</span>
+              <span className="justify-self-end">{tr('Đã chi')}</span>
+              <span>{tr('Trần')}</span>
               <span />
             </div>
 
             {active.length === 0 && archived.length > 0 && (
               <EmptyState compact>
-                Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
+                {tr('Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.')}
               </EmptyState>
             )}
             {sections.map((s) =>
@@ -530,8 +532,8 @@ export function TagsPage() {
                     {groupHeader(s)}
                     {s.rows.length === 0 ? (
                       <p className="border-b border-border-subtle px-3 py-2.5 text-sm text-fg-muted">
-                        Chưa có nhãn nào trong nhóm này.
-                        <Guide as="span"> Mở một nhãn bên dưới rồi đổi ô “Nhóm”.</Guide>
+                        {tr('Chưa có nhãn nào trong nhóm này.')}
+                        <Guide as="span">{tr(' Mở một nhãn bên dưới rồi đổi ô “Nhóm”.')}</Guide>
                       </p>
                     ) : (
                       s.rows.map(tagRow)
@@ -545,15 +547,14 @@ export function TagsPage() {
                 <div className="flex items-center gap-1.5 border-b border-border-panel bg-surface-chrome px-3 py-1.5">
                   <Archive className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
                   <SectionTitle role="micro" className="min-w-0 flex-1">
-                    Đã lưu trữ
+                    {tr('Đã lưu trữ')}
                   </SectionTitle>
                   <span className="shrink-0 text-2xs text-fg-muted">
-                    <Num tone="muted">{archived.length}</Num> nhãn
+                    {trn('{n} nhãn', { n: <Num tone="muted">{archived.length}</Num> })}
                   </span>
                 </div>
                 <Guide className="border-b border-border-subtle px-3 py-2 text-2xs text-fg-muted">
-                  Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và
-                  lọc ở Tìm kiếm.
+                  {tr('Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và lọc ở Tìm kiếm.')}
                 </Guide>
                 {archived.map(tagRow)}
               </div>
@@ -569,12 +570,11 @@ export function TagsPage() {
               hơn sự thật. Xem PROSE_MAX trong tests/designSystem.test.ts (mục 81). */}
           {tags.length > 0 && (
           <p className="text-2xs text-fg-muted">
-            “Đã chi” là tổng cả đời nhãn, quy về {base}.
+            {tr('“Đã chi” là tổng cả đời nhãn, quy về {base}.', { base })}
             {tienXong &&
               totals.hasMissingRate &&
-              ' Có khoản ngoại tệ thiếu tỷ giá nên tổng chưa đủ.'}{' '}
-            Một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn
-            tổng chi thật.
+              tr(' Có khoản ngoại tệ thiếu tỷ giá nên tổng chưa đủ.')}{' '}
+            {tr('Một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn tổng chi thật.')}
           </p>
           )}
 
@@ -587,7 +587,7 @@ export function TagsPage() {
               }}
               className="min-h-11 w-fit text-sm font-medium text-fg-accent"
             >
-              Mở lại dải xếp nhãn vào nhóm
+              {tr('Mở lại dải xếp nhãn vào nhóm')}
             </button>
           )}
         </>
@@ -689,13 +689,13 @@ function TagEditSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between gap-2">
-          <SectionTitle role="block">Sửa nhãn</SectionTitle>
+          <SectionTitle role="block">{tr('Sửa nhãn')}</SectionTitle>
           <span className="text-2xs text-fg-muted">
             {usage === null ? (
-              countFailed ? 'Không đếm được giao dịch' : 'Đang đếm giao dịch…'
+              countFailed ? tr('Không đếm được giao dịch') : tr('Đang đếm giao dịch…')
             ) : (
               <>
-                <Num tone="muted">{usage}</Num> giao dịch
+                {trn('{n} giao dịch', { n: <Num tone="muted">{usage}</Num> })}
               </>
             )}
             {' · '}
@@ -704,7 +704,7 @@ function TagEditSheet({
         </div>
 
         <label htmlFor="tag-name" className="block text-sm font-medium text-fg-muted">
-          Tên
+          {tr('Tên')}
         </label>
         <input
           id="tag-name"
@@ -717,7 +717,7 @@ function TagEditSheet({
           className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         />
 
-        <p className="mt-3 text-sm font-medium text-fg-muted">Màu</p>
+        <p className="mt-3 text-sm font-medium text-fg-muted">{tr('Màu')}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           {/* Chip xem trước đứng ngay cạnh dãy chấm: chọn màu xong thấy luôn nó ra hình
               gì khi nhập giao dịch. */}
@@ -731,7 +731,7 @@ function TagEditSheet({
               key={c}
               type="button"
               onClick={() => setColor(c)}
-              aria-label={`Màu ${TAG_COLOR_LABELS[c]}`}
+              aria-label={tr('Màu {color}', { color: TAG_COLOR_LABELS[c] })}
               aria-pressed={color === c}
               className="inline-flex h-11 w-8 items-center justify-center"
             >
@@ -745,7 +745,7 @@ function TagEditSheet({
         </div>
 
         <label htmlFor="tag-group" className="mt-3 block text-sm font-medium text-fg-muted">
-          Nhóm
+          {tr('Nhóm')}
         </label>
         <Select
           id="tag-group"
@@ -753,7 +753,7 @@ function TagEditSheet({
           onChange={(e) => setGroupId(e.target.value)}
           wrapClassName="mt-1 w-full"
         >
-          <option value="">— Khác —</option>
+          <option value="">{tr('— Khác —')}</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
@@ -762,7 +762,7 @@ function TagEditSheet({
         </Select>
 
         <label htmlFor="tag-budget" className="mt-3 block text-sm font-medium text-fg-muted">
-          Trần chi ({base})
+          {tr('Trần chi ({base})', { base })}
         </label>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <input
@@ -770,7 +770,7 @@ function TagEditSheet({
             inputMode="numeric"
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
-            placeholder="không đặt"
+            placeholder={tr('không đặt')}
             // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
             className="min-h-11 w-32 rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-base sm:text-sm"
           />
@@ -795,13 +795,12 @@ function TagEditSheet({
           </div>
         </div>
         <Guide className="mt-1 text-2xs text-fg-muted">
-          Để trống là bỏ trần. “Cả đợt” không reset — hợp nhãn theo dịp; “Mỗi tháng” hết tháng
-          reset — hợp nhãn lặp đều.
+          {tr('Để trống là bỏ trần. “Cả đợt” không reset — hợp nhãn theo dịp; “Mỗi tháng” hết tháng reset — hợp nhãn lặp đều.')}
         </Guide>
 
         <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border-subtle pt-3">
           <ActionButton onClick={() => onArchive(!tag.is_archived)}>
-            {tag.is_archived ? 'Dùng lại' : 'Lưu trữ'}
+            {tag.is_archived ? tr('Dùng lại') : tr('Lưu trữ')}
           </ActionButton>
           {/* Tắt cho tới khi đếm xong: hộp hỏi xoá nói "N giao dịch đang mang nhãn này",
               và hỏi trước khi có N là hỏi bằng một con số bịa. */}
@@ -810,12 +809,12 @@ function TagEditSheet({
             onClick={onDelete}
             disabled={usage === null && !countFailed}
           >
-            {usage === null && !countFailed ? 'Đang đếm…' : 'Xóa nhãn'}
+            {usage === null && !countFailed ? tr('Đang đếm…') : tr('Xóa nhãn')}
           </ActionButton>
           <span className="ml-auto flex gap-1.5">
-            <ActionButton onClick={onClose}>Đóng</ActionButton>
+            <ActionButton onClick={onClose}>{tr('Đóng')}</ActionButton>
             <ActionButton variant="primary" onClick={save} disabled={update.isPending}>
-              Lưu
+              {tr('Lưu')}
             </ActionButton>
           </span>
         </div>

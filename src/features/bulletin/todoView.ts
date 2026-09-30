@@ -8,6 +8,7 @@
 // nên chúng ở đây, thuần và test được, không nằm rải trong JSX.
 import { daysBetween } from '../../lib/dates'
 import { NOTIFICATION_META, type AppNotification } from '../notifications/types'
+import { tr } from '../../i18n'
 
 export interface TodoBadge {
   text: string
@@ -31,14 +32,14 @@ export const SOON_DAYS = 7
 export function todoBadge(n: AppNotification, todayISO: string): TodoBadge {
   if (n.onISO) {
     const d = daysBetween(todayISO, n.onISO)
-    if (d < 0) return { text: 'QUÁ HẠN', urgent: true }
+    if (d < 0) return { text: tr('QUÁ HẠN'), urgent: true }
     // Chỉ biết tháng: `onISO` là ngày cuối tháng. Đếm "7 NGÀY" là bịa ra một ngày hạn
     // người dùng chưa từng ghi — nói đúng điều họ đã ghi. Vẫn gấp khi vào tuần cuối.
     if (n.onPrecision === 'month') {
-      return { text: `THÁNG ${Number(n.onISO.slice(5, 7))}`, urgent: d <= SOON_DAYS }
+      return { text: tr('THÁNG {month}', { month: Number(n.onISO.slice(5, 7)) }), urgent: d <= SOON_DAYS }
     }
-    if (d === 0) return { text: 'HÔM NAY', urgent: true }
-    return { text: `${d} NGÀY`, urgent: d <= SOON_DAYS }
+    if (d === 0) return { text: tr('HÔM NAY'), urgent: true }
+    return { text: tr('{n} NGÀY', { n: d }), urgent: d <= SOON_DAYS }
   }
   return { text: NOTIFICATION_META[n.type].badge, urgent: false }
 }

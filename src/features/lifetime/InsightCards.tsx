@@ -29,6 +29,8 @@ import type { LifetimeInput, YearRow } from './project'
 import type { RealityCheck } from './realityCheck'
 import { canOfferRetireTrial } from './tryRetire'
 import { ASSETS_CHANGE_THRESHOLD, type VerdictDrift, type VerdictPoint } from './verdictHistory'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   rows: YearRow[]
@@ -83,7 +85,7 @@ interface Props {
 /** "T6/2026" từ ISO đầu tháng. Nhãn thời gian, để chữ thường như năm. */
 function monthLabel(iso: string): string {
   const [y, m] = iso.split('-')
-  return `T${Number(m)}/${y}`
+  return tr('T{month}/{year}', { month: Number(m), year: y })
 }
 
 /**
@@ -108,18 +110,18 @@ function DriftLine({
 
   if (drift.fireThen !== drift.fireNow) {
     if (drift.fireThen === null) {
-      parts.push(<>tự do tài chính nay đạt ({drift.fireNow}), trước không đạt</>)
+      parts.push(tr('tự do tài chính nay đạt ({year}), trước không đạt', { year: drift.fireNow as number }))
     } else if (drift.fireNow === null) {
       bad = true
-      parts.push(<>tự do tài chính không còn đạt (trước {drift.fireThen})</>)
+      parts.push(tr('tự do tài chính không còn đạt (trước {year})', { year: drift.fireThen }))
     } else {
       const diff = drift.fireNow - drift.fireThen
       if (diff > 0) bad = true
+      const fireVars = { n: Math.abs(diff), count: <Num>{Math.abs(diff)}</Num>, from: drift.fireThen, to: drift.fireNow }
       parts.push(
-        <>
-          tự do tài chính {diff > 0 ? 'lùi' : 'sớm'} <Num>{Math.abs(diff)}</Num> năm ({drift.fireThen} →{' '}
-          {drift.fireNow})
-        </>,
+        diff > 0
+          ? trn('tự do tài chính lùi {count} năm ({from} → {to})', fireVars)
+          : trn('tự do tài chính sớm {count} năm ({from} → {to})', fireVars),
       )
     }
   }
@@ -128,27 +130,30 @@ function DriftLine({
   const base = Math.abs(drift.assetsThen)
   if (base === 0 ? delta !== 0 : Math.abs(delta) / base >= ASSETS_CHANGE_THRESHOLD) {
     if (delta < 0) bad = true
+    const assetVars = {
+      age: drift.endAge,
+      amount: <Money amount={Math.abs(delta)} currency={currency} tone={delta > 0 ? 'in' : 'out'} />,
+    }
     parts.push(
-      <>
-        tài sản lúc {drift.endAge} tuổi {delta > 0 ? 'tăng' : 'giảm'}{' '}
-        <Money amount={Math.abs(delta)} currency={currency} tone={delta > 0 ? 'in' : 'out'} />
-      </>,
+      delta > 0
+        ? trn('tài sản lúc {age} tuổi tăng {amount}', assetVars)
+        : trn('tài sản lúc {age} tuổi giảm {amount}', assetVars),
     )
   }
 
   if (drift.negativeThen !== drift.negativeNow) {
     if (drift.negativeThen === null) {
       bad = true
-      parts.push(<>nhánh bi quan bắt đầu âm từ {drift.negativeNow}</>)
+      parts.push(tr('nhánh bi quan bắt đầu âm từ {year}', { year: drift.negativeNow as number }))
     } else if (drift.negativeNow === null) {
-      parts.push(<>nhánh bi quan hết âm (trước âm từ {drift.negativeThen})</>)
+      parts.push(tr('nhánh bi quan hết âm (trước âm từ {year})', { year: drift.negativeThen }))
     } else {
       if (drift.negativeNow < drift.negativeThen) bad = true
+      const negVars = { from: drift.negativeThen, to: drift.negativeNow }
       parts.push(
-        <>
-          năm âm {drift.negativeNow < drift.negativeThen ? 'sớm hơn' : 'lùi lại'} ({drift.negativeThen} →{' '}
-          {drift.negativeNow})
-        </>,
+        drift.negativeNow < drift.negativeThen
+          ? tr('năm âm sớm hơn ({from} → {to})', negVars)
+          : tr('năm âm lùi lại ({from} → {to})', negVars),
       )
     }
   }
@@ -167,14 +172,16 @@ function DriftLine({
       >
         <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span className="text-fg-secondary">
-          So với <Num>{drift.monthsAgo}</Num> tháng trước:{' '}
-          {parts.map((p, i) => (
-            <span key={i}>
-              {i > 0 && ', '}
-              {p}
-            </span>
-          ))}
-          .
+          {trn('So với {count} tháng trước: {changes}.', {
+            count: <Num>{drift.monthsAgo}</Num>,
+            n: drift.monthsAgo,
+            changes: parts.map((p, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                {p}
+              </span>
+            )),
+          })}
         </span>
         <ChevronDown
           className={`mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-muted transition ${open ? 'rotate-180' : ''}`}
@@ -183,13 +190,13 @@ function DriftLine({
       </button>
       <Collapse open={open}>
         <div className="mt-2 grid max-w-md grid-cols-[auto_auto_1fr] gap-x-4 gap-y-1 text-2xs tabular-nums">
-          <span className="text-fg-muted">Tháng</span>
-          <span className="text-fg-muted">Tự do TC</span>
-          <span className="text-right text-fg-muted">Lúc {drift.endAge} tuổi</span>
+          <span className="text-fg-muted">{tr('Tháng')}</span>
+          <span className="text-fg-muted">{tr('Tự do TC')}</span>
+          <span className="text-right text-fg-muted">{tr('Lúc {age} tuổi', { age: drift.endAge })}</span>
           {rows.map((r) => (
             <div key={r.month_on} className="contents">
               <span className="text-fg-secondary">{monthLabel(r.month_on)}</span>
-              <span className="text-fg-primary">{r.fire_year ?? 'không đạt'}</span>
+              <span className="text-fg-primary">{r.fire_year ?? tr('không đạt')}</span>
               <span className="text-right">
                 <Money amount={r.assets_end_minor} currency={currency} compact />
               </span>
@@ -209,29 +216,32 @@ function RealityLine({ reality, months }: { reality: RealityCheck; months: numbe
   const { fireYearPlan, fireYearReal, negativeYearReal } = reality
   let fireClause: ReactNode
   if (fireYearReal === null) {
-    fireClause = 'không năm nào đủ để tự do tài chính'
+    fireClause = tr('không năm nào đủ để tự do tài chính')
   } else if (fireYearPlan === null) {
-    fireClause = <>tự do tài chính {fireYearReal}, kế hoạch cũ không đạt</>
+    fireClause = tr('tự do tài chính {year}, kế hoạch cũ không đạt', { year: fireYearReal })
   } else if (fireYearReal === fireYearPlan) {
-    fireClause = <>tự do tài chính vẫn {fireYearReal}</>
+    fireClause = tr('tự do tài chính vẫn {year}', { year: fireYearReal })
   } else {
     const diff = fireYearReal - fireYearPlan
-    fireClause = (
-      <>
-        tự do tài chính {fireYearReal}, {diff > 0 ? 'muộn' : 'sớm'} <Num>{Math.abs(diff)}</Num> năm
-      </>
-    )
+    const vars = { year: fireYearReal, count: <Num>{Math.abs(diff)}</Num>, n: Math.abs(diff) }
+    fireClause =
+      diff > 0
+        ? trn('tự do tài chính {year}, muộn {count} năm', vars)
+        : trn('tự do tài chính {year}, sớm {count} năm', vars)
   }
   return (
     <p className="flex min-w-0 items-start gap-1.5 text-sm text-fg-warn">
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span>
-        Kế hoạch để dành{' '}
-        <Money amount={reality.planSavingMinor} currency={reality.currency} tone="neutral" />
-        /năm ở chặng hiện tại, nhưng <Num>{months}</Num> tháng qua sổ ghi{' '}
-        <Money amount={reality.realSavingMinor} currency={reality.currency} tone="bySign" />
-        /năm. Chạy theo số thật: {fireClause}
-        {negativeYearReal !== null && <>, nhánh bi quan âm từ {negativeYearReal}</>}.
+        {trn('Kế hoạch để dành {plan}/năm ở chặng hiện tại, nhưng {months} tháng qua sổ ghi {real}/năm. Chạy theo số thật: {result}.', {
+          plan: <Money amount={reality.planSavingMinor} currency={reality.currency} tone="neutral" />,
+          months: <Num>{months}</Num>,
+          real: <Money amount={reality.realSavingMinor} currency={reality.currency} tone="bySign" />,
+          result:
+            negativeYearReal !== null
+              ? trn('{fire}, nhánh bi quan âm từ {year}', { fire: fireClause, year: negativeYearReal })
+              : fireClause,
+        })}
       </span>
     </p>
   )
@@ -372,10 +382,17 @@ export function InsightCards({
     verdict.fireYear !== null ? (
       <>
         {' '}
-        Tự do tài chính ({FIRE_MEANING}) từ năm {verdict.fireYear}, tuổi {verdict.fireAge}.
+        {tr('Tự do tài chính ({meaning}) từ năm {year}, tuổi {age}.', {
+          meaning: FIRE_MEANING,
+          year: verdict.fireYear,
+          age: verdict.fireAge ?? '',
+        })}
       </>
     ) : (
-      <> Chưa năm nào đạt tự do tài chính ({FIRE_MEANING}).</>
+      <>
+        {' '}
+        {tr('Chưa năm nào đạt tự do tài chính ({meaning}).', { meaning: FIRE_MEANING })}
+      </>
     )
 
   const showReality = reality !== null && reality.meaningful
@@ -390,21 +407,26 @@ export function InsightCards({
         // Bản ngắn ghép ở summary.ts — cùng chỗ với câu của bản điện thoại.
         short={verdictShort(verdict)}
       >
-        Với kịch bản {scenarioName},{' '}
-        {verdict.negativeYear !== null ? (
-          <>
-            nhánh bi quan <span className="text-money-out">cạn tiền năm {verdict.negativeYear}</span>
-            , tuổi {verdict.negativeAge}.
-          </>
-        ) : (
-          // Có PHẠM VI (mục 23): bản chiếu dừng ở `endAge`, nên "không âm" chỉ đúng tới
-          // đó. Câu cũ "đủ tới hết đời" nói quá cho mọi kịch bản chiếu dưới 90–100 tuổi.
-          <>
-            tài sản{' '}
-            <span className="text-money-in">chưa cạn tới tuổi {verdict.endAge}</span> — kể cả
-            nhánh bi quan.
-          </>
-        )}
+        {verdict.negativeYear !== null
+          ? trn('Với kịch bản {name}, nhánh bi quan {ranOut}, tuổi {age}.', {
+              name: scenarioName,
+              ranOut: (
+                <span className="text-money-out">
+                  {tr('cạn tiền năm {year}', { year: verdict.negativeYear })}
+                </span>
+              ),
+              age: verdict.negativeAge,
+            })
+          : // Có PHẠM VI (mục 23): bản chiếu dừng ở `endAge`, nên "không âm" chỉ đúng tới
+            // đó. Câu cũ "đủ tới hết đời" nói quá cho mọi kịch bản chiếu dưới 90–100 tuổi.
+            trn('Với kịch bản {name}, tài sản {lasts} — kể cả nhánh bi quan.', {
+              name: scenarioName,
+              lasts: (
+                <span className="text-money-in">
+                  {tr('chưa cạn tới tuổi {age}', { age: verdict.endAge })}
+                </span>
+              ),
+            })}
         {fireClause}
       </ConclusionLine>
 
@@ -424,7 +446,7 @@ export function InsightCards({
           {showReality && <RealityLine reality={reality} months={realityMonths ?? 12} />}
           {retireYear !== null && (
             <ActionButton className="shrink-0" onClick={() => onTryRetire?.(retireYear)}>
-              Thử nghỉ việc từ {retireYear}
+              {tr('Thử nghỉ việc từ {year}', { year: retireYear })}
             </ActionButton>
           )}
         </div>
@@ -442,26 +464,30 @@ export function InsightCards({
         <InsightTile
           // "Bi quan" — dùng ĐÚNG từ mà bảng theo năm (cột "Bi quan") và khối "Cách đọc"
           // bên dưới dùng, không gọi cùng một thứ bằng "nhánh xấu" ở đây và "bi quan" ở kia.
-          label="Nếu bi quan, âm từ"
+          label={tr('Nếu bi quan, âm từ')}
           // Giá trị là một NĂM (không phải tiền) nên không có dấu để tự suy — ép chiều
           // bằng `alert`/`good`, xem JSDoc InsightTile.
           alert={negativeYear !== null}
           good={negativeYear === null}
           // "Không âm" kèm phạm vi — bản chiếu chỉ tới `endAge` (mục 23).
-          value={negativeYear !== null ? `Năm ${negativeYear}` : 'Không âm'}
-          sub={negativeYear !== null ? `tuổi ${negativeYear - birthYear}` : `tới tuổi ${input.endAge}`}
+          value={negativeYear !== null ? tr('Năm {year}', { year: negativeYear }) : tr('Không âm')}
+          sub={
+            negativeYear !== null
+              ? tr('tuổi {age}', { age: negativeYear - birthYear })
+              : tr('tới tuổi {age}', { age: input.endAge })
+          }
           // Chỉ bấm được khi CÓ năm để nhảy tới. "Không bao giờ âm" là tin tốt, không
           // phải một mốc trên bảng — bấm vào thì không có dòng nào để mở.
           onClick={
             negativeYear !== null && onJumpToYear ? () => onJumpToYear(negativeYear) : undefined
           }
           actionLabel={
-            negativeYear !== null ? `Xem năm ${negativeYear} trong bảng theo năm` : undefined
+            negativeYear !== null ? tr('Xem năm {year} trong bảng theo năm', { year: negativeYear }) : undefined
           }
         />
 
         <InsightTile
-          label="Lợi suất tối thiểu"
+          label={tr('Lợi suất tối thiểu')}
           // null nghĩa là đã dò tới 10% (biên trên của khoảng dò trong minimumReturnBps)
           // mà vẫn không đủ — hiện "10%" ở đây sẽ nói dối rằng 10% là đáp án, nên PHẢI
           // đổi hẳn sang câu chữ, không được rơi về một con số mặc định nào (brief).
@@ -470,9 +496,9 @@ export function InsightCards({
           // bps là số nguyên nên chia 100 tối đa 2 chữ số lẻ, và "2%" đọc sạch hơn "2.00%".
           value={
             minReturn === null
-              ? 'Không đủ dù lợi suất cao'
+              ? tr('Không đủ dù lợi suất cao')
               : minReturn === 0
-                ? 'Không cần'
+                ? tr('Không cần')
                 : `${minReturn / 100}%`
           }
           alert={minReturn === null}
@@ -481,14 +507,14 @@ export function InsightCards({
             minReturn === null
               ? undefined
               : minReturn === 0
-                ? `thu chi tự đủ, không năm nào âm tới tuổi ${input.endAge}`
-                : `để không năm nào âm tới tuổi ${input.endAge}`
+                ? tr('thu chi tự đủ, không năm nào âm tới tuổi {age}', { age: input.endAge })
+                : tr('để không năm nào âm tới tuổi {age}', { age: input.endAge })
           }
         />
 
         <InsightTile
-          label={`Lúc ${input.endAge} tuổi`}
-          value={atEndAge !== null ? formatMoney(atEndAge.center, currency) : 'Chưa có dữ liệu'}
+          label={tr('Lúc {age} tuổi', { age: input.endAge })}
+          value={atEndAge !== null ? formatMoney(atEndAge.center, currency) : tr('Chưa có dữ liệu')}
           // Tô đỏ theo dấu của NHÁNH TRUNG TÂM (`center`) — đúng cái đang hiện ở `value`.
           // CỐ Ý không đọc dấu của `low` (biên dưới của dải, hiện ở `sub`): trung tâm
           // dương mà biên dưới âm nghĩa là "có thể âm ở nhánh xấu", không phải "đang âm"
@@ -502,14 +528,17 @@ export function InsightCards({
           // gạch hay không (review Task 9, mục Important).
           sub={
             atEndAge !== null
-              ? `từ ${formatMoney(atEndAge.low, currency)} đến ${formatMoney(atEndAge.high, currency)}`
+              ? tr('từ {low} đến {high}', {
+                  low: formatMoney(atEndAge.low, currency),
+                  high: formatMoney(atEndAge.high, currency),
+                })
               : undefined
           }
         />
 
         <InsightTile
-          label="Tự do tài chính"
-          value={verdict.fireYear !== null ? `${verdict.fireYear}` : 'Không đạt'}
+          label={tr('Tự do tài chính')}
+          value={verdict.fireYear !== null ? `${verdict.fireYear}` : tr('Không đạt')}
           good={verdict.fireYear !== null}
           // Đọc thẳng DEFAULT_SWR_BPS thay vì gõ cứng "4%" — `lifetimeVerdict` gọi
           // `fireYear` với swrBps mặc định (không truyền override), nên câu chữ phải khớp
@@ -517,8 +546,8 @@ export function InsightCards({
           // đổi sau này.
           sub={
             verdict.fireYear !== null
-              ? `tuổi ${verdict.fireAge} · quy tắc ${DEFAULT_SWR_BPS / 100}%`
-              : 'trong bản chiếu này'
+              ? tr('tuổi {age} · quy tắc {pct}%', { age: verdict.fireAge ?? '', pct: DEFAULT_SWR_BPS / 100 })
+              : tr('trong bản chiếu này')
           }
           onClick={
             verdict.fireYear !== null && onJumpToYear
@@ -527,7 +556,7 @@ export function InsightCards({
           }
           actionLabel={
             verdict.fireYear !== null
-              ? `Xem năm ${verdict.fireYear} trong bảng theo năm`
+              ? tr('Xem năm {year} trong bảng theo năm', { year: verdict.fireYear })
               : undefined
           }
         />
@@ -538,12 +567,13 @@ export function InsightCards({
       {showCoast && coast !== null && (
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border-subtle pt-2">
           <span className="text-sm text-fg-secondary">
-            Mốc Coast — có sẵn từng này thì ngừng góp vẫn tự do ở tuổi{' '}
-            <Num tone="muted">{input.endAge}</Num>
+            {trn('Mốc Coast — có sẵn từng này thì ngừng góp vẫn tự do ở tuổi {age}', {
+              age: <Num tone="muted">{input.endAge}</Num>,
+            })}
           </span>
           <span className="flex items-baseline gap-2 text-sm">
             <Money amount={coast} currency={currency} tone="neutral" />
-            <Num tone="muted">đang có {coastPct}%</Num>
+            <Num tone="muted">{tr('đang có {pct}%', { pct: coastPct })}</Num>
           </span>
         </div>
       )}
@@ -556,30 +586,33 @@ export function InsightCards({
           mở Bảng theo năm ở đúng năm ấy — một đường ĐI TIẾP, không phải một lời giải
           thích thứ hai chen vào ô. Hai ô còn lại (một số tiền, một tỷ lệ) vẫn là <div>
           trơn, xem JSDoc InsightTile. */}
-      <ExplainBox label="Cách đọc 4 ô này">
+      <ExplainBox label={tr('Cách đọc 4 ô này')}>
         <p>
-          <b>Nếu bi quan, âm từ</b> — năm đầu tiên tài sản xuống dưới 0 nếu mọi thứ diễn ra
-          theo mép dưới của dải dao động trên đồ thị (hướng xấu). "Không âm" là tin tốt —
-          nhưng chỉ tới tuổi {input.endAge}, chỗ bản chiếu dừng lại.
+          {trn('{b} — năm đầu tiên tài sản xuống dưới 0 nếu mọi thứ diễn ra theo mép dưới của dải dao động trên đồ thị (hướng xấu). "Không âm" là tin tốt — nhưng chỉ tới tuổi {age}, chỗ bản chiếu dừng lại.', {
+            b: <b>{tr('Nếu bi quan, âm từ')}</b>,
+            age: input.endAge,
+          })}
         </p>
         <p>
-          <b>Lợi suất tối thiểu</b> — tiền đầu tư cần sinh lời ít nhất bao nhiêu mỗi năm để
-          không năm nào bị âm.
+          {trn('{b} — tiền đầu tư cần sinh lời ít nhất bao nhiêu mỗi năm để không năm nào bị âm.', {
+            b: <b>{tr('Lợi suất tối thiểu')}</b>,
+          })}
         </p>
         <p>
-          <b>Lúc {input.endAge} tuổi</b> — tài sản ròng dự kiến ở tuổi cuối của kịch bản;
-          dòng nhỏ bên dưới là khoảng từ hướng xấu (bi quan) đến hướng tốt (lạc quan).
+          {trn('{b} — tài sản ròng dự kiến ở tuổi cuối của kịch bản; dòng nhỏ bên dưới là khoảng từ hướng xấu (bi quan) đến hướng tốt (lạc quan).', {
+            b: <b>{tr('Lúc {age} tuổi', { age: input.endAge })}</b>,
+          })}
         </p>
         <p>
-          <b>Tự do tài chính</b> — năm đầu tiên mà chỉ cần rút {DEFAULT_SWR_BPS / 100}% tài
-          sản mỗi năm là đủ chi tiêu (giới tài chính gọi là "quy tắc {DEFAULT_SWR_BPS / 100}%"),
-          tức về lý thuyết không cần đi làm nữa cũng đủ sống.
+          {trn('{b} — năm đầu tiên mà chỉ cần rút {pct}% tài sản mỗi năm là đủ chi tiêu (giới tài chính gọi là "quy tắc {pct}%"), tức về lý thuyết không cần đi làm nữa cũng đủ sống.', {
+            b: <b>{tr('Tự do tài chính')}</b>,
+            pct: DEFAULT_SWR_BPS / 100,
+          })}
         </p>
         <p>
-          <b>Mốc Coast</b> — số tài sản mà nếu đã có sẵn hôm nay, chỉ riêng lãi kép (không
-          góp thêm đồng nào) cũng đưa bạn tới tự do tài chính ở tuổi cuối kịch bản. Vượt
-          mốc này nghĩa là tiền để dành từ đây chỉ để tự do SỚM HƠN, không còn là điều kiện
-          bắt buộc.
+          {trn('{b} — số tài sản mà nếu đã có sẵn hôm nay, chỉ riêng lãi kép (không góp thêm đồng nào) cũng đưa bạn tới tự do tài chính ở tuổi cuối kịch bản. Vượt mốc này nghĩa là tiền để dành từ đây chỉ để tự do SỚM HƠN, không còn là điều kiện bắt buộc.', {
+            b: <b>{tr('Mốc Coast')}</b>,
+          })}
         </p>
       </ExplainBox>
     </Card>

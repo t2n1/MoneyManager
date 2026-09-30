@@ -11,6 +11,9 @@
 //
 // Hàm ở đây chỉ tính TOẠ ĐỘ; màu và chữ là việc của SankeyCard.tsx.
 
+import { tr } from '../../i18n'
+
+
 /** Vai trò của một nút/dải — quyết định màu ở tầng vẽ. */
 export type SankeyTone = 'in' | 'deficit' | 'hub' | 'expense' | 'transfer' | 'kept' | 'unknown'
 
@@ -144,7 +147,7 @@ export const SANKEY_HUB_ID = 'hub'
 export function capSlices(
   slices: readonly SankeySlice[],
   maxNodes: number,
-  otherLabel = 'Khác',
+  otherLabel = tr('Khác'),
 ): SankeySlice[] {
   const kept = slices.filter((s) => s.amount > 0).sort((a, b) => b.amount - a.amount)
   if (kept.length <= maxNodes) return kept
@@ -189,7 +192,7 @@ export function groupSlicesByParent(
     const parent = leaf?.parent_id ? byId.get(leaf.parent_id) : undefined
     const node = parent ?? leaf
     const id = node?.id ?? `mat:${s.categoryId}`
-    const label = node ? `${node.icon} ${node.name}`.trim() : 'Danh mục đã xoá'
+    const label = node ? `${node.icon} ${node.name}`.trim() : tr('Danh mục đã xoá')
     const cur = out.get(id)
     if (cur) cur.amount += s.amount
     else out.set(id, { id, label, amount: s.amount })
@@ -228,7 +231,7 @@ export function groupSlicesWithChildren(
     const parent = leaf?.parent_id ? byId.get(leaf.parent_id) : undefined
     const node = parent ?? leaf
     const id = node?.id ?? `mat:${s.categoryId}`
-    const label = node ? `${node.icon} ${node.name}`.trim() : 'Danh mục đã xoá'
+    const label = node ? `${node.icon} ${node.name}`.trim() : tr('Danh mục đã xoá')
     let g = out.get(id)
     if (!g) {
       g = { id, label, amount: 0, direct: 0, kids: new Map() }
@@ -389,7 +392,7 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   if (total <= 0) return null
 
   // ---- cột 0: nguồn tiền vào ------------------------------------------------------
-  const sources: Stack[] = capSlices(input.incomeSlices, maxNodes, 'Nguồn khác').map((s) => ({
+  const sources: Stack[] = capSlices(input.incomeSlices, maxNodes, tr('Nguồn khác')).map((s) => ({
     id: `in:${s.id}`,
     label: s.label,
     value: s.amount,
@@ -401,7 +404,7 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   if (income - namedIncome > 0) {
     sources.push({
       id: 'in:khong-danh-muc',
-      label: 'Chưa gắn danh mục',
+      label: tr('Chưa gắn danh mục'),
       value: income - namedIncome,
       tone: 'in',
     })
@@ -409,7 +412,7 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   if (deficit > 0) {
     sources.push({
       id: `in:${SANKEY_DEFICIT_ID}`,
-      label: 'Rút từ số dư',
+      label: tr('Rút từ số dư'),
       value: deficit,
       tone: 'deficit',
     })
@@ -419,13 +422,13 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   // Thứ tự CỐ ĐỊNH chi → chuyển → để lại, không sắp theo độ lớn: đây là ba hạng mục có
   // nghĩa riêng, đảo chỗ theo tháng thì không đọc được xu hướng qua nhiều tháng.
   const tiers: Stack[] = []
-  if (expense > 0) tiers.push({ id: 'tier:expense', label: 'Chi tiêu', value: expense, tone: 'expense' })
+  if (expense > 0) tiers.push({ id: 'tier:expense', label: tr('Chi tiêu'), value: expense, tone: 'expense' })
   if (transfer > 0)
-    tiers.push({ id: 'tier:transfer', label: 'Chuyển tài sản', value: transfer, tone: 'transfer' })
-  if (kept > 0) tiers.push({ id: 'tier:kept', label: 'Phần để lại', value: kept, tone: 'kept' })
+    tiers.push({ id: 'tier:transfer', label: tr('Chuyển tài sản'), value: transfer, tone: 'transfer' })
+  if (kept > 0) tiers.push({ id: 'tier:kept', label: tr('Phần để lại'), value: kept, tone: 'kept' })
 
   // ---- cột 3: nhóm chi ------------------------------------------------------------
-  const groups: Stack[] = capSlices(input.expenseGroups, maxGroupNodes, 'Nhóm khác').map((s) => ({
+  const groups: Stack[] = capSlices(input.expenseGroups, maxGroupNodes, tr('Nhóm khác')).map((s) => ({
     id: `g:${s.id}`,
     label: s.label,
     value: s.amount,
@@ -434,14 +437,14 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
   const namedExpense = groups.reduce((s, x) => s + x.value, 0)
   const rest = expense - chuaGhi - namedExpense
   if (rest > 0) {
-    groups.push({ id: 'g:khong-danh-muc', label: 'Chưa gắn danh mục', value: rest, tone: 'expense' })
+    groups.push({ id: 'g:khong-danh-muc', label: tr('Chưa gắn danh mục'), value: rest, tone: 'expense' })
   }
   // "Chưa ghi rõ" luôn ở CUỐI cột: nó không phải một nhóm chi, nó là phần ta không biết.
   // Đặt cuối để mắt đọc hết cái đã biết rồi mới tới cái chưa biết.
   if (chuaGhi > 0) {
     groups.push({
       id: `g:${SANKEY_CHUA_GHI_ID}`,
-      label: 'Chưa ghi rõ',
+      label: tr('Chưa ghi rõ'),
       value: chuaGhi,
       tone: 'unknown',
     })
@@ -483,7 +486,7 @@ export function buildSankey(input: SankeyInput, opts: SankeyOptions = {}): Sanke
     }
   }
 
-  const hub: Stack[] = [{ id: SANKEY_HUB_ID, label: 'Tiền vào', value: total, tone: 'hub' }]
+  const hub: Stack[] = [{ id: SANKEY_HUB_ID, label: tr('Tiền vào'), value: total, tone: 'hub' }]
   const columns: Stack[][] = hasChildCol
     ? [sources, hub, tiers, groups, children]
     : [sources, hub, tiers, groups]

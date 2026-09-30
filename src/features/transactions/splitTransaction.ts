@@ -12,6 +12,7 @@
 // RÀNG BUỘC PHẢI GIỮ: tổng các phần = số gốc, KHÔNG sai một đồng. Vì thế phần cuối lấy
 // số DƯ chứ không lấy số người dùng gõ — xem `planSplit`.
 
+import { tr } from '../../i18n'
 import type { AdjustKind } from '../../types/database.types'
 
 export interface SplitPart {
@@ -43,10 +44,10 @@ export const MIN_PARTS = 2
 export function planSplit(total: number, inputs: readonly SplitPart[]): SplitPlan {
   const parts = inputs.map((p) => ({ ...p }))
   if (parts.length < MIN_PARTS) {
-    return { parts, remainder: total, error: `Cần ít nhất ${MIN_PARTS} phần.` }
+    return { parts, remainder: total, error: tr('Cần ít nhất {n} phần.', { n: MIN_PARTS }) }
   }
   if (total <= 0) {
-    return { parts, remainder: 0, error: 'Chỉ chia được khoản có số tiền dương.' }
+    return { parts, remainder: 0, error: tr('Chỉ chia được khoản có số tiền dương.') }
   }
 
   // Mọi phần TRỪ phần cuối lấy đúng số đã gõ; phần cuối nhận số dư.
@@ -63,8 +64,8 @@ export function planSplit(total: number, inputs: readonly SplitPart[]): SplitPla
       remainder,
       error:
         remainder <= 0
-          ? 'Các phần đầu đã dùng hết (hoặc quá) số tiền gốc.'
-          : 'Mỗi phần phải lớn hơn 0.',
+          ? tr('Các phần đầu đã dùng hết (hoặc quá) số tiền gốc.')
+          : tr('Mỗi phần phải lớn hơn 0.'),
     }
   }
   return { parts: out, remainder, error: null }

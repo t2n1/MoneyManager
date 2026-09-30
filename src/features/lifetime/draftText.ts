@@ -9,6 +9,7 @@
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact } from '../../lib/money'
 import type { DraftChange } from './draft'
+import { tr } from '../../i18n'
 
 /**
  * Tên chặng đi kèm thu/chi vì trình sửa kịch bản đổi được thu/chi của MỌI chặng — bản
@@ -18,48 +19,61 @@ import type { DraftChange } from './draft'
 export function describeChange(c: DraftChange, currency: CurrencyCode): string {
   switch (c.kind) {
     case 'name':
-      return `đổi tên "${c.from}" → "${c.to}"`
+      return tr('đổi tên "{from}" → "{to}"', { from: c.from, to: c.to })
     case 'currency':
-      return `tiền hiển thị ${c.from} → ${c.to}`
+      return tr('tiền hiển thị {from} → {to}', { from: c.from, to: c.to })
     case 'startingAssets':
-      return `tài sản khởi điểm ${formatCompact(c.fromMinor, c.fromCurrency)} → ${formatCompact(c.toMinor, c.toCurrency)}`
+      return tr('tài sản khởi điểm {from} → {to}', {
+        from: formatCompact(c.fromMinor, c.fromCurrency),
+        to: formatCompact(c.toMinor, c.toCurrency),
+      })
     case 'income':
-      return `thu "${c.label}" ${formatCompact(c.fromMinor, c.currency)} → ${formatCompact(c.toMinor, c.currency)}`
+      return tr('thu "{label}" {from} → {to}', {
+        label: c.label,
+        from: formatCompact(c.fromMinor, c.currency),
+        to: formatCompact(c.toMinor, c.currency),
+      })
     case 'expense':
-      return `chi "${c.label}" ${formatCompact(c.fromMinor, c.currency)} → ${formatCompact(c.toMinor, c.currency)}`
+      return tr('chi "{label}" {from} → {to}', {
+        label: c.label,
+        from: formatCompact(c.fromMinor, c.currency),
+        to: formatCompact(c.toMinor, c.currency),
+      })
     case 'return':
-      return `lợi suất ${c.fromBps / 100}% → ${c.toBps / 100}%`
+      return tr('lợi suất {from}% → {to}%', { from: c.fromBps / 100, to: c.toBps / 100 })
     case 'bandSpread':
-      return `dải dao động ±${c.fromBps / 100}% → ±${c.toBps / 100}%`
+      return tr('dải dao động ±{from}% → ±{to}%', { from: c.fromBps / 100, to: c.toBps / 100 })
     case 'endAge':
-      return `chiếu đến tuổi ${c.from} → ${c.to}`
+      return tr('chiếu đến tuổi {from} → {to}', { from: c.from, to: c.to })
     case 'phaseYear':
-      return `"${c.label}" dời ${c.from} → ${c.to}`
+      return tr('"{label}" dời {from} → {to}', { label: c.label, from: c.from, to: c.to })
     case 'phaseLabel':
-      return `đổi tên chặng "${c.from}" → "${c.to}"`
+      return tr('đổi tên chặng "{from}" → "{to}"', { from: c.from, to: c.to })
     case 'phaseCurrency':
-      return `"${c.label}" tính bằng ${c.from} → ${c.to}`
+      return tr('"{label}" tính bằng {from} → {to}', { label: c.label, from: c.from, to: c.to })
     case 'phaseFx':
-      return `tỷ giá của "${c.label}" ${c.from} → ${c.to}`
+      return tr('tỷ giá của "{label}" {from} → {to}', { label: c.label, from: c.from, to: c.to })
     case 'phaseCountry':
-      return `quốc gia của "${c.label}" → ${c.to ?? 'để trống'}`
+      return tr('quốc gia của "{label}" → {to}', { label: c.label, to: c.to ?? tr('để trống') })
     case 'phaseLook':
-      return `đổi màu/icon chặng "${c.label}"`
+      return tr('đổi màu/icon chặng "{label}"', { label: c.label })
     case 'phasePct': {
-      const ten = c.field === 'income' ? 'thu' : 'chi'
-      const noi = (v: number | null) => (v === null ? 'số tự khai' : `${v}% chặng trước`)
-      return `${ten} của "${c.label}" ${noi(c.from)} → ${noi(c.to)}`
+      const noi = (v: number | null) => (v === null ? tr('số tự khai') : tr('{pct}% chặng trước', { pct: v }))
+      const vars = { label: c.label, from: noi(c.from), to: noi(c.to) }
+      return c.field === 'income'
+        ? tr('thu của "{label}" {from} → {to}', vars)
+        : tr('chi của "{label}" {from} → {to}', vars)
     }
     case 'phasesAdded':
-      return `thêm ${c.count} chặng`
+      return tr('thêm {n} chặng', { n: c.count })
     case 'phasesRemoved':
-      return `bớt ${c.count} chặng`
+      return tr('bớt {n} chặng', { n: c.count })
     case 'eventsAdded':
-      return `thêm ${c.count} mốc`
+      return tr('thêm {n} mốc', { n: c.count })
     case 'eventsRemoved':
-      return `bớt ${c.count} mốc`
+      return tr('bớt {n} mốc', { n: c.count })
     case 'eventsEdited':
-      return `sửa ${c.count} mốc`
+      return tr('sửa {n} mốc', { n: c.count })
     default:
       // `currency` chỉ dùng ở mẩu "cuối đời" bên dưới; giữ tham số để chữ ký ổn định
       // nếu sau này có loại thay đổi tính theo tiền HIỂN THỊ chứ không theo tiền dòng.
@@ -88,7 +102,11 @@ export function changeParts(
   if (endBeforeMinor !== null && endAfterMinor !== null && endBeforeMinor !== endAfterMinor) {
     const d = endAfterMinor - endBeforeMinor
     parts.push(
-      `cuối đời ${formatCompact(endBeforeMinor, currency)} → ${formatCompact(endAfterMinor, currency)} (${d >= 0 ? '+' : '−'}${formatCompact(Math.abs(d), currency)})`,
+      tr('cuối đời {from} → {to} ({delta})', {
+        from: formatCompact(endBeforeMinor, currency),
+        to: formatCompact(endAfterMinor, currency),
+        delta: `${d >= 0 ? '+' : '−'}${formatCompact(Math.abs(d), currency)}`,
+      }),
     )
   }
   return parts

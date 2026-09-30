@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AlertTriangle, Bell, ChevronDown, Settings2, X } from 'lucide-react'
 import { Collapse, SectionTitle } from '../../components/ui'
 import { NOTIFICATION_META, type AppNotification } from './types'
+import { tr } from '../../i18n'
 
 interface Props {
   /** Việc cần làm phần thu gọn (đã cắt trần). */
@@ -72,7 +73,7 @@ function Row({
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Bỏ qua tin này"
+          aria-label={tr('Bỏ qua tin này')}
           className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
         >
           <X className="h-4 w-4" />
@@ -90,12 +91,10 @@ function Row({
  * "Tin để biết" thì người dùng tưởng chỉ là mẹo nhỏ, bỏ qua luôn.
  */
 function MoreButton({
-  count,
   open,
   label,
   onToggle,
 }: {
-  count: number
   open: boolean
   label: string
   onToggle: () => void
@@ -107,7 +106,7 @@ function MoreButton({
       aria-expanded={open}
       className="flex min-h-11 w-full items-center justify-center gap-1 rounded-md text-sm font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
     >
-      {open ? 'Thu gọn' : `Xem thêm ${count} ${label}`}
+      {open ? tr('Thu gọn') : label}
       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
     </button>
   )
@@ -155,10 +154,10 @@ export function NotificationSheet({
   return (
     <div className="flex max-h-[70vh] flex-col">
       <div className="mb-2 flex items-baseline gap-2 px-1">
-        <SectionTitle role="block">Thông báo</SectionTitle>
+        <SectionTitle role="block">{tr('Thông báo')}</SectionTitle>
         {actionsAll.length > 0 && (
           <span className="text-sm text-fg-muted">
-            {actionsAll.length} việc cần làm
+            {tr('{n} việc cần làm', { n: actionsAll.length })}
           </span>
         )}
         {/* Chữ chứ không chỉ một bánh răng (22a ghi "Bật / tắt từng loại ›"): đây là
@@ -170,20 +169,20 @@ export function NotificationSheet({
           className="-my-2 ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-1 text-2xs font-medium text-fg-accent"
         >
           <Settings2 className="h-3.5 w-3.5" aria-hidden />
-          Bật / tắt từng loại ›
+          {tr('Bật / tắt từng loại ›')}
         </Link>
       </div>
 
       <div className="flex-1 space-y-1.5 overflow-y-auto px-1 pb-1">
         {empty && (
           <p className="rounded-lg border border-state-good-border bg-state-good-bg py-3 text-center text-sm font-semibold text-state-good-fg">
-            Không có gì cần để ý 👍
+            {tr('Không có gì cần để ý 👍')}
           </p>
         )}
 
         {actionsAll.length > 0 && (
           <p className="pt-1 text-2xs font-bold uppercase tracking-label text-fg-muted">
-            Việc cần làm
+            {tr('Việc cần làm')}
           </p>
         )}
         {actions.map((n) => (
@@ -203,16 +202,15 @@ export function NotificationSheet({
         )}
         {extraActions.length > 0 && (
           <MoreButton
-            count={extraActions.length}
             open={actionsOpen}
-            label="việc cần làm"
+            label={tr('Xem thêm {n} việc cần làm', { n: extraActions.length })}
             onToggle={() => toggle(actionsOpen, setActionsOpen, extraActions)}
           />
         )}
 
         {infosAll.length > 0 && (
           <p className="pt-2 text-2xs font-bold uppercase tracking-label text-fg-muted">
-            Tin để biết
+            {tr('Tin để biết')}
           </p>
         )}
         {infos.map((n) => (
@@ -239,9 +237,8 @@ export function NotificationSheet({
         )}
         {extraInfos.length > 0 && (
           <MoreButton
-            count={extraInfos.length}
             open={infosOpen}
-            label="tin để biết"
+            label={tr('Xem thêm {n} tin để biết', { n: extraInfos.length })}
             onToggle={() => toggle(infosOpen, setInfosOpen, extraInfos)}
           />
         )}

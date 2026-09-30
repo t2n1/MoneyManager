@@ -1,4 +1,5 @@
 import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { tr } from '../../i18n'
 
 /** Một hàng danh mục: nhãn + % + số tiền + thanh tỉ lệ (kèm vạch mục tiêu tùy chọn). */
 export function BreakdownRow({
@@ -36,7 +37,7 @@ export function BreakdownRow({
         </span>
         {targetPct != null && (
           <span className="shrink-0 text-2xs text-fg-muted">
-            mục tiêu {targetPct}%
+            {tr('mục tiêu {pct}%', { pct: targetPct })}
           </span>
         )}
         <span className="shrink-0 tabular-nums text-sm text-fg-muted">

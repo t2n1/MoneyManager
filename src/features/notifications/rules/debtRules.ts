@@ -1,6 +1,7 @@
 // Luật nợ / cho vay (mục 3, 4 của spec) — THUẦN.
 import { daysBetween } from '../../../lib/dates'
 import type { DebtRow } from '../../../types/database.types'
+import { tr } from '../../../i18n'
 import type { AppNotification, NotificationInput, NotificationType } from '../types'
 
 /** Còn bao nhiêu ngày thì tính là "sắp đến hạn". */
@@ -10,8 +11,10 @@ export const GROUP_FROM = 3
 
 const DEBTS_ROUTE = '/debts'
 
-function label(d: DebtRow): string {
-  return d.direction === 'i_owe' ? `Mình nợ ${d.counterparty}` : `${d.counterparty} nợ mình`
+function label(d: DebtRow, amount: string): string {
+  return d.direction === 'i_owe'
+    ? tr('Mình nợ {name} {amount}', { name: d.counterparty, amount })
+    : tr('{name} nợ mình {amount}', { name: d.counterparty, amount })
 }
 
 function lines(
@@ -62,8 +65,11 @@ export function debtRules(input: NotificationInput): AppNotification[] {
       'debt-overdue',
       'high',
       (d) =>
-        `${label(d)} ${input.formatMoney(d.principal, d.currency)} — quá hạn ${-daysBetween(input.todayISO, d.due_on as string)} ngày`,
-      (n) => `${n} khoản nợ đã quá hạn`,
+        tr('{who} — quá hạn {n} ngày', {
+          who: label(d, input.formatMoney(d.principal, d.currency)),
+          n: -daysBetween(input.todayISO, d.due_on as string),
+        }),
+      (n) => tr('{n} khoản nợ đã quá hạn', { n }),
     ),
     ...lines(
       dueSoon,
@@ -71,10 +77,12 @@ export function debtRules(input: NotificationInput): AppNotification[] {
       'medium',
       (d) => {
         const days = daysBetween(input.todayISO, d.due_on as string)
-        const when = days === 0 ? 'hôm nay' : `trong ${days} ngày`
-        return `${label(d)} ${input.formatMoney(d.principal, d.currency)} — đến hạn ${when}`
+        const who = label(d, input.formatMoney(d.principal, d.currency))
+        return days === 0
+          ? tr('{who} — đến hạn hôm nay', { who })
+          : tr('{who} — đến hạn trong {n} ngày', { who, n: days })
       },
-      (n) => `${n} khoản nợ sắp đến hạn`,
+      (n) => tr('{n} khoản nợ sắp đến hạn', { n }),
     ),
   ]
 }

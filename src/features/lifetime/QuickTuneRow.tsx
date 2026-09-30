@@ -27,6 +27,8 @@ import {
   SPREAD_MIN_BPS,
   SPREAD_STEP_BPS,
 } from './quickTune'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 interface Props {
   /** `draft.realReturnBps` — lợi suất THỰC, bps. */
@@ -79,10 +81,10 @@ export function QuickTuneRow({
             không nói vặn CÁI GÌ. Dòng phụ nói luôn luật lưu — kéo thanh là thử trong nháp,
             chưa có gì được ghi. */}
         <div className="shrink-0">
-          <SectionTitle role="micro">Chỉnh nhanh giả định</SectionTitle>
+          <SectionTitle role="micro">{tr('Chỉnh nhanh giả định')}</SectionTitle>
           {/* E-ink + Gọn: bỏ dòng hướng dẫn — cặp nút Lưu/Bỏ bên dưới đã nói. */}
           <p className="mt-0.5 text-2xs text-fg-muted eink-gon:hidden">
-            Kéo để thử — bấm Lưu mới ghi lại.
+            {tr('Kéo để thử — bấm Lưu mới ghi lại.')}
           </p>
         </div>
 
@@ -90,7 +92,7 @@ export function QuickTuneRow({
         <div className={SLIDER_COL}>
           <div className="flex items-baseline justify-between gap-2">
             <label htmlFor={`${uid}-return`} className={SLIDER_LABEL}>
-              Lợi suất thực / năm
+              {tr('Lợi suất thực / năm')}
             </label>
             <Num className="text-sm font-semibold">{bpsText(returnBps)}</Num>
           </div>
@@ -114,7 +116,7 @@ export function QuickTuneRow({
         <div className={SLIDER_COL}>
           <div className="flex items-baseline justify-between gap-2">
             <label htmlFor={`${uid}-expense`} className={SLIDER_LABEL}>
-              Chi mỗi năm ±
+              {tr('Chi mỗi năm ±')}
             </label>
             {/* `signedPct` + `deltaTone` (Num.tsx) chứ không tự ghép dấu: chúng sở hữu
                 dấu ÂM THẬT (−, U+2212) và quy ước "tăng chi là tông chi, giảm chi là tông
@@ -139,7 +141,7 @@ export function QuickTuneRow({
         <div className={SLIDER_COL}>
           <div className="flex items-baseline justify-between gap-2">
             <label htmlFor={`${uid}-spread`} className={SLIDER_LABEL}>
-              Dải dao động ±
+              {tr('Dải dao động ±')}
             </label>
             <Num className="text-sm font-semibold" tone="warn">
               ±{bpsText(spreadBps)}
@@ -156,8 +158,10 @@ export function QuickTuneRow({
             className={`${SLIDER} accent-[var(--fg-warn)]`}
           />
           <p className="text-2xs text-fg-disabled">
-            bi quan <Num tone="out">{bpsText(returnBps - spreadBps)}</Num> · lạc quan{' '}
-            <Num tone="in">{bpsText(returnBps + spreadBps)}</Num>
+            {trn('bi quan {low} · lạc quan {high}', {
+              low: <Num tone="out">{bpsText(returnBps - spreadBps)}</Num>,
+              high: <Num tone="in">{bpsText(returnBps + spreadBps)}</Num>,
+            })}
           </p>
         </div>
 
@@ -167,7 +171,7 @@ export function QuickTuneRow({
                 chồng nhau. Câu chênh lệch giãn hết chỗ, cặp nút dán mép phải như bản vẽ. */}
         <div className="flex min-w-0 basis-full items-center gap-2.5 border-t border-border-subtle pt-2.5">
           <p className="min-w-0 flex-1 text-2xs leading-relaxed text-fg-secondary">
-            {dirty ? `Đang đổi: ${changeParts.join(' · ')}.` : 'Trùng bản đã lưu.'}
+            {dirty ? tr('Đang đổi: {parts}.', { parts: changeParts.join(' · ') }) : tr('Trùng bản đã lưu.')}
           </p>
           <ActionButton
             variant="primary"
@@ -175,10 +179,10 @@ export function QuickTuneRow({
             disabled={!dirty || saving}
             className="shrink-0"
           >
-            {saving ? 'Đang lưu…' : 'Lưu vào kế hoạch'}
+            {saving ? tr('Đang lưu…') : tr('Lưu vào kế hoạch')}
           </ActionButton>
           <ActionButton onClick={onDiscard} disabled={!dirty || saving} className="shrink-0">
-            Bỏ
+            {tr('Bỏ')}
           </ActionButton>
         </div>
       </div>

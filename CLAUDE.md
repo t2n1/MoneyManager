@@ -131,6 +131,20 @@ Ba luật hay bị vi phạm nhất, nói luôn ở đây để khỏi phải m�
 định của phiên xem là Tối), cỡ chữ 1,25× ở 375px, và biểu thức JSX bị codemod biến thành
 chuỗi (`title="{debt.counterparty}"` — hợp kiểu nên tsc xanh). Phải mở app xem.
 
+## Mọi chữ trên màn đi qua `tr()` — app có hai ngôn ngữ
+
+Cài đặt → Ngôn ngữ chọn Tiếng Việt / English ([src/i18n](src/i18n/index.ts)). Khoá dịch **là câu tiếng Việt**:
+`tr('còn {n} ngày', { n })`, `trn(…)` khi biến là phần tử React, `trx('ngữ cảnh', …)` khi cùng chữ mà tiếng Anh nói
+khác (Danh mục = Category / Portfolio). Bản tiếng Anh nằm ở `src/i18n/en/<vùng>.ts`.
+
+- Chế độ Việt trả **nguyên câu gốc** — test so chữ tiếng Việt không đổi. Đổi ngôn ngữ là tải lại trang, nên gọi
+  `tr()` ở hằng số cấp module là được.
+- Chuỗi là **logic** (tên danh mục khớp DB, ghi chú ghi vào DB, chuỗi parser đọc) thì KHÔNG bọc — ghi
+  `// i18n-ignore — lý do`. Dịch nó là vỡ phép so khớp ở chế độ Anh.
+- Số lẻ tự dựng: `.replace('.', decimalSep())`, `toLocaleString(numLocale())` — không cứng dấu phẩy.
+- Guard: [tests/i18n.test.ts](tests/i18n.test.ts) — thiếu bản dịch, lệch `{biến}`, khoá trùng khác nghĩa, hay còn
+  chuỗi tiếng Việt chưa bọc đều đỏ.
+
 ## Toán thuần nằm ngoài React
 
 Hàm tính tiền sống trong file `.ts` riêng, không JSX, có unit test (`aggregate.ts`, `amortization.ts`,

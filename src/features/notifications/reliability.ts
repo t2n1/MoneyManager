@@ -11,6 +11,7 @@
 import { addDaysISO, addMonths, formatMonthLabel, getMonthRange, type MonthKey } from '../../lib/dates'
 import { lastReconciledMap, type ReconcilableAccount } from './reconciledAt'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 /** Một thành phần của chỉ số. `weight` cộng lại đúng 1. */
 export interface ReliabilityPart {
@@ -155,40 +156,46 @@ export function reliability(input: ReliabilityInput): Reliability {
   const parts: ReliabilityPart[] = [
     {
       key: 'categorized',
-      label: 'Đã phân loại',
+      label: tr('Đã phân loại'),
       score: tyLeGan,
       weight: 0.4,
-      gap: thieuGan > 0 ? `${thieuGan} giao dịch chưa gắn danh mục` : '',
+      gap: thieuGan > 0 ? tr('{n} giao dịch chưa gắn danh mục', { n: thieuGan }) : '',
     },
     {
       key: 'reconciled',
-      label: 'Đã đối chiếu',
+      label: tr('Đã đối chiếu'),
       score: tyLeDoiChieu,
       weight: 0.3,
       gap:
         input.accounts.length - soMoi > 0
-          ? `${input.accounts.length - soMoi} tài khoản chưa đối chiếu trong ${RECONCILE_DAYS} ngày`
+          ? tr('{n} tài khoản chưa đối chiếu trong {days} ngày', {
+              n: input.accounts.length - soMoi,
+              days: RECONCILE_DAYS,
+            })
           : '',
     },
     {
       key: 'history',
-      label: 'Lịch sử',
+      label: tr('Lịch sử'),
       score: tyLeLichSu,
       weight: 0.2,
       gap:
         input.monthsWithData < HISTORY_TARGET_MONTHS
-          ? `mới ${input.monthsWithData}/${HISTORY_TARGET_MONTHS} tháng có dữ liệu` +
-            (input.missingMonths && input.missingMonths.length > 0
-              ? ` — thiếu ${monthSpansLabel(input.missingMonths)}`
-              : '')
+          ? input.missingMonths && input.missingMonths.length > 0
+            ? tr('mới {n}/{target} tháng có dữ liệu — thiếu {months}', {
+                n: input.monthsWithData,
+                target: HISTORY_TARGET_MONTHS,
+                months: monthSpansLabel(input.missingMonths),
+              })
+            : tr('mới {n}/{target} tháng có dữ liệu', { n: input.monthsWithData, target: HISTORY_TARGET_MONTHS })
           : '',
     },
     {
       key: 'assumptions',
-      label: 'Giả định',
+      label: tr('Giả định'),
       score: tyLeGiaDinh,
       weight: 0.1,
-      gap: input.blankAssumptions > 0 ? `${input.blankAssumptions} giả định còn trống` : '',
+      gap: input.blankAssumptions > 0 ? tr('{n} giả định còn trống', { n: input.blankAssumptions }) : '',
     },
   ]
 

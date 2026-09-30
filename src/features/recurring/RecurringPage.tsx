@@ -31,6 +31,7 @@ import type { RecurringRuleRow } from '../../types/database.types'
 import { BillCalendarCard } from './BillCalendarCard'
 import { RecurringFormSheet } from './RecurringFormSheet'
 import { Card, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -50,11 +51,11 @@ function nextStartOn(lastDate: string, frequency: 'weekly' | 'monthly'): string 
 }
 
 const FREQ_LABEL: Record<RecurringFrequency, string> = {
-  weekly: 'Hàng tuần',
-  monthly: 'Hàng tháng',
-  yearly: 'Hàng năm',
+  weekly: tr('Hàng tuần'),
+  monthly: tr('Hàng tháng'),
+  yearly: tr('Hàng năm'),
 }
-const WEEKDAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
+const WEEKDAYS = [tr('Chủ nhật'), tr('Thứ 2'), tr('Thứ 3'), tr('Thứ 4'), tr('Thứ 5'), tr('Thứ 6'), tr('Thứ 7')]
 
 const AMOUNT_COLOR: Record<RecurringRuleRow['type'], string> = {
   expense: 'text-money-out',
@@ -72,7 +73,7 @@ function scheduleLabel(rule: RecurringRuleRow): string {
   const [, m, d] = rule.start_on.split('-').map(Number)
   if (rule.frequency === 'weekly')
     return `${FREQ_LABEL.weekly} · ${WEEKDAYS[new Date(rule.start_on + 'T00:00:00').getDay()]}`
-  if (rule.frequency === 'monthly') return `${FREQ_LABEL.monthly} · ngày ${d}`
+  if (rule.frequency === 'monthly') return tr('{freq} · ngày {d}', { freq: FREQ_LABEL.monthly, d })
   return `${FREQ_LABEL.yearly} · ${m}/${d}`
 }
 
@@ -203,7 +204,7 @@ export function RecurringPage() {
         end_on: null,
       })
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
@@ -223,24 +224,24 @@ export function RecurringPage() {
         await update.mutateAsync({ id: rule.id, patch: { is_paused: true } })
       }
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
   async function handleDelete(rule: RecurringRuleRow) {
     if (
       !(await confirmDialog({
-        title: 'Xóa quy tắc định kỳ này?',
-        message: 'Giao dịch đã sinh vẫn được giữ lại.',
+        title: tr('Xóa quy tắc định kỳ này?'),
+        message: tr('Giao dịch đã sinh vẫn được giữ lại.'),
         danger: true,
-        confirmLabel: 'Xóa',
+        confirmLabel: tr('Xóa'),
       }))
     )
       return
     try {
       await del.mutateAsync(rule.id)
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Thao tác thất bại, thử lại.'), 'error')
     }
   }
 
@@ -256,11 +257,11 @@ export function RecurringPage() {
              Chữ "tự ghi" là một phần của con số, không phải trang trí: quy tắc "chỉ nhắc"
              bị loại khỏi tổng vì nó không tự trừ tiền — mọi phép lọc ở monthlyLoad.ts. */
           <>
-            Giao dịch định kỳ
+            {tr('Giao dịch định kỳ')}
             {load.counted > 0 && (
               <span className="ml-2 text-sm font-normal text-fg-muted">
                 {load.hasMissingRate && '≈ '}
-                {formatMoney(load.perMonth, base)}/tháng tự ghi
+                {tr('{amount}/tháng tự ghi', { amount: formatMoney(load.perMonth, base) })}
               </span>
             )}
           </>
@@ -269,14 +270,14 @@ export function RecurringPage() {
         {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
             "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}
         <Link to="/planned" className="-my-2 shrink-0 py-2 text-sm font-medium text-fg-accent">
-          Sắp chi
+          {tr('Sắp chi')}
         </Link>
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
           className={actionButtonClass('primary')}
         >
-          <Plus className="h-4 w-4" /> Thêm
+          <Plus className="h-4 w-4" /> {tr('Thêm')}
         </button>
       </PageHeader>
 
@@ -300,7 +301,7 @@ export function RecurringPage() {
         <section className="overflow-hidden rounded-xl border border-green-200 bg-state-good-bg dark:border-green-900">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 px-3 pt-3">
             <SectionTitle className="flex items-center gap-1.5 text-green-800 dark:text-green-200">
-              <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
+              <Sparkles className="h-4 w-4" /> {tr('Gợi ý khoản định kỳ')}
             </SectionTitle>
             <span className="font-mono text-2xs text-green-700/80 dark:text-green-300/80">
               {Math.min(goiYIdx + 1, suggestions.length)}/{suggestions.length}
@@ -321,14 +322,15 @@ export function RecurringPage() {
                     </span>
                     <span className="block text-sm text-fg-muted">
                       {formatMoney(s.amount, acc?.currency ?? 'JPY')} ·{' '}
-                      {s.frequency === 'monthly' ? 'hàng tháng' : 'hàng tuần'} · {s.occurrences} lần
+                      {s.frequency === 'monthly' ? tr('hàng tháng') : tr('hàng tuần')} ·{' '}
+                      {tr('{n} lần', { n: s.occurrences })}
                     </span>
                   </div>
                 </div>
                 {/* Bằng chứng — KHÔNG bọc Guide: bỏ nó đi thì gợi ý quay về chỗ phải tin
                     mù quáng, tức là mất thứ khiến quyết định này quyết định được. */}
                 <p className="mt-1.5 font-mono text-2xs text-green-700/80 dark:text-green-300/80">
-                  Gần nhất: {s.recentDates.map(fmtDate).join(' · ')}
+                  {tr('Gần nhất: {dates}', { dates: s.recentDates.map(fmtDate).join(' · ') })}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   <button
@@ -336,7 +338,7 @@ export function RecurringPage() {
                     onClick={() => createFromSuggestion(s)}
                     className={actionButtonClass('primary')}
                   >
-                    Tạo quy tắc
+                    {tr('Tạo quy tắc')}
                   </button>
                   <button
                     type="button"
@@ -344,14 +346,14 @@ export function RecurringPage() {
                     disabled={goiYIdx >= suggestions.length - 1}
                     className="rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken disabled:opacity-50"
                   >
-                    Để sau
+                    {tr('Để sau')}
                   </button>
                   <button
                     type="button"
                     onClick={() => dismissSuggestion(s.key)}
                     className="rounded-md px-3 py-1.5 text-sm font-medium text-fg-muted hover:text-fg-primary"
                   >
-                    Không định kỳ
+                    {tr('Không định kỳ')}
                   </button>
                 </div>
               </div>
@@ -361,7 +363,7 @@ export function RecurringPage() {
       )}
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-fg-muted">Đang tải…</p>
+        <p className="py-8 text-center text-sm text-fg-muted">{tr('Đang tải…')}</p>
       ) : rules.length === 0 ? (
         // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
         // (xem components/Guide.tsx).
@@ -369,8 +371,7 @@ export function RecurringPage() {
           {/* Dropdown "Lặp lại" ở form Nhập đã bị bỏ (nó chỉ ghi được `frequency`, thiếu
               mode/isPaused/endOn/isRefund), và màn Nhập giờ dẫn NGƯỢC sang đây — nên câu
               cũ chỉ vào một control không còn tồn tại, và chỉ vòng về chính trang này. */}
-          Chưa có quy tắc nào. Thêm ở đây, hoặc từ màn Nhập chọn "Khoản này lặp lại? → Tạo
-          quy tắc".
+          {tr('Chưa có quy tắc nào. Thêm ở đây, hoặc từ màn Nhập chọn "Khoản này lặp lại? → Tạo quy tắc".')}
         </p>
       ) : (
         <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
@@ -404,8 +405,8 @@ export function RecurringPage() {
                   </span>
                   <span className="block text-sm text-fg-muted">
                     {scheduleLabel(rule)} ·{' '}
-                    {rule.is_paused ? 'Tạm dừng' : next ? `kỳ tới ${fmtDate(next)}` : 'Đã kết thúc'}
-                    {rule.mode === 'remind' && ' · chỉ nhắc'}
+                    {rule.is_paused ? tr('Tạm dừng') : next ? tr('kỳ tới {date}', { date: fmtDate(next) }) : tr('Đã kết thúc')}
+                    {rule.mode === 'remind' && tr(' · chỉ nhắc')}
                   </span>
                 </button>
                 <span className={`text-sm font-semibold ${AMOUNT_COLOR[rule.type]}`}>
@@ -414,7 +415,7 @@ export function RecurringPage() {
                 <button
                   type="button"
                   onClick={() => togglePause(rule)}
-                  aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
+                  aria-label={rule.is_paused ? tr('Chạy lại') : tr('Tạm dừng')}
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
@@ -422,7 +423,7 @@ export function RecurringPage() {
                 <button
                   type="button"
                   onClick={() => handleDelete(rule)}
-                  aria-label="Xóa"
+                  aria-label={tr('Xóa')}
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   <Trash2 className="h-5 w-5" />
@@ -443,14 +444,14 @@ export function RecurringPage() {
                 >
                   <span className="min-w-0 flex-1">
                     {bill.daysLeft < 0
-                      ? `Chưa ghi kỳ ${fmtDate(bill.dueISO)}`
+                      ? tr('Chưa ghi kỳ {date}', { date: fmtDate(bill.dueISO) })
                       : bill.daysLeft === 0
-                        ? `Hôm nay tới hạn kỳ ${fmtDate(bill.dueISO)}`
-                        : `${bill.daysLeft} ngày nữa tới hạn kỳ ${fmtDate(bill.dueISO)}`}
-                    {bill.overdueCount > 1 && ` · đang nợ ${bill.overdueCount} kỳ`}
+                        ? tr('Hôm nay tới hạn kỳ {date}', { date: fmtDate(bill.dueISO) })
+                        : tr('{n} ngày nữa tới hạn kỳ {date}', { n: bill.daysLeft, date: fmtDate(bill.dueISO) })}
+                    {bill.overdueCount > 1 && tr(' · đang nợ {n} kỳ', { n: bill.overdueCount })}
                   </span>
                   <span className="shrink-0 rounded-lg bg-white/70 px-2 py-1 dark:bg-black/20">
-                    Ghi khoản này
+                    {tr('Ghi khoản này')}
                   </span>
                 </Link>
               )}

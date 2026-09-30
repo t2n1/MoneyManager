@@ -14,6 +14,7 @@
 //     là hỗn hợp giá-thị-trường/giá-vốn. Câu phán vẫn nói được, nhưng phải nói kèm rằng
 //     nó đang tính trên số tạm.
 import { share } from './investFormat'
+import { tr } from '../../i18n'
 
 /** Tỷ trọng của mã nặng nhất từ mức này là ĐÁNG NÓI. */
 export const TOP_HEAVY = 0.4
@@ -71,7 +72,7 @@ export function concentrationVerdict(
   if (sorted.length === 1) {
     return {
       level: 'single',
-      text: `Chỉ giữ ${top.symbol} nên tỷ trọng chưa nói được gì.`,
+      text: tr('Chỉ giữ {symbol} nên tỷ trọng chưa nói được gì.', { symbol: top.symbol }),
       estimated,
     }
   }
@@ -81,7 +82,7 @@ export function concentrationVerdict(
       level: 'top-heavy',
       // "Không phải lỗi" là chữ của 21a và nó đáng giữ nguyên: dồn vào một mã là một
       // lựa chọn, không phải một sai sót cần sửa. Câu này báo tin, không ra lệnh.
-      text: `${top.symbol} một mình chiếm ${topPct} phần cổ phiếu. Không phải lỗi — nhưng đáng biết trước khi mua thêm.`,
+      text: tr('{symbol} một mình chiếm {pct} phần cổ phiếu. Không phải lỗi — nhưng đáng biết trước khi mua thêm.', { symbol: top.symbol, pct: topPct }),
       estimated,
     }
   }
@@ -90,14 +91,14 @@ export function concentrationVerdict(
   if (topTwo >= TOP_TWO_HEAVY) {
     return {
       level: 'two-heavy',
-      text: `${top.symbol} và ${sorted[1].symbol} cộng lại chiếm ${share(topTwo)} phần cổ phiếu — danh mục đang dựa vào hai mã.`,
+      text: tr('{a} và {b} cộng lại chiếm {pct} phần cổ phiếu — danh mục đang dựa vào hai mã.', { a: top.symbol, b: sorted[1].symbol, pct: share(topTwo) }),
       estimated,
     }
   }
 
   return {
     level: 'spread',
-    text: `Nặng nhất là ${top.symbol} với ${topPct} — ${sorted.length} mã, không mã nào áp đảo.`,
+    text: tr('Nặng nhất là {symbol} với {pct} — {n} mã, không mã nào áp đảo.', { symbol: top.symbol, pct: topPct, n: sorted.length }),
     estimated,
   }
 }

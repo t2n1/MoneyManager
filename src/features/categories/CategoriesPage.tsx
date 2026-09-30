@@ -30,6 +30,8 @@
 //     của DragList sai ngay, mà để nó nở hết 1090px thì sinh ra đúng khoảng trống 800px
 //     ở trên. §Phần I cho phép bó với màn một-cột (Nhập đã bó `max-w-2xl lg:max-w-5xl`).
 //     Chỗ trống còn lại bên phải là ĐÁNH ĐỔI CÓ CHỦ Ý, không phải bỏ quên.
+import { tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 import {
   useMemo,
   useRef,
@@ -81,8 +83,8 @@ const EMOJI_CHOICES = [
 ]
 
 const TAB_ITEMS = [
-  { value: 'expense' as const, label: 'Chi' },
-  { value: 'income' as const, label: 'Thu' },
+  { value: 'expense' as const, label: tr('Chi') },
+  { value: 'income' as const, label: tr('Thu') },
 ]
 
 /** Trạng thái mở form: thêm mới (có thể kèm cha) hoặc sửa một danh mục. */
@@ -188,7 +190,7 @@ export function CategoriesPage() {
       <button
         type="button"
         onClick={() => openFor(cat)}
-        aria-label={`Phân loại ${cat.name} — hiện là ${summaryLabel(eff)}`}
+        aria-label={tr('Phân loại {name} — hiện là {label}', { name: cat.name, label: summaryLabel(eff) })}
         className="inline-flex min-h-11 shrink-0 items-center rounded-full"
       >
         <StatusChip tone={done ? 'good' : 'warn'}>{summaryLabel(eff)}</StatusChip>
@@ -215,7 +217,7 @@ export function CategoriesPage() {
           {/* Chỉ "· cả nhóm", KHÔNG kèm số mục con: header nhóm ngay phía trên đã in
               "N mục con", và ở cỡ chữ 1,25×/375px cái đuôi dài đó (shrink-0) ép tên danh
               mục xuống 0 — dòng cha hiện ra chỉ còn mỗi icon. */}
-          {isParent && <span className="shrink-0 text-2xs text-fg-muted">· cả nhóm</span>}
+          {isParent && <span className="shrink-0 text-2xs text-fg-muted">{tr('· cả nhóm')}</span>}
         </span>
         <StatusChip tone={isClassified(eff) ? 'good' : 'warn'} className="shrink-0">
           {summaryLabel(eff)}
@@ -251,7 +253,7 @@ export function CategoriesPage() {
       { id, patch: v },
       {
         onError: (e) =>
-          showToast(e instanceof Error ? e.message : 'Không lưu được phân loại', 'error'),
+          showToast(e instanceof Error ? e.message : tr('Không lưu được phân loại'), 'error'),
         onSettled: () =>
           setPending((p) => {
             // Đã có thao tác mới hơn trên danh mục này → để lần đó tự dọn.
@@ -301,11 +303,11 @@ export function CategoriesPage() {
     const members = membersOf(parent.id)
     const overwrite = members.filter((c) => !isTodo(c)).length
     const ok = await confirmDialog({
-      title: `Gán “${label}” cho nhóm ${parent.name}?`,
+      title: tr('Gán “{label}” cho nhóm {name}?', { label, name: parent.name }),
       message:
-        `${members.length} danh mục (cả nhóm cha).` +
-        (overwrite > 0 ? ` ${overwrite} mục đã có phân loại sẽ bị ghi đè.` : ''),
-      confirmLabel: 'Gán',
+        tr('{n} danh mục (cả nhóm cha).', { n: members.length }) +
+        (overwrite > 0 ? ' ' + tr('{n} mục đã có phân loại sẽ bị ghi đè.', { n: overwrite }) : ''),
+      confirmLabel: tr('Gán'),
     })
     if (!ok) return
     closeSheet()
@@ -316,9 +318,9 @@ export function CategoriesPage() {
     })
     try {
       await Promise.all(members.map((c) => update.mutateAsync({ id: c.id, patch: v })))
-      showToast(`Đã gán “${label}” cho ${members.length} danh mục`)
+      showToast(tr('Đã gán “{label}” cho {n} danh mục', { label, n: members.length }))
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không lưu được phân loại', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không lưu được phân loại'), 'error')
     } finally {
       // Dọn TOÀN BỘ trạng thái chờ của nhóm một lượt: từng mục tự dọn như `saveOne` thì
       // phải so lại từng trục, mà ở đây cả nhóm đi cùng một giá trị.
@@ -632,7 +634,7 @@ export function CategoriesPage() {
             type="button"
             {...handle}
             className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-            aria-label={`Kéo để sắp thứ tự ${p.name}`}
+            aria-label={tr('Kéo để sắp thứ tự {name}', { name: p.name })}
           >
             <GripVertical className="h-5 w-5" />
           </button>
@@ -643,7 +645,11 @@ export function CategoriesPage() {
               type="button"
               onClick={() => toggleParent(p.id)}
               aria-expanded={isOpen}
-              aria-label={`${isOpen ? 'Thu gọn' : 'Mở'} danh mục con của ${p.name}`}
+              aria-label={
+                isOpen
+                  ? tr('Thu gọn danh mục con của {name}', { name: p.name })
+                  : tr('Mở danh mục con của {name}', { name: p.name })
+              }
               className="inline-flex min-h-11 w-5 shrink-0 items-center justify-center text-fg-muted"
             >
               {isOpen ? (
@@ -683,7 +689,7 @@ export function CategoriesPage() {
               </span>
               {kids.length > 0 && (
                 <span className="text-2xs text-fg-muted">
-                  <Num tone="muted">{kids.length}</Num> danh mục con
+                  {trn('{n} danh mục con', { n: <Num tone="muted">{kids.length}</Num> })}
                 </span>
               )}
             </button>
@@ -693,7 +699,7 @@ export function CategoriesPage() {
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
             className={iconButtonClass('accent')}
-            aria-label={`Thêm danh mục con cho ${p.name}`}
+            aria-label={tr('Thêm danh mục con cho {name}', { name: p.name })}
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -702,8 +708,8 @@ export function CategoriesPage() {
           <IconButton
             variant="ghost"
             onClick={() => archive(p)}
-            aria-label={`Lưu trữ ${p.name}`}
-            title="Lưu trữ"
+            aria-label={tr('Lưu trữ {name}', { name: p.name })}
+            title={tr('Lưu trữ')}
           >
             <Archive className="h-4 w-4" />
           </IconButton>
@@ -729,7 +735,7 @@ export function CategoriesPage() {
                     onPointerDown={(e) => childDrag.start(cid, e)}
                     style={{ touchAction: 'none' }}
                     className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
-                    aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${ch.name}`}
+                    aria-label={tr('Kéo để sắp thứ tự hoặc chuyển nhóm {name}', { name: ch.name })}
                   >
                     <GripVertical className="h-4 w-4" />
                   </button>
@@ -747,8 +753,8 @@ export function CategoriesPage() {
                   <IconButton
                     variant="ghost"
                     onClick={() => archive(ch)}
-                    aria-label={`Lưu trữ ${ch.name}`}
-                    title="Lưu trữ"
+                    aria-label={tr('Lưu trữ {name}', { name: ch.name })}
+                    title={tr('Lưu trữ')}
                   >
                     <Archive className="h-4 w-4" />
                   </IconButton>
@@ -757,7 +763,7 @@ export function CategoriesPage() {
             })}
             {childIds.length === 0 && dragChild != null && (
               <p className="px-3 py-3 text-center text-sm text-fg-muted">
-                Thả vào đây để chuyển sang nhóm này
+                {tr('Thả vào đây để chuyển sang nhóm này')}
               </p>
             )}
           </div>
@@ -776,11 +782,11 @@ export function CategoriesPage() {
         back="/settings"
         title={
           <>
-            Danh mục{' '}
+            {trx('list', 'Danh mục')}{' '}
             {/* Đếm ở tiêu đề (22e). Cả hai loại, không riêng tab đang xem: nó nói luôn
                 rằng tab kia có gì, nên không phải bấm sang mới biết. */}
             <span className="text-sm font-normal tabular-nums text-fg-muted">
-              {counts.expense} chi · {counts.income} thu
+              {tr('{expense} chi · {income} thu', { expense: counts.expense, income: counts.income })}
             </span>
           </>
         }
@@ -790,7 +796,7 @@ export function CategoriesPage() {
           onClick={() => setForm({ category: null, parent: null })}
           className={actionButtonClass('primary')}
         >
-          <Plus className="h-4 w-4" /> Thêm
+          <Plus className="h-4 w-4" /> {tr('Thêm')}
         </button>
       </PageHeader>
 
@@ -806,7 +812,7 @@ export function CategoriesPage() {
               items={TAB_ITEMS}
               value={tab}
               onChange={setTab}
-              label="Loại danh mục"
+              label={tr('Loại danh mục')}
               stretch="lg"
               // `basis-40`, không để `flex-1` trơn: trong một hàng `flex-wrap`, basis 0
               // nghĩa là ba control nào cũng "vừa" một dòng, rồi phần thừa chia lại làm ô
@@ -824,7 +830,7 @@ export function CategoriesPage() {
                   )
                 }
               >
-                {expanded.size === parents.length ? 'Thu gọn hết' : 'Mở hết'}
+                {expanded.size === parents.length ? tr('Thu gọn hết') : tr('Mở hết')}
               </ActionButton>
             )}
           </>
@@ -835,12 +841,15 @@ export function CategoriesPage() {
             on={onlyTodo}
             onClick={() => setParam('todo', onlyTodo ? null : '1')}
           >
-            Chưa phân loại · <Num tone={onlyTodo ? 'neutral' : 'muted'}>{todoCount}</Num>
+            {trn('Chưa phân loại · {n}', { n: <Num tone={onlyTodo ? 'neutral' : 'muted'}>{todoCount}</Num> })}
           </FilterChip>
         )}
         {classifyMode && (
           <span className="shrink-0 text-2xs text-fg-muted">
-            <Num tone="muted">{doneCount}</Num>/<Num tone="muted">{classifiable.length}</Num> xong
+            {trn('{done}/{total} xong', {
+              done: <Num tone="muted">{doneCount}</Num>,
+              total: <Num tone="muted">{classifiable.length}</Num>,
+            })}
           </span>
         )}
       </div>
@@ -852,23 +861,24 @@ export function CategoriesPage() {
           Đường đi sửa nay là chính bộ lọc ngay phía trên, không phải một trang khác. */}
       {!classifyMode && todoCount > 0 && (
         <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm text-state-warn-fg">
-          <Num tone="warn">{todoCount}</Num> danh mục chi chưa phân loại đủ — quỹ dự phòng
-          và hai trục Thiết yếu·Linh hoạt đang tính thiếu chừng đó.{' '}
+          {trn('{n} danh mục chi chưa phân loại đủ — quỹ dự phòng và hai trục Thiết yếu·Linh hoạt đang tính thiếu chừng đó.', {
+            n: <Num tone="warn">{todoCount}</Num>,
+          })}{' '}
           <button
             type="button"
             onClick={() => setParam('todo', '1')}
             className="font-medium underline"
           >
-            Phân loại nhanh
+            {tr('Phân loại nhanh')}
           </button>
         </p>
       )}
 
       {pickedIds && (
         <p className="mb-3 text-sm font-medium text-fg-muted">
-          Đang xem <Num tone="muted">{pickedIds.size}</Num> danh mục từ Ngân sách ·{' '}
+          {trn('Đang xem {n} danh mục từ Ngân sách ·', { n: <Num tone="muted">{pickedIds.size}</Num> })}{' '}
           <Link to="/settings/categories?todo=1" className="text-fg-accent underline">
-            Xem tất cả
+            {tr('Xem tất cả')}
           </Link>
         </p>
       )}
@@ -876,16 +886,19 @@ export function CategoriesPage() {
       <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
         {classifyMode ? (
           <>
-            Gán mỗi danh mục Chi vào <b>Tính chất</b> (Thiết yếu, Linh hoạt…) và{' '}
-            <b>Loại chi</b> (Cố định/Biến đổi) để xem cơ cấu chi tiêu ở Báo cáo. Bấm vào
-            một dòng để chọn. Danh mục <b>cha</b> cũng cần gán: trần nhóm và giao dịch ghi
-            thẳng vào cha đều lấy nhãn của chính nó, không suy từ các mục con.
+            {trn('Gán mỗi danh mục Chi vào {nature} (Thiết yếu, Linh hoạt…) và {costType} (Cố định/Biến đổi) để xem cơ cấu chi tiêu ở Báo cáo. Bấm vào một dòng để chọn. Danh mục {parent} cũng cần gán: trần nhóm và giao dịch ghi thẳng vào cha đều lấy nhãn của chính nó, không suy từ các mục con.', {
+              nature: <b>{tr('Tính chất')}</b>,
+              costType: <b>{tr('Loại chi')}</b>,
+              parent: <b>{tr('cha')}</b>,
+            })}
           </>
         ) : (
           <>
-            Bấm <b>tên</b> để sửa danh mục, bấm <b>nhãn</b> bên cạnh để phân loại. Nhấn giữ
-            biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục con
-            trong một cha, hoặc kéo danh mục con thả sang cha khác.
+            {trn('Bấm {name} để sửa danh mục, bấm {label} bên cạnh để phân loại. Nhấn giữ biểu tượng {grip} rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục con trong một cha, hoặc kéo danh mục con thả sang cha khác.', {
+              name: <b>{tr('tên')}</b>,
+              label: <b>{trx('chip', 'nhãn')}</b>,
+              grip: <b>⁚⁚</b>,
+            })}
           </>
         )}
       </Guide>
@@ -898,14 +911,14 @@ export function CategoriesPage() {
         classifyRows.length === 0 ? (
           <Card padding="none">
             <EmptyState compact>
-              {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
+              {onlyTodo ? tr('Đã phân loại hết 🎉') : tr('Chưa có danh mục Chi')}
             </EmptyState>
           </Card>
         ) : (
           <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-border-panel bg-surface-chrome px-3 py-2.5 text-2xs uppercase tracking-label text-fg-muted">
-              <span>Danh mục</span>
-              <span>Phân loại</span>
+              <span>{tr('Danh mục')}</span>
+              <span>{trx('column', 'Phân loại')}</span>
             </div>
 
             {classifyGroups(classifyRows, categories).map((g) => {
@@ -925,16 +938,16 @@ export function CategoriesPage() {
                         <span aria-hidden>{parent.icon}</span> {parent.name}
                       </SectionTitle>
                       <span className="shrink-0 text-2xs text-fg-muted">
-                        <Num tone="muted">{childCount(parent.id)}</Num> mục con
+                        {trn('{n} mục con', { n: <Num tone="muted">{childCount(parent.id)}</Num> })}
                         {todoInGroup > 0 && (
                           <>
                             {' · '}
-                            <Num tone="warn">{todoInGroup}</Num> chưa xong
+                            {trn('{n} chưa xong', { n: <Num tone="warn">{todoInGroup}</Num> })}
                           </>
                         )}
                       </span>
                       <ActionButton className="shrink-0" onClick={() => openGroup(parent.id)}>
-                        Áp cho cả nhóm
+                        {tr('Áp cho cả nhóm')}
                       </ActionButton>
                     </div>
                   )}
@@ -974,8 +987,8 @@ export function CategoriesPage() {
             <IconButton
               variant="ghost"
               onClick={() => archive(c)}
-              aria-label={`Lưu trữ ${c.name}`}
-              title="Lưu trữ"
+              aria-label={tr('Lưu trữ {name}', { name: c.name })}
+              title={tr('Lưu trữ')}
             >
               <Archive className="h-4 w-4" />
             </IconButton>
@@ -984,7 +997,7 @@ export function CategoriesPage() {
 
         {parents.length === 0 && orphans.length === 0 && (
           <Card padding="none">
-            <EmptyState compact>Chưa có danh mục</EmptyState>
+            <EmptyState compact>{tr('Chưa có danh mục')}</EmptyState>
           </Card>
         )}
       </div>
@@ -998,11 +1011,11 @@ export function CategoriesPage() {
           >
             {showArchived ? (
               <>
-                Ẩn đã lưu trữ <ChevronUp className="h-4 w-4" />
+                {tr('Ẩn đã lưu trữ')} <ChevronUp className="h-4 w-4" />
               </>
             ) : (
               <>
-                Đã lưu trữ ({archivedCats.length}) <ChevronDown className="h-4 w-4" />
+                {tr('Đã lưu trữ ({n})', { n: archivedCats.length })} <ChevronDown className="h-4 w-4" />
               </>
             )}
           </button>
@@ -1018,7 +1031,7 @@ export function CategoriesPage() {
                     onClick={() => restore(c)}
                     className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-sm text-fg-accent hover:bg-accent-muted-bg"
                   >
-                    Khôi phục
+                    {tr('Khôi phục')}
                   </button>
                 </div>
               ))}
@@ -1111,20 +1124,20 @@ function CategoryForm({
   async function handleDelete() {
     if (!category) return
     const ok = await confirmDialog({
-      title: `Xóa danh mục «${category.name}»?`,
+      title: tr('Xóa danh mục «{name}»?', { name: category.name }),
       message: hasChildren
-        ? 'Không thể hoàn tác. Xóa cả các danh mục con bên trong (nếu tất cả đều trống).'
-        : 'Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.',
-      confirmLabel: 'Xóa',
+        ? tr('Không thể hoàn tác. Xóa cả các danh mục con bên trong (nếu tất cả đều trống).')
+        : tr('Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.'),
+      confirmLabel: tr('Xóa'),
       danger: true,
     })
     if (!ok) return
     try {
       await del.mutateAsync(category.id)
-      showToast('Đã xóa danh mục', 'success')
+      showToast(tr('Đã xóa danh mục'), 'success')
       onClose()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không xóa được', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không xóa được'), 'error')
     }
   }
 
@@ -1186,7 +1199,7 @@ function CategoryForm({
     }
   }
 
-  const title = category ? 'Sửa danh mục' : parentContext ? 'Thêm danh mục con' : 'Thêm danh mục'
+  const title = category ? tr('Sửa danh mục') : parentContext ? tr('Thêm danh mục con') : tr('Thêm danh mục')
 
   return (
     <div
@@ -1206,7 +1219,7 @@ function CategoryForm({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Tên danh mục"
+            placeholder={tr('Tên danh mục')}
             className="flex-1 rounded-md border border-border-strong px-3 py-2 text-sm"
           />
         </div>
@@ -1214,15 +1227,15 @@ function CategoryForm({
         {/* Danh mục cha */}
         {hasChildren ? (
           <p className="mb-3 rounded-lg bg-surface-page px-3 py-2 text-sm text-fg-muted">
-            Danh mục này có danh mục con nên là danh mục chính.
+            {tr('Danh mục này có danh mục con nên là danh mục chính.')}
           </p>
         ) : (
           <label className="mb-3 block">
-            <span className="mb-1 block text-sm font-medium text-fg-muted">Danh mục cha</span>
+            <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Danh mục cha')}</span>
             <Select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)} wrapClassName="w-full">
-              <option value="">— Danh mục chính —</option>
+              <option value="">{tr('— Danh mục chính —')}</option>
               {availableParents.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.icon} {p.name}
@@ -1235,12 +1248,15 @@ function CategoryForm({
         {/* Chi / Thu: chỉ khi là danh mục chính (con thừa kế loại của cha) */}
         {typeLocked ? (
           <p className="mb-3 text-sm text-fg-muted">
-            Nhóm {effectiveType === 'expense' ? 'Chi' : 'Thu'} — không đổi được khi còn danh mục
-            con.
+            {effectiveType === 'expense'
+              ? tr('Nhóm Chi — không đổi được khi còn danh mục con.')
+              : tr('Nhóm Thu — không đổi được khi còn danh mục con.')}
           </p>
         ) : selectedParent ? (
           <p className="mb-3 text-sm text-fg-muted">
-            Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
+            {selectedParent.type === 'expense'
+              ? tr('Thuộc nhóm Chi theo danh mục cha.')
+              : tr('Thuộc nhóm Thu theo danh mục cha.')}
           </p>
         ) : (
           <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1">
@@ -1253,13 +1269,13 @@ function CategoryForm({
  topType === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
  }`}
               >
-                {t === 'expense' ? 'Chi' : 'Thu'}
+                {t === 'expense' ? tr('Chi') : tr('Thu')}
               </button>
             ))}
           </div>
         )}
 
-        <p className="mb-1.5 text-sm font-medium text-fg-muted">Biểu tượng</p>
+        <p className="mb-1.5 text-sm font-medium text-fg-muted">{tr('Biểu tượng')}</p>
         {/* 7 cột (không phải 8): trên 375px mỗi ô ~45px — đủ 44px vùng chạm */}
         <div className="mb-3 grid grid-cols-7 gap-1">
           {EMOJI_CHOICES.map((e) => (
@@ -1284,7 +1300,7 @@ function CategoryForm({
               disabled={del.isPending}
               className="rounded-md px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
-              Xóa
+              {tr('Xóa')}
             </button>
           )}
           <div className="ml-auto flex gap-2">
@@ -1293,7 +1309,7 @@ function CategoryForm({
               onClick={onClose}
               className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
-              Hủy
+              {tr('Hủy')}
             </button>
             <button
               type="button"
@@ -1301,7 +1317,7 @@ function CategoryForm({
               disabled={!canSave}
               className={actionButtonClass('primary')}
             >
-              {saving ? 'Đang lưu…' : 'Lưu'}
+              {saving ? tr('Đang lưu…') : tr('Lưu')}
             </button>
           </div>
         </div>

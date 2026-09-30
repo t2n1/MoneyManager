@@ -14,20 +14,20 @@
 /** Bốn danh mục cho dòng tiền nợ — xem debtFlowCategoryId. */
 export const DEBT_FLOW_CATEGORY_NAMES = {
   /** chi — mình cho người khác vay */
-  lend: 'Cho vay',
+  lend: 'Cho vay', // i18n-ignore — category name matched against DB
   /** thu — mình đi vay */
-  borrow: 'Đi vay',
+  borrow: 'Đi vay', // i18n-ignore — category name matched against DB
   /** thu — người ta trả lại mình */
-  collect: 'Thu nợ',
+  collect: 'Thu nợ', // i18n-ignore — category name matched against DB
   /** chi — mình trả nợ */
-  repay: 'Trả nợ',
+  repay: 'Trả nợ', // i18n-ignore — category name matched against DB
 } as const
 
 /** Danh mục cho bút toán bù số dư (có cả bản chi lẫn bản thu). */
-export const ADJUST_CATEGORY_NAME = 'Điều chỉnh số dư'
+export const ADJUST_CATEGORY_NAME = 'Điều chỉnh số dư' // i18n-ignore — category name matched against DB
 
 /** Danh mục cho khoản gửi tiền về VN — saveRemit tự tìm/tạo rồi gán. */
-export const REMIT_CATEGORY_NAME = 'Gửi tiền về VN'
+export const REMIT_CATEGORY_NAME = 'Gửi tiền về VN' // i18n-ignore — category name matched against DB
 
 const FLOW_NAMES = new Set<string>([
   ...Object.values(DEBT_FLOW_CATEGORY_NAMES),

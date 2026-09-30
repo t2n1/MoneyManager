@@ -2,11 +2,12 @@
 // File luôn kèm BOM UTF-8 để Excel mở đúng dấu tiếng Việt; xuống dòng CRLF.
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
+import { tr, trx } from '../../i18n'
 
 const TYPE_LABEL: Record<TransactionRow['type'], string> = {
-  expense: 'Chi',
-  income: 'Thu',
-  transfer: 'Chuyển khoản',
+  expense: tr('Chi'),
+  income: tr('Thu'),
+  transfer: tr('Chuyển khoản'),
 }
 
 /** minor units → chuỗi số thập phân dấu chấm (Excel hiểu là số): 1234 · 12.34 */
@@ -32,16 +33,16 @@ export interface CsvLookups {
 }
 
 const HEADER = [
-  'Ngày',
-  'Loại',
-  'Danh mục',
-  'Tài khoản',
-  'Tài khoản đích',
-  'Số tiền',
-  'Loại tiền',
-  'Số tiền đích',
-  'Loại tiền đích',
-  'Ghi chú',
+  tr('Ngày'),
+  tr('Loại'),
+  tr('Danh mục'),
+  tr('Tài khoản'),
+  tr('Tài khoản đích'),
+  tr('Số tiền'),
+  tr('Loại tiền'),
+  trx('csv', 'Số tiền đích'),
+  tr('Loại tiền đích'),
+  tr('Ghi chú'),
 ]
 
 /** Dựng nội dung CSV từ danh sách giao dịch (giữ nguyên thứ tự đầu vào). */

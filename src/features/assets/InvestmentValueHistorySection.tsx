@@ -33,6 +33,8 @@ import { monthLabel, type RangeSpan } from './assetsRange'
 import { investHistory, investTxRange, type InvestHistoryAccount } from './investHistory'
 import type { MoneyView } from './moneyView'
 import { CHART_TEXT_3XS } from '../../lib/chartText'
+import { tr, decimalSep } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 // Palette v4 qua CSS var, không hex đời v3 chép tay (docs/design-system.md). Cùng cặp màu
 // với thanh "Vốn bỏ vào / Thị trường cho thêm" của ô Hiệu quả đầu tư — một câu chuyện.
@@ -112,9 +114,9 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
     return (
       <Card as="section" elevation="panel" padding="lg">
         <SectionTitle>
-          Đầu tư · vốn bỏ vào so với giá trị
+          {tr('Đầu tư · vốn bỏ vào so với giá trị')}
         </SectionTitle>
-        <p className="mt-2 text-center text-sm text-fg-muted">Đang tính…</p>
+        <p className="mt-2 text-center text-sm text-fg-muted">{tr('Đang tính…')}</p>
       </Card>
     )
   }
@@ -123,12 +125,12 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
     return (
       <Card as="section" elevation="panel" padding="lg">
         <SectionTitle>
-          Đầu tư · vốn bỏ vào so với giá trị
+          {tr('Đầu tư · vốn bỏ vào so với giá trị')}
         </SectionTitle>
         <p className="mt-2 text-center text-sm text-fg-muted">
           {points.length >= 2
-            ? 'Khoảng đang chọn chưa có đủ hai ngày định giá — chọn khoảng rộng hơn.'
-            : 'Cần ít nhất hai ngày có giá để vẽ. App tự ghi giá trị danh mục mỗi phiên — vài ngày nữa biểu đồ sẽ hiện.'}
+            ? tr('Khoảng đang chọn chưa có đủ hai ngày định giá — chọn khoảng rộng hơn.')
+            : tr('Cần ít nhất hai ngày có giá để vẽ. App tự ghi giá trị danh mục mỗi phiên — vài ngày nữa biểu đồ sẽ hiện.')}
         </p>
       </Card>
     )
@@ -144,25 +146,27 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
     <Card as="section" elevation="panel" padding="lg">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <SectionTitle>
-          Đầu tư · vốn bỏ vào so với giá trị
+          {tr('Đầu tư · vốn bỏ vào so với giá trị')}
         </SectionTitle>
         {/* Biểu đồ TỰ KHAI nó có dữ liệu từ bao giờ, thay vì để dải chọn nói thay: mốc
             định giá đầu tiên của danh mục không nhất thiết trùng mốc đầu của khoảng. */}
         <span className="text-2xs text-fg-muted">
-          từ {monthLabel(trongKhoang[0].date)} · {trongKhoang.length} mốc định giá
+          {tr('từ {month} · {n} mốc định giá', { month: monthLabel(trongKhoang[0].date), n: trongKhoang.length })}
         </span>
         <span className="flex items-center gap-1.5 text-2xs text-fg-muted">
           <span className="h-0.5 w-3.5" style={{ background: MAU_VON }} aria-hidden />
-          Vốn bỏ vào <Money {...view.view(last.cost)} tone="muted" />
+          {trn('Vốn bỏ vào {amount}', { amount: <Money {...view.view(last.cost)} tone="muted" /> })}
         </span>
         <span className="flex items-center gap-1.5 text-2xs text-fg-muted">
           <span className="h-0.5 w-3.5" style={{ background: MAU_GIA_TRI }} aria-hidden />
-          Giá trị <Money {...view.view(last.value)} tone="muted" />
+          {trn('Giá trị {amount}', { amount: <Money {...view.view(last.value)} tone="muted" /> })}
         </span>
         {trong && (
           <StatusChip tone="info">
-            {dayMonthLabel(trong.fromISO)}–{dayMonthLabel(trong.toISO)} không có định giá —
-            không vẽ 0
+            {tr('{from}–{to} không có định giá — không vẽ 0', {
+              from: dayMonthLabel(trong.fromISO),
+              to: dayMonthLabel(trong.toISO),
+            })}
           </StatusChip>
         )}
         <span className="ml-auto shrink-0 text-sm font-semibold">
@@ -175,7 +179,7 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
           {growthPct != null && (
             <span className={up ? 'text-money-in' : 'text-money-out'}>
               {' '}· {up ? '+' : '−'}
-              {Math.abs(growthPct).toFixed(1).replace('.', ',')}%
+              {Math.abs(growthPct).toFixed(1).replace('.', decimalSep())}%
             </span>
           )}
         </span>
@@ -203,9 +207,9 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
             <Tooltip
               formatter={(v, name) => [
                 view.fmt(Number(v)),
-                name === 'value' ? 'Giá trị' : 'Vốn bỏ vào',
+                name === 'value' ? tr('Giá trị') : tr('Vốn bỏ vào'),
               ]}
-              labelFormatter={(l) => `Ngày ${l}`}
+              labelFormatter={(l) => tr('Ngày {date}', { date: String(l) })}
             />
             <Line
               type="monotone"
@@ -229,26 +233,27 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
 
       {hasMissingRate && (
         <p className="mt-2 text-2xs text-state-warn-fg">
-          Một phần tài khoản ngoại tệ chưa quy đổi được nên hai đường còn thiếu một phần.
+          {tr('Một phần tài khoản ngoại tệ chưa quy đổi được nên hai đường còn thiếu một phần.')}
         </p>
       )}
 
-      <ExplainBox label="Cách đọc">
+      <ExplainBox label={tr('Cách đọc')}>
         <p>
-          Khoảng cách giữa hai đường là phần <b>thị trường cho thêm</b> (hoặc lấy đi). Đường
-          xanh dương đi lên mà khoảng cách không đổi nghĩa là danh mục lớn lên nhờ bạn nạp
-          thêm, không phải nhờ lời.
+          {trn(
+            'Khoảng cách giữa hai đường là phần {market} (hoặc lấy đi). Đường xanh dương đi lên mà khoảng cách không đổi nghĩa là danh mục lớn lên nhờ bạn nạp thêm, không phải nhờ lời.',
+            { market: <b>{tr('thị trường cho thêm')}</b> },
+          )}
         </p>
         <p>
-          <b>Vốn bỏ vào</b> là số dư sổ: nạp trừ rút, gồm cả số dư mở tài khoản. Nên khoảng
-          cách ở mép phải bằng đúng "lãi đầu tư" ở dải số đầu trang — tức có tính cả phần lời
-          của những mã đã bán xong.
+          {trn(
+            '{cost} là số dư sổ: nạp trừ rút, gồm cả số dư mở tài khoản. Nên khoảng cách ở mép phải bằng đúng "lãi đầu tư" ở dải số đầu trang — tức có tính cả phần lời của những mã đã bán xong.',
+            { cost: <b>{tr('Vốn bỏ vào')}</b> },
+          )}
         </p>
         <p>
-          Một tài khoản chỉ lên biểu đồ từ ngày có bản định giá đầu tiên; trước đó nó không
-          nằm trong cả hai đường. Những ngày không có định giá thì app KHÔNG vẽ 0 — nó nối
-          thẳng qua, và chỗ nối dài nhất được ghi ra ở tiêu đề. Tài khoản ngoại tệ quy đổi
-          bằng tỷ giá hôm nay cho mọi mốc, nên phần quá khứ chỉ là ước chừng.
+          {tr(
+            'Một tài khoản chỉ lên biểu đồ từ ngày có bản định giá đầu tiên; trước đó nó không nằm trong cả hai đường. Những ngày không có định giá thì app KHÔNG vẽ 0 — nó nối thẳng qua, và chỗ nối dài nhất được ghi ra ở tiêu đề. Tài khoản ngoại tệ quy đổi bằng tỷ giá hôm nay cho mọi mốc, nên phần quá khứ chỉ là ước chừng.',
+          )}
         </p>
       </ExplainBox>
     </Card>

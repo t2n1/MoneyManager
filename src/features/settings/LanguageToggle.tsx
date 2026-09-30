@@ -4,10 +4,11 @@
 // Tên mỗi ngôn ngữ viết bằng CHÍNH ngôn ngữ đó, không dịch: người lỡ chọn nhầm sang thứ
 // tiếng mình không đọc được vẫn phải nhận ra đường quay về.
 import { Card, PanelHeader } from '../../components/ui'
-import { getLang, setLang, tr, type Lang } from '../../i18n'
+import { getLang, tr, type Lang } from '../../i18n'
+import { setLang } from '../../i18n/load'
 
 const OPTIONS: { value: Lang; label: string }[] = [
-  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'vi', label: 'Tiếng Việt' }, // i18n-ignore — tên ngôn ngữ viết bằng chính nó
   { value: 'en', label: 'English' },
 ]
 

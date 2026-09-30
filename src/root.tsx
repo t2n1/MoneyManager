@@ -9,6 +9,7 @@ import App from './App.tsx'
 import { AuthProvider } from './features/auth/AuthProvider.tsx'
 import { isDemoMode } from './lib/demo'
 import { describeError, showErrorToast } from './lib/errorToast'
+import { tr } from './i18n'
 
 const queryClient = new QueryClient({
   // Lưới an toàn: MỌI mutation thất bại đều hiện toast lỗi. Trước đây ~36 chỗ
@@ -19,7 +20,7 @@ const queryClient = new QueryClient({
     onError: (error) => {
       // describeError chứ không `instanceof Error`: lỗi Supabase là object thường nên
       // cách kia cho ra "Lưu không được: [object Object]" — đã thấy trên app đang chạy.
-      showErrorToast(`Lưu không được: ${describeError(error)}`)
+      showErrorToast(tr('Lưu không được: {error}', { error: describeError(error) }))
     },
   }),
   defaultOptions: {

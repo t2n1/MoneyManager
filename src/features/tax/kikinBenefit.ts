@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 // Đóng 掛金 vào はぐくみ企業年金 thì 社会保険料 + thuế giảm bao nhiêu — THUẦN, không React.
 //
 // KHÔNG dựng từ luật, mà NỘI SUY theo các điểm 基金 tự đo và in trên sheet mô phỏng cá
@@ -82,9 +83,9 @@ export function sheetCaveat(
   periodYM: string,
 ): string {
   const daTinh = sheet.includesKodomoShienkin ?? sheet.dated >= KODOMO_SHIENKIN_FROM
-  const base = `Ước tính theo bảng ${sheet.dated}`
+  const base = tr('Ước tính theo bảng {date}', { date: sheet.dated })
   if (daTinh || periodYM < KODOMO_SHIENKIN_FROM) return base
-  return `${base} · chưa tính 子ども・子育て支援金 từ 4/2026 nên số tiết kiệm hơi cao`
+  return tr('{base} · chưa tính 子ども・子育て支援金 từ 4/2026 nên số tiết kiệm hơi cao', { base })
 }
 
 export interface KikinBenefit {

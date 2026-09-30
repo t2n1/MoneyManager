@@ -2,6 +2,7 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, formatExpr, hasOperator, MAX_AMOUNT_DIGITS } from '../lib/calc'
 import { formatMoney, parseMoney, type CurrencyCode } from '../lib/money'
+import { tr } from '../i18n'
 
 // Quy ước chung của app: hễ có ô nhập tiền thì hiện luôn bàn phím số của app
 // (mobile), không dùng bàn phím hệ thống. Trên desktop gõ thẳng vào input.
@@ -54,7 +55,7 @@ export function MoneyField({
   currency,
   autoOpen = true,
   className = '',
-  ariaLabel = 'Số tiền',
+  ariaLabel = tr('Số tiền'),
   onEnter,
 }: Props) {
   const id = useId()
@@ -134,7 +135,7 @@ export function MoneyField({
             <button
               type="button"
               onClick={() => emit(appendKey(expr, '⌫'))}
-              aria-label="Xóa"
+              aria-label={tr('Xóa')}
               className="flex-1 rounded-md bg-surface py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200"
             >
               ⌫
@@ -144,7 +145,7 @@ export function MoneyField({
               onClick={() => setActivePad(null)}
               className="flex-1 rounded-md bg-surface-sunken py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
             >
-              Thu bàn phím
+              {tr('Thu bàn phím')}
             </button>
           </div>
         </div>

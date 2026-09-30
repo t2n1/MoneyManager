@@ -1,4 +1,6 @@
 import { useEffect, useId, useState } from 'react'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown, Plus } from 'lucide-react'
 import { ActionButton, SegmentedControl, Select } from '../../components/ui'
@@ -147,7 +149,7 @@ export function FeeField({
         onClick={() => setOpen(true)}
         className={`self-start rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-sm font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
       >
-        + Phí
+        {tr('+ Phí')}
       </button>
     )
   }
@@ -156,14 +158,14 @@ export function FeeField({
       {/* <span> chứ không <label htmlFor>: PadMoneyField cũng có HAI ô (nút chạm
           mobile + input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô
           đang bị CSS ẩn. Tên ô đến từ `ariaLabel`. */}
-      <span className={labelCls}>Phí ({currency})</span>
+      <span className={labelCls}>{tr('Phí ({currency})', { currency })}</span>
       <PadMoneyField
         value={value}
         currency={currency}
         active={active}
         onFocus={onFocus}
         onChange={onChange}
-        ariaLabel={`Phí (${currency})`}
+        ariaLabel={tr('Phí ({currency})', { currency })}
         onEnter={onEnter}
       />
       <Guide className="mt-1 text-sm text-fg-muted">{hint}</Guide>
@@ -172,8 +174,8 @@ export function FeeField({
 }
 
 const SETTLE_ITEMS = [
-  { value: 'now' as const, label: 'Đã trả lại' },
-  { value: 'later' as const, label: 'Còn nợ' },
+  { value: 'now' as const, label: tr('Đã trả lại') },
+  { value: 'later' as const, label: tr('Còn nợ') },
 ]
 
 /**
@@ -265,14 +267,14 @@ export function SplitFields({
   return (
     <div className={blockCls('split')}>
       <div>
-        <span className={labelCls}>{settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}</span>
+        <span className={labelCls}>{settledNow ? tr('Phần người khác trả lại') : tr('Phần người khác nợ lại')}</span>
         <PadMoneyField
           value={value.others}
           currency={currency}
           active={othersActive}
           onFocus={onFocusOthers}
           onChange={(v) => onChange({ ...value, others: v })}
-          ariaLabel={settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}
+          ariaLabel={settledNow ? tr('Phần người khác trả lại') : tr('Phần người khác nợ lại')}
           onEnter={onEnter}
         />
       </div>
@@ -282,21 +284,27 @@ export function SplitFields({
             settledNow ? (
               // Đưa dư khi trả lại ngay: hợp lệ — phần dư ghi thành khoản THU.
               <>
-                Người kia đưa dư{' '}
-                <span className="font-semibold text-money-in">
-                  {formatMoney(value.others - total, currency)}
-                </span>{' '}
-                — phần dư ghi thành khoản thu, chi của mình {formatMoney(0, currency)}.
+                {trn('Người kia đưa dư {extra} — phần dư ghi thành khoản thu, chi của mình {zero}.', {
+                  extra: (
+                    <span className="font-semibold text-money-in">
+                      {formatMoney(value.others - total, currency)}
+                    </span>
+                  ),
+                  zero: formatMoney(0, currency),
+                })}
               </>
             ) : (
-              'Phần người khác nợ không được lớn hơn tổng.'
+              tr('Phần người khác nợ không được lớn hơn tổng.')
             )
           ) : (
             <>
-              Phần của mình (tính vào chi tiêu):{' '}
-              <span className="font-semibold text-fg-primary">
-                {formatMoney(mine, currency)}
-              </span>
+              {trn('Phần của mình (tính vào chi tiêu): {amount}', {
+                amount: (
+                  <span className="font-semibold text-fg-primary">
+                    {formatMoney(mine, currency)}
+                  </span>
+                ),
+              })}
             </>
           )}
         </p>
@@ -306,19 +314,19 @@ export function SplitFields({
         items={SETTLE_ITEMS}
         value={value.settle}
         onChange={(settle) => onChange({ ...value, settle })}
-        label="Người khác đã trả lại tiền chưa"
+        label={tr('Người khác đã trả lại tiền chưa')}
       />
 
       {settledNow && (
         <div>
           <label htmlFor={`${uid}-recvacc`} className={labelCls}>
-            Nhận lại vào
+            {tr('Nhận lại vào')}
           </label>
           <Select
             id={`${uid}-recvacc`}
             value={value.receivedAccountId}
             onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })} wrapClassName="w-full">
-            <option value="">Chính {sourceName || 'tài khoản đã trả'}</option>
+            <option value="">{tr('Chính {name}', { name: sourceName || tr('tài khoản đã trả') })}</option>
             {backAccounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -329,8 +337,8 @@ export function SplitFields({
               DÒNG vào sổ. Ẩn ở Gọn thì hai lựa chọn của ô trên trông như nhau. */}
           <p className="mt-1 text-sm text-fg-muted">
             {value.receivedAccountId
-              ? 'Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).'
-              : 'Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.'}
+              ? tr('Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).')
+              : tr('Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.')}
           </p>
         </div>
       )}
@@ -340,7 +348,7 @@ export function SplitFields({
           {/* <span> chứ không <label>: đây là nhãn cho NHÓM chip, không có control nào
               để htmlFor trỏ vào — <label> mồ côi thì trình đọc màn hình đọc ra một nhãn
               rỗng. Lấy từ nhánh fix/toan-bo-audit (đợt dọn 69 nhãn mồ côi). */}
-          <span className={labelCls}>Người đã cho vay (cộng dồn)</span>
+          <span className={labelCls}>{tr('Người đã cho vay (cộng dồn)')}</span>
           <PeopleChips
             people={people}
             selectedId={value.existingDebtId}
@@ -361,7 +369,7 @@ export function SplitFields({
             từng tồn tại), nên nhãn khóa-nối của bảng sẽ nói sai. Ô vẫn ở lại vì tên
             người là thứ duy nhất phân biệt hai lần chia bill trong sổ. */}
         <label htmlFor={`${uid}-who`} className={labelCls}>
-          {settledNow ? 'Trả hộ ai (không bắt buộc)' : counterpartyLabel ?? 'Tên người'}
+          {settledNow ? tr('Trả hộ ai (không bắt buộc)') : counterpartyLabel ?? tr('Tên người')}
         </label>
         <input
           id={`${uid}-who`}
@@ -373,12 +381,12 @@ export function SplitFields({
           onKeyDown={(e) => {
             if (e.key === 'Enter') onEnter?.()
           }}
-          placeholder="Tên người"
+          placeholder={tr('Tên người')}
           className={inputCls}
         />
         {!settledNow && selected && (
           <p className="mt-1 text-sm text-fg-accent">
-            Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
+            {tr('Cộng dồn vào khoản đang mở · còn lại {amount}', { amount: formatMoney(selected.remaining, selected.currency) })}
           </p>
         )}
       </div>
@@ -405,9 +413,9 @@ export function DebtDetailInputs({
       <div className="col-span-2">
         {/* <span> chứ không <label>: ô ngày là <button>, mà `for` không phải nguồn tên
             của button — tên đi qua ariaLabel (xem ghi chú trong DateField). */}
-        <span className={labelCls}>Hạn (không bắt buộc)</span>
+        <span className={labelCls}>{tr('Hạn (không bắt buộc)')}</span>
         <DateField
-          ariaLabel="Hạn"
+          ariaLabel={tr('Hạn')}
           value={dueOn}
           onChange={(iso) => onChange({ dueOn: iso })}
           clearable
@@ -416,27 +424,27 @@ export function DebtDetailInputs({
       </div>
       <div>
         <label htmlFor={`${uid}-rate`} className={labelCls}>
-          Lãi suất %/năm
+          {tr('Lãi suất %/năm')}
         </label>
         <input
           id={`${uid}-rate`}
           inputMode="decimal"
           value={interestPct}
           onChange={(e) => onChange({ interestPct: e.target.value.replace(/[^0-9.]/g, '') })}
-          placeholder="vd 5.5"
+          placeholder={tr('vd 5.5')}
           className={`${inputCls} text-right`}
         />
       </div>
       <div>
         <label htmlFor={`${uid}-term`} className={labelCls}>
-          Số kỳ / tháng
+          {tr('Số kỳ / tháng')}
         </label>
         <input
           id={`${uid}-term`}
           inputMode="numeric"
           value={termMonths}
           onChange={(e) => onChange({ termMonths: e.target.value.replace(/[^0-9]/g, '') })}
-          placeholder="vd 12"
+          placeholder={tr('vd 12')}
           className={`${inputCls} text-right`}
         />
       </div>
@@ -523,7 +531,7 @@ export function DebtFields({
           {/* <span>, không phải <label>: nhãn cho NHÓM chip nên không có control để
               htmlFor trỏ vào. Từ nhánh fix/toan-bo-audit. */}
           <span className={labelCls}>
-            {value.direction === 'i_owe' ? 'Chủ nợ đã có (cộng dồn)' : 'Người đã cho vay (cộng dồn)'}
+            {value.direction === 'i_owe' ? tr('Chủ nợ đã có (cộng dồn)') : tr('Người đã cho vay (cộng dồn)')}
           </span>
           <PeopleChips
             people={people}
@@ -543,7 +551,7 @@ export function DebtFields({
         {/* Nhãn từ BẢNG (counterpartyLabelOf). Chiều nợ giờ là hạt giống của DẠNG, nên
             nhãn đi theo dạng — không suy lại từ `value.direction` ở đây nữa. */}
         <label htmlFor={`${uid}-party`} className={labelCls}>
-          {counterpartyLabel ?? 'Tên người'}
+          {counterpartyLabel ?? tr('Tên người')}
         </label>
         <input
           id={`${uid}-party`}
@@ -555,12 +563,12 @@ export function DebtFields({
           onKeyDown={(e) => {
             if (e.key === 'Enter') onEnter?.()
           }}
-          placeholder="Tên người / công ty"
+          placeholder={tr('Tên người / công ty')}
           className={inputCls}
         />
         {selected && (
           <p className="mt-1 text-sm text-fg-accent">
-            Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
+            {tr('Cộng dồn vào khoản đang mở · còn lại {amount}', { amount: formatMoney(selected.remaining, selected.currency) })}
           </p>
         )}
       </div>
@@ -569,22 +577,22 @@ export function DebtFields({
       <div className="rounded-lg bg-surface/70 p-2.5">
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
-            Có chuyển tiền thật
+            {tr('Có chuyển tiền thật')}
             {/* KHÔNG bọc <Guide>: đây không phải chữ dạy mà là HỆ QUẢ của chính cái công
                 tắc bên cạnh — gạt nó là sinh một giao dịch và dịch số dư tài khoản. Mà Gọn
                 là mặc định, nên bọc lại tức là đa số người dùng gạt công tắc này mà không
                 biết nó ghi gì vào sổ. Cùng câu, cùng lý do ở DebtPickerField.tsx. */}
             <span className="block text-sm text-fg-muted">
               {value.direction === 'owed_to_me'
-                ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
-                : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
+                ? tr('Tạo giao dịch chi (trừ số dư tài khoản)')
+                : tr('Tạo giao dịch thu (cộng số dư tài khoản)')}
             </span>
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={realOn}
-            aria-label="Có chuyển tiền thật"
+            aria-label={tr('Có chuyển tiền thật')}
             disabled={!canRecordReal}
             onClick={() => onChange({ ...value, withTransaction: !value.withTransaction })}
             // Vùng chạm 44×44 ở nút, đường ray 24×44 ở <span> trong — cùng khuôn với các
@@ -606,7 +614,7 @@ export function DebtFields({
         </label>
         {!canRecordReal && accountsLoad === 'ready' && (
           <p className="mt-2 text-sm text-state-warn-fg">
-            Chưa có tài khoản để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).
+            {tr('Chưa có tài khoản để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).')}
           </p>
         )}
       </div>
@@ -619,7 +627,7 @@ export function DebtFields({
           active={feeActive}
           onFocus={onFocusFee}
           onChange={(v) => onChange({ ...value, fee: v })}
-          hint='Ghi riêng thành khoản chi "Tài chính", không cộng vào gốc nợ.'
+          hint={tr('Ghi riêng thành khoản chi "Tài chính", không cộng vào gốc nợ.')}
           onEnter={onEnter}
         />
       )}
@@ -633,7 +641,7 @@ export function DebtFields({
             className={`flex items-center gap-1 py-1 text-sm font-medium text-fg-muted ${smallBtnTap}`}
           >
             <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
-            {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
+            {showMore ? tr('Ẩn bớt') : tr('Thêm chi tiết (hạn, lãi suất)')}
           </button>
           {showMore && (
             <DebtDetailInputs
@@ -743,7 +751,7 @@ export function RemitFields({
     <div className={blockCls('remit')}>
       <div>
         <label htmlFor={`${uid}-nguoi`} className={labelCls}>
-          Gửi cho
+          {tr('Gửi cho')}
         </label>
         <div className="flex items-center gap-2">
           <Select
@@ -752,15 +760,15 @@ export function RemitFields({
             onChange={(e) => onChange({ ...value, recipientId: e.target.value })}
             wrapClassName="min-w-0 flex-1"
           >
-            <option value="">— chưa chọn —</option>
+            <option value="">{tr('— chưa chọn —')}</option>
             {relatives.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
               </option>
             ))}
           </Select>
-          <ActionButton variant="outline" onClick={onAddRelative} aria-label="Thêm người thân">
-            <Plus className="h-4 w-4" /> Người
+          <ActionButton variant="outline" onClick={onAddRelative} aria-label={tr('Thêm người thân')}>
+            <Plus className="h-4 w-4" /> {tr('Người')}
           </ActionButton>
         </div>
         {/* Vì sao hỏi ở đây: khấu trừ người phụ thuộc tính RIÊNG từng người (NTA No.1180). */}
@@ -773,10 +781,10 @@ export function RemitFields({
               không tồn tại thì vẫn là nhãn mồ côi — chỉ khác là công cụ quét không thấy. */}
           {vndAccounts.length === 0 ? (
             <>
-              <span className={labelCls}>Đến tài khoản VND</span>
+              <span className={labelCls}>{tr('Đến tài khoản VND')}</span>
               {accountsLoad === 'ready' ? (
                 <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-sm">
-                  Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
+                  {tr('Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".')}
                 </p>
               ) : (
                 <p className="px-1 py-2 text-sm text-fg-muted">{pendingText(accountsLoad)}</p>
@@ -785,13 +793,13 @@ export function RemitFields({
           ) : (
             <>
               <label htmlFor={`${uid}-dest`} className={labelCls}>
-                Đến tài khoản VND
+                {tr('Đến tài khoản VND')}
               </label>
               <Select
                 id={`${uid}-dest`}
                 value={value.destId}
                 onChange={(e) => onChange({ ...value, destId: e.target.value })} wrapClassName="w-full">
-                <option value="">— chọn —</option>
+                <option value="">{tr('— chọn —')}</option>
                 {vndAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -805,19 +813,19 @@ export function RemitFields({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <span className={labelCls}>Phí (JPY)</span>
+          <span className={labelCls}>{tr('Phí (JPY)')}</span>
           <PadMoneyField
             value={value.fee}
             currency="JPY"
             active={feeActive}
             onFocus={onFocusFee}
             onChange={(v) => onChange({ ...value, fee: v })}
-            ariaLabel="Phí gửi tiền (JPY)"
+            ariaLabel={tr('Phí gửi tiền (JPY)')}
             onEnter={onEnter}
           />
         </div>
         <div>
-          <span className={labelCls}>Số nhận (VND)</span>
+          <span className={labelCls}>{tr('Số nhận (VND)')}</span>
           <PadMoneyField
             value={value.received}
             currency="VND"
@@ -829,15 +837,16 @@ export function RemitFields({
               setReceivedTouched(true)
               onChange({ ...value, received: v })
             }}
-            ariaLabel="Số tiền người nhận nhận được (VND)"
+            ariaLabel={tr('Số tiền người nhận nhận được (VND)')}
             onEnter={onEnter}
           />
         </div>
       </div>
       {sent > 0 && value.fee > 0 && (
         <p className="text-right text-sm text-fg-secondary">
-          Trừ khỏi tài khoản:{' '}
-          <span className="font-semibold">{formatMoney(totalOut, 'JPY')}</span> (số gửi + phí)
+          {trn('Trừ khỏi tài khoản: {amount} (số gửi + phí)', {
+            amount: <span className="font-semibold">{formatMoney(totalOut, 'JPY')}</span>,
+          })}
         </p>
       )}
       {/* "≈" là chủ đích: nói rõ đây là số TÍNH RA từ tỷ giá, không phải số bên nhận đã
@@ -845,7 +854,7 @@ export function RemitFields({
       {estimate !== null && (
         <p className="text-right text-sm text-fg-muted">
           ≈ {formatMoney(estimate, 'VND')} · 1 ¥ ≈ {(rate ?? 0).toFixed(1)} ₫
-          {rateAge ? ` · tỷ giá ${rateAge}` : ''}
+          {rateAge ? tr(' · tỷ giá {age}', { age: rateAge }) : ''}
         </p>
       )}
 
@@ -853,7 +862,7 @@ export function RemitFields({
           ghi nhầm mặc định Wise mãi mà không biết. */}
       <div>
         <label htmlFor={`${uid}-service`} className={labelCls}>
-          Dịch vụ
+          {tr('Dịch vụ')}
         </label>
         <Select
           id={`${uid}-service`}
@@ -861,7 +870,7 @@ export function RemitFields({
           onChange={(e) => onChange({ ...value, service: e.target.value })} wrapClassName="w-full">
           {services.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {s === 'Khác' ? tr('Khác') : s /* i18n-ignore — 'Khác' is the stored service value */}
             </option>
           ))}
         </Select>
@@ -892,7 +901,7 @@ export function RemitMonthStrip({
   const max = Math.max(...strip.months.map((m) => m.amount), 1)
   return (
     <div className="rounded-xl border border-border-strong bg-surface p-3">
-      <p className={labelCls}>12 tháng gần đây</p>
+      <p className={labelCls}>{tr('12 tháng gần đây')}</p>
       <p className="text-lg font-semibold text-fg-primary">{formatMoney(strip.total, currency)}</p>
       <ul className="mt-2 flex items-end gap-0.5" aria-hidden>
         {strip.months.map((m) => (
@@ -912,7 +921,11 @@ export function RemitMonthStrip({
         ))}
       </ul>
       <p className="mt-1.5 text-sm text-fg-muted">
-        {strip.sent}/{strip.months.length} tháng có gửi · thường lệ {formatMoney(strip.usual, currency)}
+        {tr('{sent}/{total} tháng có gửi · thường lệ {usual}', {
+          sent: strip.sent,
+          total: strip.months.length,
+          usual: formatMoney(strip.usual, currency),
+        })}
       </p>
     </div>
   )

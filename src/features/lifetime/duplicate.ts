@@ -10,6 +10,7 @@
 // không có JSX: thứ nó biết là LƯỢC ĐỒ ba bảng, không phải cách vẽ nút.
 import { repo } from '../../data'
 import type { LifeEventRow, LifePhaseRow, LifeScenarioRow } from '../../types/database.types'
+import { tr } from '../../i18n'
 
 export interface DuplicateScenarioArgs {
   /** Kịch bản NGUỒN — đọc bản ĐÃ LƯU, không đọc ô đang sửa dở. */
@@ -49,7 +50,7 @@ export async function duplicateScenario({
   afterCreate,
 }: DuplicateScenarioArgs): Promise<LifeScenarioRow> {
   const copy = await repo.createLifeScenario({
-    name: `${scenario.name} (bản sao)`,
+    name: tr('{name} (bản sao)', { name: scenario.name }),
     display_currency: scenario.display_currency,
     end_age: scenario.end_age,
     real_return_bps: scenario.real_return_bps,

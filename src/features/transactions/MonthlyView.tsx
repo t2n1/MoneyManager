@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { MonthlyPoint } from '../reports/aggregate'
@@ -23,21 +24,21 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       {/* Tổng cả năm */}
       <Card className="grid grid-cols-3 gap-2 text-center">
         <div>
-          <div className="text-sm text-fg-muted">Thu cả năm</div>
+          <div className="text-sm text-fg-muted">{tr('Thu cả năm')}</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
             {approx}
             {formatMoney(yearIncome, base)}
           </div>
         </div>
         <div className="border-x border-border-subtle">
-          <div className="text-sm text-fg-muted">Chi cả năm</div>
+          <div className="text-sm text-fg-muted">{tr('Chi cả năm')}</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-out">
             {approx}
             {formatMoney(yearExpense, base)}
           </div>
         </div>
         <div>
-          <div className="text-sm text-fg-muted">Còn lại</div>
+          <div className="text-sm text-fg-muted">{tr('Còn lại')}</div>
           <div
             className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-money-out' : 'text-fg-primary'}`}
           >
@@ -48,14 +49,14 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       </Card>
 
       {isLoading && !active ? (
-        <EmptyState>Đang tải…</EmptyState>
+        <EmptyState>{tr('Đang tải…')}</EmptyState>
       ) : (
         <Card padding="none" className="overflow-hidden">
           <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-border-subtle px-3 py-2 text-2xs font-medium uppercase tracking-label text-fg-muted">
-            <span>Tháng</span>
-            <span className="text-right">Thu</span>
-            <span className="text-right">Chi</span>
-            <span className="text-right">Còn lại</span>
+            <span>{tr('Tháng')}</span>
+            <span className="text-right">{tr('Thu')}</span>
+            <span className="text-right">{tr('Chi')}</span>
+            <span className="text-right">{tr('Còn lại')}</span>
           </div>
           <div className="divide-y divide-border-subtle">
             {points.map((p) => {
@@ -68,7 +69,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
                   onClick={() => onSelectMonth(p.key)}
                   className="grid w-full grid-cols-[auto_1fr_1fr_1fr] items-center gap-2 px-3 py-2.5 text-right text-sm transition hover:bg-surface-sunken active:bg-gray-100 dark:active:bg-gray-800"
                 >
-                  <span className="text-left font-medium text-fg-secondary">Th {p.key.month}</span>
+                  <span className="text-left font-medium text-fg-secondary">{tr('Th {m}', { m: p.key.month })}</span>
                   <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-in'}`}>
                     {p.income !== 0 ? formatMoney(p.income, base) : '–'}
                   </span>

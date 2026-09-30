@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
 import { SectionTitle } from '../components/ui'
+import { tr } from '../i18n'
 
 // ---- Dialog (confirm / prompt) ----
 
@@ -59,8 +60,8 @@ export function confirmDialog(opts: {
       id: ++seq,
       title: opts.title,
       message: opts.message,
-      confirmLabel: opts.confirmLabel ?? 'Xác nhận',
-      cancelLabel: opts.cancelLabel ?? 'Hủy',
+      confirmLabel: opts.confirmLabel ?? tr('Xác nhận'),
+      cancelLabel: opts.cancelLabel ?? tr('Hủy'),
       danger: opts.danger ?? false,
       resolve,
     }
@@ -84,7 +85,7 @@ export function promptDialog(opts: {
       message: opts.message,
       placeholder: opts.placeholder,
       defaultValue: opts.defaultValue ?? '',
-      confirmLabel: opts.confirmLabel ?? 'Lưu',
+      confirmLabel: opts.confirmLabel ?? tr('Lưu'),
       resolve,
     }
     emit()
@@ -222,7 +223,7 @@ function DialogModal({ req }: { req: DialogReq }) {
             onClick={onCancel}
             className="min-h-11 rounded-md px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken transition active:scale-95"
           >
-            {req.kind === 'confirm' ? req.cancelLabel : 'Hủy'}
+            {req.kind === 'confirm' ? req.cancelLabel : tr('Hủy')}
           </button>
           <button
             type="button"

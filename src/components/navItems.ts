@@ -5,6 +5,7 @@
 // danh sách này là cách chắc chắn nhất để rail và thanh tab lệch nhau sau vài lượt sửa.
 import { ChartColumn, LayoutDashboard, LineChart, Milestone, NotebookText, Settings, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { tr } from '../i18n'
 
 export interface NavItem {
   to: string
@@ -42,37 +43,37 @@ export interface NavItem {
 // tests/designSystem.test.ts canh đúng con số bốn: đây là ràng buộc bề rộng, không phải
 // sở thích, nên nó phải gãy khi có người thêm tab thứ năm.
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Bản tin', Icon: LayoutDashboard, onMobile: true },
-  { to: '/so', label: 'Sổ', Icon: NotebookText, onMobile: true },
-  { to: '/budget', label: 'Ngân sách', Icon: Target, onMobile: true },
-  { to: '/assets', label: 'Tài sản', Icon: Wallet, onMobile: true },
+  { to: '/', label: tr('Bản tin'), Icon: LayoutDashboard, onMobile: true },
+  { to: '/so', label: tr('Sổ'), Icon: NotebookText, onMobile: true },
+  { to: '/budget', label: tr('Ngân sách'), Icon: Target, onMobile: true },
+  { to: '/assets', label: tr('Tài sản'), Icon: Wallet, onMobile: true },
   // `LineChart` cùng hình với nút vào Danh mục đầu tư trên trang Tài sản — một màn thì
   // một hình, dù bấm vào từ hai chỗ. Đứng ngay sau Tài sản vì nó là lát cắt SÂU của
   // cùng một câu hỏi ("tôi đang có gì"), không phải một khu riêng.
-  { to: '/invest', label: 'Đầu tư', Icon: LineChart, onMobile: false },
+  { to: '/invest', label: tr('Đầu tư'), Icon: LineChart, onMobile: false },
   // Đứng ngay sau Đầu tư, cùng nhóm "lát cắt sâu của tài sản" — khác Đầu tư ở việc câu
   // hỏi là "sau này" chứ không phải "đang có gì".
-  { to: '/tuong-lai', label: 'Tương lai', Icon: Milestone, onMobile: false },
-  { to: '/reports', label: 'Báo cáo', Icon: ChartColumn, onMobile: false },
-  { to: '/settings', label: 'Cài đặt', Icon: Settings, onMobile: false },
+  { to: '/tuong-lai', label: tr('Tương lai'), Icon: Milestone, onMobile: false },
+  { to: '/reports', label: tr('Báo cáo'), Icon: ChartColumn, onMobile: false },
+  { to: '/settings', label: tr('Cài đặt'), Icon: Settings, onMobile: false },
 ]
 
 // Tiêu đề tab trình duyệt VÀ tiêu đề màn trên top bar. Không đổi thì bookmark, lịch sử
 // và hai tab mở cạnh nhau đều là "Sổ Gạo" — không phân biệt được đang ở đâu. Tiền tố
 // khớp cả trang con (/settings/accounts → "Cài đặt").
 const PAGE_TITLES: [prefix: string, title: string][] = [
-  ['/so', 'Sổ'],
-  ['/entry', 'Nhập giao dịch'],
-  ['/search', 'Tìm kiếm'],
-  ['/debts', 'Nợ / cho vay'],
-  ['/recurring', 'Giao dịch định kỳ'],
-  ['/planned', 'Sắp chi'],
-  ['/quyen-loi', 'Quyền lợi'],
-  ['/invest', 'Đầu tư'],
-  ['/budget', 'Ngân sách'],
-  ['/assets', 'Tài sản'],
-  ['/reports', 'Báo cáo'],
-  ['/settings', 'Cài đặt'],
+  ['/so', tr('Sổ')],
+  ['/entry', tr('Nhập giao dịch')],
+  ['/search', tr('Tìm kiếm')],
+  ['/debts', tr('Nợ / cho vay')],
+  ['/recurring', tr('Giao dịch định kỳ')],
+  ['/planned', tr('Sắp chi')],
+  ['/quyen-loi', tr('Quyền lợi')],
+  ['/invest', tr('Đầu tư')],
+  ['/budget', tr('Ngân sách')],
+  ['/assets', tr('Tài sản')],
+  ['/reports', tr('Báo cáo')],
+  ['/settings', tr('Cài đặt')],
 ]
 
 /** Tiêu đề màn cho `pathname`; null ở trang gốc (giữ nguyên tên app trên tab trình duyệt). */
@@ -88,7 +89,7 @@ export function pageTitle(pathname: string): string | null {
  * không bao giờ gọi khác tên.
  */
 export function topBarTitle(pathname: string): string {
-  return pageTitle(pathname) ?? NAV_ITEMS.find((i) => i.to === pathname)?.label ?? 'Sổ Gạo'
+  return pageTitle(pathname) ?? NAV_ITEMS.find((i) => i.to === pathname)?.label ?? 'Sổ Gạo' // i18n-ignore — tên app
 }
 
 // Những màn ĐỌC kỳ đang xem. Bộ đổi tháng trên top bar chỉ hiện ở đây — hiện ở màn

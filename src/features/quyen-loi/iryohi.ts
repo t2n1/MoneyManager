@@ -19,10 +19,11 @@ import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import type { KetLuan } from './ketLuan'
 import { tienTietKiem } from './marginalRate'
 import { luatChoNam } from './rules/luat'
+import { tr } from '../../i18n'
 
 /** Tên danh mục được đếm — theo TÊN, cùng lối FURUSATO_CATEGORY_NAME. KHÔNG đếm
  *  "Sức khỏe" (gym/thể chất không thuộc diện). */
-export const IRYOHI_CATEGORY_NAMES = ['Thuốc', 'Bệnh viện'] as const
+export const IRYOHI_CATEGORY_NAMES = ['Thuốc', 'Bệnh viện'] as const // i18n-ignore — tên danh mục trong DB
 
 export interface IryohiInput {
   year: number
@@ -81,7 +82,7 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
   const nam = calendarYearRange(input.year)
 
   const idsY = idsTheoTen(input.categories, IRYOHI_CATEGORY_NAMES)
-  const idsThuoc = idsTheoTen(input.categories, ['Thuốc'])
+  const idsThuoc = idsTheoTen(input.categories, [IRYOHI_CATEGORY_NAMES[0]])
   const co_danh_muc = idsY.size > 0
 
   const chi_y = tong(input.txs, idsY, nam.start, nam.end)
@@ -105,41 +106,45 @@ export function tinhIryohi(input: IryohiInput): IryohiKetQua {
 
   // Méo mó của phép ước — nói ra thay vì im (spec §3), + điều kiện riêng từng nhánh.
   const ly_do = [
-    'Số có thể cao hơn thực tế: app đếm cả khoản không thuộc diện (thực phẩm chức năng…) và chưa trừ tiền bảo hiểm bù.',
-    'Ngược lại, tiền tàu đi viện (ghi ở Tàu điện) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100,000.',
+    tr('Số có thể cao hơn thực tế: app đếm cả khoản không thuộc diện (thực phẩm chức năng…) và chưa trừ tiền bảo hiểm bù.'),
+    tr('Ngược lại, tiền tàu đi viện (ghi ở {cat}) chưa được cộng, và nếu thu nhập thấp thì ngưỡng thật có thể dưới ¥100,000.', {
+      cat: 'Tàu điện', // i18n-ignore — tên danh mục trong DB
+    }),
   ]
   if (!co_danh_muc)
-    ly_do.push(`Chưa có danh mục "${IRYOHI_CATEGORY_NAMES.join('" / "')}" nên không đếm được.`)
+    ly_do.push(tr('Chưa có danh mục "{names}" nên không đếm được.', { names: IRYOHI_CATEGORY_NAMES.join('" / "') }))
   if (nhanh === 'self')
     ly_do.push(
-      'Nhánh セルフメディケーション chỉ tính thuốc OTC có dấu ★ và cần 健康診断 trong năm — app đếm cả danh mục Thuốc nên số thật thấp hơn.',
+      tr('Nhánh セルフメディケーション chỉ tính thuốc OTC có dấu ★ và cần 健康診断 trong năm — app đếm cả danh mục {cat} nên số thật thấp hơn.', {
+        cat: IRYOHI_CATEGORY_NAMES[0],
+      }),
     )
   if (nhanh === 'chinh' && khau_tru_self > 0)
-    ly_do.push(`Nhánh OTC được ≈ ${input.fmt(khau_tru_self)} nhưng nhánh chính lợi hơn — chỉ được chọn một.`)
+    ly_do.push(tr('Nhánh OTC được ≈ {amount} nhưng nhánh chính lợi hơn — chỉ được chọn một.', { amount: input.fmt(khau_tru_self) }))
   if (khau_tru > 0 && input.suatBien === null)
-    ly_do.push('Chưa ước được tiền thuế bớt (thiếu phiếu lương 所得税) — khấu trừ thì vẫn chắc.')
+    ly_do.push(tr('Chưa ước được tiền thuế bớt (thiếu phiếu lương 所得税) — khấu trừ thì vẫn chắc.'))
 
   let trang_thai: KetLuan['trang_thai']
   let viec: string
   let han: string | null = null
-  const toKhai = input.deXuatKhaiThue ? 'cùng tờ 確定申告 của khoản phụ thuộc' : 'trong 確定申告'
+  const toKhai = input.deXuatKhaiThue ? tr('cùng tờ 確定申告 của khoản phụ thuộc') : tr('trong 確定申告')
   if (nhanh === 'chinh' && input.year === namNay) {
     trang_thai = 'thieu'
     han = `${input.year + 1}-03-15`
-    viec = `Chi y tế ${input.fmt(chi_y)} đã vượt ngưỡng ${input.fmt(luat.iryohi.nguong)} — giữ hoá đơn, khai 医療費控除 ${toKhai} trước 15/3`
+    viec = tr('Chi y tế {spent} đã vượt ngưỡng {threshold} — giữ hoá đơn, khai 医療費控除 {filing} trước 15/3', { spent: input.fmt(chi_y), threshold: input.fmt(luat.iryohi.nguong), filing: toKhai })
   } else if (nhanh === 'self' && input.year === namNay) {
     trang_thai = 'thieu'
     han = `${input.year + 1}-03-15`
-    viec = `Chi thuốc ${input.fmt(chi_thuoc)} đã vượt ngưỡng ${input.fmt(luat.iryohi.selfMed.nguong)} — giữ hoá đơn thuốc ★, khai セルフメディケーション ${toKhai} trước 15/3`
+    viec = tr('Chi thuốc {spent} đã vượt ngưỡng {threshold} — giữ hoá đơn thuốc ★, khai セルフメディケーション {filing} trước 15/3', { spent: input.fmt(chi_thuoc), threshold: input.fmt(luat.iryohi.selfMed.nguong), filing: toKhai })
   } else if (nhanh !== null) {
     trang_thai = 'het-han'
     viec =
       nhanh === 'chinh'
-        ? `Năm ${input.year} chi y tế ${input.fmt(chi_y)}, 医療費控除 được ≈ ${input.fmt(khau_tru)}`
-        : `Năm ${input.year} chi thuốc ${input.fmt(chi_thuoc)}, セルフメディケーション được ≈ ${input.fmt(khau_tru)}`
+        ? tr('Năm {year} chi y tế {spent}, 医療費控除 được ≈ {deduction}', { year: input.year, spent: input.fmt(chi_y), deduction: input.fmt(khau_tru) })
+        : tr('Năm {year} chi thuốc {spent}, セルフメディケーション được ≈ {deduction}', { year: input.year, spent: input.fmt(chi_thuoc), deduction: input.fmt(khau_tru) })
   } else {
     trang_thai = 'du'
-    viec = `Chi y tế ${input.fmt(chi_y)} / ngưỡng ${input.fmt(luat.iryohi.nguong)} — chưa tới mức khấu trừ`
+    viec = tr('Chi y tế {spent} / ngưỡng {threshold} — chưa tới mức khấu trừ', { spent: input.fmt(chi_y), threshold: input.fmt(luat.iryohi.nguong) })
   }
 
   return {

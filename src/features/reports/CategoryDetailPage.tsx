@@ -29,6 +29,7 @@ import { CategoryLineChart } from './CategoryLineChart'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import type { TransactionRow } from '../../types/database.types'
+import { getLang, tr } from '../../i18n'
 
 type Period = 'month' | 'year'
 
@@ -167,6 +168,7 @@ export function CategoryDetailPage() {
     period === 'month' ? `${k.year}/${k.month}` : String(k.month)
   const periodLabel =
     period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)
+  const periodInText = getLang() === 'en' ? periodLabel : periodLabel.toLowerCase()
 
   // Danh mục không tồn tại (link cũ / gõ tay) → báo nhẹ, không để trắng trang.
   if (catsFetched && !category) {
@@ -174,12 +176,12 @@ export function CategoryDetailPage() {
       <div className="p-3 lg:p-6">
         <BackLink
           to={backTo}
-          aria-label="Quay lại"
+          aria-label={tr('Quay lại')}
           className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-fg-accent"
         >
-          <ChevronLeft className="h-5 w-5" /> {fromBudget ? 'Về ngân sách' : 'Về báo cáo'}
+          <ChevronLeft className="h-5 w-5" /> {fromBudget ? tr('Về ngân sách') : tr('Về báo cáo')}
         </BackLink>
-        <EmptyState>Không tìm thấy danh mục này.</EmptyState>
+        <EmptyState>{tr('Không tìm thấy danh mục này.')}</EmptyState>
       </div>
     )
   }
@@ -200,16 +202,16 @@ export function CategoryDetailPage() {
       {/* Mũi chuyển kỳ + tổng */}
       <Card as="section">
         <div className="flex items-center justify-between">
-          <IconButton onClick={() => stepPeriod(-1)} aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}>
+          <IconButton onClick={() => stepPeriod(-1)} aria-label={period === 'month' ? tr('Tháng trước') : tr('Năm trước')}>
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
           <span className="text-base font-semibold text-fg-primary">{periodLabel}</span>
-          <IconButton onClick={() => stepPeriod(1)} aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}>
+          <IconButton onClick={() => stepPeriod(1)} aria-label={period === 'month' ? tr('Tháng sau') : tr('Năm sau')}>
             <ChevronRight className="h-5 w-5" />
           </IconButton>
         </div>
         <p className="mt-1 text-center">
-          <span className="text-sm text-fg-muted">{kind === 'expense' ? 'Đã chi' : 'Đã thu'} · </span>
+          <span className="text-sm text-fg-muted">{kind === 'expense' ? tr('Đã chi') : tr('Đã thu')} · </span>
           <Money
             amount={total}
             currency={base}
@@ -222,7 +224,7 @@ export function CategoryDetailPage() {
 
       {missingRate && (
         <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
-          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
+          {tr('Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.')}
         </div>
       )}
 
@@ -233,21 +235,21 @@ export function CategoryDetailPage() {
           base={base}
           color={lineColor}
           labelOf={labelOf}
-          title={period === 'month' ? 'Xu hướng 6 tháng gần nhất' : `Xu hướng 12 tháng ${activeYear}`}
+          title={period === 'month' ? tr('Xu hướng 6 tháng gần nhất') : tr('Xu hướng 12 tháng {year}', { year: activeYear })}
         />
       </Card>
 
       {/* Danh sách giao dịch trong kỳ */}
       <section>
         <SectionTitle className="mb-2 px-1">
-          Giao dịch {periodLabel.toLowerCase()}
-          {txsFetched && <span className="font-normal"> · {periodTxs.length} khoản</span>}
+          {tr('Giao dịch {period}', { period: periodInText })}
+          {txsFetched && <span className="font-normal"> · {tr('{n} khoản', { n: periodTxs.length })}</span>}
         </SectionTitle>
         {!txsFetched ? (
-          <EmptyState>Đang tải…</EmptyState>
+          <EmptyState>{tr('Đang tải…')}</EmptyState>
         ) : days.length === 0 ? (
           <EmptyState>
-            Không có giao dịch trong {periodLabel.toLowerCase()}.
+            {tr('Không có giao dịch trong {period}.', { period: periodInText })}
           </EmptyState>
         ) : (
           days.map(([day, txs]) => (

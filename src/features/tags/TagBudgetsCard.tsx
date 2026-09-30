@@ -3,6 +3,7 @@
 // Dùng chung khuôn với danh sách hạn mức danh mục ngay bên dưới (tên · % · thanh
 // tiến độ · số tiền / trần) để mắt không phải học lại cách đọc — chỉ khác một chữ
 // nhỏ nói kỳ của trần, vì đó mới là thứ phân biệt hai khối.
+import { tr } from '../../i18n'
 import { Link } from 'react-router-dom'
 import { Guide } from '../../components/Guide'
 import { Card, SectionTitle } from '../../components/ui'
@@ -21,14 +22,14 @@ export function TagBudgetsCard({ data, base }: Props) {
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <SectionTitle>Ngân sách theo nhãn</SectionTitle>
+        <SectionTitle>{tr('Ngân sách theo nhãn')}</SectionTitle>
         {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra — cùng mẹo với
             "Đổi mốc" ở AxisTargetsCard. Để trần thì đo được 41×16, không bấm nổi. */}
         <Link
           to="/settings/tags"
           className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
-          Đổi trần
+          {tr('Đổi trần')}
         </Link>
       </div>
 
@@ -36,7 +37,7 @@ export function TagBudgetsCard({ data, base }: Props) {
 
       {data.hasMissingRate && (
         <p className="mt-2 text-2xs text-fg-muted">
-          Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.
+          {tr('Thiếu tỷ giá cho vài khoản ngoại tệ nên tổng đang tính thiếu.')}
         </p>
       )}
 
@@ -44,8 +45,7 @@ export function TagBudgetsCard({ data, base }: Props) {
           đó. Không nói ra thì người dùng cộng các dòng lại rồi thấy nhiều hơn tổng
           chi và tưởng app sai. */}
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Một khoản mang nhiều nhãn được tính đủ cho từng nhãn, nên các dòng ở đây cộng
-        lại có thể lớn hơn tổng chi.
+        {tr('Một khoản mang nhiều nhãn được tính đủ cho từng nhãn, nên các dòng ở đây cộng lại có thể lớn hơn tổng chi.')}
       </Guide>
     </Card>
   )

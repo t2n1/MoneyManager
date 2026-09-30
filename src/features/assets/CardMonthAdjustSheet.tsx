@@ -16,6 +16,7 @@ import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { monthAdjustDate, monthAdjustPlan } from './cardMonthCharge'
 import { ADJUST_CATEGORY_ICON, ADJUST_CATEGORY_NAME, findAdjustCategory } from './reconcile'
+import { tr } from '../../i18n'
 
 interface Props {
   account: AccountRow
@@ -87,7 +88,7 @@ export function CardMonthAdjustSheet({
         account_id: account.id,
         to_account_id: null,
         occurred_on: occurredOn,
-        note: `Điều chỉnh sao kê ${monthLabel.toLowerCase()}`,
+        note: `Điều chỉnh sao kê ${monthLabel.toLowerCase()}`, // i18n-ignore — ghi chú lưu vào DB cùng giao dịch
         // Khoản bù của MỘT kỳ — vẫn tính là tiền quẹt, kể cả khi ghi chú bị sửa trùng
         // chữ "Điều chỉnh số nợ" (isBalanceAdjust).
         adjust_kind: 'statement_month',
@@ -95,7 +96,7 @@ export function CardMonthAdjustSheet({
       })
       onClose()
     } catch (err) {
-      showToast(`Không lưu được: ${(err as Error).message}`, 'error')
+      showToast(tr('Không lưu được: {error}', { error: (err as Error).message }), 'error')
     } finally {
       setSaving(false)
     }
@@ -110,32 +111,36 @@ export function CardMonthAdjustSheet({
         className="max-h-[92vh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <SectionTitle role="block" className="mb-1">Chỉnh cho khớp sao kê</SectionTitle>
+        <SectionTitle role="block" className="mb-1">{tr('Chỉnh cho khớp sao kê')}</SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
-          {account.name} · sao kê {monthLabel.toLowerCase()} ({periodLabel}) · app đang tính{' '}
-          {formatMoney(charged, currency)}
+          {tr('{name} · sao kê {month} ({period}) · app đang tính {amount}', {
+            name: account.name,
+            month: monthLabel.toLowerCase(),
+            period: periodLabel,
+            amount: formatMoney(charged, currency),
+          })}
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
         <span className="mb-1 block text-sm font-medium text-fg-muted">
-          Tổng thật trên sao kê
+          {tr('Tổng thật trên sao kê')}
         </span>
         <div className="mb-3">
           <MoneyField
             value={entered}
             onChange={setEntered}
             currency={currency}
-            ariaLabel="Tổng thật trên sao kê"
+            ariaLabel={tr('Tổng thật trên sao kê')}
             onEnter={handleSubmit}
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Ghi vào ngày</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Ghi vào ngày')}</span>
         {/* Kẹp trong kỳ: khoản bù rơi sang tháng khác thì tháng này vẫn lệch */}
         <DateField
-          ariaLabel="Ghi vào ngày"
+          ariaLabel={tr('Ghi vào ngày')}
           value={occurredOn}
           min={rangeStartISO}
           max={lastDayISO}
@@ -144,14 +149,16 @@ export function CardMonthAdjustSheet({
         />
         <p className="mb-3 text-sm text-fg-muted">
           {suggestedDate === todayISO
-            ? 'Ghi vào hôm nay — vẫn nằm trong kỳ.'
-            : `Ghi vào ngày chốt kỳ (${dayMonthLabel(lastDayISO)}), để khoản bù nằm đúng trong kỳ.`}{' '}
-          Chỉ chọn được ngày trong kỳ {periodLabel}.
+            ? tr('Ghi vào hôm nay — vẫn nằm trong kỳ.')
+            : tr('Ghi vào ngày chốt kỳ ({date}), để khoản bù nằm đúng trong kỳ.', {
+                date: dayMonthLabel(lastDayISO),
+              })}{' '}
+          {tr('Chỉ chọn được ngày trong kỳ {period}.', { period: periodLabel })}
         </p>
 
         <div className="mb-3 rounded-lg bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
-            <span>Chênh lệch</span>
+            <span>{tr('Chênh lệch')}</span>
             {/* Không in dấu +/−: câu giải thích ngay dưới đã nói rõ chiều, mà dấu
                 của <Money> gắn với tone (out → '-') nên "thiếu tiền" sẽ ra dấu ngược */}
             <Money
@@ -163,10 +170,10 @@ export function CardMonthAdjustSheet({
           </div>
           <p className="mt-1 text-sm text-fg-muted">
             {diff === 0
-              ? 'Số đã khớp — không cần chỉnh.'
+              ? tr('Số đã khớp — không cần chỉnh.')
               : diff > 0
-                ? 'App đang thiếu — sẽ thêm một khoản chi bù vào thẻ (không tính vào thống kê).'
-                : 'App đang thừa — sẽ thêm một khoản thu bù vào thẻ (không tính vào thống kê).'}
+                ? tr('App đang thiếu — sẽ thêm một khoản chi bù vào thẻ (không tính vào thống kê).')
+                : tr('App đang thừa — sẽ thêm một khoản thu bù vào thẻ (không tính vào thống kê).')}
           </p>
         </div>
 
@@ -176,10 +183,10 @@ export function CardMonthAdjustSheet({
             onClick={onClose}
             className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
-            Hủy
+            {tr('Hủy')}
           </button>
           <ActionButton variant="primary" onClick={handleSubmit} disabled={!canSave}>
-            {saving ? 'Đang lưu…' : 'Chỉnh'}
+            {saving ? tr('Đang lưu…') : tr('Chỉnh')}
           </ActionButton>
         </div>
       </div>

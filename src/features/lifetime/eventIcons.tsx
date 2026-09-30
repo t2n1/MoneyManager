@@ -52,6 +52,7 @@ import {
   Users,
   UtensilsCrossed,
 } from 'lucide-react'
+import { tr, trx } from '../../i18n'
 
 type IconComponent = typeof Heart
 
@@ -68,59 +69,59 @@ export interface EventIconGroup {
 }
 
 export const EVENT_ICONS: Record<string, EventIconDef> = {
-  'cuoi-hoi': { label: 'Cưới hỏi', Icon: Heart },
-  'sinh-con': { label: 'Sinh con', Icon: Baby },
-  'gia-dinh': { label: 'Gia đình', Icon: Users },
-  'cham-cha-me': { label: 'Chăm cha mẹ', Icon: HandHeart },
-  'thu-cung': { label: 'Thú cưng', Icon: Dog },
+  'cuoi-hoi': { label: tr('Cưới hỏi'), Icon: Heart },
+  'sinh-con': { label: tr('Sinh con'), Icon: Baby },
+  'gia-dinh': { label: tr('Gia đình'), Icon: Users },
+  'cham-cha-me': { label: tr('Chăm cha mẹ'), Icon: HandHeart },
+  'thu-cung': { label: tr('Thú cưng'), Icon: Dog },
 
-  'hoc-phi': { label: 'Học phí', Icon: GraduationCap },
-  truong: { label: 'Trường học', Icon: School },
-  'sach-khoa-hoc': { label: 'Sách, khoá học', Icon: BookOpen },
-  'viec-lam': { label: 'Việc làm', Icon: Briefcase },
+  'hoc-phi': { label: tr('Học phí'), Icon: GraduationCap },
+  truong: { label: tr('Trường học'), Icon: School },
+  'sach-khoa-hoc': { label: tr('Sách, khoá học'), Icon: BookOpen },
+  'viec-lam': { label: tr('Việc làm'), Icon: Briefcase },
 
-  'mua-nha': { label: 'Mua nhà', Icon: House },
-  'chung-cu': { label: 'Chung cư', Icon: Building2 },
-  'sua-nha': { label: 'Sửa nhà', Icon: Hammer },
-  'chuyen-nha': { label: 'Chuyển nhà', Icon: Truck },
-  dat: { label: 'Đất', Icon: MapPin },
-  'cay-vuon': { label: 'Cây, vườn', Icon: Trees },
+  'mua-nha': { label: tr('Mua nhà'), Icon: House },
+  'chung-cu': { label: tr('Chung cư'), Icon: Building2 },
+  'sua-nha': { label: tr('Sửa nhà'), Icon: Hammer },
+  'chuyen-nha': { label: tr('Chuyển nhà'), Icon: Truck },
+  dat: { label: tr('Đất'), Icon: MapPin },
+  'cay-vuon': { label: tr('Cây, vườn'), Icon: Trees },
 
-  'xe-hoi': { label: 'Xe hơi', Icon: Car },
-  'xe-may': { label: 'Xe máy', Icon: Bike },
-  'may-bay': { label: 'Máy bay, về nước', Icon: Plane },
-  'du-lich': { label: 'Du lịch', Icon: Luggage },
-  'nghi-duong': { label: 'Nghỉ dưỡng', Icon: TreePalm },
+  'xe-hoi': { label: tr('Xe hơi'), Icon: Car },
+  'xe-may': { label: tr('Xe máy'), Icon: Bike },
+  'may-bay': { label: tr('Máy bay, về nước'), Icon: Plane },
+  'du-lich': { label: tr('Du lịch'), Icon: Luggage },
+  'nghi-duong': { label: tr('Nghỉ dưỡng'), Icon: TreePalm },
 
-  'y-te': { label: 'Y tế', Icon: Stethoscope },
-  'benh-nang': { label: 'Bệnh nặng', Icon: HeartPulse },
-  'the-thao': { label: 'Thể thao', Icon: Dumbbell },
-  'an-uong': { label: 'Ăn uống', Icon: UtensilsCrossed },
-  'do-dien-tu': { label: 'Đồ điện tử', Icon: Smartphone },
+  'y-te': { label: tr('Y tế'), Icon: Stethoscope },
+  'benh-nang': { label: tr('Bệnh nặng'), Icon: HeartPulse },
+  'the-thao': { label: tr('Thể thao'), Icon: Dumbbell },
+  'an-uong': { label: tr('Ăn uống'), Icon: UtensilsCrossed },
+  'do-dien-tu': { label: tr('Đồ điện tử'), Icon: Smartphone },
 
-  'tiet-kiem': { label: 'Tiết kiệm', Icon: PiggyBank },
-  'ngan-hang': { label: 'Ngân hàng, vay', Icon: Landmark },
-  'tra-no': { label: 'Trả nợ', Icon: CreditCard },
-  'dau-tu': { label: 'Đầu tư', Icon: TrendingUp },
-  thue: { label: 'Thuế', Icon: Receipt },
-  'bao-hiem': { label: 'Bảo hiểm', Icon: ShieldCheck },
-  'qua-tang': { label: 'Quà, được tặng', Icon: Gift },
+  'tiet-kiem': { label: tr('Tiết kiệm'), Icon: PiggyBank },
+  'ngan-hang': { label: tr('Ngân hàng, vay'), Icon: Landmark },
+  'tra-no': { label: tr('Trả nợ'), Icon: CreditCard },
+  'dau-tu': { label: tr('Đầu tư'), Icon: TrendingUp },
+  thue: { label: tr('Thuế'), Icon: Receipt },
+  'bao-hiem': { label: tr('Bảo hiểm'), Icon: ShieldCheck },
+  'qua-tang': { label: tr('Quà, được tặng'), Icon: Gift },
 
-  'nghi-huu': { label: 'Nghỉ hưu', Icon: Armchair },
-  'cuoi-doi': { label: 'Cuối đời', Icon: Sunset },
+  'nghi-huu': { label: tr('Nghỉ hưu'), Icon: Armchair },
+  'cuoi-doi': { label: tr('Cuối đời'), Icon: Sunset },
 }
 
 export const EVENT_ICON_GROUPS: EventIconGroup[] = [
-  { title: 'Gia đình', keys: ['cuoi-hoi', 'sinh-con', 'gia-dinh', 'cham-cha-me', 'thu-cung'] },
-  { title: 'Học và việc', keys: ['hoc-phi', 'truong', 'sach-khoa-hoc', 'viec-lam'] },
-  { title: 'Nhà và đất', keys: ['mua-nha', 'chung-cu', 'sua-nha', 'chuyen-nha', 'dat', 'cay-vuon'] },
-  { title: 'Đi lại', keys: ['xe-hoi', 'xe-may', 'may-bay', 'du-lich', 'nghi-duong'] },
-  { title: 'Sức khoẻ và đồ dùng', keys: ['y-te', 'benh-nang', 'the-thao', 'an-uong', 'do-dien-tu'] },
+  { title: tr('Gia đình'), keys: ['cuoi-hoi', 'sinh-con', 'gia-dinh', 'cham-cha-me', 'thu-cung'] },
+  { title: tr('Học và việc'), keys: ['hoc-phi', 'truong', 'sach-khoa-hoc', 'viec-lam'] },
+  { title: tr('Nhà và đất'), keys: ['mua-nha', 'chung-cu', 'sua-nha', 'chuyen-nha', 'dat', 'cay-vuon'] },
+  { title: tr('Đi lại'), keys: ['xe-hoi', 'xe-may', 'may-bay', 'du-lich', 'nghi-duong'] },
+  { title: tr('Sức khoẻ và đồ dùng'), keys: ['y-te', 'benh-nang', 'the-thao', 'an-uong', 'do-dien-tu'] },
   {
-    title: 'Tiền',
+    title: trx('group', 'Tiền'),
     keys: ['tiet-kiem', 'ngan-hang', 'tra-no', 'dau-tu', 'thue', 'bao-hiem', 'qua-tang'],
   },
-  { title: 'Về sau', keys: ['nghi-huu', 'cuoi-doi'] },
+  { title: tr('Về sau'), keys: ['nghi-huu', 'cuoi-doi'] },
 ]
 
 /** Nhãn tiếng Việt của một khoá icon; chuỗi rỗng khi khoá không có trong bộ. */

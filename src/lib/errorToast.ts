@@ -8,6 +8,7 @@
 //
 // Store nhỏ ngoài React (cùng kiểu undoToast) để main.tsx — nơi không có React
 // context — gọi được showErrorToast(...); AppLayout hiển thị + tự ẩn.
+import { tr } from '../i18n'
 import { useSyncExternalStore } from 'react'
 
 export interface ErrorToastState {
@@ -32,7 +33,7 @@ export function describeError(error: unknown): string {
     const o = error as { message?: unknown; details?: unknown; code?: unknown }
     if (typeof o.message === 'string' && o.message.trim()) return o.message
     if (typeof o.details === 'string' && o.details.trim()) return o.details
-    if (typeof o.code === 'string' && o.code.trim()) return `mã lỗi ${o.code}`
+    if (typeof o.code === 'string' && o.code.trim()) return tr('mã lỗi {code}', { code: o.code })
   }
   if (typeof error === 'string' && error.trim()) return error
   // try/catch quanh String(): `String(Object.create(null))` NÉM TypeError vì object
@@ -42,9 +43,9 @@ export function describeError(error: unknown): string {
   try {
     s = String(error)
   } catch {
-    return 'lỗi không rõ'
+    return tr('lỗi không rõ')
   }
-  return s === '[object Object]' || !s.trim() ? 'lỗi không rõ' : s
+  return s === '[object Object]' || !s.trim() ? tr('lỗi không rõ') : s
 }
 
 let current: ErrorToastState | null = null

@@ -8,6 +8,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { RecurringRuleRow, TransactionRow } from '../../types/database.types'
 import type { CategorySlice, CurrencyOf } from './aggregate'
+import { tr } from '../../i18n'
 
 // ------------------------------------------------------------
 // Pareto 80/20
@@ -211,7 +212,7 @@ export interface WeekdayBucket {
   avg: number
 }
 
-export const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+export const WEEKDAY_LABELS = [tr('CN'), tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7')]
 
 /** Chi trung bình theo từng thứ trong tuần, để lộ thói quen cuối tuần. */
 export function weekdayProfile(

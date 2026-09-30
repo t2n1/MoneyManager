@@ -1,4 +1,5 @@
 // Dải xếp nhanh nhãn cũ. Sau migration 0039 mọi nhãn đang có đều ngoài nhóm; xếp
+import { tr } from '../../i18n'
 // từng cái qua màn quản lý thì phải cuộn tìm, còn ở đây chỉ việc bấm lướt.
 //
 // Vì sao có nút "Xong": "để ở Khác" và "chưa xem tới" là CÙNG một giá trị trong DB
@@ -50,8 +51,8 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
   return (
     <section className="mb-3 rounded-xl border border-green-200 bg-state-good-bg p-3 dark:border-green-900">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <SectionTitle>Xếp nhãn vào nhóm</SectionTitle>
-        <span className="text-2xs text-fg-muted">còn {queue.length}</span>
+        <SectionTitle>{tr('Xếp nhãn vào nhóm')}</SectionTitle>
+        <span className="text-2xs text-fg-muted">{tr('còn {n}', { n: queue.length })}</span>
       </div>
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -60,7 +61,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         >
           {current.name}
         </span>
-        <span className="text-sm text-fg-muted">{used} giao dịch</span>
+        <span className="text-sm text-fg-muted">{tr('{n} giao dịch', { n: used })}</span>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -79,7 +80,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
           onClick={() => setSkipped((s) => [...s, current.id])}
           className="min-h-9 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary"
         >
-          Để ở Khác
+          {tr('Để ở Khác')}
         </button>
         <button
           type="button"
@@ -90,13 +91,13 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
           className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 text-sm font-medium text-fg-muted"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
-          Xong
+          {tr('Xong')}
         </button>
       </div>
 
       <Guide className="mt-2 flex items-center gap-1 text-2xs text-fg-muted">
         <Check className="h-3 w-3" aria-hidden />
-        Xếp xong nhãn nào thì nhãn đó biến khỏi dải. Bấm “Xong” để ẩn hẳn.
+        {tr('Xếp xong nhãn nào thì nhãn đó biến khỏi dải. Bấm “Xong” để ẩn hẳn.')}
       </Guide>
     </section>
   )

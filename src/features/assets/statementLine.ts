@@ -7,6 +7,7 @@
 // Thuần, không phụ thuộc React.
 
 import type { CardBillingRange } from './cardMonthCharge'
+import { tr } from '../../i18n'
 
 export type LineKind =
   /** Một lần quẹt thường. */
@@ -77,6 +78,6 @@ const KNOWN_LABELS: Record<string, string> = {
 export function sourceLabelFor(source: string): string {
   if (source === '') return ''
   if (KNOWN_LABELS[source]) return KNOWN_LABELS[source]
-  if (/^\d{4}$/.test(source)) return `Thẻ ····${source}`
+  if (/^\d{4}$/.test(source)) return tr('Thẻ ····{last4}', { last4: source })
   return source
 }

@@ -106,7 +106,26 @@ function parseDchart(json, scale) {
   return [...theoNgay].map(([trading_date, close]) => ({ trading_date, close })).sort((a, b) => a.trading_date.localeCompare(b.trading_date));
 }
 
+// src/i18n/index.ts
+var lang = "vi";
+var dict = {};
+function fill(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, k) => k in vars ? String(vars[k]) : m);
+}
+function pick(vi, vars) {
+  if (lang === "vi") return vi;
+  const hit = dict[vi];
+  if (hit === void 0) return vi;
+  if (typeof hit === "string") return hit;
+  return vars?.n === 1 ? hit.one : hit.other;
+}
+function tr(vi, vars) {
+  return fill(pick(vi, vars), vars);
+}
+
 // src/features/assets/sectors.ts
+var CHUA_RO = tr("Ch\u01B0a r\xF5");
 var UU_TIEN_CAP = ["3", "4", "2", "1"];
 function parseIndustries(json) {
   const out = /* @__PURE__ */ new Map();
@@ -135,6 +154,8 @@ var pad = (n) => String(n).padStart(2, "0");
 function toISODate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+var KE_CA_HOM_NAY = tr("(k\u1EC3 c\u1EA3 h\xF4m nay)");
+var WEEKDAY_VI = [tr("CN"), tr("T2"), tr("T3"), tr("T4"), tr("T5"), tr("T6"), tr("T7")];
 
 // src/features/assets/hoseSymbols.ts
 var HOSE_SYMBOLS = [

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { addMonths, formatDateLabel, formatMonthLabel, toISODate, type MonthKey } from '../lib/dates'
+import { tr } from '../i18n'
 
 /**
  * Ô chọn ngày dùng chung — thay cho `<input type="date">` native.
@@ -20,7 +21,7 @@ import { addMonths, formatDateLabel, formatMonthLabel, toISODate, type MonthKey 
 const PANEL_REM = 20
 
 /** Tuần bắt đầu từ THỨ HAI (lịch Việt), khác mặc định Chủ nhật của lịch Mỹ/Nhật. */
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+const WEEKDAYS = [tr('T2'), tr('T3'), tr('T4'), tr('T5'), tr('T6'), tr('T7'), tr('CN')]
 
 const navBtn =
   'flex h-9 w-9 items-center justify-center rounded-lg text-fg-secondary hover:bg-surface-sunken'
@@ -66,7 +67,7 @@ export function DateField({
   min,
   max,
   clearable = false,
-  placeholder = 'Chọn ngày',
+  placeholder = tr('Chọn ngày'),
   className = '',
   ariaLabel,
 }: Props) {
@@ -168,7 +169,7 @@ export function DateField({
             <span aria-hidden className="truncate text-fg-muted">
               {placeholder}
             </span>
-            <span className="sr-only">chưa chọn</span>
+            <span className="sr-only">{tr('chưa chọn')}</span>
           </>
         )}
       </button>
@@ -192,7 +193,7 @@ export function DateField({
               <button
                 type="button"
                 onClick={() => setView((v) => addMonths(v, -12))}
-                aria-label="Năm trước"
+                aria-label={tr('Năm trước')}
                 className={navBtn}
               >
                 <ChevronsLeft className="h-4 w-4" aria-hidden />
@@ -200,7 +201,7 @@ export function DateField({
               <button
                 type="button"
                 onClick={() => setView((v) => addMonths(v, -1))}
-                aria-label="Tháng trước"
+                aria-label={tr('Tháng trước')}
                 className={navBtn}
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -214,7 +215,7 @@ export function DateField({
               <button
                 type="button"
                 onClick={() => setView((v) => addMonths(v, 1))}
-                aria-label="Tháng sau"
+                aria-label={tr('Tháng sau')}
                 className={navBtn}
               >
                 <ChevronRight className="h-4 w-4" aria-hidden />
@@ -222,7 +223,7 @@ export function DateField({
               <button
                 type="button"
                 onClick={() => setView((v) => addMonths(v, 12))}
-                aria-label="Năm sau"
+                aria-label={tr('Năm sau')}
                 className={navBtn}
               >
                 <ChevronsRight className="h-4 w-4" aria-hidden />
@@ -269,7 +270,7 @@ export function DateField({
                 onClick={() => pick(todayISO)}
                 className="flex-1 rounded-md py-2 text-sm font-medium text-fg-accent disabled:text-fg-muted disabled:opacity-40"
               >
-                Hôm nay
+                {tr('Hôm nay')}
               </button>
               {clearable && (
                 <button
@@ -277,7 +278,7 @@ export function DateField({
                   onClick={() => pick('')}
                   className="flex-1 rounded-md py-2 text-sm font-medium text-fg-secondary"
                 >
-                  Xoá ngày
+                  {tr('Xoá ngày')}
                 </button>
               )}
             </div>

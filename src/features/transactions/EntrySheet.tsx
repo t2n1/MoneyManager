@@ -2,6 +2,7 @@
 // kiểu này được dùng). Bản thân nội dung vẫn là <EntryPage> — cùng một form, cùng một
 // đường lưu; file này chỉ lo cái hộp và cách đóng nó.
 import { useEffect, useRef } from 'react'
+import { tr } from '../../i18n'
 import { useNavigate, type Location } from 'react-router-dom'
 import { useEscClose } from '../../hooks/useEscClose'
 import { hasAppHistory } from '../../lib/appHistory'
@@ -45,7 +46,7 @@ export function EntrySheet({ background }: { background: Location }) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Nhập giao dịch"
+        aria-label={tr('Nhập giao dịch')}
         tabIndex={-1}
         className="flex h-[90dvh] max-h-[48rem] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-surface-page outline-none animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}

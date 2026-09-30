@@ -49,6 +49,8 @@ import {
   phieuLoi,
   type KhoanNeo,
 } from './nhap'
+import { tr } from '../../i18n'
+import { trn } from '../../i18n/react'
 
 const TEN_YUCHO = /yucho/i
 
@@ -194,7 +196,7 @@ export function ImportPhieuLuongPage() {
         } catch (e) {
           // phieuLoi() dung CHUNG voi CLI (nhap-phieu-luong.mjs) de hai ben tra ve
           // CUNG MOT HINH DANG Phieu khi khong doc duoc PDF.
-          phieuList.push(phieuLoi(f.name, `đọc PDF lỗi: ${(e as Error).message}`))
+          phieuList.push(phieuLoi(f.name, tr('đọc PDF lỗi: {error}', { error: (e as Error).message })))
         }
       }
       // gomTrung() lai o day CHI de lay daGop hien cho nguoi dung biet — dungKeHoach
@@ -212,7 +214,7 @@ export function ImportPhieuLuongPage() {
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       setNguon({ phieuList, thu, dauDaCo })
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không đọc được dữ liệu sổ, thử lại.'), 'error')
     } finally {
       setDangBoc(false)
     }
@@ -235,9 +237,9 @@ export function ImportPhieuLuongPage() {
         if (chiPhi.some((x) => x.name === c.name)) continue
         await createCategory.mutateAsync({ ...c, type: 'expense', parent_id: chaId })
       }
-      showToast('Đã tạo danh mục')
+      showToast(tr('Đã tạo danh mục'))
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không tạo được danh mục, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không tạo được danh mục, thử lại.'), 'error')
     }
   }
 
@@ -247,9 +249,9 @@ export function ImportPhieuLuongPage() {
       await createCategory.mutateAsync({
         name: DANH_MUC_PHU_CAP, type: 'income', icon: '🚉', parent_id: null,
       })
-      showToast(`Đã tạo danh mục ${DANH_MUC_PHU_CAP}`)
+      showToast(tr('Đã tạo danh mục {name}', { name: DANH_MUC_PHU_CAP }))
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không tạo được danh mục, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không tạo được danh mục, thử lại.'), 'error')
     }
   }
 
@@ -261,17 +263,17 @@ export function ImportPhieuLuongPage() {
     if (!yucho) return
     try {
       await createAccount.mutateAsync({ ...TK_HUU_MOI, currency: yucho.currency })
-      showToast(`Đã tạo tài khoản ${TEN_TK_HUU}`)
+      showToast(tr('Đã tạo tài khoản {name}', { name: TEN_TK_HUU }))
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Không tạo được tài khoản, thử lại.', 'error')
+      showToast(e instanceof Error ? e.message : tr('Không tạo được tài khoản, thử lại.'), 'error')
     }
   }
 
   if (!yucho) {
     return (
       <div className="p-3">
-        <BackLink to="/settings/data" aria-label="Dữ liệu" />
-        <p className="mt-3 text-sm text-money-out">Không tìm thấy tài khoản Yucho Bank.</p>
+        <BackLink to="/settings/data" aria-label={tr('Dữ liệu')} />
+        <p className="mt-3 text-sm text-money-out">{tr('Không tìm thấy tài khoản Yucho Bank.')}</p>
       </div>
     )
   }
@@ -294,9 +296,9 @@ export function ImportPhieuLuongPage() {
     try {
       if (
         !(await confirmDialog({
-          title: `Ghi ${soDong} dòng vào sổ?`,
-          message: `${dat.length} phiếu lương, ghi vào tài khoản "${tenYucho}".`,
-          confirmLabel: 'Ghi',
+          title: tr('Ghi {n} dòng vào sổ?', { n: soDong }),
+          message: tr('{n} phiếu lương, ghi vào tài khoản "{account}".', { n: dat.length, account: tenYucho }),
+          confirmLabel: tr('Ghi'),
         }))
       )
         return
@@ -352,7 +354,7 @@ export function ImportPhieuLuongPage() {
         // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
         setNguon(null)
         setDaGhi({ phieu: nPhieu, dong: nDong })
-        showToast(`Đã ghi ${nPhieu} phiếu · ${nDong} dòng`)
+        showToast(tr('Đã ghi {n} phiếu · {lines} dòng', { n: nPhieu, lines: nDong }))
       } catch (e) {
         // nDong > 0: mot phan da ghi THAT vao so truoc khi loi xay ra — so du
         // sai lech that su cho toi khi xu ly xong, dung nhu "Số dư không đổi"
@@ -380,10 +382,18 @@ export function ImportPhieuLuongPage() {
           e instanceof Error
             ? nDong > 0
               ? nPhieu > 0
-                ? `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng của ${nPhieu} phiếu (${dauDaGhi.join(' · ')}) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
-                : `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng dở dang của phiếu đầu tiên (chưa phiếu nào ghi xong) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
-              : `Ghi lỗi: ${e.message}. Chưa ghi được dòng nào.`
-            : 'Ghi lỗi, thử lại.',
+                ? tr('Ghi lỗi: {error}. Đã ghi {lines} dòng của {n} phiếu ({marks}) trước khi dừng — mở Sổ giao dịch để kiểm tra.', {
+                    error: e.message,
+                    lines: nDong,
+                    n: nPhieu,
+                    marks: dauDaGhi.join(' · '),
+                  })
+                : tr('Ghi lỗi: {error}. Đã ghi {n} dòng dở dang của phiếu đầu tiên (chưa phiếu nào ghi xong) trước khi dừng — mở Sổ giao dịch để kiểm tra.', {
+                    error: e.message,
+                    n: nDong,
+                  })
+              : tr('Ghi lỗi: {error}. Chưa ghi được dòng nào.', { error: e.message })
+            : tr('Ghi lỗi, thử lại.'),
           'error',
         )
       } finally {
@@ -405,10 +415,11 @@ export function ImportPhieuLuongPage() {
     try {
       if (
         !(await confirmDialog({
-          title: 'Xoá mọi dòng mang dấu 給与 … ?',
-          message:
+          title: tr('Xoá mọi dòng mang dấu 給与 … ?'),
+          message: tr(
             'Xoá TOÀN BỘ dòng đã nhập từ phiếu lương trong sổ — không chỉ lô vừa ghi ở trên. Không hoàn tác được.',
-          confirmLabel: 'Xoá',
+          ),
+          confirmLabel: tr('Xoá'),
           danger: true,
         }))
       )
@@ -422,16 +433,16 @@ export function ImportPhieuLuongPage() {
         // ra viec do da xay ra neu ta im — va neu no KHONG xay ra thi Thu bi thieu.
         showToast(
           [
-            `Đã xoá ${r.dong} dòng`,
-            r.neo > 0 && `trả ${r.neo} dòng neo về thống kê`,
-            r.traNo > 0 && `hoàn ${r.traNo} lần trả nợ`,
+            tr('Đã xoá {n} dòng', { n: r.dong }),
+            r.neo > 0 && tr('trả {n} dòng neo về thống kê', { n: r.neo }),
+            r.traNo > 0 && tr('hoàn {n} lần trả nợ', { n: r.traNo }),
           ]
             .filter(Boolean)
             .join(' · '),
         )
         setDaGhi(null)
       } catch (e) {
-        showToast(e instanceof Error ? `Xoá lỗi: ${e.message}` : 'Xoá lỗi, thử lại.', 'error')
+        showToast(e instanceof Error ? tr('Xoá lỗi: {error}', { error: e.message }) : tr('Xoá lỗi, thử lại.'), 'error')
       } finally {
         setDangXoa(false)
       }
@@ -442,7 +453,7 @@ export function ImportPhieuLuongPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      <PageHeader title="Nhập phiếu lương từ PDF" back="/settings/data" flush />
+      <PageHeader title={tr('Nhập phiếu lương từ PDF')} back="/settings/data" flush />
 
       {/*
         KHONG chan o input nhu thieuDanhMuc: hai thu nay chi can cho phieu CO 通勤手当
@@ -452,15 +463,16 @@ export function ImportPhieuLuongPage() {
       {(!dmPhuCap || !tkHuu) && (
         <Card>
           <p className="text-sm text-fg-secondary">
-            Phiếu có <span className="text-fg-primary">通勤手当</span> (phụ cấp đi lại) hoặc{' '}
-            <span className="text-fg-primary">DB掛金</span> (退職金) sẽ bị từ chối cho tới khi có
-            đủ:
+            {trn('Phiếu có {commute} (phụ cấp đi lại) hoặc {db} (退職金) sẽ bị từ chối cho tới khi có đủ:', {
+              commute: <span className="text-fg-primary">通勤手当</span>,
+              db: <span className="text-fg-primary">DB掛金</span>,
+            })}
           </p>
           <ul className="mt-1 text-sm text-fg-secondary">
             {!dmPhuCap && (
-              <li className="text-money-out">· thiếu danh mục thu “{DANH_MUC_PHU_CAP}”</li>
+              <li className="text-money-out">· {tr('thiếu danh mục thu “{name}”', { name: DANH_MUC_PHU_CAP })}</li>
             )}
-            {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
+            {!tkHuu && <li className="text-money-out">· {tr('thiếu tài khoản “{name}”', { name: TEN_TK_HUU })}</li>}
           </ul>
           {!dmPhuCap && (
             <ActionButton
@@ -469,7 +481,7 @@ export function ImportPhieuLuongPage() {
               disabled={createCategory.isPending}
               className="mt-2 mr-2"
             >
-              {createCategory.isPending ? 'Đang tạo…' : `Tạo danh mục ${DANH_MUC_PHU_CAP}`}
+              {createCategory.isPending ? tr('Đang tạo…') : tr('Tạo danh mục {name}', { name: DANH_MUC_PHU_CAP })}
             </ActionButton>
           )}
           {!tkHuu && (
@@ -479,7 +491,7 @@ export function ImportPhieuLuongPage() {
               disabled={createAccount.isPending}
               className={actionButtonClass('primary', 'mt-2')}
             >
-              {createAccount.isPending ? 'Đang tạo…' : `Tạo tài khoản ${TEN_TK_HUU}`}
+              {createAccount.isPending ? tr('Đang tạo…') : tr('Tạo tài khoản {name}', { name: TEN_TK_HUU })}
             </button>
           )}
         </Card>
@@ -488,7 +500,9 @@ export function ImportPhieuLuongPage() {
       {dsNo.length > 0 && (
         <Card>
           <label htmlFor="phieu-luong-no" className="block text-sm text-fg-secondary">
-            Tiền ứng chi hộ (<span className="text-fg-primary">{NHAN_LA_THEO}</span>) trừ vào khoản nợ
+            {trn('Tiền ứng chi hộ ({label}) trừ vào khoản nợ', {
+              label: <span className="text-fg-primary">{NHAN_LA_THEO}</span>,
+            })}
           </label>
           <Select
             id="phieu-luong-no"
@@ -496,27 +510,29 @@ export function ImportPhieuLuongPage() {
             onChange={(e) => doiNo(e.target.value)}
             wrapClassName="mt-1 w-full"
           >
-            <option value={KHONG_TRU_NO}>Không trừ vào nợ</option>
+            <option value={KHONG_TRU_NO}>{tr('Không trừ vào nợ')}</option>
             {dsNo.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.counterparty} · còn {formatMoney(remainingOf(d, debtPayments), d.currency)}
+                {tr('{name} · còn {amount}', { name: d.counterparty, amount: formatMoney(remainingOf(d, debtPayments), d.currency) })}
               </option>
             ))}
           </Select>
           {no ? (
             // E-ink + Gọn: bỏ câu diễn giải lựa chọn — ô chọn phía trên đã hiện số còn nợ.
             <p className="mt-1 text-2xs text-fg-muted eink-gon:hidden">
-              Mỗi phiếu có {NHAN_LA_THEO} sẽ ghi một lần trả vào khoản “{no.ten}” (đang còn{' '}
-              <Money amount={no.conLai} currency="JPY" tone="muted" />
-              ). Lựa chọn được nhớ trên máy này.
+              {trn('Mỗi phiếu có {label} sẽ ghi một lần trả vào khoản “{name}” (đang còn {amount}). Lựa chọn được nhớ trên máy này.', {
+                label: NHAN_LA_THEO,
+                name: no.ten,
+                amount: <Money amount={no.conLai} currency="JPY" tone="muted" />,
+              })}
             </p>
           ) : (
             <p className="mt-1 text-2xs text-fg-muted">
               <span className="eink-gon:hidden">
-                Không trừ: {NHAN_LA_THEO} chỉ bị rút khỏi Thu, không khoản nợ nào giảm.
+                {tr('Không trừ: {label} chỉ bị rút khỏi Thu, không khoản nợ nào giảm.', { label: NHAN_LA_THEO })}
               </span>
               {tenGanGiong.length > 0 && (
-                <> Sổ có khoản tên gần giống: {tenGanGiong.map((t) => `“${t}”`).join(', ')} — nếu đúng là khoản công ty nợ thì chọn ở trên.</>
+                <> {tr('Sổ có khoản tên gần giống: {names} — nếu đúng là khoản công ty nợ thì chọn ở trên.', { names: tenGanGiong.map((t) => `“${t}”`).join(', ') })}</>
               )}
             </p>
           )}
@@ -526,7 +542,7 @@ export function ImportPhieuLuongPage() {
       {thieuDanhMuc.length > 0 && (
         <Card>
           <p className="text-sm text-money-out">
-            Thiếu {thieuDanhMuc.length} danh mục Thuế &amp; An sinh. Phải tạo trước khi nhập.
+            {tr('Thiếu {n} danh mục {group}. Phải tạo trước khi nhập.', { n: thieuDanhMuc.length, group: DANH_MUC_THUE_CHA })}
           </p>
           <ul className="mt-1 text-sm text-fg-secondary">
             {thieuDanhMuc.map((n) => <li key={n}>· {n}</li>)}
@@ -537,7 +553,7 @@ export function ImportPhieuLuongPage() {
             disabled={createCategory.isPending}
             className={actionButtonClass('primary', 'mt-2')}
           >
-            {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
+            {createCategory.isPending ? tr('Đang tạo…') : tr('Tạo 6 danh mục')}
           </button>
         </Card>
       )}
@@ -549,10 +565,10 @@ export function ImportPhieuLuongPage() {
         <FileUp className="h-5 w-5 text-fg-muted" />
         <span className="flex-1 text-sm text-fg-primary">
           {dangBoc
-            ? 'Đang bóc…'
+            ? tr('Đang bóc…')
             : dangTaiNo
-              ? 'Đang tải danh sách nợ…'
-              : 'Chọn file PDF (chọn được nhiều file)'}
+              ? tr('Đang tải danh sách nợ…')
+              : tr('Chọn file PDF (chọn được nhiều file)')}
         </span>
         <input
           type="file" multiple accept="application/pdf" className="sr-only"
@@ -574,20 +590,22 @@ export function ImportPhieuLuongPage() {
 
       {daGop.length > 0 && (
         <p className="text-sm text-fg-muted">
-          Đã gộp {daGop.length} nhóm file trùng nội dung làm một:{' '}
-          {daGop.map((g) => g.files.join(' = ')).join(' · ')}
+          {tr('Đã gộp {n} nhóm file trùng nội dung làm một: {files}', {
+            n: daGop.length,
+            files: daGop.map((g) => g.files.join(' = ')).join(' · '),
+          })}
         </p>
       )}
 
       {keHoach && (
         <Card>
           <p className="text-sm font-semibold text-fg-primary">
-            {dat.length} phiếu sẵn sàng · {soDong} dòng
+            {tr('{n} phiếu sẵn sàng · {lines} dòng', { n: dat.length, lines: soDong })}
           </p>
           {/* Chữ dạy: giải thích VÌ SAO số dư đứng yên. Bỏ đi vẫn nhập được, và danh sách
               phiếu ngay dưới vẫn nói rõ từng dòng sẽ ghi gì. */}
           <Guide className="mt-1 text-sm text-fg-muted">
-            Số dư không đổi: thu vào chi ra cùng ngày cùng tài khoản, triệt tiêu.
+            {tr('Số dư không đổi: thu vào chi ra cùng ngày cùng tài khoản, triệt tiêu.')}
           </Guide>
           <ul className="mt-2 flex flex-col gap-2">
             {keHoach.map((k) => (
@@ -598,15 +616,15 @@ export function ImportPhieuLuongPage() {
                     k.trangThai === 'dat' ? 'text-money-in'
                       : k.trangThai === 'da-nhap' ? 'text-fg-muted' : 'text-money-out'
                   }>
-                    {k.trangThai === 'dat' ? 'sẵn sàng'
-                      : k.trangThai === 'da-nhap' ? 'đã nhập rồi' : 'từ chối'}
+                    {k.trangThai === 'dat' ? tr('sẵn sàng')
+                      : k.trangThai === 'da-nhap' ? tr('đã nhập rồi') : tr('từ chối')}
                   </span>
                 </div>
                 {k.lyDo && <p className="mt-0.5 text-fg-secondary">{k.lyDo}</p>}
                 {k.trangThai === 'dat' && k.neo && (
                   <p className="mt-0.5 text-fg-muted">
-                    neo {k.neo.occurred_on} · giữ lại {formatMoney(k.thu!.amount, 'JPY')}
-                    {k.thuKhac && ` · mua hàng ${formatMoney(k.thuKhac.amount, 'JPY')}`}
+                    {tr('neo {date} · giữ lại {amount}', { date: k.neo.occurred_on, amount: formatMoney(k.thu!.amount, 'JPY') })}
+                    {k.thuKhac && ` · ${tr('mua hàng {amount}', { amount: formatMoney(k.thuKhac.amount, 'JPY') })}`}
                   </p>
                 )}
                 {/*
@@ -619,19 +637,22 @@ export function ImportPhieuLuongPage() {
                         duoc in ra — ban dau in cung mot dong "hoan phi di lai ¥0". */}
                     {[
                       (k.phieu.cap[NHAN_DI_LAI] ?? 0) > 0 &&
-                        `hoàn phí đi lại ${formatMoney(k.phieu.cap[NHAN_DI_LAI], 'JPY')}`,
+                        tr('hoàn phí đi lại {amount}', { amount: formatMoney(k.phieu.cap[NHAN_DI_LAI], 'JPY') }),
                       (k.phieu.cap[NHAN_LA_THEO] ?? 0) > 0 &&
-                        `ứng chi hộ ${formatMoney(k.phieu.cap[NHAN_LA_THEO], 'JPY')}`,
+                        tr('ứng chi hộ {amount}', { amount: formatMoney(k.phieu.cap[NHAN_LA_THEO], 'JPY') }),
                     ]
                       .filter(Boolean)
                       .join(' · ')}{' '}
-                    → ra khỏi Thu; dòng neo ra ngoài thống kê, giữ nguyên số
+                    {tr('→ ra khỏi Thu; dòng neo ra ngoài thống kê, giữ nguyên số')}
                   </p>
                 )}
                 {k.trangThai === 'dat' && k.traNo && (
                   <p className="mt-0.5 text-fg-secondary">
-                    {NHAN_LA_THEO} {formatMoney(k.traNo.amount, 'JPY')} → trừ vào nợ{' '}
-                    {debts.find((d) => d.id === k.traNo!.debtId)?.counterparty ?? TEN_NO_CONG_TY}
+                    {tr('{label} {amount} → trừ vào nợ {name}', {
+                      label: NHAN_LA_THEO,
+                      amount: formatMoney(k.traNo.amount, 'JPY'),
+                      name: debts.find((d) => d.id === k.traNo!.debtId)?.counterparty ?? TEN_NO_CONG_TY,
+                    })}
                   </p>
                 )}
                 {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (
@@ -647,7 +668,7 @@ export function ImportPhieuLuongPage() {
 
       {dat.length > 0 && (
         <ActionButton variant="primary" disabled={dangGhi || dangTaiNo} onClick={ghi}>
-          {dangGhi ? 'Đang ghi…' : `Ghi ${soDong} dòng`}
+          {dangGhi ? tr('Đang ghi…') : tr('Ghi {n} dòng', { n: soDong })}
         </ActionButton>
       )}
       {/*
@@ -659,17 +680,17 @@ export function ImportPhieuLuongPage() {
       {(daGhi || dauTrongSo.length > 0) && (
         <Card>
           {daGhi ? (
-            <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
+            <p className="text-sm text-money-in">{tr('Đã ghi {n} phiếu · {lines} dòng.', { n: daGhi.phieu, lines: daGhi.dong })}</p>
           ) : (
             <p className="text-sm text-fg-secondary">
-              Trong sổ đang có {dauTrongSo.length} kỳ phiếu lương đã nhập.
+              {tr('Trong sổ đang có {n} kỳ phiếu lương đã nhập.', { n: dauTrongSo.length })}
             </p>
           )}
           <button
             type="button" disabled={dangXoa} onClick={goLo}
             className={actionButtonClass('danger', 'mt-2 border border-money-out')}
           >
-            {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
+            {dangXoa ? tr('Đang xoá…') : tr('Xoá mọi dòng phiếu lương')}
           </button>
         </Card>
       )}

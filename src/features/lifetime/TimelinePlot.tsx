@@ -72,6 +72,7 @@ import { middleSpanYear } from './quickAddApply'
 import { normalizeSpan, spanYears, type YearSpan } from './quickAddRange'
 import { useBoxSize } from './useBoxSize'
 import { useYearDrag } from './useYearDrag'
+import { tr } from '../../i18n'
 
 /** Nhãn trục tiền đặt BÊN TRONG vùng vẽ, ngay phải trục và TRÊN đường kẻ (bản vẽ:
  *  `left: 58px`, `top: y − 16`). Đặt trong nên bề rộng nhãn không cần lề trái — đó là
@@ -262,17 +263,22 @@ function phaseGradId(key: TagColorKey): string {
 
 /** Câu mô tả cho `aria-label` — sinh từ dữ liệu THẬT, không phải câu trang trí. */
 function plotAriaLabel(rows: YearRow[], fire: number | null, eventCount: number): string {
-  if (rows.length === 0) return 'Chưa có dữ liệu để chiếu tài sản ròng.'
+  if (rows.length === 0) return tr('Chưa có dữ liệu để chiếu tài sản ròng.')
   const dau = rows[0]
   const cuoi = rows[rows.length - 1]
   const cau = [
-    `Tài sản ròng theo năm, từ ${dau.year} (tuổi ${dau.age}) đến ${cuoi.year} (tuổi ${cuoi.age}).`,
+    tr('Tài sản ròng theo năm, từ {fromYear} (tuổi {fromAge}) đến {toYear} (tuổi {toAge}).', {
+      fromYear: dau.year,
+      fromAge: dau.age,
+      toYear: cuoi.year,
+      toAge: cuoi.age,
+    }),
     fire === null
-      ? 'Bản chiếu không đạt ngưỡng tự do tài chính năm nào.'
-      : `Đạt ngưỡng tự do tài chính năm ${fire}.`,
+      ? tr('Bản chiếu không đạt ngưỡng tự do tài chính năm nào.')
+      : tr('Đạt ngưỡng tự do tài chính năm {year}.', { year: fire }),
   ]
-  if (eventCount > 0) cau.push(`Có ${eventCount} mốc cuộc đời trên trục.`)
-  cau.push('Bảng theo năm bên dưới là bản đọc được bằng bàn phím của cùng dữ liệu này.')
+  if (eventCount > 0) cau.push(tr('Có {n} mốc cuộc đời trên trục.', { n: eventCount }))
+  cau.push(tr('Bảng theo năm bên dưới là bản đọc được bằng bàn phím của cùng dữ liệu này.'))
   return cau.join(' ')
 }
 
@@ -663,7 +669,7 @@ export function TimelinePlot({
       {rows.length === 0 ? (
         <div className="flex h-full items-center justify-center">
           <EmptyState compact>
-            Chưa chiếu được năm nào — kiểm chặng đời và tuổi kết thúc của kịch bản.
+            {tr('Chưa chiếu được năm nào — kiểm chặng đời và tuổi kết thúc của kịch bản.')}
           </EmptyState>
         </div>
       ) : (
@@ -828,7 +834,7 @@ export function TimelinePlot({
                   fill="var(--money-in)"
                   textAnchor="end"
                 >
-                  Ngưỡng tự do tài chính
+                  {tr('Ngưỡng tự do tài chính')}
                 </text>
               </>
             )}
@@ -896,7 +902,7 @@ export function TimelinePlot({
               style={{ top: plotBottom + 6, left: xs(y) }}
             >
               <Num tone="muted" className="text-3xs">
-                {birthYear === null ? y : `${y} · ${y - birthYear}t`}
+                {birthYear === null ? y : tr('{year} · {age}t', { year: y, age: y - birthYear })}
               </Num>
             </span>
           ))}
@@ -940,7 +946,7 @@ export function TimelinePlot({
                 <Num tone="muted" className="text-2xs">
                   {spanYears(band)}
                 </Num>
-                <span className="text-2xs text-fg-muted">năm</span>
+                <span className="text-2xs text-fg-muted">{tr('năm', { n: spanYears(band) })}</span>
               </div>
             </>
           )}
@@ -977,7 +983,7 @@ export function TimelinePlot({
                 }}
               >
                 <Num tone="muted" className="text-2xs">
-                  {hoverRow.year} · {hoverRow.age}t
+                  {tr('{year} · {age}t', { year: hoverRow.year, age: hoverRow.age })}
                 </Num>
                 <Money
                   amount={hoverRow.assetsEndMinor}

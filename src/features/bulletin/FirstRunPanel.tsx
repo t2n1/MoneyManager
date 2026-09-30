@@ -12,6 +12,7 @@
 import { Link } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
 import { Card, SectionTitle, actionButtonClass } from '../../components/ui'
+import { tr } from '../../i18n'
 
 interface Props {
   /** Đã khai năm sinh chưa — tab Tương lai cần nó để đổi năm ↔ tuổi. */
@@ -21,13 +22,13 @@ interface Props {
 export function FirstRunPanel({ hasBirthYear }: Props) {
   return (
     <Card elevation="panel" padding="panel" as="section">
-      <SectionTitle>Bắt đầu ở đây</SectionTitle>
+      <SectionTitle>{tr('Bắt đầu ở đây')}</SectionTitle>
 
       {/* E-ink + Gọn: bỏ lời giải thích — nút ngay dưới đã nói việc cần làm. */}
       <p className="mt-1.5 text-sm text-fg-secondary eink-gon:hidden">
-        Thêm tài khoản đầu tiên — một cái ví tiền mặt cũng được. Có nó rồi thì mỗi khoản
-        ghi vào sẽ tự trừ đúng chỗ, và Bản tin bắt đầu nói được tháng này bạn giữ lại bao
-        nhiêu.
+        {tr(
+          'Thêm tài khoản đầu tiên — một cái ví tiền mặt cũng được. Có nó rồi thì mỗi khoản ghi vào sẽ tự trừ đúng chỗ, và Bản tin bắt đầu nói được tháng này bạn giữ lại bao nhiêu.',
+        )}
       </p>
 
       <Link
@@ -37,7 +38,7 @@ export function FirstRunPanel({ hasBirthYear }: Props) {
         className={actionButtonClass('primary', 'mt-3')}
       >
         <Wallet className="h-4 w-4" strokeWidth={2.2} />
-        Thêm tài khoản đầu tiên
+        {tr('Thêm tài khoản đầu tiên')}
       </Link>
 
       {/* Nói TRƯỚC màn nào còn thiếu gì. Bản vẽ 20b muốn tab chưa dùng được thì mờ và
@@ -45,11 +46,12 @@ export function FirstRunPanel({ hasBirthYear }: Props) {
           người dùng không xem trước được app có gì, mà lần đầu mở thì tò mò là chính
           đáng. Điều kiện ghi ra vẫn đủ để họ không bấm vào rồi gặp màn trống. */}
       <ul className="mt-3 flex flex-col gap-1 border-t border-border-subtle pt-2.5 text-2xs text-fg-muted">
-        <li>Ngân sách · Báo cáo — cần ít nhất một tháng đã ghi chép</li>
-        <li>Tài sản, chế độ Diễn biến — cần ít nhất 2 mốc tài sản ròng</li>
+        <li>{tr('Ngân sách · Báo cáo — cần ít nhất một tháng đã ghi chép')}</li>
+        <li>{tr('Tài sản, chế độ Diễn biến — cần ít nhất 2 mốc tài sản ròng')}</li>
         <li>
-          Tài sản · Tương lai — cần năm sinh{hasBirthYear ? ' (đã có)' : ' (chưa khai)'} và
-          một kịch bản
+          {hasBirthYear
+            ? tr('Tài sản · Tương lai — cần năm sinh (đã có) và một kịch bản')
+            : tr('Tài sản · Tương lai — cần năm sinh (chưa khai) và một kịch bản')}
         </li>
       </ul>
     </Card>

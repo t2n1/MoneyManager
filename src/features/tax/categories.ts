@@ -2,6 +2,7 @@
 // Ý tưởng: người dùng ghi LƯƠNG GỘP là khoản Thu, rồi ghi từng khoản khấu trừ
 // trên 給与明細 là khoản Chi thuộc nhóm này. Khi đó app tự tính được
 // "thực nộp / thu nhập gộp" mà không cần bảng dữ liệu riêng nào.
+// i18n-ignore-file — tên danh mục chuẩn lưu vào DB và được khớp theo tên (taxCategoryIds)
 import type { CategoryRow } from '../../types/database.types'
 
 /** Tên danh mục CHA gom mọi khoản thuế & bảo hiểm bắt buộc. */

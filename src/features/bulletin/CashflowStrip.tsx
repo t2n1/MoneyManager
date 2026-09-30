@@ -23,6 +23,7 @@ import { formatMonthLabel, type MonthKey } from '../../lib/dates'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 import type { MonthlyPoint } from '../reports/aggregate'
+import { tr } from '../../i18n'
 
 interface Props {
   points: MonthlyPoint[]
@@ -72,8 +73,14 @@ export function CashflowStrip({
             // Tên đọc được của cột: đây là TOÀN BỘ nội dung của hình vẽ, nói bằng chữ.
             aria-label={
               pending
-                ? `${label} — ${failed ? 'chưa tải được số liệu' : 'đang tải số liệu'}`
-                : `${label} — thu ${formatMoney(p.income, base)}, chi ${formatMoney(p.expense, base)}`
+                ? failed
+                  ? tr('{month} — chưa tải được số liệu', { month: label })
+                  : tr('{month} — đang tải số liệu', { month: label })
+                : tr('{month} — thu {income}, chi {expense}', {
+                    month: label,
+                    income: formatMoney(p.income, base),
+                    expense: formatMoney(p.expense, base),
+                  })
             }
             title={label}
             className={`flex min-w-0 flex-1 flex-col gap-1 rounded-md border px-1.5 pb-1 pt-1.5 transition ${

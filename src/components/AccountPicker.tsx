@@ -7,6 +7,7 @@ import { groupOptionsByType } from '../features/accounts/groupByType'
 import { normalizeText } from '../features/transactions/filter'
 import type { AccountType } from '../types/database.types'
 import { type PanelBox, panelBox } from './accountPickerBox'
+import { tr } from '../i18n'
 
 type AccountOption = {
   id: string
@@ -88,7 +89,7 @@ export function AccountPicker({
   }, [options, needle])
   const matchedCount = groups.reduce((n, g) => n + g.items.length, 0)
   const emptyMessage =
-    options.length === 0 ? 'Không có tài khoản' : `Không có tài khoản nào khớp “${query}”`
+    options.length === 0 ? tr('Không có tài khoản') : tr('Không có tài khoản nào khớp “{query}”', { query })
 
   // Mở lại là bắt đầu lại từ danh sách đầy đủ — không thì lần sau mở ra thấy một
   // danh sách đã bị lọc mà không rõ vì sao.
@@ -162,7 +163,7 @@ export function AccountPicker({
             </span>
           </>
         ) : (
-          <span className="text-fg-muted">Chọn tài khoản…</span>
+          <span className="text-fg-muted">{tr('Chọn tài khoản…')}</span>
         )}
         <ChevronDown
           className={`ml-auto h-4 w-4 shrink-0 text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
@@ -196,8 +197,8 @@ export function AccountPicker({
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={`Tìm trong ${options.length} tài khoản…`}
-                  aria-label="Tìm tài khoản"
+                  placeholder={tr('Tìm trong {n} tài khoản…', { n: options.length })}
+                  aria-label={tr('Tìm tài khoản')}
                   className="min-h-11 min-w-0 flex-1 bg-transparent text-sm"
                 />
               </div>

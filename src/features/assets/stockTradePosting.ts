@@ -78,6 +78,7 @@ export function stockTradeCashFlow(
     account_id: muaVao ? cashAccountId : investAccountId,
     to_account_id: muaVao ? investAccountId : cashAccountId,
     occurred_on: trade.traded_on,
+    // i18n-ignore — ghi chú lưu vào DB cùng giao dịch
     note: `${muaVao ? 'Mua' : 'Bán'} ${trade.quantity} ${trade.symbol}`,
   }
 }

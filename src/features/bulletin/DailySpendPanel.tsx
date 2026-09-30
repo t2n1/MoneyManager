@@ -28,6 +28,8 @@ import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
+import { numLocale, tr, trx } from '../../i18n'
+import { trn } from '../../i18n/react'
 import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
 import {
@@ -83,8 +85,8 @@ export function writeDailyScope(scope: DailyScope): void {
 }
 
 const SCOPE_ITEMS = [
-  { value: 'all' as const, label: 'Tất cả' },
-  { value: 'flex' as const, label: 'Bỏ cố định' },
+  { value: 'all' as const, label: tr('Tất cả') },
+  { value: 'flex' as const, label: tr('Bỏ cố định') },
 ]
 
 /** 'bars' = cột từng ngày (mặc định) · 'yoy' = đường lũy kế so cùng kỳ năm ngoái. */
@@ -111,8 +113,8 @@ function writeDailyChart(chart: DailyChart): void {
 }
 
 const CHART_ITEMS = [
-  { value: 'bars' as const, label: 'Cột ngày' },
-  { value: 'yoy' as const, label: 'So năm ngoái' },
+  { value: 'bars' as const, label: trx('chart', 'Cột ngày') },
+  { value: 'yoy' as const, label: tr('So năm ngoái') },
 ]
 
 // Vùng vẽ 11rem. Ba dải cộng lại đúng 100%, đừng đổi một số mà quên hai số kia:
@@ -191,7 +193,7 @@ function labelOf(t: DayTopExpense, categoryOf: Props['categoryOf']): string {
   const note = t.note?.trim()
   if (note) return note
   const cat = categoryOf(t.categoryId)
-  return cat ? `${cat.icon} ${cat.name}` : 'Chưa phân loại'
+  return cat ? `${cat.icon} ${cat.name}` : tr('Chưa phân loại')
 }
 
 /**
@@ -283,13 +285,14 @@ function DayCard({
         <p className="font-mono text-2xs text-fg-muted">{dayLabel(day.date)}</p>
         {isFuture ? (
           <p className="text-2xs text-fg-muted">
-            chưa xảy ra — theo nhịp này ~
-            <Money amount={typical} currency={base} approx={approx} />
+            {trn('chưa xảy ra — theo nhịp này ~{amount}', {
+              amount: <Money amount={typical} currency={base} approx={approx} />,
+            })}
           </p>
         ) : day.total === 0 ? (
           // "¥0" và "Không ghi khoản nào." cạnh nhau là hai lần cùng một câu, và §G chốt
           // chưa-có-gì thì nói bằng chữ chứ không in số 0.
-          <p className="text-2xs text-fg-muted">Không ghi khoản nào.</p>
+          <p className="text-2xs text-fg-muted">{tr('Không ghi khoản nào.')}</p>
         ) : (
           <p className="text-sm font-semibold">
             <Money
@@ -299,7 +302,7 @@ function DayCard({
               approx={approx}
             />
             {day.total < 0 && (
-              <span className="ml-1 text-2xs font-normal text-money-in">hoàn tiền</span>
+              <span className="ml-1 text-2xs font-normal text-money-in">{tr('hoàn tiền')}</span>
             )}
           </p>
         )}
@@ -340,7 +343,7 @@ function DayCard({
             nhất đang hiện, nên nếu nó không nói thì không chỗ nào nói. */}
         {!isFuture && day.total !== 0 && (
           <p className="mt-1 border-t border-border-subtle pt-1 text-2xs text-fg-accent">
-            Bấm để xem giao dịch →
+            {tr('Bấm để xem giao dịch →')}
           </p>
         )}
       </Card>
@@ -368,21 +371,23 @@ function HoverVerdict({
   const v = soVoiCungKy(nay, ngoai)
   return (
     <p className="mt-1.5 border-t border-border-subtle pt-1.5 text-2xs text-fg-secondary">
-      {v.kind === 'bang' && 'bằng đúng năm ngoái'}
-      {v.kind === 'ngoai-0' && 'năm ngoái tới ngày này chưa chi'}
-      {(v.kind === 'it' || v.kind === 'nhieu') && (
-        <>
-          đang <b>{v.kind === 'it' ? 'ít' : 'nhiều'} hơn</b> năm ngoái{' '}
-          <Money amount={v.chenh} currency={base} approx={approx} className="font-medium" />{' '}
-          {v.kind === 'nhieu' && v.gapLan !== null ? (
-            <Num tone={deltaTone(v.pct)}>(gấp {String(v.gapLan).replace('.', ',')} lần)</Num>
-          ) : (
-            <Num tone={deltaTone(v.kind === 'it' ? -v.pct : v.pct)}>
-              ({signedPct(v.kind === 'it' ? -v.pct : v.pct)})
-            </Num>
-          )}
-        </>
-      )}
+      {v.kind === 'bang' && tr('bằng đúng năm ngoái')}
+      {v.kind === 'ngoai-0' && tr('năm ngoái tới ngày này chưa chi')}
+      {(v.kind === 'it' || v.kind === 'nhieu') &&
+        trn('đang {cmp} năm ngoái {amount} {pct}', {
+          cmp: <b>{v.kind === 'it' ? tr('ít hơn') : tr('nhiều hơn')}</b>,
+          amount: <Money amount={v.chenh} currency={base} approx={approx} className="font-medium" />,
+          pct:
+            v.kind === 'nhieu' && v.gapLan !== null ? (
+              <Num tone={deltaTone(v.pct)}>
+                {tr('(gấp {n} lần)', { n: v.gapLan.toLocaleString(numLocale(), { useGrouping: false }) })}
+              </Num>
+            ) : (
+              <Num tone={deltaTone(v.kind === 'it' ? -v.pct : v.pct)}>
+                ({signedPct(v.kind === 'it' ? -v.pct : v.pct)})
+              </Num>
+            ),
+        })}
     </p>
   )
 }
@@ -483,22 +488,22 @@ function YoyBlock({
     <>
       {/* Kết luận trước, biểu đồ sau (§14) — cùng khuôn câu của chế độ cột. */}
       <p className="mt-1.5 text-sm text-fg-secondary">
-        <Num>{current.length}</Num> ngày:{' '}
-        <Money
-          amount={nowTotal}
-          currency={base}
-          tone="out"
-          approx={approx}
-          className="font-semibold"
-        />
-        {' — cùng kỳ '}
-        <Money amount={priorAtSameDay} currency={base} approx={approx} />{' '}
-        <Num tone={deltaTone(deltaPct)}>
-          {signedPct(deltaPct === null ? null : Math.round(deltaPct * 10) / 10)}
-        </Num>
+        {trn('{days} ngày: {amount} — cùng kỳ {prior} {pct}', {
+          days: <Num>{current.length}</Num>,
+          amount: <Money amount={nowTotal} currency={base} tone="out" approx={approx} className="font-semibold" />,
+          prior: <Money amount={priorAtSameDay} currency={base} approx={approx} />,
+          pct: (
+            <Num tone={deltaTone(deltaPct)}>
+              {signedPct(deltaPct === null ? null : Math.round(deltaPct * 10) / 10)}
+            </Num>
+          ),
+        })}
         <span className="font-mono text-2xs text-fg-muted">
-          {' · '}cả tháng {priorLabel}{' '}
-          <Money amount={priorTotal} currency={base} approx={approx} />
+          {' · '}
+          {trn('cả tháng {month} {amount}', {
+            month: priorLabel,
+            amount: <Money amount={priorTotal} currency={base} approx={approx} />,
+          })}
         </span>
         {/* Trần cả tháng. Màu vàng cảnh báo TRÙNG màu đường chéo trên đồ thị, và đó là thứ
             duy nhất nối chữ với hình: ba đường trong khung (xám = năm ngoái, đỏ = năm nay,
@@ -506,7 +511,8 @@ function YoyBlock({
             ¥/ngày: đồ thị này lũy kế, và điểm đường vàng kết thúc đúng là con số này. */}
         {perDay !== null && (
           <span className="font-mono text-2xs text-fg-warn">
-            {' · '}hạn mức <Money amount={monthBudget} currency={base} approx={approx} />
+            {' · '}
+            {trn('hạn mức {amount}', { amount: <Money amount={monthBudget} currency={base} approx={approx} /> })}
           </span>
         )}
         {budgetHidden && (
@@ -521,11 +527,16 @@ function YoyBlock({
           // vào chỗ trống.
           <span
             className="font-mono text-2xs text-fg-muted"
-            title="Trần này gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức."
+            title={tr(
+              'Trần này gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức.',
+            )}
           >
-            {' · '}hạn mức <Money amount={monthBudget} currency={base} tone="muted" approx={approx} />
+            {' · '}
+            {trn('hạn mức {amount}', {
+              amount: <Money amount={monthBudget} currency={base} tone="muted" approx={approx} />,
+            })}
             {/* E-ink + Gọn: bỏ vế giải thích vì sao không vẽ đường hạn mức. */}
-            <span className="eink-gon:hidden">{' — chỉ so được ở “Tất cả”'}</span>
+            <span className="eink-gon:hidden">{tr(' — chỉ so được ở “Tất cả”')}</span>
           </span>
         )}
       </p>
@@ -650,12 +661,11 @@ function YoyBlock({
                 tiêu ít hơn", đúng bước dịch mà thẻ này tồn tại để làm hộ. */}
             <Card elevation="panel" padding="sm" className="bg-surface">
               <p className="font-mono text-2xs text-fg-muted">
-                {days[hover] ? `tới ngày ${dayLabel(days[hover].date)}` : `tới ngày ${hover + 1}`}
-                {' · cộng dồn'}
+                {tr('tới ngày {day} · cộng dồn', { day: days[hover] ? dayLabel(days[hover].date) : hover + 1 })}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-2xs text-fg-secondary">
                 <span className="h-0.5 w-4 shrink-0 rounded-full bg-money-out" aria-hidden />
-                <span>năm nay</span>
+                <span>{tr('năm nay')}</span>
                 {hover < current.length ? (
                   <Money
                     amount={current[hover]}
@@ -665,7 +675,7 @@ function YoyBlock({
                     className="ml-auto pl-3 text-sm font-semibold"
                   />
                 ) : (
-                  <span className="ml-auto pl-3 text-fg-muted">chưa tới</span>
+                  <span className="ml-auto pl-3 text-fg-muted">{tr('chưa tới')}</span>
                 )}
               </p>
               {hover < prior.length && (
@@ -693,7 +703,7 @@ function YoyBlock({
                     className="w-4 shrink-0 border-t border-dashed border-fg-warn"
                     aria-hidden
                   />
-                  <span>hạn mức</span>
+                  <span>{tr('hạn mức')}</span>
                   <Money
                     amount={budgetAt(hover)}
                     currency={base}
@@ -725,11 +735,10 @@ function YoyBlock({
 
       <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-2xs text-fg-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4 rounded-full bg-money-out" aria-hidden /> năm nay, cộng dồn
+          <span className="h-0.5 w-4 rounded-full bg-money-out" aria-hidden /> {tr('năm nay, cộng dồn')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4 rounded-full bg-fg-muted" aria-hidden /> {priorLabel}, trọn
-          tháng
+          <span className="h-0.5 w-4 rounded-full bg-fg-muted" aria-hidden /> {tr('{month}, trọn tháng', { month: priorLabel })}
         </span>
         {/* Mã màu ở dòng kết luận nói HẠN MỨC LÀ BAO NHIÊU, chú giải này nói ĐƯỜNG NÀO là
             nó — hai việc khác nhau, không phải một điều nói hai lần. Không có dòng này thì
@@ -738,8 +747,7 @@ function YoyBlock({
             nền đặc thì mẫu đọc ra một đường LIỀN, tức nói sai chính cái nó đang chỉ. */}
         {perDay !== null && (
           <span className="flex items-center gap-1.5">
-            <span className="w-4 border-t border-dashed border-fg-warn" aria-hidden /> hạn mức,
-            chia đều
+            <span className="w-4 border-t border-dashed border-fg-warn" aria-hidden /> {tr('hạn mức, chia đều')}
           </span>
         )}
       </p>
@@ -840,12 +848,12 @@ export function DailySpendPanel({
             B46.2 vẫn được giữ nguyên: câu đó chuyển sang góc phải, dính liền hai con số
             mà nó giải thích ("đã bỏ khoản cố định · ¥151.218 / ¥270.311 tổng"). Góc phải
             là `ml-auto` nên nó nở về BÊN TRÁI, không đụng tới hai chip. */}
-        <SectionTitle>Chi tiêu</SectionTitle>
+        <SectionTitle>{tr('Chi tiêu')}</SectionTitle>
         <SegmentedControl
           items={SCOPE_ITEMS}
           value={scope}
           onChange={onScope}
-          label="Phạm vi biểu đồ chi từng ngày"
+          label={tr('Phạm vi biểu đồ chi từng ngày')}
           size="sm"
           stretch={false}
         />
@@ -854,24 +862,24 @@ export function DailySpendPanel({
             items={CHART_ITEMS}
             value={chart}
             onChange={pickChart}
-            label="Kiểu biểu đồ chi từng ngày"
+            label={tr('Kiểu biểu đồ chi từng ngày')}
             size="sm"
             stretch={false}
           />
         )}
         <p className="ml-auto font-mono text-2xs text-fg-muted">
           {monthPending ? (
-            monthFailed ? 'Chưa tải được' : 'Đang tải…'
+            monthFailed ? tr('Chưa tải được') : tr('Đang tải…')
           ) : (
             <>
               {/* "ngày 23/30" khi tháng đang dở — KHÔNG "23 ngày": theo quy ước chung của app
                   thì hôm đó là "đã qua 22 ngày, còn 8 ngày kể cả hôm nay" (lib/dates
                   periodDays), và "23 ngày" đọc thành số ngày đã qua. */}
               {elapsed.length === 0
-                ? 'chưa tới kỳ'
+                ? tr('chưa tới kỳ')
                 : future.length > 0
-                  ? `ngày ${elapsed.length}/${days.length}`
-                  : `${elapsed.length} ngày`}{' '}
+                  ? tr('ngày {n}/{total}', { n: elapsed.length, total: days.length })
+                  : tr('{n} ngày', { n: elapsed.length })}{' '}
               ·{' '}
               <Money
                 amount={spendTotal}
@@ -883,13 +891,13 @@ export function DailySpendPanel({
                 <>
                   {' / '}
                   {seriesPending ? (
-                    seriesFailed ? 'chưa tải được' : 'đang tính'
+                    seriesFailed ? tr('chưa tải được') : tr('đang tính')
                   ) : (
                     <Money amount={fullTotal} currency={base} approx={approx} />
                   )}{' '}
-                  tổng
+                  {tr('tổng')}
                   <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 py-0.5 font-sans text-fg-secondary">
-                    đã bỏ khoản cố định
+                    {tr('đã bỏ khoản cố định')}
                   </span>
                 </>
               ) : (
@@ -899,16 +907,20 @@ export function DailySpendPanel({
                         gói Báo cáo). `priorSameDays` đã cắt sẵn; chữ "cùng kỳ" từng nói ra
                         điều đó ở desktop nhưng ở mobile đã bỏ từ đầu, nên nó không phải chỗ
                         luật này dựa vào — bản mobile giờ là bản duy nhất. */}
-                    {' · tháng trước '}
-                    <Money amount={compare.priorSameDays} currency={base} approx={approx} />{' '}
+                    {' · '}
                     {/* `signedPct` chứ không tự dựng chuỗi: nó lo dấu âm THẬT (−, U+2212) và
                         dấu thập phân kiểu Việt. `${-53.02}` của JS ra "-53.02" — sai cả hai,
                         ngay cạnh mấy con số tiền vốn đã dùng phẩy. */}
-                    <Num tone={deltaTone(compare.deltaPct)}>
-                      {signedPct(
-                        compare.deltaPct === null ? null : Math.round(compare.deltaPct * 10) / 10,
-                      )}
-                    </Num>
+                    {trn('tháng trước {amount} {pct}', {
+                      amount: <Money amount={compare.priorSameDays} currency={base} approx={approx} />,
+                      pct: (
+                        <Num tone={deltaTone(compare.deltaPct)}>
+                          {signedPct(
+                            compare.deltaPct === null ? null : Math.round(compare.deltaPct * 10) / 10,
+                          )}
+                        </Num>
+                      ),
+                    })}
                   </>
                 )
               )}
@@ -932,11 +944,11 @@ export function DailySpendPanel({
 
       {monthPending ? (
         <p className="mt-3 text-sm text-fg-muted">
-          {monthFailed ? 'Chưa tải được chi từng ngày.' : 'Đang tải chi từng ngày…'}
+          {monthFailed ? tr('Chưa tải được chi từng ngày.') : tr('Đang tải chi từng ngày…')}
         </p>
       ) : peak === null ? (
         <p className="mt-3 text-sm text-fg-muted">
-          Chưa ghi khoản chi nào trong tháng này.
+          {tr('Chưa ghi khoản chi nào trong tháng này.')}
         </p>
       ) : chart === 'yoy' && yoy !== null ? (
         <YoyBlock
@@ -965,7 +977,8 @@ export function DailySpendPanel({
             {/* Nhánh 'typical' của câu kết luận VỪA in đúng con số này. */}
             {headline?.kind !== 'typical' && (
               <span className="font-mono text-2xs text-fg-muted">
-                {' · '}ngày thường <Money amount={typical} currency={base} approx={approx} />
+                {' · '}
+                {trn('ngày thường {amount}', { amount: <Money amount={typical} currency={base} approx={approx} /> })}
               </span>
             )}
             {future.length > 0 && typical > 0 && (
@@ -975,9 +988,10 @@ export function DailySpendPanel({
               // nhiêu" đã bỏ: nó bằng `ngày thường × số ngày còn lại`, mà cả hai vế đều
               // đang có mặt ngay trên cùng dòng.
               <span className="font-mono text-2xs text-fg-muted">
-                {' · '}cả tháng ~
-                <Money amount={spendTotal + projected} currency={base} approx={approx} />{' '}
-                theo nhịp
+                {' · '}
+                {trn('cả tháng ~{amount} theo nhịp', {
+                  amount: <Money amount={spendTotal + projected} currency={base} approx={approx} />,
+                })}
               </span>
             )}
           </p>
@@ -1007,7 +1021,7 @@ export function DailySpendPanel({
                 0
               </span>
               {days.some((d) => d.total < 0) && (
-                <span className="absolute bottom-0 right-0 text-money-in">hoàn</span>
+                <span className="absolute bottom-0 right-0 text-money-in">{tr('hoàn')}</span>
               )}
             </div>
 
@@ -1030,8 +1044,11 @@ export function DailySpendPanel({
                     nhãn ghi 12.5万 đọc ra như lỗi vẽ. */}
                 {ceiling > 0 && peak.total > ceiling && (
                   <span className="truncate text-state-bad-fg">
-                    cắt ở {formatCompact(ceiling, base)} ({dayLabel(peak.date)}:{' '}
-                    <Money amount={peak.total} currency={base} approx={approx} />)
+                    {trn('cắt ở {ceiling} ({date}: {amount})', {
+                      ceiling: formatCompact(ceiling, base),
+                      date: dayLabel(peak.date),
+                      amount: <Money amount={peak.total} currency={base} approx={approx} />,
+                    })}
                   </span>
                 )}
               </div>
@@ -1164,7 +1181,7 @@ export function DailySpendPanel({
                     >
                       {/* Hàng cột là `aria-hidden`, nên nhãn này chỉ để trình đọc màn hình
                           biết cái link đang focus dẫn tới ngày nào. */}
-                      <span className="sr-only">{dayLabel(d.date)} — xem giao dịch</span>
+                      <span className="sr-only">{tr('{date} — xem giao dịch', { date: dayLabel(d.date) })}</span>
                       {body}
                     </Link>
                   )
@@ -1206,7 +1223,7 @@ export function DailySpendPanel({
             {[0, 7, 14, 22, days.length - 1].map((i) => (
               <span key={i}>
                 {days[i]?.date.slice(8)}
-                {i === days.length - 1 && future.length > 0 && ' dự phóng'}
+                {i === days.length - 1 && future.length > 0 && ` ${tr('dự phóng')}`}
               </span>
             ))}
           </div>
@@ -1217,7 +1234,7 @@ export function DailySpendPanel({
           {asking.length > 0 && (
             <div className="mt-2 md:sr-only">
               <p className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
-                Ba ngày đáng hỏi
+                {tr('Ba ngày đáng hỏi')}
               </p>
               <ul>
                 {asking.map((d) => (
@@ -1247,7 +1264,7 @@ export function DailySpendPanel({
                         )}
                         {d.total < 0 && (
                           <span className="block text-2xs text-money-in">
-                            hoàn tiền nhiều hơn chi
+                            {tr('hoàn tiền nhiều hơn chi')}
                           </span>
                         )}
                       </span>
@@ -1263,7 +1280,7 @@ export function DailySpendPanel({
 
           {tagsPending ? (
             <p className="mt-3 border-t border-border-subtle pt-2 text-2xs text-fg-muted">
-              Đang tải nhãn…
+              {tr('Đang tải nhãn…')}
             </p>
           ) : (
             <DayTagStrip
@@ -1307,33 +1324,36 @@ function Headline({
   if (headline === null) return null
 
   if (headline.kind === 'tagCap') {
+    const capVars = {
+      name: headline.tagName,
+      spent: <Money amount={headline.spent} currency={base} approx={approx} />,
+      budget: <Money amount={headline.budget} currency={base} approx={approx} />,
+    }
     return (
       <>
         <b className="text-fg-warn">
-          {headline.tagName} đã dùng <Money amount={headline.spent} currency={base} approx={approx} />
-          {' / '}
-          <Money amount={headline.budget} currency={base} approx={approx} /> trần{' '}
-          {headline.period === 'monthly' ? 'tháng' : 'đợt'}
+          {headline.period === 'monthly'
+            ? trn('{name} đã dùng {spent} / {budget} trần tháng', capVars)
+            : trn('{name} đã dùng {spent} / {budget} trần đợt', capVars)}
         </b>{' '}
-        — {headline.span}{headline.remaining > 0 ? ' chiếm gần hết, ' : ' · '}
+        —{' '}
+        {headline.remaining > 0 ? (
+          <>{tr('{span} chiếm gần hết,', { span: headline.span })} </>
+        ) : (
+          <>{headline.span} · </>
+        )}
         {/* Trần đã cạn KHÔNG được đọc là "còn −¥18.480": số âm ở chỗ này không tiêu được,
             nó chỉ làm câu tự mâu thuẫn. Cùng ba nhãn mà B11 chốt cho hạn mức danh mục —
             "vừa hết" cho đúng bằng trần, "vượt" cho phần đã tiêu quá. */}
         {headline.remaining > 0 ? (
-          <>
-            còn <Money amount={headline.remaining} currency={base} approx={approx} />
-          </>
+          <>{trn('còn {amount}', { amount: <Money amount={headline.remaining} currency={base} approx={approx} /> })}</>
         ) : headline.remaining === 0 ? (
-          <>vừa hết trần</>
+          <>{tr('vừa hết trần')}</>
         ) : (
           <>
-            đã vượt{' '}
-            <Money
-              amount={-headline.remaining}
-              currency={base}
-              tone="out"
-              approx={approx}
-            />
+            {trn('đã vượt {amount}', {
+              amount: <Money amount={-headline.remaining} currency={base} tone="out" approx={approx} />,
+            })}
           </>
         )}
       </>
@@ -1343,18 +1363,16 @@ function Headline({
   if (headline.kind === 'tagRuns') {
     return (
       <>
-        Phần tiêu theo ý mình dồn vào{' '}
-        <b className="text-fg-primary">
-          {headline.runs.length} đợt
-        </b>
-        {': '}
+        {trn('Phần tiêu theo ý mình dồn vào {runs}:', {
+          runs: <b className="text-fg-primary">{tr('{n} đợt', { n: headline.runs.length })}</b>,
+        })}{' '}
         {headline.runs.map((r, i) => (
           <span key={r.name}>
             {i > 0 && ', '}
             {r.name} {r.span} (<Money amount={r.total} currency={base} approx={approx} />)
           </span>
         ))}{' '}
-        — <b className="text-fg-primary">{headline.pct}%</b> của cả tháng
+        {trn('— {pct} của cả tháng', { pct: <b className="text-fg-primary">{headline.pct}%</b> })}
       </>
     )
   }
@@ -1362,20 +1380,24 @@ function Headline({
   if (headline.kind === 'peak') {
     return (
       <>
-        Cao nhất <b className="text-fg-primary">{dayLabel(headline.dateISO)}</b> —{' '}
-        <Money amount={headline.total} currency={base} tone="out" approx={approx} />
+        {trn('Cao nhất {date} — {amount}', {
+          date: <b className="text-fg-primary">{dayLabel(headline.dateISO)}</b>,
+          amount: <Money amount={headline.total} currency={base} tone="out" approx={approx} />,
+        })}
         {/* "gấp 7 lần" chứ không "gấp 7 lần ngày thường": phần " · ngày thường ¥10.335"
             nối ngay sau câu này trên CÙNG một dòng, nên bản đủ chữ đọc ra "gấp 7 lần ngày
             thường · ngày thường ¥10.335". Con số đứng liền sau đã nói "lần của cái gì". */}
-        {headline.ratio >= 2 && <>, gấp {Math.round(headline.ratio)} lần</>}
+        {headline.ratio >= 2 && <>{tr(', gấp {n} lần', { n: Math.round(headline.ratio) })}</>}
       </>
     )
   }
 
   return (
     <>
-      Ngày thường <Money amount={headline.typical} currency={base} tone="out" approx={approx} />
-      {headline.overDays > 0 && <> · {headline.overDays} ngày vượt gấp đôi</>}
+      {trn('Ngày thường {amount}', {
+        amount: <Money amount={headline.typical} currency={base} tone="out" approx={approx} />,
+      })}
+      {headline.overDays > 0 && <> · {tr('{n} ngày vượt gấp đôi', { n: headline.overDays })}</>}
     </>
   )
 }

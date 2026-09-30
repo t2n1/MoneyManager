@@ -9,6 +9,7 @@
 // KHÔNG có TagPicker riêng: nhãn của khoản sắp chi đi qua đúng <TagPicker> chung mà
 // TransactionForm đã bày ở cột phải (vô điều kiện ở cả mười dạng, xem Task 6) — thêm
 // một bộ chọn nhãn thứ hai ở đây là hỏi hai lần cùng một câu.
+import { tr } from '../../i18n'
 import type { PlannedDraft } from './plannedFromEntry'
 import { anchoredDueOn } from './plannedDraftDefaults'
 import { PadMoneyField } from './roleFields'
@@ -17,8 +18,8 @@ import type { CategoryRow, DuePrecision } from '../../types/database.types'
 import { Select } from '../../components/ui'
 
 const PRECISION: readonly (readonly [DuePrecision, string, string])[] = [
-  ['day', 'Đúng ngày', 'Biết chắc ngày nào — vd hạn đóng phí 20/8'],
-  ['month', 'Khoảng tháng', 'Mới biết tháng, chưa chốt ngày — vd sửa nhà tháng 10'],
+  ['day', tr('Đúng ngày'), tr('Biết chắc ngày nào — vd hạn đóng phí 20/8')],
+  ['month', tr('Khoảng tháng'), tr('Mới biết tháng, chưa chốt ngày — vd sửa nhà tháng 10')],
 ]
 
 interface Props {
@@ -67,7 +68,7 @@ export function PlannedFields({
       {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
           duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel` (giống PlannedFormSheet). */}
       <span className="mb-1 block text-sm font-medium text-fg-muted">
-        Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
+        {tr('Ước tính')} <span className="text-fg-muted">{tr('(để trống nếu chưa biết)')}</span>
       </span>
       <div className="mb-3 flex gap-2" data-pad-row>
         {/* Khối bọc `min-w-0 flex-1`: PadMoneyField trả về HAI ô (nút chạm mobile + input
@@ -80,7 +81,7 @@ export function PlannedFields({
             currency={value.currency}
             active={amountActive}
             onFocus={onFocusAmount}
-            ariaLabel="Số tiền ước tính"
+            ariaLabel={tr('Số tiền ước tính')}
             // Chỉ ăn trên desktop: ô nhận `autoFocus` là ô `hidden lg:block`, mà
             // `display:none` thì không nhận được tiêu điểm — nên trên mobile đây là
             // no-op, KHÔNG có bàn phím hệ thống nào bật lên (cùng nếp với ô tiền chính
@@ -92,7 +93,7 @@ export function PlannedFields({
         <Select
           value={value.currency}
           onChange={(e) => onChange({ ...value, currency: e.target.value as CurrencyCode })}
-          aria-label="Loại tiền" wrapClassName="w-24 shrink-0">
+          aria-label={tr('Loại tiền')} wrapClassName="w-24 shrink-0">
           {Object.keys(CURRENCIES).map((c) => (
             <option key={c} value={c}>
               {c}
@@ -109,7 +110,7 @@ export function PlannedFields({
           sheet đó không có bàn số ghim nào, nên lý lẽ trên không áp vào. Hai form chỉ bị
           buộc phải khớp CHỮ (tests/plannedCopy.test.ts), không buộc khớp thứ tự. */}
       <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-title">
-        Chi cái gì
+        {tr('Chi cái gì')}
       </label>
       <input
         id="entry-planned-title"
@@ -119,14 +120,14 @@ export function PlannedFields({
         // (sàn 16px ở index.css chặn cú phóng, nhưng bàn phím thì vẫn không ai xin).
         value={value.title}
         onChange={(e) => onChange({ ...value, title: e.target.value })}
-        placeholder="Ví dụ: đóng phí vệ sinh"
+        placeholder={tr('Ví dụ: đóng phí vệ sinh')}
         className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
       />
 
-      <span className="mb-1 block text-sm font-medium text-fg-muted">Chắc tới đâu</span>
+      <span className="mb-1 block text-sm font-medium text-fg-muted">{tr('Chắc tới đâu')}</span>
       <div
         role="group"
-        aria-label="Chắc tới đâu"
+        aria-label={tr('Chắc tới đâu')}
         className="mb-1 flex overflow-hidden rounded-lg border border-border-strong"
       >
         {PRECISION.map(([p, label, hint]) => (
@@ -160,15 +161,15 @@ export function PlannedFields({
       </div>
       <p className="mb-3 text-sm text-fg-muted">
         {value.precision === 'day'
-          ? 'Danh sách hiện đúng ngày này.'
-          : 'Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.'}
+          ? tr('Danh sách hiện đúng ngày này.')
+          : tr('Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.')}
       </p>
 
       {/* Cặp nhãn ô ngày sống Ở ĐÂY, không ở PHASE_LABEL (entryShape.ts): nó đọc theo
           `precision` — một field của PlannedDraft — chứ không theo hướng tiền, nên một
           bảng theo hướng không nói được cặp này. */}
       <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-due">
-        {value.precision === 'day' ? 'Ngày đến hạn' : 'Tháng dự kiến'}
+        {value.precision === 'day' ? tr('Ngày đến hạn') : tr('Tháng dự kiến')}
       </label>
       <input
         id="entry-planned-due"
@@ -196,12 +197,12 @@ export function PlannedFields({
           onChange={(e) => onChange({ ...value, remind: e.target.checked })}
           className="h-4 w-4 accent-green-700"
         />
-        Nhắc tôi
+        {tr('Nhắc tôi')}
       </label>
       {value.remind ? (
         <div className="mb-3 flex items-center gap-2">
           <label className="text-sm text-fg-muted" htmlFor="entry-planned-remind">
-            Nhắc trước
+            {tr('Nhắc trước')}
           </label>
           {/* Ô TỰ DO (`type="number"`), không phải bốn chip mốc dựng sẵn — chip mốc
               chặn mất giá trị hợp lệ khác (vd nhắc trước mười ngày) và tạo ra hai UI
@@ -214,28 +215,28 @@ export function PlannedFields({
             // aria-label riêng (đè lên tên từ <label htmlFor> phía trên) vì ô này nằm
             // giữa một form dài nhiều field — tên đầy đủ giúp trình đọc màn hình không
             // phải suy ra "ngày" là ngày gì.
-            aria-label="Nhắc trước bao nhiêu ngày"
+            aria-label={tr('Nhắc trước bao nhiêu ngày')}
             value={value.remindDays}
             onChange={(e) => onChange({ ...value, remindDays: e.target.value })}
             className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base sm:text-sm"
           />
-          <span className="text-sm text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
+          <span className="text-sm text-fg-muted">{tr('ngày (0 = đúng ngày đến hạn)')}</span>
         </div>
       ) : (
         // E-ink + Gọn: bỏ lời giải thích — ô tích ngay trên đã nói đang tắt.
         <p className="mb-3 text-sm text-fg-muted eink-gon:hidden">
-          Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
+          {tr('Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.')}
         </p>
       )}
 
       <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-cat">
-        Danh mục <span className="text-fg-muted">(không bắt buộc)</span>
+        {tr('Danh mục')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
       </label>
       <Select
         id="entry-planned-cat"
         value={value.categoryId ?? ''}
         onChange={(e) => onChange({ ...value, categoryId: e.target.value || null })} wrapClassName="mb-3 w-full">
-        <option value="">— Chưa chọn —</option>
+        <option value="">{tr('— Chưa chọn —')}</option>
         {expenseCats.map((c) => (
           <option key={c.id} value={c.id}>
             {c.icon} {c.name}
@@ -244,7 +245,7 @@ export function PlannedFields({
       </Select>
 
       <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-note">
-        Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
+        {tr('Ghi chú')} <span className="text-fg-muted">{tr('(không bắt buộc)')}</span>
       </label>
       <input
         id="entry-planned-note"

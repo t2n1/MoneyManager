@@ -22,6 +22,7 @@ import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { BackLink } from '../BackLink'
 import { topBarTitle } from '../navItems'
+import { tr } from '../../i18n'
 
 interface Props {
   /** Tên màn. Luôn render ra <h1> thật, kể cả khi ẩn ở desktop. */
@@ -72,7 +73,7 @@ export function PageHeader({
   const { pathname } = useLocation()
   const gap = flush ? '' : 'mb-3'
   const row = `${gap} flex flex-wrap items-center gap-2`
-  const leftSlot = left ?? (back ? <BackLink to={back} aria-label="Quay lại" /> : null)
+  const leftSlot = left ?? (back ? <BackLink to={back} aria-label={tr('Quay lại')} /> : null)
 
   // Ẩn ở `lg` CHỈ KHI top bar đang in đúng chữ này. Bảng của top bar khớp theo TIỀN TỐ
   // (`/settings/accounts` → "Cài đặt"), nên ẩn vô điều kiện là trang con mất luôn tên

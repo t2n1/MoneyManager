@@ -5,6 +5,7 @@
 // ai thấy; sau khi nạp 9 năm lịch sử từ Zaim (~14.000 giao dịch) thì mọi truy vấn không phân
 // trang đều trả về một phần. Nguy nhất là `exportAll`: backup thiếu dòng, mà **Khôi phục
 // ghi đè toàn bộ** — khôi phục từ file bị cắt là xoá thật phần còn lại.
+import { tr } from '../i18n'
 
 /** Cỡ trang. Bằng giới hạn mặc định của Supabase để mỗi request lấy được nhiều nhất. */
 export const PAGE_SIZE = 1000
@@ -66,6 +67,6 @@ export async function fetchAllPages<T>(
     i += soTrang
   }
   throw new Error(
-    `Đọc dữ liệu vượt quá nhiều trang (> ${maxPages * PAGE_SIZE} dòng) — dừng để không lặp vô hạn.`,
+    tr('Đọc dữ liệu vượt quá nhiều trang (> {n} dòng) — dừng để không lặp vô hạn.', { n: maxPages * PAGE_SIZE }),
   )
 }
